@@ -1,0 +1,28 @@
+# 操作系统
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 编辑器 / IDE
+.idea/
+*.swp
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+out/
+__pycache__/
+*.pyc
+.venv/
+venv/
