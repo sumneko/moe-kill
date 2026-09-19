@@ -9,6 +9,10 @@ Card = nil
 ---@type fun(items: string[])
 Depends = nil
 
+---@class CardDef # 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
+---@field on fun(self: CardDef, event: '目标合法', handler: fun(ctx: UseCard)): CardDef
+---@field on fun(self: CardDef, event: '使用', handler: fun(ctx: UseCard)): CardDef
+
 ---@class Game.EventCtx.游戏开始 # 目前没有事件参数：触发时给空表，环境对象从 game 取
 
 ---@class Game
