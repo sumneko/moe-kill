@@ -1,4 +1,4 @@
-local fs = require 'bee.filesystem'
+local vfs = require 'rule.vfs'
 
 ---@class Rule.Card
 ---@field name string
@@ -37,10 +37,11 @@ function Card:getHandlers(event)
 end
 
 ---@class Rule.Context
----@field root bee.fspath
+---@field vfs Rule.Vfs
 ---@field loading table<string, true>
 ---@field loaded table<string, true>
 ---@field order string[]
+---@field current string?
 
 ---@type string[]
 local ALLOWED_GLOBALS = {
@@ -54,11 +55,16 @@ local ALLOWED_GLOBALS = {
 ---@field cards table<string, Rule.Card>
 ---@field private context Rule.Context?
 ---@field private lastList string[]?
----@field private lastRoot bee.fspath?
 local M = {}
+
+---@type string[] # 默认来源：仓库根下项目自己的包容器
+M.DEFAULT_SOURCES = { './package/*' }
 
 ---@type table<string, Rule.Card>
 M.cards = {}
+
+---@type string[] # 当前来源
+M.sources = M.DEFAULT_SOURCES
 
 ---@private
 ---@type Rule.Context?
@@ -67,10 +73,6 @@ M.context = nil
 ---@private
 ---@type string[]?
 M.lastList = nil
-
----@private
----@type bee.fspath?
-M.lastRoot = nil
 
 ---@private
 ---@return table
@@ -110,64 +112,77 @@ function M.clear()
     M.cards = {}
 end
 
----@param ctx Rule.Context
 ---@param path string
-local function loadFile(ctx, path)
-    if ctx.loaded[path] or ctx.loading[path] then
-        return
-    end
-    local source, err = moe.util.loadFile(path)
-    if not source then
-        error('规则集文件读取失败：{}（{}）' % { path, err }, 0)
-    end
-    local chunk, loadErr = load(source, '@' .. path, 't', makeEnv())
-    if not chunk then
-        error('规则集文件解析失败：{}（{}）' % { path, loadErr }, 0)
-    end
-    ctx.loading[path] = true
-    local guard <close> = moe.util.defer(function ()
-        ctx.loading[path] = nil
-    end)
-    chunk()
-    ctx.loaded[path] = true
-    ctx.order[#ctx.order+1] = path
+---@return string
+local function parentLogical(path)
+    return path:match '^(.*)/[^/]*$' or ''
 end
 
 ---@param ctx Rule.Context
----@param dir bee.fspath
-local function loadDirectory(ctx, dir)
-    ---@type string[]
-    local files = {}
-    for entry in fs.pairs(dir) do
-        if fs.is_regular_file(entry) then
-            if entry:filename():string():sub(-4) == '.lua' then
-                files[#files+1] = entry:string()
-            end
-        elseif fs.is_directory(entry) then
-            loadDirectory(ctx, entry)
-        end
+---@param item string
+---@return string
+local function resolveLogical(ctx, item)
+    if item:sub(1, 1) ~= '.' then
+        return vfs.normalize(item)
     end
-    table.sort(files)
-    for _, file in ipairs(files) do
-        loadFile(ctx, file)
+    local current = ctx.current
+    if not current then
+        error('相对路径只能用在规则集文件里：{}' % { item }, 0)
+    end
+    return vfs.normalize(parentLogical(current) .. '/' .. item)
+end
+
+---@param ctx Rule.Context
+---@param logical string
+local function loadFile(ctx, logical)
+    if ctx.loaded[logical] or ctx.loading[logical] then
+        return
+    end
+    local source, err = ctx.vfs:read(logical)
+    if not source then
+        error('规则集文件读取失败：{}（{}）' % { logical, err }, 0)
+    end
+    local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', makeEnv())
+    if not chunk then
+        error('规则集文件解析失败：{}（{}）' % { logical, loadErr }, 0)
+    end
+    local previous = ctx.current
+    ctx.current    = logical
+    ctx.loading[logical] = true
+    local guard <close> = moe.util.defer(function ()
+        ctx.loading[logical] = nil
+        ctx.current         = previous
+    end)
+    chunk()
+    ctx.loaded[logical] = true
+    ctx.order[#ctx.order+1] = logical
+end
+
+---@param ctx Rule.Context
+---@param logicalDir string
+local function loadDirectory(ctx, logicalDir)
+    for _, logical in ipairs(ctx.vfs:listFiles(logicalDir)) do
+        loadFile(ctx, logical)
     end
 end
 
 ---@param ctx Rule.Context
 ---@param item string
 local function loadItem(ctx, item)
-    local direct = ctx.root / item
-    if fs.is_regular_file(direct) then
-        loadFile(ctx, direct:string())
+    if type(item) ~= 'string' or item == '' then
+        error('规则集项必须是非空字符串', 0)
+    end
+    local logical = resolveLogical(ctx, item)
+    if ctx.vfs:isFile(logical) then
+        loadFile(ctx, logical)
         return
     end
-    local withExt = ctx.root / (item .. '.lua')
-    if fs.is_regular_file(withExt) then
-        loadFile(ctx, withExt:string())
+    if ctx.vfs:isFile(logical .. '.lua') then
+        loadFile(ctx, logical .. '.lua')
         return
     end
-    if fs.is_directory(direct) then
-        loadDirectory(ctx, direct)
+    if ctx.vfs:isDirectory(logical) then
+        loadDirectory(ctx, logical)
         return
     end
     error('规则集项不存在：{}' % { item }, 0)
@@ -184,15 +199,27 @@ function M.depends(items)
     end
 end
 
+---@param sources string[]
+function M.setRoots(sources)
+    if type(sources) ~= 'table' then
+        error('规则集来源必须是字符串列表', 2)
+    end
+    M.sources = sources
+end
+
 ---@param root string|bee.fspath
 function M.setRoot(root)
-    M.lastRoot = fs.absolute(fs.path(root))
+    M.setRoots { tostring(root) }
+end
+
+---@return string[]
+function M.getRoots()
+    return M.sources
 end
 
 ---@param list? string[]
----@param root? string|bee.fspath
----@return string[] # 被加载的文件，按执行完成的顺序
-function M.load(list, root)
+---@return string[] # 被加载的文件（逻辑路径），按执行完成的顺序
+function M.load(list)
     if list then
         M.lastList = list
     end
@@ -200,16 +227,13 @@ function M.load(list, root)
     if not list then
         error('没有可用的加载清单', 2)
     end
-    if root then
-        M.setRoot(root)
-    end
-    local base = M.lastRoot or (moe.env.ROOT_PATH:parent_path() / 'game')
+    local instance = vfs.create(M.sources, moe.env.ROOT_PATH:parent_path())
 
     M.clear()
 
     ---@type Rule.Context
     local ctx = {
-        root    = base,
+        vfs     = instance,
         loading = {},
         loaded  = {},
         order   = {},

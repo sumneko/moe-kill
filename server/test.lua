@@ -94,6 +94,7 @@ test.require 'test.session'
 test.require 'test.async'
 test.require 'test.core'
 test.require 'test.rule'
+test.require 'test.rule.vfs'
 
 local bodyDone = false
 local bodyFailures = 0

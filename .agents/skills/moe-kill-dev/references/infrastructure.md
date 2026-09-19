@@ -103,11 +103,11 @@ lm:executable "moe-kill" {
   server/               后端根（代码 + 入口 + 测试 + 产物）
     main.lua  test.lua   进程入口与测试入口
     moe-kill.lua  master.lua  args.lua  debugger.lua  async-io.lua
-    core/  session/  tools/
+    core/  session/  rule/  tools/
     test/                无头测试（test.smoke / test.session / test.core…）
     bin/                 产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
     log/  tmp/           运行时产物（git 忽略）
-  game/                规则集（后续批次创建；与 server/ 平级）
+  package/             规则集（尚未创建；与 server/ 平级；由 moe.rule 读文件执行）
   client/              前端（将来；与 server/ 平级）
   build/                中间产物（luamake 的 $bin/obj 等，git 忽略）
 ```
@@ -204,6 +204,7 @@ server/bin/moe-kill.exe --test          # 无头跑全部测试（退出码 0 = 
 server/bin/moe-kill.exe --test smoke.await    # 只跑一个套件
 server/bin/moe-kill.exe --test core.reload    # 热重载套件（机制 + 真改文件端到端）
 server/bin/moe-kill.exe --test rule           # 规则集加载套件（清单/依赖/定义入口/失败）
+server/bin/moe-kill.exe --test rule.vfs       # 包来源与虚拟文件系统套件（来源语法/覆盖/合并/不缓存）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 

@@ -3,7 +3,7 @@ local lt = require 'test.ltest'
 
 local probeDir = moe.env.ROOT_PATH / 'tmp' / 'rule-probe'
 
-moe.rule.setRoot(probeDir)
+moe.rule.setRoots { probeDir:string() .. '/*' }
 
 ---@return unknown
 local function prepare()
@@ -17,7 +17,7 @@ end
 ---@param rel string
 ---@param content string
 local function write(rel, content)
-    local file = probeDir / rel
+    local file = probeDir / 'pk' / rel
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), content)
     assert(ok, err)
@@ -26,7 +26,12 @@ end
 ---@param ... string
 ---@return string[]
 local function list(...)
-    return { ... }
+    ---@type string[]
+    local items = { ... }
+    for i, item in ipairs(items) do
+        items[i] = 'pk/' .. item
+    end
+    return items
 end
 
 ---@param name string
@@ -76,7 +81,7 @@ end)
 lt.test('规则集：依赖先于本文件其余代码执行', function ()
     local guard <close> = prepare()
     write('依赖.lua', 'rule.card("依赖")')
-    write('主.lua', 'rule.depends { "依赖" }\n'
+    write('主.lua', 'rule.depends { "./依赖" }\n'
         .. 'local 依赖 = rule.getCard("依赖")\n'
         .. 'rule.card("主"):on("检查", function () return 依赖 ~= nil end)')
 
@@ -91,7 +96,7 @@ lt.test('规则集：目录依赖会展开', function ()
     local guard <close> = prepare()
     write('包/一.lua', 'rule.card("甲")')
     write('包/二.lua', 'rule.card("乙")')
-    write('主.lua', 'rule.depends { "包" }')
+    write('主.lua', 'rule.depends { "./包" }')
 
     moe.rule.load(list('主'))
 
@@ -101,8 +106,8 @@ end)
 
 lt.test('规则集：循环依赖不死循环', function ()
     local guard <close> = prepare()
-    write('a.lua', 'rule.depends { "b" }\nrule.card("甲")')
-    write('b.lua', 'rule.depends { "a" }\nrule.card("乙")')
+    write('a.lua', 'rule.depends { "./b" }\nrule.card("甲")')
+    write('b.lua', 'rule.depends { "./a" }\nrule.card("乙")')
 
     local loaded = moe.rule.load(list('a'))
 
@@ -114,8 +119,8 @@ end)
 lt.test('规则集：依赖的依赖也先满足', function ()
     local guard <close> = prepare()
     write('底层.lua', 'rule.card("底层")')
-    write('中层.lua', 'rule.depends { "底层" }\nrule.card("中层")')
-    write('顶层.lua', 'rule.depends { "中层" }')
+    write('中层.lua', 'rule.depends { "./底层" }\nrule.card("中层")')
+    write('顶层.lua', 'rule.depends { "./中层" }')
 
     moe.rule.load(list('顶层'))
 
@@ -224,7 +229,7 @@ lt.test('规则集：引用了不存在的项时明确失败', function ()
         moe.rule.load(list('根本没有这个文件'))
     end)
     lt.assertError('依赖项不存在时报错', function ()
-        write('主.lua', 'rule.depends { "也没有这个依赖" }')
+        write('主.lua', 'rule.depends { "./也没有这个依赖" }')
         moe.rule.load(list('主'))
     end)
 end)
@@ -262,4 +267,60 @@ lt.test('规则集：rule.depends 只能在加载时使用', function ()
     lt.assertError('加载之外调用依赖声明报错', function ()
         moe.rule.depends { '无所谓' }
     end)
+end)
+
+lt.test('规则集：依赖支持相对路径', function ()
+    local guard <close> = prepare()
+    write('卡牌/杀.lua', 'rule.card("杀")')
+    write('主.lua', 'rule.depends { "./卡牌/杀" }')
+
+    local loaded = moe.rule.load(list('主'))
+
+    lt.assertEquals('相对依赖先执行', '卡牌/杀.lua', loaded[1]:match 'pk/(.*)$')
+    lt.assertEquals('相对依赖被登记', true, moe.rule.getCard('杀') ~= nil)
+end)
+
+lt.test('规则集：相对路径可以跨包', function ()
+    local guard <close> = prepare()
+    write('基础规则/身份场.lua', 'rule.card("身份场")')
+    write('军争/卡牌/火杀.lua', 'rule.depends { "../../基础规则/身份场" }\nrule.card("火杀")')
+
+    moe.rule.load(list('军争/卡牌/火杀'))
+
+    lt.assertEquals('跨包依赖被加载', true, moe.rule.getCard('身份场') ~= nil)
+    lt.assertEquals('声明依赖的文件也被加载', true, moe.rule.getCard('火杀') ~= nil)
+end)
+
+lt.test('规则集：同一文件的不同写法只执行一次', function ()
+    local guard <close> = prepare()
+    write('卡牌/杀.lua', 'rule.card("杀"):on("跑", function () end)')
+    write('主.lua', 'rule.depends { "./卡牌/../卡牌/杀" }\n'
+        .. 'rule.depends { "pk/卡牌/杀" }')
+
+    local loaded = moe.rule.load(list('主'))
+
+    lt.assertEquals('只执行了一次', 1, #card('杀'):getHandlers('跑'))
+    lt.assertEquals('只记录两条（依赖与主文件）', 2, #loaded)
+end)
+
+lt.test('规则集：跨来源时只执行生效版本', function ()
+    local guard <close> = prepare()
+    local other = moe.env.ROOT_PATH / 'tmp' / 'rule-probe-other'
+    fs.remove_all(other)
+    fs.create_directories(other / 'pk' / '卡牌')
+    local restore <close> = moe.util.defer(function ()
+        fs.remove_all(other)
+        moe.rule.setRoots { probeDir:string() .. '/*' }
+    end)
+
+    write('卡牌/杀.lua', 'rule.card("前")')
+    local ok, err = moe.util.saveFile((other / 'pk' / '卡牌' / '杀.lua'):string(), 'rule.card("后")')
+    assert(ok, err)
+    moe.rule.setRoots { probeDir:string() .. '/*', other:string() .. '/*' }
+
+    local loaded = moe.rule.load(list('卡牌/杀'))
+
+    lt.assertEquals('只执行了生效版本', 1, #loaded)
+    lt.assertEquals('生效的是后一个来源', true, moe.rule.getCard('后') ~= nil)
+    lt.assertEquals('前一个来源的同路径文件没执行', nil, moe.rule.getCard('前'))
 end)
