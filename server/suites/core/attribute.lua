@@ -70,34 +70,28 @@ lt.test('属性：实例之间相互独立', function ()
     lt.assertEquals('第一个实例仍未被写入', 0, first:get('攻击距离'))
 end)
 
-lt.test('属性：订阅后修改会收到一次通知', function ()
+lt.test('属性：写入后就地分发通知', function ()
     local system = createSystem()
     local attrs  = system:createInstance()
     local seen   = {}
 
-    local off = attrs:event('体力', function (_, newValue, oldValue)
+    local off = attrs:onChange('体力', function (_, newValue, oldValue)
         seen[#seen + 1] = '{} -> {}' % { oldValue, newValue }
     end)
 
     attrs:set('体力', 3)
-    lt.assertEquals('分发前不通知', 0, #seen)
-
-    system:updateEvents()
-    lt.assertEquals('收到一次通知', 1, #seen)
+    lt.assertEquals('写入后立即通知', 1, #seen)
     lt.assertEquals('通知带新旧取值', '0 -> 3', seen[1])
 
     attrs:set('体力', 3)
-    system:updateEvents()
     lt.assertEquals('取值未变不重复通知', 1, #seen)
 
     attrs:add('体力', 2)
-    system:updateEvents()
-    lt.assertEquals('再次变化再通知', 2, #seen)
+    lt.assertEquals('增减同样立即通知', 2, #seen)
     lt.assertEquals('第二次通知内容', '3 -> 5', seen[2])
 
     off()
     attrs:add('体力', -1)
-    system:updateEvents()
     lt.assertEquals('取消订阅后不再通知', 2, #seen)
 end)
 
@@ -106,17 +100,33 @@ lt.test('属性：订阅只关心被订阅的属性', function ()
     local attrs  = system:createInstance()
     local seen   = {}
 
-    attrs:event('体力', function (_, newValue)
+    attrs:onChange('体力', function (_, newValue)
         seen[#seen + 1] = newValue
     end)
 
     attrs:set('攻击距离', 2)
-    system:updateEvents()
     lt.assertEquals('其它属性变化不触发', 0, #seen)
 
     attrs:set('体力', 1)
-    system:updateEvents()
     lt.assertEquals('被订阅属性变化触发', 1, #seen)
+end)
+
+lt.test('属性：回调里再修改也能继续分发', function ()
+    local system = createSystem()
+    local attrs  = system:createInstance()
+    local seen   = {}
+
+    attrs:onChange('体力', function (_, newValue)
+        seen[#seen + 1] = newValue
+        if newValue == 2 then
+            attrs:add('体力', 1)
+        end
+    end)
+
+    attrs:set('体力', 2)
+    lt.assertEquals('嵌套修改同样被分发', 2, #seen)
+    lt.assertEquals('第二次通知是新取值', 3, seen[2])
+    lt.assertEquals('最终取值', 3, attrs:get('体力'))
 end)
 
 lt.test('属性：实例创建后不能新增定义', function ()

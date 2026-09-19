@@ -7,38 +7,85 @@ local attribute = require 'tools.attribute'
 
 ---@class Core.AttributeSystem
 ---@field private system Attribute.System
-local M = Class 'Core.AttributeSystem'
+local System = Class 'Core.AttributeSystem'
+
+---@class Core.Attributes
+---@field private system Attribute.System
+---@field private instance Attribute.Instance
+local Attributes = Class 'Core.Attributes'
 
 ---@return Core.AttributeSystem
-function M.create()
+function System.create()
     return New 'Core.AttributeSystem' ()
 end
 
-function M:__init()
+function System:__init()
     self.system = attribute.create()
 end
 
 ---@param name string
 ---@param spec? Core.AttributeSpec
 ---@return Core.AttributeSystem
-function M:define(name, spec)
+function System:define(name, spec)
     assert(type(name) == 'string' and name ~= '', '属性名必须是非空字符串')
-    local simple = spec?.simple
-    if simple == nil then
-        simple = true
-    end
-    self.system:define(name, simple, spec?.min, spec?.max)
+    self.system:define(name, spec?.simple ~= false, spec?.min, spec?.max)
     return self
 end
 
 ---@param customData? any
----@return Attribute.Instance
-function M:createInstance(customData)
-    return self.system:instance(customData)
+---@return Core.Attributes
+function System:createInstance(customData)
+    return New 'Core.Attributes' (self.system, self.system:instance(customData))
 end
 
-function M:updateEvents()
+function System:updateEvents()
     self.system:updateEvent()
 end
 
-return M
+---@param system Attribute.System
+---@param instance Attribute.Instance
+function Attributes:__init(system, instance)
+    self.system   = system
+    self.instance = instance
+end
+
+---@param name string
+---@return number
+function Attributes:get(name)
+    return self.instance:get(name)
+end
+
+---@param name string
+---@return number
+function Attributes:getMin(name)
+    return self.instance:getMin(name)
+end
+
+---@param name string
+---@return number
+function Attributes:getMax(name)
+    return self.instance:getMax(name)
+end
+
+---@param name string
+---@param value number
+function Attributes:set(name, value)
+    self.instance:set(name, value)
+    self.system:updateEvent()
+end
+
+---@param name string
+---@param value number
+function Attributes:add(name, value)
+    self.instance:add(name, value)
+    self.system:updateEvent()
+end
+
+---@param name string
+---@param callback Attribute.EventCallback
+---@return fun()
+function Attributes:onChange(name, callback)
+    return self.instance:event(name, callback)
+end
+
+return System

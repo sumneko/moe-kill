@@ -31,10 +31,10 @@
 
 ## 5. 属性（`core-attributes`）
 
-- [x] 5.1 `server/core/attribute.lua`：接入照搬的库 —— `Core.AttributeSystem`（`create` / `define(name, spec)` / `createInstance` / `updateEvents`），由调用方声明属性名与上下限后创建实例（`spec = { simple?, min?, max? }`，默认简易属性）
+- [x] 5.1 `server/core/attribute.lua`：接入照搬的库 —— `Core.AttributeSystem`（`create` / `define(name, spec)` / `createInstance`）与实例包装 `Core.Attributes`（`get` / `getMin` / `getMax` / `set` / `add` / `onChange`），由调用方声明属性名与上下限后创建实例（`spec = { simple?, min?, max? }`，默认简易属性）
 - [x] 5.2 实例按名读写、上下限生效；增减操作同样受约束（下限只在**写入时**钳制：从未写入过的属性读数为 0）
 - [x] 5.3 实例间相互独立
-- [x] 5.4 变更可观察：订阅某属性变化（`attrs:event(name, cb)` + `system:updateEvents()` 分发）后修改会收到通知；实例创建后新增定义明确失败
+- [x] 5.4 变更可观察：订阅某属性变化（`attrs:onChange(name, cb)`，返回取消订阅函数）后修改**立即**收到通知（包装层在 `set` / `add` 后就地分发）；实例创建后新增定义明确失败
 - [ ] 5.5（本轮不暴露，待有消费者再定）公式 / 复杂属性（`setFormula` / `setBaseSymbol` / 字符串型 `min`-`max` 引用）与“查询自上次检查以来的变化”（库的 `getTouched`，返回的是变化**前**的取值）
 
 ## 6. 对象模型（`core-objects`）

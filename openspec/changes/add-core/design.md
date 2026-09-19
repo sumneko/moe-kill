@@ -71,8 +71,9 @@
 
 轮次④ 落地口径：
 
-- 接入层 `server/core/attribute.lua` 暴露 `Core.AttributeSystem`：`create()` / `define(name, spec)` / `createInstance(customData?)` / `updateEvents()`；`spec = { simple?, min?, max? }`，`simple` 默认 `true`（走简易属性路径，写入即钳制）。
-- **事件分发由持有者显式调用**：库把变更搜在 dirty 集合里，`system:updateEvents()` 才真正回调订阅者 —— 所以“何时算一次变更”由规则层决定（内核不引入流程）；订阅用 `instance:event(name, cb)`，返回取消订阅函数。
+- 接入层 `server/core/attribute.lua`：`Core.AttributeSystem`（`create` / `define(name, spec)` / `createInstance`，`spec = { simple?, min?, max? }`，`simple` 默认 `true` 走简易属性路径）与实例包装 `Core.Attributes`（`get` / `getMin` / `getMax` / `set` / `add` / `onChange`）。
+- **写入后就地分发通知**（用户 2026-09-19 定）：库把变更攒在 dirty 集合里，包装层在每次 `set` / `add` 之后立即调 `system:updateEvent()`，所以订阅者在写入的同一调用栈里就收到回调，调用方不需要（也不用）自己 flush；回调里再改属性同样会被分发（库的 `updateEvent` 先快照再清空，支持嵌套）。
+- 订阅：`attrs:onChange(name, callback)`（对应库的 `Instance:event`），返回**取消订阅函数**。
 - **未写入过的属性读数为 0**，下限只在写入时钳制 —— 规则层建立玩家时要自己初始化（如把“攻击距离”显式设为 1）。
 - **本轮不暴露**：公式 / 复杂属性（`setFormula` / `setBaseSymbol` / 字符串型 `min`-`max` 引用）与“查询自上次检查以来的变化”（库的 `getTouched`，返回的是变化**前**的取值）—— 等规则层真需要百分比修正 / 批量差分时再一起过语义，避免现在猜错库里的生成语义。
 

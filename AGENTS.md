@@ -62,6 +62,7 @@
 - 归档前先运行 `openspec validate <name>` 校验；实现完成后勾选 `tasks.md` 全部条目，再执行 `openspec archive <name> --yes`。
 - `.agents/skills/` 下由 OpenSpec 生成的文件不要手动修改；升级 CLI 后运行 `openspec update` 刷新。
 - 重大需求/架构调整先建变更提案，经确认后再写代码。
+- **可叠加的操作必须返回撤销函数**：凡“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个 **disposer 函数**，调用它即精确撤销这次添加；不要只提供“移除”，也不要让调用方自己回滚。
 - Git 提交信息：**AI 助手编写或修改的代码，提交信息开头加 `【AI】` 前缀**（如 `【AI】feat(core): 对象与牌堆骨架`）；人工提交不加。正文用简体中文 + conventional commits。
 - **改完 Lua 代码必须检查问题面板，把 information 及以上等级的问题清到 0**（hint 级不管）；改不动的来问用户，不要留着。一次性改动大量文件后语言服务器可能延迟甚至卡住，用 `lua.startServer` 重启后再检查。
 

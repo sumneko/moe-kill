@@ -68,6 +68,7 @@ return {
 
 - 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
 - **内核对象模块直接返回类表**（`core/` 下的 `random` / `zone` / `player` / `room` 等）：`local M = Class 'Core.Random'` … `return M`，并在类上再挂一个 `create(...)` 静态工厂，于是 `moe.core.random.create(种子)` 与 `New 'Core.Random' (种子)` 两种写法都可用（`create` 在实例上也可见，属可接受的取舍）。
+- **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
 - **`server/tools/` 是照搬来的基础设施，不要随便改**：这些文件保持上游原样（风格与本工程不一致也照旧），确需改动先问用户。
   - 从 4.0.0 的 `script/` 根搬进来的通用库也在里面：`tools/class.lua`（类系统）、`tools/utility.lua`（工具库）、`tools/attribute.lua`（属性库，来自 `sumneko/utility` 上游）。上游这些文件位于 `script/` 根，**从上游更新时注意路径差异**。
 - 全局：`Class` / `New` / `Delete` / `Type` / `IsValid` / `Extends` / `Presize` 由引导文件挂到全局；项目自己的命名空间也挂在全局（LuaLS 用 `ls`，本工程用 `moe`，只在 `server/moe-kill.lua` 里赋值一次）。
