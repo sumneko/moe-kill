@@ -239,6 +239,29 @@ lt.test('重载：牌的唯一标识跨重载不重复', function ()
     lt.assertNotEquals('标识不与重载前重复', before:getId(), after:getId())
 end)
 
+lt.test('重载：recycle 立即执行、重载后重跑并回收旧对象', function ()
+    local runs  = 0
+    ---@type Core.Card[]
+    local trash = {}
+
+    local function rebuild(trashFn)
+        runs = runs + 1
+        trash[#trash + 1] = trashFn(moe.core.card.create())
+        return runs
+    end
+
+    lt.assertEquals('立即执行一次', 1, moe.reload.recycle(rebuild))
+
+    local old = trash[1]
+    lt.assertEquals('回收前对象有效', true, IsValid(old))
+
+    moe.reload.reload()
+
+    lt.assertEquals('重载后重跑', 2, runs)
+    lt.assertEquals('旧对象已被回收', false, IsValid(old))
+    lt.assertEquals('新对象有效', true, IsValid(trash[#trash]))
+end)
+
 lt.test('重载：改磁盘文件后重载生效', function ()
     local modName = 'reload_tmp_probe'
     local dir     = moe.env.ROOT_PATH / 'tmp' / 'reload-probe'

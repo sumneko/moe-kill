@@ -69,6 +69,7 @@ return {
 - 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
 - **内核对象模块直接返回类表**（`core/` 下的 `random` / `zone` / `player` / `room` 等）：`local M = Class 'Core.Random'` … `return M`，并在类上再挂一个 `create(...)` 静态工厂，于是 `moe.core.random.create(种子)` 与 `New 'Core.Random' (种子)` 两种写法都可用（`create` 在实例上也可见，属可接受的取舍）。
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
+  - **但不必每次注册都去撤销它**：热重载下，可重载模块里“跟着模块走”的注册会**自动注销**，此时不要写 disposer；disposer 只用于两类情况——注册发生在不可重载的模块里，或资源必须重建/显式释放（详见 `references/architecture.md` 第 8.5 节）。
 - **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的数据挂到类表或门面表上，写成「有则复用」（`M.__counter = M.__counter or moe.util.counter()`），并用 **`__` 前缀**命名（`Extends` 会复制父类的非 `__` 字段给子类，且 `reset` 会清掉它们）。重载语义与边界见 `references/architecture.md` 第 8 节。
 - **运行时不做类型判定**（用户 2026-09-19 定，先试过 `kind` 断言后修正）：
   - “是牌还是牌区”这类**同一家族内部**的区分由**类型注解**保证（`---@param card Core.Card`），不要写 `Type` / `isInstanceOf`，也不要为了断言再加一道 `kind` 判定。
