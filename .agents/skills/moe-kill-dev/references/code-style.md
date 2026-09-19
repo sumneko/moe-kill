@@ -69,7 +69,9 @@ return {
 - 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
 - **内核对象模块直接返回类表**（`core/` 下的 `random` / `zone` / `player` / `room` 等）：`local M = Class 'Core.Random'` … `return M`，并在类上再挂一个 `create(...)` 静态工厂，于是 `moe.core.random.create(种子)` 与 `New 'Core.Random' (种子)` 两种写法都可用（`create` 在实例上也可见，属可接受的取舍）。
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
-- **类型判定走 `kind` 字段，不用 `Type` / `isInstanceOf`**（用户 2026-09-19 定）：每个需要运行时判定的类在自己的 `__init` 里给 `self.kind` 赋值（`'card'` / `'zone'` / `'orderedZone'` …），模块再提供一个判定函数（如 `Core.Zone.isZone(value)`，内部一张 kinds 表）供调用点使用；判断语句只读这个字段，不依赖类系统反射（`Type()` 在子类上会返回子类名，直接比较基类名会漏判）。新增子类时同步该模块的 kind 别名与判定表。
+- **运行时不做类型判定**（用户 2026-09-19 定，先试过 `kind` 断言后修正）：
+  - “是牌还是牌区”这类**同一家族内部**的区分由**类型注解**保证（`---@param card Core.Card`），不要写 `Type` / `isInstanceOf`，也不要为了断言再加一道 `kind` 判定。
+  - `kind` **只用来区分子类**：基类在自己的 `__init` 里给个默认值（`Core.Zone` → `'zone'`），子类在自己的 `__init` 里覆盖成自己的名字（`Core.OrderedZone` → `'orderedZone'`；规则层子类可设 `'手牌'` 之类），调用方按需读它判断（`zone.kind == '手牌'`）。因为许可值开放，字段类型声明写 `string`，内核不维护 kinds 清单。
 - **`server/tools/` 是照搬来的基础设施，不要随便改**：这些文件保持上游原样（风格与本工程不一致也照旧），确需改动先问用户。
   - 从 4.0.0 的 `script/` 根搬进来的通用库也在里面：`tools/class.lua`（类系统）、`tools/utility.lua`（工具库）、`tools/attribute.lua`（属性库，来自 `sumneko/utility` 上游）。上游这些文件位于 `script/` 根，**从上游更新时注意路径差异**。
 - 全局：`Class` / `New` / `Delete` / `Type` / `IsValid` / `Extends` / `Presize` 由引导文件挂到全局；项目自己的命名空间也挂在全局（LuaLS 用 `ls`，本工程用 `moe`，只在 `server/moe-kill.lua` 里赋值一次）。

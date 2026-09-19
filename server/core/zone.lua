@@ -1,25 +1,9 @@
----@alias Core.Zone.Kind 'zone' | 'orderedZone'
-
 ---@class Core.Zone
----@field kind Core.Zone.Kind
+---@field kind string
 ---@field protected cards Core.Card[]
 ---@field private params table<string, any>
 ---@field private enabled boolean
 local M = Class 'Core.Zone'
-
-local Card = require 'core.card'
-
----@type table<Core.Zone.Kind, true>
-local KINDS = {
-    zone        = true,
-    orderedZone = true,
-}
-
----@param value any
----@return boolean
-function M.isZone(value)
-    return type(value) == 'table' and KINDS[value.kind] == true
-end
 
 ---@param count integer
 ---@param position? integer
@@ -81,7 +65,6 @@ end
 ---@param card Core.Card
 ---@return Core.Card
 function M:put(card)
-    assert(Card.isCard(card), '只能把牌放入牌区')
     self:checkEnabled('放入牌')
     self.cards[#self.cards + 1] = card
     return card
@@ -112,7 +95,6 @@ end
 ---@param position? integer
 ---@return Core.Card
 function M:move(card, to, position)
-    assert(M.isZone(to), '移动目标必须是牌区')
     self:checkEnabled('移出牌')
     to:checkEnabled('移入牌')
     local index = self:indexOf(card)

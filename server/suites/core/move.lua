@@ -121,10 +121,6 @@ lt.test('移动：位置越界或不是整数时报错', function ()
     local notInteger = 1.5
     lt.assertError('位置不是整数', function () from:move(cards[1], to, notInteger) end)
 
-    ---@type any
-    local notZone = {}
-    lt.assertError('目标不是牌区', function () from:move(cards[1], notZone, 1) end)
-
     lt.assertEquals('一直没动过', '甲', zoneLabels(from))
     lt.assertEquals('目标区一直为空', 0, to:count())
 end)
