@@ -1,5 +1,6 @@
 local vfs      = require 'core.loader.vfs'
 local preparse = require 'core.loader.preparse'
+local envUtil  = require 'core.loader.env-util'
 
 ---@class Loader.InstallOptions
 ---@field sources? string[] # 包来源（省略时用局上记的来源，再退到默认来源）
@@ -50,7 +51,7 @@ local ALLOWED_GLOBALS = {
     'string', 'table', 'tonumber', 'tostring', 'type', 'utf8', 'xpcall',
 }
 
----@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends）
+---@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends / util）
 ---@return table
 local function makeEnv(extra)
     ---@type table<string, any>
@@ -114,6 +115,7 @@ local function loadFile(game, ctx, logical)
         game    = game,
         Card    = function (name) return game:declareCard(name) end,
         Depends = function (items) return M.declareDepends(game, ctx, items) end,
+        util    = envUtil,
     })
     if not chunk then
         error('规则集文件解析失败：{}（{}）' % { logical, loadErr }, 0)
@@ -316,6 +318,7 @@ local function prepare(instance, list)
                     packageMeta.entries[#packageMeta.entries+1] = name
                 end
             end,
+            util = envUtil,
         }
 
         local ok, err = preparse.run(source, '@' .. file.source, makeEnv(probe))

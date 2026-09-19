@@ -24,8 +24,8 @@ lt.test('局：持一张桌子与一个随机源', function ()
     local random = moe.random.create(1)
     local game   = moe.game.create { desk = desk, random = random }
 
-    lt.assertEquals('取回同一张桌子', desk, game:getDesk())
-    lt.assertEquals('取回同一个随机源', random, game:getRandom())
+    lt.assertEquals('取回同一张桌子', desk, game.desk)
+    lt.assertEquals('取回同一个随机源', random, game.random)
     lt.assertEquals('两者也是公开字段', true, game.desk == desk and game.random == random)
 
     ---@type any
@@ -123,7 +123,7 @@ lt.test('局：两个局的规则互不影响', function ()
 
     first:resetContent()
     lt.assertEquals('清空规则内容后数值没了', nil, first:getValue('牌表'))
-    lt.assertEquals('桌子与随机源不受清空影响', true, first:getDesk() ~= nil and first:getRandom() ~= nil)
+    lt.assertEquals('桌子与随机源不受清空影响', true, first.desk ~= nil and first.random ~= nil)
     lt.assertEquals('牌区也不受清空影响', true, first:getZones() ~= nil)
 end)
 

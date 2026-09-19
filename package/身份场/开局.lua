@@ -1,7 +1,7 @@
 Depends { '../基础' }
 
 game:on('游戏-开始', function ()
-    local seats  = game:getDesk():getPlayers()
+    local seats  = game.desk:getPlayers()
     local config = game:getValue('身份配置')
     local entries = config and config[#seats]
     if not entries then
@@ -18,7 +18,7 @@ game:on('游戏-开始', function ()
     if #pool ~= #seats - 1 then
         error('身份配置与 {} 人局对不上：除了主公还差 {} 个人' % { #seats, #pool })
     end
-    game:getRandom():shuffle(pool)
+    game.random:shuffle(pool)
 
     for i = 2, #seats do
         seats[i]:setTag('身份', pool[i - 1])

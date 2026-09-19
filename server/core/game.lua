@@ -159,16 +159,6 @@ function M:resetContent()
     self.events:clear()
 end
 
----@return Desk
-function M:getDesk()
-    return self.desk
-end
-
----@return Random
-function M:getRandom()
-    return self.random
-end
-
 ---@return AttributeSystem
 function M:getAttributeSystem()
     self.attributeSystem = self.attributeSystem or moe.attribute.create()

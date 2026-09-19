@@ -129,7 +129,7 @@ lt.test('重载：局跨重载照常可用', function ()
 
     lt.assertEquals('装载器在重载名单里', true, moe.util.arrayHas(reloaded, 'core.loader'))
     lt.assertEquals('局也在重载名单里', true, moe.util.arrayHas(reloaded, 'core.game'))
-    lt.assertEquals('局仍然带着自己的桌子', desk, game:getDesk())
+    lt.assertEquals('局仍然带着自己的桌子', desk, game.desk)
     lt.assertEquals('规则数值照旧', cardTable, game:getValue('牌表'))
     lt.assertEquals('包元信息照旧可取', true, game:getPackageMeta('标准') ~= nil)
 end)

@@ -273,6 +273,11 @@ lt.test('规则集：拿不到内核门面，但能从 game 上建属性系统',
         load(list('a'))
     end)
 
+    write('c.lua', 'local x = moe.util.map')
+    lt.assertError('拿不到 moe', function ()
+        load(list('c'))
+    end)
+
     write('b.lua', 'local system = game:getAttributeSystem()\n'
         .. 'system:define("体力上限", { min = 0 })\n'
         .. 'local attrs = system:createInstance()\n'
@@ -282,6 +287,33 @@ lt.test('规则集：拿不到内核门面，但能从 game 上建属性系统',
     load(list('b'))
 
     lt.assertEquals('属性系统可用', 3, card('测'):getHandlers('跑')[1]())
+end)
+
+lt.test('规则集：能用注入的工具集筛列表', function ()
+    local guard <close> = prepare()
+    write('a.lua', 'Card("甲"):on("跑", function ()\n'
+        .. '    local list = { 1, 2, 3, 4 }\n'
+        .. '    local picked = util.filter(list, function (value) return value % 2 == 0 end)\n'
+        .. '    assert(util.contains(picked, 4))\n'
+        .. '    return table.concat(util.map(picked, tostring), ",")\n'
+        .. 'end)')
+
+    load(list('a'))
+
+    lt.assertEquals('筛出偶数再变换', '2,4', card('甲'):getHandlers('跑')[1]())
+end)
+
+lt.test('规则集：工具集里只有纯函数', function ()
+    local guard <close> = prepare()
+    write('a.lua', 'Card("甲"):on("跑", function ()\n'
+        .. '    local ready = util.filter ~= nil and util.map ~= nil and util.contains ~= nil\n'
+        .. '    local clean = util.loadFile == nil and util.saveFile == nil and util.defer == nil\n'
+        .. '    return ready and clean\n'
+        .. 'end)')
+
+    load(list('a'))
+
+    lt.assertEquals('滤波 / 变换 / 包含可用，IO 与定时类的拿不到', true, card('甲'):getHandlers('跑')[1]())
 end)
 
 lt.test('规则集：文件可以用中文标识符书写', function ()

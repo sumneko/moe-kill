@@ -147,12 +147,13 @@ local slash = Card '杀'
 - 条目带 `name` / `package` / `fullName` / `source`（声明它的文件），报错与排查时直接用。
 - **挂时机**：`game:on('游戏-开始', function (ctx) ... end)` —— 只在加载期可注册，注册顺序即执行顺序（后注册的后执行，写下的状态覆盖先前的，所以“覆盖别人的默认值”也靠它——例：身份场把主公体力上限抬 1）；**内容包不要主动 `game:fire`**（触发是装配 / 流程代码的事）。
 - **规则数值**：`game:setValue(名字, 值)` / `game:setValues { ... }` 落默认值，读用 `game:getValue(名字)`（没设置得到 `nil`，自己写 `or 默认`）；**挂在局上一张表、按加载顺序后者覆盖前者**（这就是后续包改默认值的正道），与规则表同生命周期。**不要往里存函数**：行为写时机注册。
-- **注入面是 `game`（这一局）与 `Card` / `Depends`（加载期环境函数，大写）**：内核门面 `moe`（含 `moe.core` 这类写法）、`require` / `io` / `os` 都拿不到。包需要的内核资源全从 `game` 取：**属性系统**用 `game:getAttributeSystem()`，**这一局的牌 / 牌区 / 桌子 / 随机源**用 `game:createCard(name)` / `game:createZone(名字, 有序?)` / `game.desk` / `game.random`。
+- **注入面是 `game`（这一局）与 `Card` / `Depends`（加载期环境函数，大写）、`util`（收窄的纯函数工具集，小写）**：内核门面 `moe`（含 `moe.core` 这类写法）、`require` / `io` / `os` 都拿不到。包需要的内核资源全从 `game` 取：**属性系统**用 `game:getAttributeSystem()`，**这一局的牌 / 牌区 / 桌子 / 随机源**用 `game:createCard(name)` / `game:createZone(名字, 有序?)` / `game.desk` / `game.random`（**只认字段，没有 getter**）。
+- **工具集只给纯函数**：`util.filter(列表, 判定)` / `util.map(列表, 变换)` / `util.contains(列表, 值)` —— 它是 `server/core/loader/env-util.lua` 里**收窄**的一份，不是内核工具库本体（`moe.util` 里还有 `saveFile` / `defer` 这类副作用，拿不到）；清单与签名以那个文件为准。
 - **接口面在哪（包作者视角）**：`server/core/loader/env-meta.lua` 是纯类型文件，声明了注入的 `game` / `Card` / `Depends` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条。**不提供可单独分发的 meta**（引用链横跨 `Game` / `Moe` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
 - **不要为空值防御**：注入的 `game` 按约定一定在（它就是这一局）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
 - **属性定义只能在加载期写**：属性系统由**这一局**持有（一局一份，清空重装时重置），属性库把定义编译成生成函数、**编译后不允许再 `define`**（会在运行期报 `Cannot define new attributes after compilation`）⇒ `define` 写在包文件顶层，别写进「游戏-开始」回调。玩家侧读写用 `player:setAttr / getAttr / addAttr`（等价于 `player:getAttributes():set/get/add`）。
 - **公共牌区与玩家牌区的分工**：抽牌堆 / 弃牌堆 / 处理区这类**公共区域**用 `game:createZone(名字, 有序?)`（按名字登记，之后 `game:getZone(名字)` 取回）；手牌 / 装备 / 判定这类**属于某个玩家**的牌区用 `player:addZone(名字)`。
-- 文件里**不需要 `require`**：装载器注入 `game` / `Card` / `Depends` + 一份标准库白名单（`require` / `io` / `os` 一律没有）。
+- 文件里**不需要 `require`**：装载器注入 `game` / `Card` / `Depends` / `util` + 一份标准库白名单（`require` / `io` / `os` 一律没有）。
 - **中文标识符只留给难翻译的内容名**（技能名 / 卡牌名 / 身份名，以及规则数值的键与属性名），**字段名 / 局部变量 / 函数名一律英文**（如 `local slash = Card '杀'`）；中文标识符本身是构建期给 Lua 打的补丁（见 `moe-kill-dev` 的 `references/infrastructure.md`），关键字与 ASCII 标识符行为不变。
 - 重装 = **清空局上的内容 + 重新加载**（不做按名单卸载，桌子 / 随机源 / 牌区不被清掉）；同一份清单重复加载会**重新执行**所有文件。加载、依赖、定义入口的细节见 `moe-kill-dev` 的 `references/architecture.md` 第 9 节，规格见 `openspec/specs/rule-loading/spec.md`。
 
@@ -162,15 +163,11 @@ local slash = Card '杀'
 -- package/标准/卡牌/杀.lua
 Card '杀'
     : on('获取目标', function (ctx)              -- 合法目标由牌自己声明：内核不作任何具体判定
-        local desk  = game:getDesk()
+        local desk  = game.desk
         local range = ctx.user:getAttr('攻击范围')
-        local legal = {}
-        for _, player in ipairs(desk:getPlayers()) do
-            if player ~= ctx.user and desk:getDistance(ctx.user, player) <= range then
-                legal[#legal + 1] = player
-            end
-        end
-        return legal                         -- 返回合法目标列表：拿不到 / 空 = 现在用不了
+        return util.filter(desk:getPlayers(), function (player)
+            return player ~= ctx.user and desk:getDistance(ctx.user, player) <= range
+        end)                                 -- 空列表 = 现在用不了
     end)
     : on('使用', function (ctx)
         for _, target in ipairs(ctx.targets) do
