@@ -252,6 +252,7 @@ local slash = rule.card '杀'          -- 登记为 标准.杀
 - 注入面只有 `rule` + `core` + 一份**标准库白名单**（`string` / `table` / `math` / `utf8` / `pcall` 等基函数）；`require`、`io`、`os` 以及 `moe.*` 一律不给 —— 规则集是内容，不该具备开文件 / 起进程的能力。
   - `core` 给的是**内核门面本身**（`core.card.create('杀')` / `core.orderedZone.create()` / `core.attribute.create()` / `core.desk.create(人数)` …）：分层本来就规定 `package/ → server/core`，所以这是正当依赖；但规则集**只该用与规则相关的内核能力**（内核里没有游戏流程，见第 5 节）。
 - 规则集文件里**可以用中文标识符**（构建期补丁，见 `infrastructure.md`），但**中文只用于难翻译的内容名**：技能名 / 卡牌名 / 身份名，以及作为数据取值与配置键的名字（`'杀'`、`'体力上限'`、`'游戏-开始'`）；**字段名 / 局部变量 / 函数名一律英文**（详见 `code-style.md` 第 8 节）。
+- 规则集里**不要为空值防御**：注入的 `ctx` 按约定一定有 `desk` 与 `random`（类型上必填），直接用；只有**运行期真的会缺**的才 `error`（如没牌表、人数不在配置表里）。见 `code-style.md` 第 9 节。
 - 这两个全局与各时机的上下文类型写在一份**纯类型文件** `server/rule/env-meta.lua`（顶部 `---@meta`，不参与运行）：见 9.7 与第 10 节。
 
 ### 9.7 规则数值（可覆盖的配置）
