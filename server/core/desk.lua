@@ -100,7 +100,7 @@ function M:getNext(player)
     for step = 1, self.count do
         local nextIndex  = (index - 1 + step) % self.count + 1
         local nextPlayer = self.seats[nextIndex]
-        if nextPlayer and nextPlayer:isActing() then
+        if nextPlayer and nextPlayer.acting then
             return nextPlayer
         end
     end

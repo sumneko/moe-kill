@@ -38,17 +38,24 @@
 ### D4 名字与形状
 
 - `desk.players` / `desk.alivePlayers`（字段式读取，与 `game.desk` 同风格）。
-- `player:isAlive()` / `player:setAlive(值)`（与既有 `isActing` / `setActing` 对称）。
+- `player:isAlive()` / `player:setAlive(值)`（`setAlive` 是方法 —— 它要发时机，不是纯赋值）。
 - 时机名 `'玩家-死亡'`：沿用「分类-动作」风格（`分类` = 玩家）；上下文直接就是 `Player` 实例（与 `'伤害-前'` 用 `Damage` 实例同一口径）。
+
+### D5 「参与行动」改成由存活派生的只读属性
+
+`player.acting` 用 `__getter` 现算，实现体**先只检查 `alive`**（活着就参与行动），原 `setActing` / `isActing` 删除。
+
+- **为什么不继续做存储字段 + 让调用方置位**：那个字段现在的**唯一**用途就是“阵亡跳过”（三国杀里没有第二个持久来源），却额外要求调用方记得在置死时同步 —— 一处忘了就是“死人还能轮到”。派生之后不可能不同步。
+- **为什么先只检查 `alive` 而不把“退出 / 旁观 / 未参与本局”也写进去**：那些情形内核还没见过真实形状（用户 2026-09-19 定：**遇到再说**）；getter 是唯一收窄点，将来加条件只动它一处。
+- **连带**：`desk:getNext` 改读 `player.acting`；`Player` 的注解要写 `---@class Player: Class.Base`（`__getter` 声明在 `Class.Base` 上），getter 里走公开的 `self:isAlive()`（直接读 `alive` 会被 LuaDoc 判为跨作用域访问私有字段）。
 
 ## Risks / Trade-offs
 
-- [`alive` 与 `acting` 语义重叠] → 本批**不联动**（置死不自动清 `acting`），见 Open Questions。
+- [`alive` 与 `acting` 重叠] → 已由 D5 解掉：`acting` 就是派生值，不存在两处不同步的可能。
 - [每次读列表都建新表] → 座位数量级是 4~10，可忽略；真要优化也该是“让 `alivePlayers` 变成一次查询加过滤”，而不是缓存。
 - [时机名是新的字符串常量，靠约定] → 与既有所有时机一样不预设不校验；类型面在 `env-meta.lua`（写错名字只是拿不到 `ctx` 类型，运行期不报）。
 
 ## Open Questions
 
-- **死亡要不要自动清「参与行动」标记**（`setActing(false)`）？三国杀里阵亡者不参与行动，但那是规则口径；现在由内容侧自己调（`desk:getNext` 只看 `isActing`）。若定成联动，`getNext` 也可以简化为“只按 `acting` 跳”。
 - 死者的牌区怎么办（弃置全部手牌 / 装备）？濒死与死亡结算（求桃、奖惩、胜负）本批明确不做，等下一个功能点。
-- `desk.players` 是否也要去掉「不参与行动者」的版本（如 `desk.actingPlayers`）？现在没有消费方，不加。
+- `desk.players` 是否也需要“不参与行动者”的版本（如 `desk.actingPlayers`）？现在没有消费方，不加。

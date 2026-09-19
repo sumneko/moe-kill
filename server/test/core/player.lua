@@ -75,15 +75,17 @@ lt.test('玩家：标签原样存取', function ()
     lt.assertEquals('移除后读到不存在', nil, player:getTag('身份'))
 end)
 
-lt.test('玩家：参与行动标记', function ()
+lt.test('玩家：参与行动由存活派生', function ()
     local system = newSystem()
     local player = moe.player.create { attributes = system:createInstance() }
 
-    lt.assertEquals('默认参与行动', true, player:isActing())
-    player:setActing(false)
-    lt.assertEquals('可以清掉', false, player:isActing())
-    player:setActing(true)
-    lt.assertEquals('可以再置位', true, player:isActing())
+    lt.assertEquals('默认参与行动', true, player.acting)
+
+    player:setAlive(false)
+    lt.assertEquals('阵亡后不再参与', false, player.acting)
+
+    player:setAlive(true)
+    lt.assertEquals('复活后又参与', true, player.acting)
 end)
 
 ---@param count integer

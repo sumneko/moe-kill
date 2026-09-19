@@ -33,11 +33,11 @@ lt.test('桌子：跳过不参与行动的玩家', function ()
     desk:sit(2, b)
     desk:sit(3, c)
 
-    b:setActing(false)
-    lt.assertEquals('跳过被标记的玩家', c, desk:getNext(a))
+    b:setAlive(false)
+    lt.assertEquals('跳过不参与行动的玩家', c, desk:getNext(a))
 
-    b:setActing(true)
-    lt.assertEquals('重新参与后又排进来', b, desk:getNext(a))
+    b:setAlive(true)
+    lt.assertEquals('复活后又排进来', b, desk:getNext(a))
 end)
 
 lt.test('桌子：跳过空座位', function ()

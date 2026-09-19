@@ -2,13 +2,12 @@
 ---@field attributes Attributes
 ---@field name? string
 
----@class Player
+---@class Player: Class.Base
 ---@field private name? string
 ---@field private attributes Attributes
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
 ---@field private tags table<string, any>
----@field private acting boolean
 ---@field private alive boolean
 ---@field private game? Game # 属于哪一局（入座 / 局建立时绑定）
 local M = Class 'Player'
@@ -21,7 +20,6 @@ function M:__init(attributes, name)
     self.zoneList   = {}
     self.zoneMap    = {}
     self.tags       = {}
-    self.acting     = true
     self.alive      = true
 end
 
@@ -116,14 +114,13 @@ function M:removeTag(key)
     self.tags[key] = nil
 end
 
----@param value boolean
-function M:setActing(value)
-    self.acting = value and true or false
-end
+---@type boolean
+M.acting = nil
 
----@return boolean
-function M:isActing()
-    return self.acting
+---@param self Player
+---@return boolean # 是否参与行动顺序（当前：活着就参与）
+M.__getter.acting = function (self)
+    return self:isAlive()
 end
 
 ---@return boolean # 还活着（初值：活着）
