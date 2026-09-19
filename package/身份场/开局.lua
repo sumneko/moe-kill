@@ -7,10 +7,6 @@ rule:on('游戏-开始', function (ctx)
     if not entries then
         error('身份配置里没有 {} 人局' % { #seats })
     end
-    local random = ctx.random
-    if not random then
-        error('分配身份需要注入随机源')
-    end
 
     local pool = {}
     for _, entry in ipairs(entries) do
@@ -22,7 +18,7 @@ rule:on('游戏-开始', function (ctx)
     if #pool ~= #seats - 1 then
         error('身份配置与 {} 人局对不上：除了主公还差 {} 个人' % { #seats, #pool })
     end
-    random:shuffle(pool)
+    ctx.random:shuffle(pool)
 
     for i = 2, #seats do
         seats[i]:setTag('身份', pool[i - 1])

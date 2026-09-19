@@ -3,10 +3,6 @@ rule:on('游戏-开始', function (ctx)
     if not cardTable then
         error('没有牌表：需要一个内容包提供牌表（例如 标准）')
     end
-    local random = ctx.random
-    if not random then
-        error('建牌堆需要注入随机源')
-    end
 
     local deck = core.orderedZone.create()
     for _, entry in ipairs(cardTable) do
@@ -14,7 +10,7 @@ rule:on('游戏-开始', function (ctx)
             deck:put(core.card.create(entry.name))
         end
     end
-    deck:shuffle(random)
+    deck:shuffle(ctx.random)
 
     rule:setValue('牌堆', deck)
 end)
