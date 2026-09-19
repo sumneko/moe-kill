@@ -59,7 +59,8 @@
 补充口径（用户 2026-09-19 定，轮次③ 实施）：
 
 - **顺序口径**：有序牌区的列表顺序 = **从顶到底**（下标 1 是顶）；`put` 追加到底部，`takeTop` 取下标 1，`shuffle` 重排整条列表 —— 故“洗牌后依次取顶”得到的正是洗牌结果的顺序。
-- **能力检测与失败方式**：基类保留同名方法 `takeTop` / `shuffle`，调用即报“不具备有序能力”；能力本身仍由类判定（`Core.OrderedZone`）—— 比调用不存在的方法（`attempt to call a nil value`）能说清原因。
+- **能力检测与失败方式**：基类保留同名方法 `takeTop` / `shuffle`，调用即报“不具备有序能力”；能力本身仍由子类判定（`Core.OrderedZone`）—— 比调用不存在的方法（`attempt to call a nil value`）能说清原因。
+- **类型判定走 `kind` 字段**（用户 2026-09-19 定）：每个类在自己的 `__init` 里给 `self.kind` 赋值（`'zone'` / `'orderedZone'`），模块提供判定函数（`Core.Zone.isZone`）—— 不用 `Type` / `isInstanceOf`（前者在子类上返回子类名，直接比较会漏判；后者要走路类系统反射）。
 - **禁用边界**：禁用只挡“牌的进出”（`put` / `take` / `clear` / `shuffle`）；读取（`count` / `list` / `peek`）与参数读写不受限；“不出现在默认列举中”由持有牌区的集合（轮次⑤ 的 `Player`）负责过滤。
 - **落地位置**：`Core.Zone` 在 `server/core/zone.lua`，`Core.OrderedZone` 在 `server/core/ordered-zone.lua`（后者 `Extends` 前者）。
 

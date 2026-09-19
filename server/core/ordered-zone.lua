@@ -6,6 +6,11 @@ local M = Class 'Core.OrderedZone'
 Extends('Core.OrderedZone', 'Core.Zone')
 
 ---@param params? table<string, any>
+function M:__init(params)
+    self.kind = 'orderedZone'
+end
+
+---@param params? table<string, any>
 ---@return Core.OrderedZone
 function M.create(params)
     return New 'Core.OrderedZone' (params)

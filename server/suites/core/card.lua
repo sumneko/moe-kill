@@ -27,6 +27,15 @@ lt.test('牌：标签由调用方给出且可修改', function ()
     lt.assertEquals('标识不随标签变化', card:getId(), card:getId())
 end)
 
+lt.test('牌：用 kind 字段判定是不是牌', function ()
+    local card = moe.core.card.create('杀')
+
+    lt.assertEquals('牌的 kind', 'card', card.kind)
+    lt.assertEquals('判定牌实例', true, moe.core.card.isCard(card))
+    lt.assertEquals('普通表不是牌', false, moe.core.card.isCard({}))
+    lt.assertEquals('nil 不是牌', false, moe.core.card.isCard(nil))
+end)
+
 lt.test('牌：内核不预设任何牌的定义', function ()
     local card = moe.core.card.create('杀')
     local keys = {}
@@ -37,7 +46,7 @@ lt.test('牌：内核不预设任何牌的定义', function ()
         end
     end
     table.sort(keys)
-    lt.assertEquals('只有标识与标签两类字段', 'id,label', table.concat(keys, ','))
+    lt.assertEquals('只有标识、标签与 kind 三类字段', 'id,kind,label', table.concat(keys, ','))
 
     ---@type any
     local raw = card

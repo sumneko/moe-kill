@@ -103,6 +103,18 @@ lt.test('牌区：参数可设、可读、可改、可删', function ()
     lt.assertError('参数值不能为 nil', function () zone:setParam('可见', nil) end)
 end)
 
+lt.test('牌区：用 kind 字段判定是不是牌区', function ()
+    local plain   = moe.core.zone.create()
+    local ordered = moe.core.orderedZone.create()
+
+    lt.assertEquals('普通牌区的 kind', 'zone', plain.kind)
+    lt.assertEquals('有序牌区的 kind', 'orderedZone', ordered.kind)
+    lt.assertEquals('判定普通牌区', true, moe.core.zone.isZone(plain))
+    lt.assertEquals('判定有序牌区', true, moe.core.zone.isZone(ordered))
+    lt.assertEquals('普通表不是牌区', false, moe.core.zone.isZone({}))
+    lt.assertEquals('nil 不是牌区', false, moe.core.zone.isZone(nil))
+end)
+
 lt.test('牌区：禁用后不可放入取出，启用后恢复', function ()
     local zone = moe.core.zone.create()
     fill(zone, { '甲' })
