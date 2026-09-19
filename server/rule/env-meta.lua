@@ -6,6 +6,7 @@ rule = nil
 ---@class Rule.EventCtx.游戏开始
 ---@field desk Core.Desk
 ---@field random Core.Random
+---@field room Core.Room
 
 ---@class Rule
 ---@field on fun(self: Rule, name: '游戏-开始', callback: fun(ctx: Rule.EventCtx.游戏开始)): function

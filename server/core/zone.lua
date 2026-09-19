@@ -189,7 +189,7 @@ function M:takeTop()
     error('该牌区不具备有序能力，无法取顶', 2)
 end
 
----@param random Core.Random
+---@param random? Core.Random
 ---@return Core.Zone
 function M:shuffle(random)
     error('该牌区不具备有序能力，无法洗牌', 2)

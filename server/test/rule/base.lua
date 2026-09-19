@@ -97,9 +97,9 @@ end)
 lt.test('基础：按牌表建出牌堆', function ()
     local guard <close> = support.load { '身份场', '标准' }
 
-    support.start(4)
+    local game = support.start(4)
 
-    local deck = assert(moe.rule:getValue('牌堆'), '没有建出牌堆')
+    local deck = assert(game.room:getZone('抽牌堆'), '没有建出抽牌堆')
     lt.assertEquals('张数等于牌表总数', totalCards(), deck:count())
     lt.assertEquals('每张牌都带牌名标签', '杀', deck:list()[1]:getLabel())
 end)
@@ -107,21 +107,20 @@ end)
 lt.test('基础：洗牌可复现', function ()
     local guard <close> = support.load { '身份场', '标准' }
 
-    ---@return string[] # 当前牌堆上的牌名序列
-    local function deckLabels()
+    ---@param game Test.RuleSupport
+    ---@return string[] # 抽牌堆上的牌名序列
+    local function deckLabels(game)
+        local deck = assert(game.room:getZone('抽牌堆'), '没有抽牌堆')
         ---@type string[]
         local result = {}
-        for i, card in ipairs(moe.rule:getValue('牌堆'):list()) do
+        for i, card in ipairs(deck:list()) do
             result[i] = card:getLabel()
         end
         return result
     end
 
-    support.start(4, 20260919)
-    local first = deckLabels()
-
-    support.start(4, 20260919)
-    local second = deckLabels()
+    local first  = deckLabels(support.start(4, 20260919))
+    local second = deckLabels(support.start(4, 20260919))
 
     lt.assertEquals('两次张数一致', #first, #second)
     lt.assertEquals('同一 seed 洗出的顺序一致', table.concat(first, ','), table.concat(second, ','))
@@ -130,11 +129,11 @@ end)
 lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
     local guard <close> = support.load { '身份场', '标准' }
 
-    support.start(4)
+    local game = support.start(4)
 
     ---@type table<string, integer>
     local counts = {}
-    for _, card in ipairs(moe.rule:getValue('牌堆'):list()) do
+    for _, card in ipairs(assert(game.room:getZone('抽牌堆')):list()) do
         local label = card:getLabel()
         counts[label] = (counts[label] or 0) + 1
     end
@@ -150,7 +149,7 @@ end)
 lt.test('基础：没有牌表时不建牌堆', function ()
     local guard <close> = support.load {}
 
-    support.start(4)
+    local game = support.start(4)
 
-    lt.assertEquals('没有牌表就不建出牌堆（回调报错被时机机制记录）', nil, moe.rule:getValue('牌堆'))
+    lt.assertEquals('没有牌表就不建出抽牌堆（回调报错被时机机制记录）', nil, game.room:getZone('抽牌堆'))
 end)

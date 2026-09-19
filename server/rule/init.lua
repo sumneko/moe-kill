@@ -271,25 +271,6 @@ function M:createAttributeSystem()
     return moe.core.attribute.create()
 end
 
----@param name string
----@return Core.Card
-function M:createCard(name)
-    if type(name) ~= 'string' or name == '' then
-        error('牌名必须是非空字符串', 2)
-    end
-    return moe.core.card.create(name)
-end
-
----@return Core.Zone
-function M:createZone()
-    return moe.core.zone.create()
-end
-
----@return Core.OrderedZone
-function M:createOrderedZone()
-    return moe.core.orderedZone.create()
-end
-
 ---@param meta Rule.PackageMeta
 ---@return Rule.PackageMeta
 local function copyMeta(meta)

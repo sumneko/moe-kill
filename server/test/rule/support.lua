@@ -2,6 +2,7 @@
 ---@field players Core.Player[]
 ---@field desk Core.Desk
 ---@field random Core.Random
+---@field room Core.Room
 local M = {}
 
 ---@return unknown # 配 <close> 用：把来源复位为默认
@@ -34,8 +35,9 @@ function M.start(count, seed)
         desk:sit(i, player)
         players[i] = player
     end
-    moe.rule:fire('游戏-开始', { desk = desk, random = random })
-    return { players = players, desk = desk, random = random }
+    local room = moe.core.room.create { desk = desk, random = random }
+    moe.rule:fire('游戏-开始', { desk = desk, random = random, room = room })
+    return { players = players, desk = desk, random = random, room = room }
 end
 
 return M
