@@ -92,9 +92,9 @@ lt.test('身份场：主公坐 1 号位且体力上限多 1', function ()
     local lord = game.players[1]
 
     lt.assertEquals('1 号位是主公', '主公', identity(lord))
-    lt.assertEquals('主公上限是默认值 + 1', 5, lord:getAttributes():get('体力上限'))
-    lt.assertEquals('主公体力也补到上限', 5, lord:getAttributes():get('体力'))
-    lt.assertEquals('其他人上限不加', 4, game.players[2]:getAttributes():get('体力上限'))
+    lt.assertEquals('主公上限是默认体力 + 1', 6, lord:getAttributes():get('体力上限'))
+    lt.assertEquals('主公体力也补到上限', 6, lord:getAttributes():get('体力'))
+    lt.assertEquals('其他人上限不加', 5, game.players[2]:getAttributes():get('体力上限'))
 end)
 
 lt.test('身份场：首回合从主公开始', function ()

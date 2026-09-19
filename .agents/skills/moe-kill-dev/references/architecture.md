@@ -275,7 +275,7 @@ local slash = rule.card '杀'          -- 登记为 标准.杀
 ```lua
 -- package/基础/配置.lua
 rule:setValues {
-    体力上限 = 4,
+    默认体力 = 5,
 }
 ```
 

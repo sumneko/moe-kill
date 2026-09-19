@@ -40,25 +40,25 @@ end
 
 lt.test('基础：规则数值后者覆盖前者', function ()
     local guard <close> = support.load {}
-    lt.assertEquals('默认体力上限来自基础包（它默认加载，不需要写进清单）', 4, moe.rule:getValue('体力上限'))
+    lt.assertEquals('默认体力来自基础包（它默认加载，不需要写进清单）', 5, moe.rule:getValue('默认体力'))
 
     local probe <close> = useProbe()
-    write('覆盖/配置.lua', 'rule:setValues { 体力上限 = 6 }')
+    write('覆盖/配置.lua', 'rule:setValues { 默认体力 = 6 }')
     moe.rule.setRoots { './package/*', probeDir:string() .. '/*' }
     moe.rule.load { '覆盖' }
 
-    lt.assertEquals('后加载的包覆盖了先前的值', 6, moe.rule:getValue('体力上限'))
+    lt.assertEquals('后加载的包覆盖了先前的值', 6, moe.rule:getValue('默认体力'))
 end)
 
 lt.test('基础：清空重载后不保留', function ()
     local guard <close> = support.load { '标准' }
     lt.assertEquals('标准包提供了牌表', true, moe.rule:getValue('牌表') ~= nil)
-    lt.assertEquals('默认包的值也在', 4, moe.rule:getValue('体力上限'))
+    lt.assertEquals('默认包的值也在', 5, moe.rule:getValue('默认体力'))
 
     moe.rule.load { '身份场' }
 
     lt.assertEquals('上一轮非默认包的值被清空', nil, moe.rule:getValue('牌表'))
-    lt.assertEquals('默认包总会重新加载，所以值还在', 4, moe.rule:getValue('体力上限'))
+    lt.assertEquals('默认包总会重新加载，所以值还在', 5, moe.rule:getValue('默认体力'))
 end)
 
 lt.test('基础：未设置的名字读到不存在', function ()
@@ -67,7 +67,7 @@ lt.test('基础：未设置的名字读到不存在', function ()
     lt.assertEquals('读到不存在', nil, moe.rule:getValue('根本没有这个名字'))
 
     local snapshot = moe.rule:getValues()
-    lt.assertEquals('取全部数值里能看到已设置的', 4, snapshot['体力上限'])
+    lt.assertEquals('取全部数值里能看到已设置的', 5, snapshot['默认体力'])
 
     moe.rule:setValue('临时', 1)
     lt.assertEquals('快照不跟随后续修改', nil, snapshot['临时'])
@@ -86,7 +86,7 @@ end)
 
 lt.test('基础：体力上限跟着覆盖后的规则数值', function ()
     local guard <close> = support.load { '身份场', '标准' }
-    moe.rule:setValues { 体力上限 = 3 }
+    moe.rule:setValues { 默认体力 = 3 }
 
     local game = support.start(4)
 
