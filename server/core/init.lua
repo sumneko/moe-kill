@@ -15,9 +15,9 @@ moe.orderedZone = includeCore 'core.ordered-zone'
 moe.random      = includeCore 'core.random'
 moe.attribute   = includeCore 'core.attribute'
 moe.event       = includeCore 'core.event'
-moe.rule        = includeCore 'core.rule'
+moe.loader      = includeCore 'core.loader'
 moe.desk        = includeCore 'core.desk'
 moe.player      = includeCore 'core.player'
-moe.room        = includeCore 'core.room'
+moe.game        = includeCore 'core.game'
 
 return moe

@@ -1,7 +1,7 @@
 require 'core.zone'
 
 ---@class Moe.OrderedZone : Moe.Zone
----@field private random Moe.Random?
+---@field private random? Moe.Random
 local M = Class 'Moe.OrderedZone'
 
 Extends('Moe.OrderedZone', 'Moe.Zone')

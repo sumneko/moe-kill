@@ -1,9 +1,8 @@
-rule.depends { '../基础' }
+Depends { '../基础' }
 
-rule:on('游戏-开始', function ()
-    local room  = rule.room
-    local seats = room:getDesk():getPlayers()
-    local config = rule:getValue('身份配置')
+game:on('游戏-开始', function ()
+    local seats  = game:getDesk():getPlayers()
+    local config = game:getValue('身份配置')
     local entries = config and config[#seats]
     if not entries then
         error('身份配置里没有 {} 人局' % { #seats })
@@ -19,7 +18,7 @@ rule:on('游戏-开始', function ()
     if #pool ~= #seats - 1 then
         error('身份配置与 {} 人局对不上：除了主公还差 {} 个人' % { #seats, #pool })
     end
-    room:getRandom():shuffle(pool)
+    game:getRandom():shuffle(pool)
 
     for i = 2, #seats do
         seats[i]:setTag('身份', pool[i - 1])
@@ -28,7 +27,7 @@ rule:on('游戏-开始', function ()
     local lord = seats[1]
     lord:setTag('身份', '主公')
 
-    local bonus = rule:getValue('主公体力上限加成') or 0
+    local bonus = game:getValue('主公体力上限加成') or 0
     if bonus ~= 0 then
         lord:addAttr('体力上限', bonus)
         lord:addAttr('体力', bonus)

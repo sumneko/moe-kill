@@ -2,14 +2,13 @@
 ---@field players Moe.Player[]
 ---@field desk Moe.Desk
 ---@field random Moe.Random
----@field room Moe.Room
----@field rule Moe.Rule
+---@field game Moe.Game
 local M = {}
 
 ---@class Test.RuleSupport.StartOptions
----@field packages string[]? # 规则集加载清单（省略时只装默认加载的包）
+---@field packages? string[] # 装载清单（省略时只装默认加载的包）
 ---@field count integer # 座位数
----@field sources string[]? # 包来源（省略时用默认来源）
+---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field seed? integer
 
 ---@param options Test.RuleSupport.StartOptions
@@ -17,14 +16,13 @@ local M = {}
 function M.start(options)
     local desk   = moe.desk.create(options.count)
     local random = moe.random.create(options.seed or 1)
-    local room   = moe.room.create {
+    local game   = moe.game.create {
         desk     = desk,
         random   = random,
         sources  = options.sources,
         packages = options.packages,
     }
-    local rule            = room:getRule()
-    local attributeSystem = rule:getAttributeSystem()
+    local attributeSystem = game:getAttributeSystem()
     ---@type Moe.Player[]
     local players = {}
     for i = 1, options.count do
@@ -32,8 +30,8 @@ function M.start(options)
         desk:sit(i, player)
         players[i] = player
     end
-    rule:fire('游戏-开始', {})
-    return { players = players, desk = desk, random = random, room = room, rule = rule }
+    game:fire('游戏-开始', {})
+    return { players = players, desk = desk, random = random, game = game }
 end
 
 return M

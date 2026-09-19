@@ -118,20 +118,20 @@ lt.test('重载：默认范围只含登记过的模块', function ()
     lt.assertEquals('基础设施模块未被重新执行', toolsClass, package.loaded['tools.class'])
 end)
 
-lt.test('重载：场地里的规则实例跨重载照常可用', function ()
+lt.test('重载：局跨重载照常可用', function ()
     local desk   = moe.desk.create(4)
     local random = moe.random.create(1)
-    local room   = moe.room.create { desk = desk, random = random, packages = { '标准' } }
+    local game   = moe.game.create { desk = desk, random = random, packages = { '标准' } }
 
-    local rule     = room:getRule()
-    local cardTable = rule:getValue('牌表')
+    local cardTable = game:getValue('牌表')
 
     local reloaded = moe.reload.reload()
 
-    lt.assertEquals('规则加载器本身在重载名单里', true, moe.util.arrayHas(reloaded, 'core.rule'))
-    lt.assertEquals('还是同一个规则实例', rule, room:getRule())
-    lt.assertEquals('规则数值照旧', cardTable, rule:getValue('牌表'))
-    lt.assertEquals('包元信息照旧可取', true, rule:getPackageMeta('标准') ~= nil)
+    lt.assertEquals('装载器在重载名单里', true, moe.util.arrayHas(reloaded, 'core.loader'))
+    lt.assertEquals('局也在重载名单里', true, moe.util.arrayHas(reloaded, 'core.game'))
+    lt.assertEquals('局仍然带着自己的桌子', desk, game:getDesk())
+    lt.assertEquals('规则数值照旧', cardTable, game:getValue('牌表'))
+    lt.assertEquals('包元信息照旧可取', true, game:getPackageMeta('标准') ~= nil)
 end)
 
 lt.test('重载：新增模块无需额外配置即进入范围', function ()

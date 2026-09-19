@@ -1,4 +1,4 @@
-rule:setValue('身份配置', {
+game:setValue('身份配置', {
     [4] = {
         { identity = '主公', count = 1 },
         { identity = '忠臣', count = 1 },

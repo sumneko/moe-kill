@@ -1,4 +1,4 @@
-rule:setValue('牌表', {
+game:setValue('牌表', {
     { name = '杀',         count = 30 },
     { name = '闪',         count = 15 },
     { name = '桃',         count = 8 },

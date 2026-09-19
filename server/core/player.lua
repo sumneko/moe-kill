@@ -1,9 +1,9 @@
 ---@class Moe.Player.CreateOptions
 ---@field attributes Moe.Attributes
----@field name string?
+---@field name? string
 
 ---@class Moe.Player
----@field private name string?
+---@field private name? string
 ---@field private attributes Moe.Attributes
 ---@field private zoneList Moe.Zone[]
 ---@field private zoneMap table<string, Moe.Zone>
@@ -12,7 +12,7 @@
 local M = Class 'Moe.Player'
 
 ---@param attributes Moe.Attributes
----@param name string?
+---@param name? string
 function M:__init(attributes, name)
     self.name       = name
     self.attributes = attributes
@@ -60,7 +60,7 @@ function M:getName()
 end
 
 ---@param name string
----@param zone Moe.Zone? # 省略时新建一个普通牌区
+---@param zone? Moe.Zone # 省略时新建一个普通牌区
 ---@return function # 撤销这次添加（移除该牌区）
 function M:addZone(name, zone)
     if type(name) ~= 'string' or name == '' then

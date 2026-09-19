@@ -21,8 +21,8 @@
 ---@field event Moe.Event
 ---@field desk Moe.Desk
 ---@field player Moe.Player
----@field room Moe.Room
----@field rule Moe.Rule
+---@field game Moe.Game
+---@field loader Moe.Loader
 ---@field server Server
 ---@field inspect fun(root: any): string
 moe = {}

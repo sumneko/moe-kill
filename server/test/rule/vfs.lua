@@ -1,7 +1,7 @@
 local fs = require 'bee.filesystem'
 local lt = require 'test.ltest'
 
-local vfs    = require 'core.rule.vfs'
+local vfs    = require 'core.loader.vfs'
 local rootDir = moe.env.ROOT_PATH / 'tmp' / 'vfs-probe'
 local base    = moe.env.ROOT_PATH:parent_path()
 
@@ -133,8 +133,8 @@ lt.test('虚拟文件系统：逻辑路径归一化', function ()
 end)
 
 lt.test('虚拟文件系统：默认来源', function ()
-    lt.assertEquals('默认来源是项目自己的包容器', './package/*', moe.rule.DEFAULT_SOURCES[1])
-    lt.assertEquals('默认只有一个来源', 1, #moe.rule.DEFAULT_SOURCES)
+    lt.assertEquals('默认来源是项目自己的包容器', './package/*', moe.loader.DEFAULT_SOURCES[1])
+    lt.assertEquals('默认只有一个来源', 1, #moe.loader.DEFAULT_SOURCES)
 end)
 
 lt.test('虚拟文件系统：@ 前缀的目录是默认加载的包', function ()

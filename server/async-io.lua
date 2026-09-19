@@ -96,7 +96,7 @@ function M.poll()
 end
 
 -- 阻塞等待：睡满 seconds（nil 表示无限期），或被完成事件 / 唤醒请求打断
----@param seconds number?
+---@param seconds? number
 function M.wait(seconds)
     local ms = -1
     if seconds then
