@@ -37,7 +37,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `server/tools/` | 基础设施（event-loop / await / timer / log / json / inspect / uri…）与通用库（class、utility、attribute），照搬；**不要随便改** |
 | `server/session/` | 无头服务器外壳：会话容器、决策挂起/恢复通道、事件收集（不含任何规则）；门面是 `moe.server` |
 | `server/async-io.lua` | 等待与异步 I/O 接线：`bee.async` 实例、完成事件分发、异步文件读写、外部事件源注册（详见 `references/infrastructure.md` 第 6 节） |
-| `server/core/` | 内核：玩家、桌子、房间、牌区、属性、随机源（**与规则无关**，接口可直接调用、可单测） |
+| `server/core/` | 内核：玩家、桌子、房间、牌区、属性、随机源、**事件机制**（**与规则无关**，接口可直接调用、可单测） |
 | `server/rule/` | 规则集加载器与规则表（`moe.rule`）：`init.lua`（门面 / 加载 / 规则表 / 包与名字路由）+ `vfs.lua`（包来源合并成虚拟文件系统）；**游戏业务**功能，与开发期热重载无关（详见 `references/architecture.md` 第 9 节） |
 | `server/test/` | 无头测试（套件名如 `test.smoke` / `test.session` / `test.core`） |
 | `server/bin/` `server/log/` `server/tmp/` | 构建产物与运行时产物（均 git 忽略） |
@@ -50,7 +50,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 
 | 文件 | 内容 |
 | --- | --- |
-| `references/architecture.md` | 分层、数据流、边界、协议设计原则、无头可测要求、热重载（8）、规则集加载（9） |
+| `references/architecture.md` | 分层、数据流、边界、协议设计原则、无头可测要求、热重载（8）、规则集加载（9）、时机与事件（10） |
 | `references/code-style.md` | 代码风格（照搬 LuaLS 4.0.0） |
 | `references/infrastructure.md` | 参考仓库位置、bee.lua 构建与引导、lua-debug 调试、测试与命令速查 |
 

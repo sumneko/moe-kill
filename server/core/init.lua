@@ -4,6 +4,7 @@
 ---@field orderedZone Core.OrderedZone
 ---@field random Core.Random
 ---@field attribute Core.AttributeSystem
+---@field event Core.Event
 moe.core = moe.core or {}
 
 ---@private
@@ -22,5 +23,6 @@ moe.core.zone        = includeCore 'core.zone'
 moe.core.orderedZone = includeCore 'core.ordered-zone'
 moe.core.random      = includeCore 'core.random'
 moe.core.attribute   = includeCore 'core.attribute'
+moe.core.event       = includeCore 'core.event'
 
 return moe.core

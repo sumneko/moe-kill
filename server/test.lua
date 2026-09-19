@@ -93,9 +93,11 @@ test.require 'test.smoke'
 test.require 'test.session'
 test.require 'test.async'
 test.require 'test.core'
+test.require 'test.core.event'
 test.require 'test.rule'
 test.require 'test.rule.vfs'
 test.require 'test.rule.routing'
+test.require 'test.rule.event'
 
 local bodyDone = false
 local bodyFailures = 0

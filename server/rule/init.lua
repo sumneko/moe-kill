@@ -62,6 +62,7 @@ local ALLOWED_GLOBALS = {
 ---@class Rule
 ---@field cards table<string, table<string, Rule.Card>> # 包名 → 裸名 → 定义
 ---@field packages string[] # 包的加载顺序（首次出现的顺序）
+---@field events Core.Event # 时机注册（随每次加载重置）
 ---@field private context Rule.Context?
 ---@field private lastList string[]?
 local M = {}
@@ -74,6 +75,9 @@ M.cards = {}
 
 ---@type string[] # 包的加载顺序
 M.packages = {}
+
+---@type Core.Event # 时机注册（每次加载重置）
+M.events = moe.core.event.create()
 
 ---@type string[] # 当前来源
 M.sources = M.DEFAULT_SOURCES
@@ -190,6 +194,7 @@ end
 function M.clear()
     M.cards    = {}
     M.packages = {}
+    M.events:clear()
 end
 
 ---@param path string
@@ -284,6 +289,31 @@ function M.depends(items)
     for _, item in ipairs(items) do
         loadItem(ctx, item)
     end
+end
+
+---@param name string
+---@param callback fun(context: table)
+---@return function # 撤销这次注册
+function M:on(name, callback)
+    if not M.context then
+        error('时机注册只能在加载规则集时声明', 2)
+    end
+    if type(name) ~= 'string' or name == '' then
+        error('时机名必须是非空字符串', 2)
+    end
+    if type(callback) ~= 'function' then
+        error('时机回调必须是函数', 2)
+    end
+    return M.events:on(name, callback)
+end
+
+---@param name string
+---@param ... any
+function M:fire(name, ...)
+    if type(name) ~= 'string' or name == '' then
+        error('时机名必须是非空字符串', 2)
+    end
+    M.events:fire(name, ...)
 end
 
 ---@param sources string[]
