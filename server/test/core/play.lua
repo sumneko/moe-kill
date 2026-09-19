@@ -34,11 +34,17 @@ local function newGame()
         packages = { '探针' },
     }
     local attributeSystem = game:getAttributeSystem()
+    attributeSystem:define('体力', {
+        min    = -999999,
+        max    = 999999,
+        simple = true,
+    })
     ---@type Player[]
     local players = {}
     for i = 1, 2 do
         local player = moe.player.create { attributes = attributeSystem:createInstance() }
         desk:sit(i, player)
+        player:setAttr('体力', 4)
         players[i] = player
     end
     local hand = moe.zone.create()
@@ -335,4 +341,41 @@ Card '测试杀'
     end)
 
     lt.assertEquals('栈上没有留下这次使用', 0, #game:getEffects())
+end)
+
+lt.test('使用：结算里造成的伤害认这次用牌为父', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+    : on('使用', function (ctx)
+        game:damage(ctx.user, ctx.targets[1], 1)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    ---@type Damage?
+    local damageSeen = nil
+
+    ---@param ctx Damage
+    local function onBefore(ctx)
+        damageSeen = ctx
+    end
+    game.events:on('伤害-前', onBefore)
+
+    game:play(user, card, { target })
+
+    local damage = assert(damageSeen, '这次结算没造成伤害')
+    local parent = assert(damage.parent, '伤害没有父效果')
+    ---@cast parent UseCard
+    lt.assertEquals('父效果的种类', 'useCard', parent.kind)
+    lt.assertEquals('顺着父能拿到这张牌', card, parent.card)
+    lt.assertEquals('顺着父能拿到使用者', user, parent.user)
+    lt.assertEquals('伤害来源是使用者', user, damage.from)
+    lt.assertEquals('父效果不等于伤害来源', true, parent ~= damage.from)
 end)

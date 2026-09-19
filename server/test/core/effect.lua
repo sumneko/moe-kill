@@ -77,6 +77,87 @@ lt.test('效果：嵌套结算会压深，结束后回到外层', function ()
     lt.assertEquals('结算完栈空', 0, #game:getEffects())
 end)
 
+lt.test('效果：内层的父是外层，根效果没有父', function ()
+    local game, players = newGame(3)
+
+    ---@type Effect?
+    local outerSeen = nil
+    ---@type Effect?
+    local innerSeen = nil
+    ---@type Effect?
+    local parentSeen = nil
+    ---@type boolean
+    local nested = false
+
+    game.events:on('伤害-前', function ()
+        local current = assert(game:getCurrentEffect())
+        if not nested then
+            nested    = true
+            outerSeen = current
+            game:damage(players[2], players[3], 1)
+        else
+            innerSeen  = current
+            parentSeen = current.parent
+        end
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    local outer = assert(outerSeen, '外层没被记下来')
+    local inner = assert(innerSeen, '内层没被记下来')
+    lt.assertEquals('内层的父是外层', true, parentSeen == outer)
+    lt.assertEquals('内层自己认的是外层', true, inner.parent == outer)
+    lt.assertEquals('两者不是同一个', true, inner ~= outer)
+    lt.assertEquals('外层的父不存在', nil, outer.parent)
+    lt.assertEquals('结算完栈空', 0, #game:getEffects())
+end)
+
+lt.test('效果：根效果的父不存在，也不报错', function ()
+    local game, players = newGame(2)
+
+    ---@type Effect?
+    local topSeen = nil
+
+    game.events:on('伤害-前', function ()
+        topSeen = game:getCurrentEffect()
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('父效果是不存在', nil, assert(topSeen).parent)
+end)
+
+lt.test('效果：沿父效果能还原整条结算链', function ()
+    local game, players = newGame(4)
+
+    ---@type Effect[] # 按进入顺序
+    local entered = {}
+
+    game.events:on('伤害-前', function ()
+        entered[#entered + 1] = assert(game:getCurrentEffect())
+        if #entered < 3 then
+            game:damage(players[1], players[#entered + 2], 1)
+        end
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    ---@type string[]
+    local chain = {}
+    ---@type Effect?
+    local node = entered[#entered]
+    while node do
+        chain[#chain + 1] = node.kind
+        node = node.parent
+    end
+
+    lt.assertEquals('三层结算', 3, #entered)
+    lt.assertEquals('最深那层的父是中间那层', true, entered[3].parent == entered[2])
+    lt.assertEquals('中间那层的父是根', true, entered[2].parent == entered[1])
+    lt.assertEquals('根的父不存在', nil, entered[1].parent)
+    lt.assertEquals('从里往上走到根', 'damage,damage,damage', table.concat(chain, ','))
+end)
+
 lt.test('效果：结算中抛错也退栈', function ()
     local game, players = newGame(2)
     local damage = moe.damage.create {
