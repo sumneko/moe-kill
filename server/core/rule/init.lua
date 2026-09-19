@@ -129,14 +129,6 @@ function M.create(options)
     return instance
 end
 
----@return Moe.Room
-function M:getRoom()
-    if not self.room then
-        error('这份规则实例不属于任何场地', 2)
-    end
-    return self.room
-end
-
 ---@param ruleTable table
 ---@return table
 local function makeEnv(ruleTable)

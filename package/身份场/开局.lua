@@ -1,7 +1,7 @@
 rule.depends { '../基础' }
 
 rule:on('游戏-开始', function ()
-    local room  = rule:getRoom()
+    local room  = rule.room
     local seats = room:getDesk():getPlayers()
     local config = rule:getValue('身份配置')
     local entries = config and config[#seats]

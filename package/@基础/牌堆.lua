@@ -4,7 +4,7 @@ rule:on('游戏-开始', function ()
         error('没有牌表：需要一个内容包提供牌表（例如 标准）')
     end
 
-    local room = rule:getRoom()
+    local room = rule.room
     local deck = room:createZone('抽牌堆', true)
     for _, entry in ipairs(cardTable) do
         for _ = 1, entry.count do

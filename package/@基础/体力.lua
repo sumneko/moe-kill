@@ -13,7 +13,7 @@ attributeSystem:define('体力上限', {
 
 rule:on('游戏-开始', function ()
     local defaultHp = rule:getValue('默认体力') or 5
-    for _, player in ipairs(rule:getRoom():getDesk():getPlayers()) do
+    for _, player in ipairs(rule.room:getDesk():getPlayers()) do
         player:setAttr('体力上限', defaultHp)
         player:setAttr('体力',    defaultHp)
     end
