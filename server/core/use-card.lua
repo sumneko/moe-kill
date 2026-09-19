@@ -25,21 +25,6 @@ function M:__init(game, user, card, targets)
     self.targets = targets
 end
 
----@param user Player
----@param card Card
----@return Zone? # 牌所在的牌区（找到时才有）
----@return integer? # 牌在该牌区里的位置
-local function findHeldZone(user, card)
-    for _, zone in ipairs(user:getZones()) do
-        for i, held in ipairs(zone:list()) do
-            if held == card then
-                return zone, i
-            end
-        end
-    end
-    return nil, nil
-end
-
 ---@param def CardDef
 ---@param ctx UseCard
 ---@return Player[] # 各声明取交集后的合法目标
@@ -87,7 +72,7 @@ function M:settle()
         error('没有叫「{}」的内容定义' % { name }, 2)
     end
 
-    local zone, index = findHeldZone(self.user, self.card)
+    local zone, index = self.user:findCard(self.card)
     if not zone or not index then
         error('使用者手上没有这张牌', 2)
     end
@@ -103,10 +88,39 @@ function M:settle()
     end
 
     zone:take(index)
-    for _, handler in ipairs(def:getHandlers('使用')) do
-        handler(self)
+    for _, target in ipairs(self.game.desk:sortByActionOrder(self.user, self.targets)) do
+        local effect = New 'CardEffect' (self.game, def, self.user, self.card, target)
+        effect:apply()
     end
     self.game:fire('卡牌-结算后', self)
+end
+
+---@class CardEffect : Effect # 这张牌对某个目标的一次生效
+---@field def CardDef # 这张牌的内容定义
+---@field user Player # 使用者
+---@field card Card # 被使用的牌
+---@field target Player # 这次生效的目标
+local CardEffect = Class 'CardEffect'
+
+Extends('CardEffect', 'Effect')
+
+---@param game Game
+---@param def CardDef
+---@param user Player
+---@param card Card
+---@param target Player
+function CardEffect:__init(game, def, user, card, target)
+    self.kind   = 'cardEffect'
+    self.def    = def
+    self.user   = user
+    self.card   = card
+    self.target = target
+end
+
+function CardEffect:settle()
+    for _, handler in ipairs(self.def:getHandlers('生效')) do
+        handler(self)
+    end
 end
 
 ---@class UseCard.API

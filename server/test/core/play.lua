@@ -59,12 +59,12 @@ Card '测试杀'
     : on('获取目标', function (ctx)
         return { game.desk:getPlayer(2) }
     end)
-    : on('使用', function (ctx)
+    : on('生效', function (ctx)
         ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '一')
     end)
-    : on('使用', function (ctx)
+    : on('生效', function (ctx)
         ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '二')
-        ctx.user:setTag('目标', ctx.targets[1])
+        ctx.user:setTag('目标', ctx.target)
     end)
 ]])
 
@@ -88,7 +88,7 @@ Card '测试杀'
 
     game:play(user, card, { target })
 
-    lt.assertEquals('两个使用回调按声明顺序执行', '一二', user:getTag('顺序'))
+    lt.assertEquals('两个生效回调按声明顺序执行', '一二', user:getTag('顺序'))
     lt.assertEquals('回调拿到了目标', target, user:getTag('目标'))
     lt.assertEquals('牌已经离开手牌', 0, hand:count())
     lt.assertEquals('收尾时机拿到这张牌', card, settledCard)
@@ -99,7 +99,7 @@ lt.test('使用：牌不在使用者手上时报错', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('使用', function (ctx)
+    : on('生效', function (ctx)
         ctx.user:setTag('用了', true)
     end)
 ]])
@@ -139,8 +139,8 @@ Card '测试杀'
     : on('获取目标', function (ctx)
         return { game.desk:getPlayer(2) }
     end)
-    : on('使用', function (ctx)
-        ctx.user:setTag('用了', true)
+    : on('生效', function (ctx)
+        ctx.user:setTag('用了', ctx.target)
     end)
 ]])
 
@@ -252,7 +252,7 @@ Card '测试杀'
     : on('获取目标', function (ctx)
         return { game.desk:getPlayer(2) }
     end)
-    : on('使用', function (ctx)
+    : on('生效', function (ctx)
         ctx.user:setTag('用了', true)
     end)
 ]])
@@ -272,16 +272,17 @@ Card '测试杀'
     lt.assertEquals('牌用出去了', 0, hand:count())
 end)
 
-lt.test('使用：结算期间这次使用在栈上', function ()
+lt.test('使用：结算期间这次生效在栈上', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
     : on('获取目标', function (ctx)
         return { game.desk:getPlayer(2) }
     end)
-    : on('使用', function (ctx)
-        ctx.user:setTag('栈顶是这次使用', game:getCurrentEffect() == ctx)
+    : on('生效', function (ctx)
+        ctx.user:setTag('栈顶是这次生效', game:getCurrentEffect() == ctx)
         ctx.user:setTag('种类', ctx.kind)
+        ctx.user:setTag('父是用牌', ctx.parent and ctx.parent.kind)
     end)
 ]])
 
@@ -293,8 +294,9 @@ Card '测试杀'
 
     game:play(user, card, { target })
 
-    lt.assertEquals('结算期间栈顶就是这次使用', true, user:getTag('栈顶是这次使用'))
-    lt.assertEquals('种类标识', 'useCard', user:getTag('种类'))
+    lt.assertEquals('结算期间栈顶就是这次生效', true, user:getTag('栈顶是这次生效'))
+    lt.assertEquals('种类标识', 'cardEffect', user:getTag('种类'))
+    lt.assertEquals('生效的父是这次用牌', 'useCard', user:getTag('父是用牌'))
     lt.assertEquals('结算完栈空', 0, #game:getEffects())
 end)
 
@@ -325,7 +327,7 @@ Card '测试杀'
     : on('获取目标', function (ctx)
         return { game.desk:getPlayer(2) }
     end)
-    : on('使用', function ()
+    : on('生效', function ()
         error('故意报错')
     end)
 ]])
@@ -350,8 +352,8 @@ Card '测试杀'
     : on('获取目标', function (ctx)
         return { game.desk:getPlayer(2) }
     end)
-    : on('使用', function (ctx)
-        game:damage(ctx.user, ctx.targets[1], 1)
+    : on('生效', function (ctx)
+        game:damage(ctx.user, ctx.target, 1)
     end)
 ]])
 
@@ -371,11 +373,131 @@ Card '测试杀'
     game:play(user, card, { target })
 
     local damage = assert(damageSeen, '这次结算没造成伤害')
-    local parent = assert(damage.parent, '伤害没有父效果')
+    local effect = assert(damage.parent, '伤害没有父效果')
+    ---@cast effect CardEffect
+    lt.assertEquals('伤害的父是这次生效', 'cardEffect', effect.kind)
+    lt.assertEquals('生效的目标', target, effect.target)
+    local parent = assert(effect.parent, '生效没有父效果')
     ---@cast parent UseCard
-    lt.assertEquals('父效果的种类', 'useCard', parent.kind)
+    lt.assertEquals('生效的父是这次用牌', 'useCard', parent.kind)
     lt.assertEquals('顺着父能拿到这张牌', card, parent.card)
     lt.assertEquals('顺着父能拿到使用者', user, parent.user)
     lt.assertEquals('伤害来源是使用者', user, damage.from)
     lt.assertEquals('父效果不等于伤害来源', true, parent ~= damage.from)
+end)
+
+---@param count integer
+---@return Game # 局（来源只有探针包）
+---@return Player[] # 按座位号升序
+local function newWideGame(count)
+    local desk = moe.desk.create(count)
+    local game = moe.game.create {
+        desk     = desk,
+        random   = moe.random.create(1),
+        sources  = { probeDir:string() .. '/*' },
+        packages = { '探针' },
+    }
+    local attributeSystem = game:getAttributeSystem()
+    attributeSystem:define('体力', {
+        min    = -999999,
+        max    = 999999,
+        simple = true,
+    })
+    ---@type Player[]
+    local players = {}
+    for i = 1, count do
+        local player = moe.player.create { attributes = attributeSystem:createInstance() }
+        desk:sit(i, player)
+        player:setAttr('体力', 4)
+        player:addZone('手牌')
+        players[i] = player
+    end
+    return game, players
+end
+
+lt.test('使用：逐目标生效，顺序按行动顺序', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return game.desk.players
+    end)
+    : on('生效', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    end)
+]])
+
+    local game, players = newWideGame(4)
+    local card = game:createCard('测试杀')
+    local user = players[1]
+    local hand = assert(user:getZone('手牌'))
+    hand:put(card)
+
+    game:play(user, card, { players[4], players[2], players[3] })
+
+    lt.assertEquals('从使用者的下家开始绕一圈', '234', user:getTag('顺序'))
+end)
+
+lt.test('使用：收尾时机在所有目标处理完之后，且只触发一次', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return game.desk.players
+    end)
+    : on('生效', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. '生效' .. tostring(game.desk:getIndex(ctx.target)))
+    end)
+]])
+
+    local game, players = newWideGame(3)
+    local card = game:createCard('测试杀')
+    local user = players[1]
+    local hand = assert(user:getZone('手牌'))
+    hand:put(card)
+
+    game.events:on('卡牌-结算后', function (ctx)
+        ---@cast ctx UseCard
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. '收尾')
+    end)
+
+    game:play(user, card, { players[2], players[3] })
+
+    lt.assertEquals('两个生效之后才收尾', '生效2生效3收尾', user:getTag('顺序'))
+end)
+
+lt.test('使用：每个目标的生效可以被单独取消', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return game.desk.players
+    end)
+    : on('生效', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    end)
+]])
+
+    local game, players = newWideGame(3)
+    local card = game:createCard('测试杀')
+    local user = players[1]
+    local hand = assert(user:getZone('手牌'))
+    hand:put(card)
+
+    local blocked = players[2]
+    game.events:on('即将生效', function (ctx)
+        ---@cast ctx CardEffect
+        if ctx.kind == 'cardEffect' and ctx.target == blocked then
+            ctx:remove()
+        end
+    end)
+
+    game:play(user, card, { players[2], players[3] })
+
+    lt.assertEquals('被取消的那个没生效，其余的照常', '3', user:getTag('顺序'))
+    lt.assertEquals('栈恢复原状', 0, #game:getEffects())
 end)

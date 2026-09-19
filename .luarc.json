@@ -47,7 +47,7 @@
         ],
         "groupFileStatus": {
             "ambiguity": "Any",
-            "await": "Any",
+            "await": "None",
             "duplicate": "Any",
             "global": "Any",
             "luadoc": "Any",

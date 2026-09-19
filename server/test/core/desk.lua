@@ -24,6 +24,38 @@ lt.test('桌子：座位号决定行动顺序', function ()
     lt.assertEquals('玩家能查出自己的座位号', 2, desk:getIndex(b))
 end)
 
+lt.test('桌子：按行动顺序排序，自己排在最末', function ()
+    local desk = moe.desk.create(5)
+    local a    = newPlayer()
+    local b    = newPlayer()
+    local c    = newPlayer()
+    local d    = newPlayer()
+    local e    = newPlayer()
+    desk:sit(1, a)
+    desk:sit(2, b)
+    desk:sit(3, c)
+    desk:sit(4, d)
+    desk:sit(5, e)
+
+    ---@param players Player[]
+    ---@return string # 座位号连起来
+    local function seats(players)
+        ---@type string[]
+        local list = {}
+        for _, player in ipairs(players) do
+            list[#list + 1] = tostring(desk:getIndex(player))
+        end
+        return table.concat(list, ',')
+    end
+
+    lt.assertEquals('从 b 的下家开始绕一圈', '3,4,5,1', seats(desk:sortByActionOrder(b, { e, c, a, d })))
+    lt.assertEquals('自己排在最末', '3,4,5,1,2', seats(desk:sortByActionOrder(b, { e, c, a, d, b })))
+    lt.assertEquals('重复给出的角色只排一次', '2', seats(desk:sortByActionOrder(a, { b, b })))
+    lt.assertError('不在桌上的角色报错', function ()
+        desk:sortByActionOrder(a, { newPlayer() })
+    end)
+end)
+
 lt.test('桌子：跳过不参与行动的玩家', function ()
     local desk = moe.desk.create(3)
     local a    = newPlayer()

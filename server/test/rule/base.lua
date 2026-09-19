@@ -159,6 +159,7 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
 end)
 
 lt.test('基础：没有牌表时不建牌堆', function ()
+    lt.expectErrors(1)
     local run = support.start { count = 4 }
 
     lt.assertEquals('没有牌表就不建出抽牌堆（回调报错被时机机制记录）', nil, run.game:getZone('抽牌堆'))

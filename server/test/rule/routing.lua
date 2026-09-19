@@ -122,11 +122,11 @@ lt.test('包：追加回调走查询入口', function ()
     local guard <close> = prepare()
     write('标准/卡牌/杀.lua', 'Card("杀")')
     write('标准/技能/杀的使用.lua', 'Depends { "../卡牌/杀" }\n'
-        .. 'game:getCard("杀"):on("使用", function () end)')
+        .. 'game:getCard("杀"):on("生效", function () end)')
 
     load(list('标准'))
 
-    lt.assertEquals('回调追加到同一条定义上', 1, #card('标准.杀'):getHandlers('使用'))
+    lt.assertEquals('回调追加到同一条定义上', 1, #card('标准.杀'):getHandlers('生效'))
 end)
 
 lt.test('路由：包外裸名走默认路由', function ()

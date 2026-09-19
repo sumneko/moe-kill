@@ -23,11 +23,13 @@
 ---@field player Player.API
 ---@field game Game.API
 ---@field effect Effect.API
+---@field ask Ask.API
 ---@field useCard UseCard.API
 ---@field damage Damage.API
 ---@field loader Loader
 ---@field server Server
 ---@field inspect fun(root: any): string
+---@field _nextCardId fun():integer # 牌的标识计数器：跨重载存活的私有状态，不是对外接口（见 architecture.md 第 8.4 节）
 moe = {}
 
 local class = require 'tools.class'
@@ -92,6 +94,9 @@ local function createLog(path, errorStream)
             log:write(fullMessage)
             if level == 'error' or level == 'fatal' then
                 errorStream:write(fullMessage)
+                if moe.args.TEST then
+                    require('test.ltest').onError(fullMessage)
+                end
             end
             return true
         end,

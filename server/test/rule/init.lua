@@ -150,8 +150,8 @@ lt.test('规则集：链式登记并可按名字查询', function ()
     local guard <close> = prepare()
     write('a.lua', 'Card("杀")\n'
         .. ':on("选目标", function () end)\n'
-        .. ':on("使用", function () end)\n'
-        .. ':on("使用", function () end)')
+        .. ':on("生效", function () end)\n'
+        .. ':on("生效", function () end)')
 
     load(list('a'))
 
@@ -159,7 +159,7 @@ lt.test('规则集：链式登记并可按名字查询', function ()
     lt.assertEquals('可以按名字查到', true, slash ~= nil)
     lt.assertEquals('同名得到同一条定义', slash, game:getCard('杀'))
     lt.assertEquals('同名的不同回调分别登记', 1, #slash:getHandlers('选目标'))
-    lt.assertEquals('同名回调按次累积', 2, #slash:getHandlers('使用'))
+    lt.assertEquals('同名回调按次累积', 2, #slash:getHandlers('生效'))
     lt.assertEquals('未登记的事件取到空集合', 0, #slash:getHandlers('不存在'))
 end)
 
@@ -323,13 +323,13 @@ lt.test('规则集：文件可以用中文标识符书写', function ()
         .. 'local function 造成伤害(目标)\n'
         .. '    return 目标 .. 伤害\n'
         .. 'end\n'
-        .. '杀:on("使用", 造成伤害)')
+        .. '杀:on("生效", 造成伤害)')
 
     load(list('杀'))
 
     local slash = card('杀')
     lt.assertEquals('中文标识符定义的表被登记', true, slash ~= nil)
-    lt.assertEquals('中文标识符写的函数可调用', '甲1', slash:getHandlers('使用')[1]('甲'))
+    lt.assertEquals('中文标识符写的函数可调用', '甲1', slash:getHandlers('生效')[1]('甲'))
 end)
 
 lt.test('规则集：Depends 只能在加载时使用', function ()

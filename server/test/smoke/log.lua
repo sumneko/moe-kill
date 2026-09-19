@@ -16,6 +16,7 @@ lt.test('日志落盘并包含启动日志与本次标记', function ()
 end)
 
 lt.test('错误日志写入日志文件', function ()
+    lt.expectErrors(1)
     moe.timer.update()
     local marker = 'MOE-KILL-SMOKE-ERROR-{}' % { os.time() }
     log.error(marker)

@@ -94,6 +94,20 @@ function M:getZones()
     return zones
 end
 
+---@param card Card
+---@return Zone? # 这张牌所在的牌区
+---@return integer? # 牌在牌区里的位置
+function M:findCard(card)
+    for _, zone in ipairs(self.zoneList) do
+        for index, held in ipairs(zone:list()) do
+            if held == card then
+                return zone, index
+            end
+        end
+    end
+    return nil, nil
+end
+
 ---@param key string
 ---@param value any
 function M:setTag(key, value)

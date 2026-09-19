@@ -70,6 +70,7 @@ lt.test('身份场：配置可以被后续包覆盖', function ()
 end)
 
 lt.test('身份场：人数不在配置里时不分配身份', function ()
+    lt.expectErrors(1)
     local run = support.start { packages = { '身份场', '标准' }, count = 3 }
 
     for i = 1, 3 do

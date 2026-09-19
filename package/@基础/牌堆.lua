@@ -21,3 +21,7 @@ end)
 game:on('卡牌-结算后', function (ctx)
     game:getZone('弃牌堆'):put(ctx.card)
 end)
+
+game:on('卡牌-打出后', function (ctx)
+    game:getZone('弃牌堆'):put(ctx.card)
+end)

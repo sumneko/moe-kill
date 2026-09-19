@@ -53,6 +53,7 @@ lt.test('事件：未注册的时机名是空操作', function ()
 end)
 
 lt.test('事件：回调报错不影响其余回调', function ()
+    lt.expectErrors(1)
     local event = moe.event.create()
     ---@type integer[]
     local log = {}

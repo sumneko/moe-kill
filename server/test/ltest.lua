@@ -1,5 +1,7 @@
 ---@class LTest
 ---@field registry LTest.Case[]
+---@field errorCount integer # 到目前为止记下的错误日志条数
+---@field expectedErrors integer # 当前用例声明预期的错误日志条数
 local M = {}
 
 ---@class LTest.Case
@@ -7,6 +9,19 @@ local M = {}
 ---@field callback fun()
 
 M.registry = {}
+
+M.errorCount     = 0
+M.expectedErrors = 0
+
+---@param message string
+function M.onError(message)
+    M.errorCount = M.errorCount + 1
+end
+
+---@param count integer # 声明这个用例里预期会有几条错误日志（不声明就是 0 条）
+function M.expectErrors(count)
+    M.expectedErrors = count
+end
 
 ---@param value any
 ---@return string
@@ -61,8 +76,15 @@ end
 function M.runAll()
     local failedCount = 0
     for i = 1, #M.registry do
-        local case = M.registry[i]
+        local case   = M.registry[i]
+        local before = M.errorCount
+        M.expectedErrors = 0
         local ok, err = xpcall(case.callback, debug.traceback)
+        local logged = M.errorCount - before
+        if ok and logged ~= M.expectedErrors then
+            ok  = false
+            err = '用例期间有 {} 条错误日志，声明的是 {} 条' % { logged, M.expectedErrors }
+        end
         if ok then
             io.write('  [通过] {}\n' % { case.name })
         else

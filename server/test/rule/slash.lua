@@ -17,12 +17,20 @@ end
 
 ---@param run Test.RuleSupport
 ---@param player Player
----@return Card # 已经摆进该玩家手牌的「杀」
-local function takeSlash(run, player)
-    local card, deck = findCard(run.game, '杀')
+---@param name string
+---@return Card # 已经摆进该玩家手牌的牌
+local function takeCard(run, player, name)
+    local card, deck = findCard(run.game, name)
     local hand = assert(player:getZone('手牌'), '没有手牌区')
     deck:move(card, hand)
     return card
+end
+
+---@param run Test.RuleSupport
+---@param player Player
+---@return Card # 已经摆进该玩家手牌的「杀」
+local function takeSlash(run, player)
+    return takeCard(run, player, '杀')
 end
 
 lt.test('杀：开局给每个玩家写入攻击范围', function ()
@@ -74,4 +82,45 @@ lt.test('杀：不能对自己用', function ()
     lt.assertEquals('自己没掉血', 5, user:getAttr('体力'))
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
     lt.assertEquals('弃牌堆还是空的', 0, run.game:getZone('弃牌堆'):count())
+end)
+
+lt.test('杀：目标打出闪就不受伤，闪进弃牌堆', function ()
+    local run    = support.start { count = 2, packages = { '标准' }, answers = { true } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeSlash(run, user)
+    local jink   = takeCard(run, target, '闪')
+
+    run.game:play(user, card, { target })
+
+    lt.assertEquals('目标不掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('闪已经离开手牌', 0, target:getZone('手牌'):count())
+    local discard = assert(run.game:getZone('弃牌堆')):list()
+    lt.assertEquals('闪进了弃牌堆', true, moe.util.arrayHas(discard, jink))
+    lt.assertEquals('杀也进了弃牌堆', true, moe.util.arrayHas(discard, card))
+end)
+
+lt.test('杀：多目标依次结算，一个目标的响应不影响另一个', function ()
+    local run    = support.start { count = 3, packages = { '标准' }, answers = { true, false } }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+    local card   = takeSlash(run, user)
+    takeCard(run, first, '闪')
+
+    run.game:play(user, card, { first, second })
+
+    lt.assertEquals('先结算的目标打出了闪，不掉血', 5, first:getAttr('体力'))
+    lt.assertEquals('后结算的目标没闪，掉 1 点', 4, second:getAttr('体力'))
+end)
+
+lt.test('杀：答了「打闪」但手上没有，照常受伤', function ()
+    local run    = support.start { count = 2, packages = { '标准' }, answers = { true } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeSlash(run, user)
+
+    run.game:play(user, card, { target })
+
+    lt.assertEquals('没有牌可打 ⇒ 照常受伤', 4, target:getAttr('体力'))
 end)

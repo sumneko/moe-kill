@@ -170,12 +170,13 @@ lt.test('效果：结算中抛错也退栈', function ()
         error('故意报错')
     end
 
-    lt.assertError('错误照常向外传播', function ()
+    local message = assert(lt.assertError('错误照常向外传播', function ()
         damage:apply()
-    end)
+    end))
 
     lt.assertEquals('栈上没有留下这一帧', 0, #game:getEffects())
     lt.assertEquals('体力没变（错误发生在改体力之前）', 4, players[2]:getAttr('体力'))
+    lt.assertEquals('错误信息里带出错位置', true, message:find('effect.lua:', 1, true) ~= nil)
 end)
 
 lt.test('效果：取到的是快照', function ()
@@ -274,4 +275,97 @@ lt.test('效果：压栈有深度上限', function ()
         disposers[i]()
     end
     lt.assertEquals('退干净', 0, #game:getEffects())
+end)
+
+lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
+    local game, players = newGame(2)
+
+    ---@type string[]
+    local trace = {}
+
+    game.events:on('即将生效', function (ctx)
+        trace[#trace + 1] = '{} {}' % { ctx.kind, game:getCurrentEffect() == ctx }
+        ---@cast ctx Effect
+        ctx:remove()
+        trace[#trace + 1] = '取消之后这一行不该执行'
+    end)
+    game.events:on('即将生效', function ()
+        trace[#trace + 1] = '后面的订阅者也不该执行'
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('订阅者拿到的是这个效果，且此刻它在栈顶', 'damage true', table.concat(trace, ','))
+    lt.assertEquals('被取消 ⇒ 没有造成伤害', 4, players[2]:getAttr('体力'))
+    lt.assertEquals('栈恢复原状', 0, #game:getEffects())
+end)
+
+lt.test('效果：取消只作用于这一个效果，外层照常结算完', function ()
+    local game, players = newGame(3)
+
+    ---@type boolean
+    local outerDone = false
+    ---@type boolean
+    local nested = false
+
+    game.events:on('伤害-前', function ()
+        if not nested then
+            nested = true
+            game:damage(players[2], players[3], 2)
+            outerDone = true
+        end
+    end)
+    game.events:on('即将生效', function (ctx)
+        ---@cast ctx Damage
+        if ctx.amount == 2 then
+            ctx:remove()
+        end
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('内层被取消 ⇒ 内层目标没掉血', 4, players[3]:getAttr('体力'))
+    lt.assertEquals('外层照常走完', true, outerDone)
+    lt.assertEquals('外层目标照常掉血', 3, players[2]:getAttr('体力'))
+    lt.assertEquals('栈恢复原状', 0, #game:getEffects())
+end)
+
+lt.test('效果：被取消后它自己的结算不再执行', function ()
+    local game, players = newGame(2)
+
+    ---@type string[]
+    local trace = {}
+
+    game.events:on('即将生效', function (ctx)
+        ---@cast ctx Effect
+        ctx:remove()
+    end)
+
+    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    local settle = damage.settle
+    damage.settle = function (self)
+        settle(self)
+        trace[#trace + 1] = '结算跑完了'
+    end
+
+    damage:apply()
+
+    lt.assertEquals('结算整个没跑', 0, #trace)
+    lt.assertEquals('体力没变', 4, players[2]:getAttr('体力'))
+end)
+
+lt.test('效果：不在结算中或已经结束的效果不能取消', function ()
+    local game, players = newGame(2)
+    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+
+    lt.assertError('还没开始结算', function ()
+        damage:remove()
+    end)
+
+    damage:apply()
+
+    lt.assertError('已经结算完毕', function ()
+        damage:remove()
+    end)
+    lt.assertEquals('正常结算照常掉血', 3, players[2]:getAttr('体力'))
 end)

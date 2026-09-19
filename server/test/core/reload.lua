@@ -100,6 +100,7 @@ lt.test('重载：未登记的模块不受影响', function ()
 end)
 
 lt.test('重载：加载失败的模块以明确失败暴露', function ()
+    lt.expectErrors(1)
     local modName = 'test.reload.probe.broken'
     local guard <close> = moe.util.defer(function ()
         for i, name in ipairs(moe.reload.includedNames) do
@@ -193,6 +194,7 @@ lt.test('重载：回调可撤销', function ()
 end)
 
 lt.test('重载：单个回调报错不影响其余', function ()
+    lt.expectErrors(1)
     local undoBroken = moe.reload.onAfterReload(function ()
         error('回调故意报错')
     end)

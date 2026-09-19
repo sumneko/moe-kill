@@ -82,12 +82,12 @@ return API
 
 - 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`，另起的 API 表写 `local API = {}`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
 - **内核对象模块返回「API 表」，只放工厂**（用户 2026-09-19 定）：`local M = Class 'Random'` 里只写类与实例方法（**类上不放 `create`**），末尾另起一张表 —— `---@class Random.API` + `local API = {}` + `function API.create(种子) return New 'Random' (种子) end` + `return API`。于是 `moe.random.create(种子)` 与 `New 'Random' (种子)` 两种写法都可用，而**类的方法不会从全局可达**（`moe.random:nextInt(...)` 这样的写法根本不存在，拼错/误用会当场 nil）。
-  - 类型名写成「类名.API」（`Player.API` / `Desk.API`），`server/moe-kill.lua` 里 `moe` 的字段就写这个类型；类上其余的静态成员（如 `Card.__counter`）仍留在类上、不进 API 表。
+  - 类型名写成「类名.API」（`Player.API` / `Desk.API`），`server/moe-kill.lua` 里 `moe` 的字段就写这个类型；类上其余的静态成员（如 `Game.MAX_EFFECT_DEPTH`）仍留在类上、不进 API 表。
   - 没有工厂的模块（`Effect`）API 表是空的（`{}`）；基类靠 `Extends` 声明继承，类名仍在类注册表里可用。
   - `server/core/loader/` 是**纯模块**（`local M = {}` + `return M`），它的公开入口就是模块自己的字段（`install` / `DEFAULT_SOURCES`），不适用这条。
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
   - **但不必每次注册都去撤销它**：热重载下，可重载模块里“跟着模块走”的注册会**自动注销**，此时不要写 disposer；disposer 只用于两类情况——注册发生在不可重载的模块里，或资源必须重建/显式释放（详见 `references/architecture.md` 第 8.5 节）。
-- **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的数据挂到类表或门面表上，写成「有则复用」（`M.__counter = M.__counter or moe.util.counter()`），并用 **`__` 前缀**命名（`Extends` 会复制父类的非 `__` 字段给子类，且 `reset` 会清掉它们）。重载语义与边界见 `references/architecture.md` 第 8 节。
+- **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的状态挂到**门面表 `moe`**（在 `moe-kill.lua` 里建立）上，写成「有则复用」（`moe._nextCardId = moe._nextCardId or moe.util.counter()`），并用 **`_` 前缀**标明是内核内部状态。**不要挂类表**（`Extends` 会把父类字段复制给子类、重载 `reset` 又会清掉），也不要挂 `include` 出来的模块门面（每次重载都是新表）。重载语义与边界见 `references/architecture.md` 第 8 节。
 - **运行时不做类型判定**（用户 2026-09-19 定，先试过 `kind` 断言后修正）：
   - “是牌还是牌区”这类**同一家族内部**的区分由**类型注解**保证（`---@param card Card`），不要写 `Type` / `isInstanceOf`，也不要为了断言再加一道 `kind` 判定。
   - `kind` **只用来区分子类**：基类在自己的 `__init` 里给个默认值（`Zone` → `'zone'`），子类在自己的 `__init` 里覆盖成自己的名字（`OrderedZone` → `'orderedZone'`；规则层子类可设 `'手牌'` 之类），调用方按需读它判断（`zone.kind == '手牌'`）。因为许可值开放，字段类型声明写 `string`，内核不维护 kinds 清单。
@@ -103,9 +103,10 @@ return API
 - **改完 Lua 必须检查问题面板，把 information 及以上等级的问题清到 0**；hint 级不管（与上游 LuaLS 一致），不主动清理以免制造无关改动。
 - 确实改不动的**来问用户**，不要留着不管。
 - 一次性改动大量文件后，语言服务器可能延迟甚至卡住（面板迟迟不刷新）：执行命令 `lua.startServer` 重启它，再重新检查。
-- **异步回调的标注**：把闭包当异步回调用时，光有参数类型 `async fun()` 不足以让 LuaLS 认定异步上下文，必须在**调用语句前**加一行 `---@async`（上游 `ls.await.call(function () ... end)` 就是这么写的），否则会报 `await-in-sync`。
-- **错误报告统一用 `xpcall(f, log.error)`**：`log.error` 自己就会记录（`error` / `fatal` / `trace` 级别自带堆栈），并把消息作为返回值交给调用方 —— 所以业务代码里 `xpcall(f, log.error, ...)` 即可，**不要**写 `xpcall(f, debug.traceback)` 再手写一遍 `log.error(...)`（会重复记录）。上游 `tools/` 就是这个写法（`timer.lua`、`simple-event.lua`）。
-  - 例外：报告"用例/模块失败"的测试入口（`test.lua`、`test/ltest.lua`）仍用 `debug.traceback` —— 那里堆栈本身就是报告内容。
+- **异步回调的标注**：把闭包当异步回调用时，用 `---@async` 标出来（上游 `ls.await.call(function () ... end)` 就是这么写的）。本项目已在 `.luarc.json` 里把 `await` 组整体设成 `None`（`await-in-sync` 在"让出由驱动点收尾"这类写法上会误报，用户 2026-09-19 定），所以这条现在是**说明性**的、不再用作消警告手段。
+- **错误报告分两条路**（2026-09-19 定，与 `game-events` 的口径一致）：
+  - **内容包代码出错**（时机订阅者 / 牌的 `'生效'` 回调…）：`xpcall(f, log.error, ...)` 隔离 + 记日志，**不让触发本身失败、也不打断其余回调**。`log.error` 自带堆栈并把消息作为返回值交给调用方 —— 不要再写 `xpcall(f, debug.traceback)` 再手写一遍 `log.error(...)`（会重复记录）。上游 `tools/` 就是这个写法（`timer.lua`、`simple-event.lua`）。例外：报告"用例 / 模块失败"的测试入口（`test.lua`、`test/ltest.lua`）仍用 `debug.traceback` —— 那里堆栈本身就是报告内容。
+  - **内核契约违反**（校验不通过 / 结算栈乱序 / 子类未实现 `settle`）：**记日志后原样上抛**（`error(debug.traceback(co, err), 0)`），不要吞成日志 —— 协程里的抛错不会自己跑到主线程，必须由驱动点手动转回去。
 - 访问动态键（如命令行参数表）时，用 `---@type table<string, T>` 显式标注该局部变量来表达"这里故意访问未知键"，不要用 disable 注释。
 - 跨模块传递的结构体在 `---@class` 里声明全部字段，而不是只写 usage。
 - **可选标记写在「名字」上，不写在类型后面**（用户 2026-09-19 定）：`---@field key? number`、`---@param key? number`、`fun(x: number, y?: number)`。不要写 `---@field key number?` / `---@param key number?` / `fun(x: number, y: number?)`。

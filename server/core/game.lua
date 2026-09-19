@@ -111,6 +111,7 @@ end
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
 ---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
 ---@field events Event # 时机注册
+---@field answerer? fun(ask: Ask): any # 回答者：收到询问后当场给出答案，返回 nil 表示拿不出答案
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
 ---@field private attributeSystem? AttributeSystem
@@ -327,6 +328,30 @@ function M:createCard(name)
         error('牌名必须是非空字符串', 2)
     end
     return moe.card.create(name)
+end
+
+---@param to Player # 被问者
+---@param question any # 问的是什么
+---@return any # 答案：询问被取消时为「不存在」
+function M:ask(to, question)
+    local ask = moe.ask.create {
+        game     = self,
+        to       = to,
+        question = question,
+    }
+    ask:apply()
+    return ask.answer
+end
+
+---@param player Player # 打出这张牌的角色
+---@param card Card # 打出的牌
+function M:respond(player, card)
+    local zone, index = player:findCard(card)
+    if not zone or not index then
+        error('这个角色的牌区里没有这张牌', 2)
+    end
+    zone:take(index)
+    self:fire('卡牌-打出后', { player = player, card = card })
 end
 
 ---@param from Player # 伤害来源
