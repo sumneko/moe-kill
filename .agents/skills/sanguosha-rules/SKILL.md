@@ -138,6 +138,7 @@ local 杀 = rule.card '杀'
 - **挂时机**：`rule:on('游戏-开始', function (ctx) ... end)` —— 只在加载期可注册，注册顺序即执行顺序（后注册的后执行，写下的状态覆盖先前的，所以“覆盖别人的默认值”也靠它——例：身份场把主公体力上限抬 1）；**内容包不要主动 `rule:fire`**（触发是装配 / 流程代码的事）。
 - **规则数值**：`rule:setValue(名字, 值)` / `rule:setValues { ... }` 落默认值，读用 `rule:getValue(名字)`（没设置得到 `nil`，自己写 `or 默认`）；**全局一张表、按加载顺序后者覆盖前者**（这就是后续包改默认值的正道），与规则表同生命周期。**不要往里存函数**：行为写时机注册。
 - **注入面**有两个全局：`rule`（本段全部接口）与 `core`（内核门面：`core.card` / `core.orderedZone` / `core.attribute` / `core.random` / `core.desk` / `core.player` / `core.event`）；`require` / `io` / `os` 与 `moe.*` 都没有。
+- **接口面在哪（包作者视角）**：`server/rule/env-meta.lua` 是纯类型文件，声明了注入的 `rule` / `core` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条。**不提供可单独分发的 meta**（引用链横跨 `Rule` / `Core` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
 - 文件里**不需要 `require`**：加载器注入 `rule` 与 `core` + 一份标准库白名单（`require` / `io` / `os` 一律没有）。
 - **可以用中文标识符**（如 `local 杀 = ...`、`local function 造成伤害(目标)`），这是构建期给 Lua 打的补丁（见 `moe-kill-dev` 的 `references/infrastructure.md`）；关键字与 ASCII 标识符行为不变。
 - 重载 = **清空规则表 + 重新加载**（不做按名单卸载）；同一份清单重复加载会**重新执行**所有文件。加载、依赖、定义入口的细节见 `moe-kill-dev` 的 `references/architecture.md` 第 9 节，规格见 `openspec/specs/rule-loading/spec.md`。

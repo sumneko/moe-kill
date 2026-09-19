@@ -20,7 +20,7 @@
 - [x] 3.1 规则数值：`rule:setValue(名字, 值)` / `rule:setValues { ... }` / `rule:getValue(名字)` / `rule:getValues()`；全局一张表、后者覆盖前者、随清空重载清空、未设置读 nil；验证：三个用例通过
 - [x] 3.2 注入面加入内核门面 `core`（标准库白名单不变，仍然不给 `require` / `io` / `os`）；验证：规则集里能调 `core.*` 的用例通过 + 既有"拿不到 require"用例继续通过
 - [x] 3.3 时机名统一改成 `分类-动作` 风格（`'游戏开始'` → `'游戏-开始'`）：改既有测试与文档里的名字，并确认注册/触发/覆盖语义不变；验证：`--test rule.event` 全绿
-- [x] 3.4 事件参数 meta：新增 `server/rule/event-meta.lua`（`---@meta`，不参与运行），声明 `Rule.EventCtx.<事件名>` 与 `rule:on` / `rule:fire` 的重载签名；验证：问题面板不报 `duplicate-doc-field`，且规则集里 `ctx.xxx` 能按事件名收窄出类型（拿一个探针文件确认）
+- [x] 3.4 事件参数 meta：新增 `server/rule/env-meta.lua`（`---@meta`，不参与运行），声明注入的全局 `rule` / `core`、`Rule.EventCtx.<事件名>` 与 `rule:on` / `rule:fire` 的重载签名；验证：问题面板不报 `duplicate-doc-field`，且规则集里 `ctx.xxx` 能按事件名收窄出类型（拿一个探针文件确认）
 
 ## 4. 规则包
 
