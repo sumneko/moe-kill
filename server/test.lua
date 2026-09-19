@@ -93,6 +93,7 @@ test.require 'test.smoke'
 test.require 'test.session'
 test.require 'test.async'
 test.require 'test.core'
+test.require 'test.rule'
 
 local bodyDone = false
 local bodyFailures = 0

@@ -14,6 +14,7 @@
 ---@field tools MoeKill.Tools
 ---@field reload Reload
 ---@field core Core
+---@field rule Rule
 ---@field server Server
 ---@field inspect fun(root: any): string
 moe = {}
@@ -106,6 +107,8 @@ moe.reload = require 'tools.reload'
 include    = moe.reload.include
 
 moe.core = require 'core'
+
+moe.rule = require 'rule'
 
 moe.server = require 'session'
 

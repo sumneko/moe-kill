@@ -30,32 +30,66 @@
 
 形态：**一个 exe + 一棵 Lua 脚本树**。exe 与引导脚本同在 `server/bin/`，exe 负责加载同目录的 `bin/main.lua` 引导脚本，引导脚本设 `package.path`（`server/?.lua`、`server/?/init.lua`、`server/tools/?.lua`、`server/tools/?/init.lua`）并处理 `arg`。
 
-`make.lua` 骨架（照搬 LuaLS 4.0.0）：
+`make.lua` 骨架（照搬 LuaLS 4.0.0，Lua 部分改为**自接补丁链**）：
 
 ```lua
 local lm = require 'luamake'
 
 lm.cxx = 'c++17'
 lm.lua = "55"
-lm.optchain = true -- 启用可选链补丁（等价于命令行 luamake -optchain）
+
+-- 自接补丁链：复制官方 Lua 源码 → 按序打补丁（optchain + 中文标识符）
+local luaSrc  = lm:path("3rd/bee.lua/3rd/lua" .. lm.lua)
+local luaDir  = lm:path("$builddir/moe-patched/lua" .. lm.lua)
+local patches = {
+    lm:path("3rd/bee.lua/3rd/lua-patch/optchain/lua" .. lm.lua .. ".patch"),
+    lm:path("make/lua-patch/chinese-identifier/lua" .. lm.lua .. ".patch"),
+}
+
+lm:runlua "patch_lua" {
+    script  = "make/lua-patch/apply.lua",
+    args    = { luaSrc, luaDir, table.unpack(patches) },
+    inputs  = { lm:path("make/lua-patch/apply.lua"), luaSrc / "onelua.c", table.unpack(patches) },
+    outputs = { luaDir / "onelua.c", luaDir / "lctype.h" },
+}
 
 lm:import "3rd/bee.lua/make.lua"
 
-lm:executable "<名字>" {
-    deps = { "source_bee", "source_lua", "source_bootstrap" },
-    includes = { "3rd/bee.lua", "3rd/bee.lua/3rd/lua55" },
-    sources = "make/modules.cpp",
+lm.luadir = luaDir
+
+lm:source_set "source_moe_lua" {
+    objdeps  = "patch_lua",
+    includes = { luaDir, "3rd/bee.lua/3rd/lua-patch" },
+    sources  = { luaDir / "onelua.c" },
+    defines  = "MAKE_LIB",
+    -- 平台 defines 与 bee 的 source_lua 一致；MSVC 另有：
+    msvc = lm.fast_setjmp ~= "off" and {
+        defines = "BEE_FAST_SETJMP",
+        flags   = "/std:c11",
+        sources = ("3rd/bee.lua/3rd/lua-patch/fast_setjmp_%s.s"):format(lm.arch),
+    },
 }
 
-lm:copy "copy_bootstrap" {
-    inputs = "make/bootstrap.lua",
-    outputs = "bin/main.lua",
+lm:executable "moe-kill" {
+    deps     = { "source_bee", "source_moe_lua", "source_bootstrap" },
+    includes = { "3rd/bee.lua", luaDir, luaSrc },
+    sources  = "make/modules.cpp",
 }
 ```
 
 - `bee.lua` 以 submodule 放在 `3rd/bee.lua`；`make/modules.cpp` 只做自有 C 模块注册（无自有 C 模块时留空壳）。
 - 常用命令：`luamake`（编译 + 测试）、`luamake -notest`（只编译）、`luamake -mode debug`、`luamake test -v`。
 - `includes` 里 Lua 目录的写法是 `"3rd/bee.lua/3rd/lua" .. lm.lua`，**不要写成 `"lua5" .. lm.lua`**（会拼成 `lua555`，然后 `lua.hpp` 找不到）。
+- `lm.optchain = true` 那条老路**不再使用**（optchain 补丁已包含在自接补丁链里）；`lm.luadir` 指向打过补丁的副本，`source_lua`（未打补丁）不再被任何目标依赖。
+
+### Lua 源码补丁链（自接，必须跟 bee 上游）
+
+- **为什么自接**：bee 的补丁机制（`lua_patches`）把官方源码**整树复制**到构建目录再 `git apply`，并把整树文件都声明成 outputs ⇒ 往同一目录加第二个补丁步会被 ninja 到 outputs 冲突（`multiple rules generate .../lctype.h`）。所以本工程**自己**复制到 `$builddir/moe-patched/lua55` 并依序打补丁。
+- **现有补丁**：`3rd/lua-patch/optchain/lua55.patch`（可选链）、`make/lua-patch/chinese-identifier/lua55.patch`（中文标识符，只改 `lctype.h` 的 `lisutf8byte` / `lislalpha` / `lislalnum`；EOZ 的 `-1` 不满足 `>= 0x80`，不会误判）。
+- **应用脚本** `make/lua-patch/apply.lua`：Windows 下 `rmdir / mkdir / xcopy` 整树复制；打补丁前把补丁内容 **CRLF 规范化为 LF**（本机 `core.autocrlf=true` 会把 `.patch` 写成 CRLF，`git apply` 直接报 `corrupt patch`）；`git apply` 失败即构建失败，不静默降级。
+- **`source_moe_lua` 镜像 bee 的 `source_lua`**：includes 要含 `3rd/lua-patch`（`lprefix.h` 引 `bee_utf8_prefix.h`）、各平台 defines、MSVC 的 `BEE_FAST_SETJMP` **外加 `/std:c11`**（`fast_setjmp.h` 用了 `_Noreturn`）。**bee 上游改 `source_lua` 时要跟着改**（字段清单见 `3rd/bee.lua/make.lua`）。
+- **加新补丁**：`.patch` 放 `make/lua-patch/<名字>/lua55.patch` → 加进 `make.lua` 顶部 `patches`（顺序即应用顺序）→ 确认它改到的文件出现在 `patch_lua` 的 `outputs` 里 → `luamake -notest`。
+- 分析器侧配套：`.luarc.json` 的 `runtime.unicodeName = true`（中文标识符不报诊断）。
 
 ### 本仓库实测产物与行为（2026-09-19 已验证）
 
@@ -135,7 +169,7 @@ end
 - 内存护栏只在显式传 `--mem-limit` 时启用。
 - 临时产物统一写 `tmp/`（已 gitignore）。
 
-**实测（2026-09-19）**：43 个用例约 0.65 秒（事件循环迭代 20 次，与用例里的真实等待时间相当）；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
+**实测（2026-09-19）**：全量 118 个用例约 1 秒；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
 
 ## 6. 本工程对 `tools/` 的改动清单
 
@@ -147,7 +181,7 @@ end
 | `timer.lua` | 新增 `M.getNextDeadline()`：距最近一个定时任务到期还有多少秒（没有则返回 `nil`） | 供事件循环计算等待时长，替代空转 |
 | `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `server/async-io.lua`，不污染照搬文件 |
 | `attribute.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（**LuaLS 4.0.0 里没有它**）；861 行，`System:define(name, simple, min, max)` → `Instance:get/set/add/getMin/getMax/event`，含公式（基础值 + 百分比）、上下限、惰性重算与变更事件 | 内核的“通用属性”直接接它，不自己写一套 |
-| `reload.lua` | **新增照搬文件**：来源 `y3-editor/y3-lualib` 的 `tools/reload.lua`（MIT，`Copyright (c) 2023 y3-editor`）—— `sumneko/utility` 与 LuaLS 4.0.0 都**没有**热重载库。改写点：`y3.util.*` → `moe.util.*`；回调注册**返回 disposer**（并因此修掉「回调数组每次重载整体替换、捕获的引用会失效」）；`getIncludeName` 补 `nil` 保护（模块名查不到时不再用 `nil` 键索引）；`include` 失败时把错误信息交回调用方；新增 `reportError`（拿不到 `log` 时退回 stderr） | 内核（以及将来的规则集）需要开发期热重载，见 `architecture.md` 第 8 节 |
+| `reload.lua` | **新增照搬文件**：来源 `y3-editor/y3-lualib` 的 `tools/reload.lua`（MIT，`Copyright (c) 2023 y3-editor`）—— `sumneko/utility` 与 LuaLS 4.0.0 都**没有**热重载库。改写点：`y3.util.*` → `moe.util.*`；回调注册**返回 disposer**（并因此修掉「回调数组每次重载整体替换、捕获的引用会失效」）；`include` 失败时把错误信息交回调用方；新增 `reportError`（拿不到 `log` 时退回 stderr） | 内核需要开发期热重载，见 `architecture.md` 第 8 节 |
 
 等待与唤醒的接线在 `server/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
 
@@ -169,6 +203,7 @@ luamake -notest                  # 只编译（产出 server/bin/moe-kill.exe + 
 server/bin/moe-kill.exe --test          # 无头跑全部测试（退出码 0 = 全通过）
 server/bin/moe-kill.exe --test smoke.await    # 只跑一个套件
 server/bin/moe-kill.exe --test core.reload    # 热重载套件（机制 + 真改文件端到端）
+server/bin/moe-kill.exe --test rule           # 规则集加载套件（清单/依赖/定义入口/失败）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 
