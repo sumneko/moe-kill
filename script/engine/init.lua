@@ -1,4 +1,4 @@
 ---@class Engine
-local m = {}
+local M = {}
 
-return m
+return M

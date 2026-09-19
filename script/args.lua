@@ -10,7 +10,7 @@
 ---@field LOGLEVEL? string
 ---@field ROOT? string
 ---@field MEM_LIMIT? integer
-local m = {}
+local M = {}
 
 ---@alias Args.Value string | number | boolean
 
@@ -42,7 +42,7 @@ end
 
 ---@param argv string[]
 ---@return Args
-function m.parse(argv)
+function M.parse(argv)
     local result = {}
 
     local i = 1
@@ -75,11 +75,11 @@ end
 
 ---@param argv string[]
 ---@return Args
-function m.current(argv)
-    local result = m.parse(argv or arg)
+function M.current(argv)
+    local result = M.parse(argv or arg)
     result.DBGADDRESS = result.DBGADDRESS or '127.0.0.1'
     result.DBGPORT    = result.DBGPORT or 11418
     return result
 end
 
-return m
+return M

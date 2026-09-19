@@ -64,7 +64,8 @@ return {
 }
 ```
 
-- 非类模块用 `local m = {}` + `return m`（工具函数的写法）。
+- 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
+- **`script/tools/` 是照搬来的基础设施，不要随便改**：这些文件保持上游原样（风格与本工程不一致也照旧），确需改动先问用户。
 - 全局：`Class` / `New` / `Delete` / `Type` / `IsValid` / `Extends` / `Presize` 由引导文件挂到全局；项目自己的命名空间也挂在全局（LuaLS 用 `ls`，本工程用 `moe`，只在 `script/moe-kill.lua` 里赋值一次）。
 - 命名：局部变量与函数 camelCase，常量全大写，类型名 PascalCase。
 - 热点路径可在文件顶部冻结局部引用（`local tableSort = table.sort`）；这是可选优化，不是强制约定。**不要**照搬 `_ENV = nil`（LuaLS 4.0.0 里只有 3 个文件这么写）。
