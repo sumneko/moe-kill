@@ -82,8 +82,8 @@ lt.test('规则集：依赖先于本文件其余代码执行', function ()
     local guard <close> = prepare()
     write('依赖.lua', 'rule.card("依赖")')
     write('主.lua', 'rule.depends { "./依赖" }\n'
-        .. 'local 依赖 = rule.getCard("依赖")\n'
-        .. 'rule.card("主"):on("检查", function () return 依赖 ~= nil end)')
+        .. 'local dep = rule.getCard("依赖")\n'
+        .. 'rule.card("主"):on("检查", function () return dep ~= nil end)')
 
     local loaded = moe.rule.load(list('主'))
 
@@ -137,12 +137,12 @@ lt.test('规则集：链式登记并可按名字查询', function ()
 
     moe.rule.load(list('a'))
 
-    local 杀 = card('杀')
-    lt.assertEquals('可以按名字查到', true, 杀 ~= nil)
-    lt.assertEquals('同名得到同一条定义', 杀, moe.rule.getCard('杀'))
-    lt.assertEquals('同名的不同回调分别登记', 1, #杀:getHandlers('选目标'))
-    lt.assertEquals('同名回调按次累积', 2, #杀:getHandlers('使用'))
-    lt.assertEquals('未登记的事件取到空集合', 0, #杀:getHandlers('不存在'))
+    local slash = card('杀')
+    lt.assertEquals('可以按名字查到', true, slash ~= nil)
+    lt.assertEquals('同名得到同一条定义', slash, moe.rule.getCard('杀'))
+    lt.assertEquals('同名的不同回调分别登记', 1, #slash:getHandlers('选目标'))
+    lt.assertEquals('同名回调按次累积', 2, #slash:getHandlers('使用'))
+    lt.assertEquals('未登记的事件取到空集合', 0, #slash:getHandlers('不存在'))
 end)
 
 lt.test('规则集：清空重载后旧内容不再可见', function ()
@@ -258,9 +258,9 @@ lt.test('规则集：文件可以用中文标识符书写', function ()
 
     moe.rule.load(list('杀'))
 
-    local 杀 = card('杀')
-    lt.assertEquals('中文标识符定义的表被登记', true, 杀 ~= nil)
-    lt.assertEquals('中文标识符写的函数可调用', '甲1', 杀:getHandlers('使用')[1]('甲'))
+    local slash = card('杀')
+    lt.assertEquals('中文标识符定义的表被登记', true, slash ~= nil)
+    lt.assertEquals('中文标识符写的函数可调用', '甲1', slash:getHandlers('使用')[1]('甲'))
 end)
 
 lt.test('规则集：rule.depends 只能在加载时使用', function ()

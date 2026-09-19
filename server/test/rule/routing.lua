@@ -40,11 +40,11 @@ lt.test('包：定义自动带包前缀并带来源信息', function ()
 
     moe.rule.load(list('标准'))
 
-    local 杀 = card('杀')
-    lt.assertEquals('裸名', '杀', 杀.name)
-    lt.assertEquals('包名', '标准', 杀.package)
-    lt.assertEquals('完整名', '标准.杀', 杀.fullName)
-    lt.assertEquals('声明它的文件', '标准/卡牌/杀.lua', 杀.source)
+    local slash = card('杀')
+    lt.assertEquals('裸名', '杀', slash.name)
+    lt.assertEquals('包名', '标准', slash.package)
+    lt.assertEquals('完整名', '标准.杀', slash.fullName)
+    lt.assertEquals('声明它的文件', '标准/卡牌/杀.lua', slash.source)
 end)
 
 lt.test('包：包名取自一级目录', function ()
@@ -125,8 +125,8 @@ lt.test('路由：包内裸名优先本包', function ()
     local guard <close> = prepare()
     write('标准/卡牌/杀.lua', 'rule.card("杀")')
     write('军争/卡牌/杀.lua', 'rule.card("杀")\n'
-        .. 'local 本包 = rule.getCard("杀")\n'
-        .. 'rule.card("检查"):on("跑", function () return 本包.fullName end)')
+        .. 'local own = rule.getCard("杀")\n'
+        .. 'rule.card("检查"):on("跑", function () return own.fullName end)')
 
     moe.rule.load(list('标准', '军争'))
 
@@ -136,8 +136,8 @@ end)
 lt.test('路由：本包没有时 fallback', function ()
     local guard <close> = prepare()
     write('标准/卡牌/闪.lua', 'rule.card("闪")')
-    write('军争/卡牌/火杀.lua', 'local 闪 = rule.getCard("闪")\n'
-        .. 'rule.card("检查"):on("跑", function () return 闪 and 闪.fullName or "没有取到" end)')
+    write('军争/卡牌/火杀.lua', 'local dodge = rule.getCard("闪")\n'
+        .. 'rule.card("检查"):on("跑", function () return dodge and dodge.fullName or "没有取到" end)')
 
     moe.rule.load(list('标准', '军争'))
 
@@ -148,8 +148,8 @@ lt.test('路由：限定名不受包内优先影响', function ()
     local guard <close> = prepare()
     write('标准/卡牌/杀.lua', 'rule.card("杀")')
     write('军争/卡牌/杀.lua', 'rule.card("杀")\n'
-        .. 'local 标准版 = rule.getCard("标准.杀")\n'
-        .. 'rule.card("检查"):on("跑", function () return 标准版.fullName end)')
+        .. 'local fromStandard = rule.getCard("标准.杀")\n'
+        .. 'rule.card("检查"):on("跑", function () return fromStandard.fullName end)')
 
     moe.rule.load(list('标准', '军争'))
 
@@ -188,9 +188,9 @@ lt.test('路由：未登记的名字查不到', function ()
     lt.assertEquals('不存在的包查不到', nil, moe.rule.getCard('没有这个包.杀'))
 
     ---@type any
-    local 不是字符串 = nil
+    local notString = nil
     lt.assertError('名字必须是字符串', function ()
-        moe.rule.getCard(不是字符串)
+        moe.rule.getCard(notString)
     end)
 end)
 

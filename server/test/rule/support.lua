@@ -1,5 +1,5 @@
 ---@class Test.RuleSupport
----@field 玩家 Core.Player[]
+---@field players Core.Player[]
 ---@field desk Core.Desk
 ---@field random Core.Random
 local M = {}
@@ -20,22 +20,22 @@ function M.load(list)
     return guard
 end
 
----@param 人数 integer
----@param 种子? integer
+---@param count integer
+---@param seed? integer
 ---@return Test.RuleSupport
-function M.start(人数, 种子)
-    local 属性系统 = assert(moe.rule:getValue('属性系统'), '基础包没有提供属性系统')
-    local desk     = moe.core.desk.create(人数)
-    local random   = moe.core.random.create(种子 or 1)
+function M.start(count, seed)
+    local attributeSystem = assert(moe.rule:getValue('属性系统'), '基础包没有提供属性系统')
+    local desk            = moe.core.desk.create(count)
+    local random          = moe.core.random.create(seed or 1)
     ---@type Core.Player[]
-    local 玩家 = {}
-    for i = 1, 人数 do
-        local player = moe.core.player.create { attributes = 属性系统:createInstance() }
+    local players = {}
+    for i = 1, count do
+        local player = moe.core.player.create { attributes = attributeSystem:createInstance() }
         desk:sit(i, player)
-        玩家[i] = player
+        players[i] = player
     end
     moe.rule:fire('游戏-开始', { desk = desk, random = random })
-    return { 玩家 = 玩家, desk = desk, random = random }
+    return { players = players, desk = desk, random = random }
 end
 
 return M

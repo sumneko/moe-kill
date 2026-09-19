@@ -71,7 +71,7 @@ lt.test('事件：上下文透传', function ()
     event:on('甲', function (ctx) received = ctx end)
 
     ---@type table<string, any>
-    local ctx = { 人数 = 4 }
+    local ctx = { count = 4 }
     event:fire('甲', ctx)
 
     lt.assertEquals('回调收到触发时传的上下文', ctx, received)

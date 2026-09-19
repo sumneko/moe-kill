@@ -22,20 +22,20 @@ local function useProbe()
     end)
 end
 
----@param 玩家 Core.Player
+---@param player Core.Player
 ---@return Core.Attributes
-local function 属性(玩家)
-    return 玩家:getAttributes()
+local function attributes(player)
+    return player:getAttributes()
 end
 
 ---@return integer # 当前牌表的总张数
-local function 牌表总数()
-    local 牌表 = assert(moe.rule:getValue('牌表'), '没有牌表')
-    local 总数 = 0
-    for _, 种类 in ipairs(牌表) do
-        总数 = 总数 + 种类.张数
+local function totalCards()
+    local cardTable = assert(moe.rule:getValue('牌表'), '没有牌表')
+    local total = 0
+    for _, entry in ipairs(cardTable) do
+        total = total + entry.count
     end
-    return 总数
+    return total
 end
 
 lt.test('基础：规则数值后者覆盖前者', function ()
@@ -64,21 +64,21 @@ lt.test('基础：未设置的名字读到不存在', function ()
 
     lt.assertEquals('读到不存在', nil, moe.rule:getValue('根本没有这个名字'))
 
-    local 快照 = moe.rule:getValues()
-    lt.assertEquals('取全部数值里能看到已设置的', 4, 快照['体力上限'])
+    local snapshot = moe.rule:getValues()
+    lt.assertEquals('取全部数值里能看到已设置的', 4, snapshot['体力上限'])
 
     moe.rule:setValue('临时', 1)
-    lt.assertEquals('快照不跟随后续修改', nil, 快照['临时'])
+    lt.assertEquals('快照不跟随后续修改', nil, snapshot['临时'])
     lt.assertEquals('但规则数值里已经有了', 1, moe.rule:getValue('临时'))
 end)
 
 lt.test('基础：体力初值等于上限', function ()
     local guard <close> = support.load { '基础', '身份场', '标准' }
 
-    local 局 = support.start(4)
+    local game = support.start(4)
 
     for i = 1, 4 do
-        lt.assertEquals('第 {} 个玩家的体力等于上限' % { i }, 属性(局.玩家[i]):get('体力上限'), 属性(局.玩家[i]):get('体力'))
+        lt.assertEquals('第 {} 个玩家的体力等于上限' % { i }, attributes(game.players[i]):get('体力上限'), attributes(game.players[i]):get('体力'))
     end
 end)
 
@@ -86,10 +86,10 @@ lt.test('基础：体力上限跟着覆盖后的规则数值', function ()
     local guard <close> = support.load { '基础', '身份场', '标准' }
     moe.rule:setValues { 体力上限 = 3 }
 
-    local 局 = support.start(4)
+    local game = support.start(4)
 
-    lt.assertEquals('用了覆盖后的上限', 3, 属性(局.玩家[2]):get('体力上限'))
-    lt.assertEquals('体力也跟着走', 3, 属性(局.玩家[2]):get('体力'))
+    lt.assertEquals('用了覆盖后的上限', 3, attributes(game.players[2]):get('体力上限'))
+    lt.assertEquals('体力也跟着走', 3, attributes(game.players[2]):get('体力'))
 end)
 
 lt.test('基础：按牌表建出牌堆', function ()
@@ -97,32 +97,32 @@ lt.test('基础：按牌表建出牌堆', function ()
 
     support.start(4)
 
-    local 牌堆 = assert(moe.rule:getValue('牌堆'), '没有建出牌堆')
-    lt.assertEquals('张数等于牌表总数', 牌表总数(), 牌堆:count())
-    lt.assertEquals('每张牌都带牌名标签', '杀', 牌堆:list()[1]:getLabel())
+    local deck = assert(moe.rule:getValue('牌堆'), '没有建出牌堆')
+    lt.assertEquals('张数等于牌表总数', totalCards(), deck:count())
+    lt.assertEquals('每张牌都带牌名标签', '杀', deck:list()[1]:getLabel())
 end)
 
 lt.test('基础：洗牌可复现', function ()
     local guard <close> = support.load { '基础', '身份场', '标准' }
 
     ---@return string[] # 当前牌堆上的牌名序列
-    local function 牌名序列()
+    local function deckLabels()
         ---@type string[]
-        local 序列 = {}
-        for i, 牌 in ipairs(moe.rule:getValue('牌堆'):list()) do
-            序列[i] = 牌:getLabel()
+        local result = {}
+        for i, card in ipairs(moe.rule:getValue('牌堆'):list()) do
+            result[i] = card:getLabel()
         end
-        return 序列
+        return result
     end
 
     support.start(4, 20260919)
-    local 第一次 = 牌名序列()
+    local first = deckLabels()
 
     support.start(4, 20260919)
-    local 第二次 = 牌名序列()
+    local second = deckLabels()
 
-    lt.assertEquals('两次张数一致', #第一次, #第二次)
-    lt.assertEquals('同一 seed 洗出的顺序一致', table.concat(第一次, ','), table.concat(第二次, ','))
+    lt.assertEquals('两次张数一致', #first, #second)
+    lt.assertEquals('同一 seed 洗出的顺序一致', table.concat(first, ','), table.concat(second, ','))
 end)
 
 lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
@@ -131,18 +131,18 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
     support.start(4)
 
     ---@type table<string, integer>
-    local 计数 = {}
-    for _, 牌 in ipairs(moe.rule:getValue('牌堆'):list()) do
-        local 名 = 牌:getLabel()
-        计数[名] = (计数[名] or 0) + 1
+    local counts = {}
+    for _, card in ipairs(moe.rule:getValue('牌堆'):list()) do
+        local label = card:getLabel()
+        counts[label] = (counts[label] or 0) + 1
     end
 
-    lt.assertEquals('杀 30 张', 30, 计数['杀'])
-    lt.assertEquals('闪 15 张', 15, 计数['闪'])
-    lt.assertEquals('桃 8 张', 8, 计数['桃'])
-    lt.assertEquals('无懈可击 4 张', 4, 计数['无懈可击'])
-    lt.assertEquals('万箭齐发 1 张', 1, 计数['万箭齐发'])
-    lt.assertEquals('借刀杀人 2 张', 2, 计数['借刀杀人'])
+    lt.assertEquals('杀 30 张', 30, counts['杀'])
+    lt.assertEquals('闪 15 张', 15, counts['闪'])
+    lt.assertEquals('桃 8 张', 8, counts['桃'])
+    lt.assertEquals('无懈可击 4 张', 4, counts['无懈可击'])
+    lt.assertEquals('万箭齐发 1 张', 1, counts['万箭齐发'])
+    lt.assertEquals('借刀杀人 2 张', 2, counts['借刀杀人'])
 end)
 
 lt.test('基础：没有牌表时不建牌堆', function ()
