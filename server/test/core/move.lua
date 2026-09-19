@@ -1,4 +1,4 @@
-local lt = require 'suites.ltest'
+local lt = require 'test.ltest'
 
 ---@param zone Core.Zone
 ---@param source string[]

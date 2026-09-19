@@ -1,4 +1,4 @@
-local lt = require 'suites.ltest'
+local lt = require 'test.ltest'
 local fs = require 'bee.filesystem'
 
 lt.test('日志目录与日志文件已建立', function ()

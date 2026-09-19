@@ -1,4 +1,4 @@
-local lt   = require 'suites.ltest'
+local lt   = require 'test.ltest'
 local args = require 'args'
 
 lt.test('命令行参数：三种形式与键名归一化', function ()

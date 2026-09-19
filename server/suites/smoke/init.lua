@@ -1,6 +1,0 @@
-test.require 'suites.smoke.args'
-test.require 'suites.smoke.log'
-test.require 'suites.smoke.class'
-test.require 'suites.smoke.optchain'
-test.require 'suites.smoke.await'
-test.require 'suites.smoke.eventloop'

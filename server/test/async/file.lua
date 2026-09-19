@@ -1,4 +1,4 @@
-local lt = require 'suites.ltest'
+local lt = require 'test.ltest'
 local fs = require 'bee.filesystem'
 
 local dir = moe.env.ROOT_PATH / 'tmp'

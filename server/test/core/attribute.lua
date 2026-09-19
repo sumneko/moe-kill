@@ -1,4 +1,4 @@
-local lt = require 'suites.ltest'
+local lt = require 'test.ltest'
 
 ---@return Core.AttributeSystem
 local function createSystem()

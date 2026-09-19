@@ -1,0 +1,6 @@
+test.require 'test.smoke.args'
+test.require 'test.smoke.log'
+test.require 'test.smoke.class'
+test.require 'test.smoke.optchain'
+test.require 'test.smoke.await'
+test.require 'test.smoke.eventloop'

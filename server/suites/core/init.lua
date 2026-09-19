@@ -1,5 +1,0 @@
-test.require 'suites.core.random'
-test.require 'suites.core.card'
-test.require 'suites.core.zone'
-test.require 'suites.core.move'
-test.require 'suites.core.attribute'
