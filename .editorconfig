@@ -2,7 +2,8 @@ root = true
 
 [*]
 charset = utf-8
-end_of_line = lf
+# 不强制换行符：工作区用平台本地换行符，仓库内由 git 归一化为 LF
+end_of_line = unset
 insert_final_newline = true
 
 # see https://github.com/CppCXY/EmmyLuaCodeStyle

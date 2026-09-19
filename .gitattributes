@@ -1,2 +1,3 @@
-# 统一换行符：仓库内统一使用 LF，保证跨平台一致
-* text=auto eol=lf
+# 仓库内统一按 text=auto 归一化存为 LF，从而忽略换行符差异；
+# 工作区用平台本地换行符（由 core.autocrlf 决定），不在这里强制 eol。
+* text=auto
