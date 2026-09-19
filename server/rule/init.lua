@@ -85,6 +85,7 @@ local ALLOWED_GLOBALS = {
 ---@field packages string[] # 包的加载顺序（首次出现的顺序）
 ---@field events Core.Event # 时机注册（随每次加载重置）
 ---@field meta table<string, Rule.PackageMeta> # 包元信息（预解析产物，随每次加载重建）
+---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者，随每次加载清空）
 ---@field private context Rule.Context?
 ---@field private lastList string[]?
 local M = {}
@@ -104,6 +105,9 @@ M.events = moe.core.event.create()
 ---@type table<string, Rule.PackageMeta>
 M.meta = {}
 
+---@type table<string, any>
+M.values = {}
+
 ---@type string[] # 当前来源
 M.sources = M.DEFAULT_SOURCES
 
@@ -121,6 +125,7 @@ local function makeEnv(ruleTable)
     ---@type table<string, any>
     local env = {
         rule = ruleTable,
+        core = moe.core,
     }
     for _, name in ipairs(ALLOWED_GLOBALS) do
         env[name] = _G[name]
@@ -220,7 +225,46 @@ function M.clear()
     M.cards    = {}
     M.packages = {}
     M.meta     = {}
+    M.values   = {}
     M.events:clear()
+end
+
+---@param name string
+---@param value any
+function M:setValue(name, value)
+    if type(name) ~= 'string' or name == '' then
+        error('规则数值的名字必须是非空字符串', 2)
+    end
+    M.values[name] = value
+end
+
+---@param values table<string, any>
+function M:setValues(values)
+    if type(values) ~= 'table' then
+        error('规则数值必须是一张名字到值的表', 2)
+    end
+    for name, value in pairs(values) do
+        M:setValue(name, value)
+    end
+end
+
+---@param name string
+---@return any # 没设置过就是「不存在」
+function M:getValue(name)
+    if type(name) ~= 'string' or name == '' then
+        error('规则数值的名字必须是非空字符串', 2)
+    end
+    return M.values[name]
+end
+
+---@return table<string, any>
+function M:getValues()
+    ---@type table<string, any>
+    local result = {}
+    for name, value in pairs(M.values) do
+        result[name] = value
+    end
+    return result
 end
 
 ---@param meta Rule.PackageMeta

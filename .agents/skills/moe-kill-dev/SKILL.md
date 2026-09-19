@@ -37,11 +37,11 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `server/tools/` | 基础设施（event-loop / await / timer / log / json / inspect / uri…）与通用库（class、utility、attribute），照搬；**不要随便改** |
 | `server/session/` | 无头服务器外壳：会话容器、决策挂起/恢复通道、事件收集（不含任何规则）；门面是 `moe.server` |
 | `server/async-io.lua` | 等待与异步 I/O 接线：`bee.async` 实例、完成事件分发、异步文件读写、外部事件源注册（详见 `references/infrastructure.md` 第 6 节） |
-| `server/core/` | 内核：玩家、桌子、房间、牌区、属性、随机源、**事件机制**（**与规则无关**，接口可直接调用、可单测） |
-| `server/rule/` | 规则集加载器与规则表（`moe.rule`）：`init.lua`（门面 / 加载 / 规则表 / 包与名字路由）+ `vfs.lua`（包来源合并成虚拟文件系统）；**游戏业务**功能，与开发期热重载无关（详见 `references/architecture.md` 第 9 节） |
+| `server/core/` | 内核：牌、牌区（移动 / 洗牌）、属性、随机源、**事件机制**、**桌子**（座位与行动顺序、`getDistance`）、**玩家**（属性实例 + 牌区 + 标签 + 参与行动标记）（**与规则无关**，接口可直接调用、可单测；房间按需再补） |
+| `server/rule/` | 规则集加载器与规则表（`moe.rule`）：`init.lua`（门面 / 加载 / 规则表 / 规则数值 / 包与名字路由）+ `vfs.lua`（包来源合并成虚拟文件系统）+ `preparse.lua`（试跑与包元信息）+ `env-meta.lua`（**纯类型文件**：注入的 `rule` / `core` 与各时机上下文的签名）；**游戏业务**功能，与开发期热重载无关（详见 `references/architecture.md` 第 9 节） |
 | `server/test/` | 无头测试（套件名如 `test.smoke` / `test.session` / `test.core`） |
 | `server/bin/` `server/log/` `server/tmp/` | 构建产物与运行时产物（均 git 忽略） |
-| `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（`package/标准`、`package/军争`…，**目录尚未创建**）；包 = 一级目录，跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.rule` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参与热重载；依赖 `server/core`，不反向 |
+| `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（现有 `基础` / `身份场` / `标准`，将来 `军争`…）；包 = 一级目录（根下**不许有散落文件**），跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.rule` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参与热重载；可以拿注入的 `rule` 与内核门面 `core`，不反向 |
 | `server/proto/` | 协议定义（方法名、参数与返回结构），前后端共用的事实来源 |
 | `server/transport/` | JSON-RPC 帧与连接层 |
 | `client/`（将来） | 前端（TypeScript / Web）；与 `server/` 平级 |
@@ -50,7 +50,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 
 | 文件 | 内容 |
 | --- | --- |
-| `references/architecture.md` | 分层、数据流、边界、协议设计原则、无头可测要求、热重载（8）、规则集加载（9）、时机与事件（10）、预解析与包元信息（11） |
+| `references/architecture.md` | 分层、数据流、边界、协议设计原则、无头可测要求、热重载（8）、规则集加载（9：来源合并 / 名字路由 / 规则数值）、时机与事件（10：命名风格与事件参数 meta）、预解析与包元信息（11） |
 | `references/code-style.md` | 代码风格（照搬 LuaLS 4.0.0） |
 | `references/infrastructure.md` | 参考仓库位置、bee.lua 构建与引导、lua-debug 调试、测试与命令速查 |
 

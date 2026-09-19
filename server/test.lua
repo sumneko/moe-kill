@@ -94,11 +94,16 @@ test.require 'test.session'
 test.require 'test.async'
 test.require 'test.core'
 test.require 'test.core.event'
+test.require 'test.core.desk'
+test.require 'test.core.player'
 test.require 'test.rule'
 test.require 'test.rule.vfs'
 test.require 'test.rule.routing'
 test.require 'test.rule.event'
 test.require 'test.rule.meta'
+test.require 'test.rule.base'
+test.require 'test.rule.identity'
+test.require 'test.rule.setup'
 
 local bodyDone = false
 local bodyFailures = 0

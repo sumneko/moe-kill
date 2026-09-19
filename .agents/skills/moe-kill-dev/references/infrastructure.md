@@ -169,7 +169,7 @@ end
 - 内存护栏只在显式传 `--mem-limit` 时启用。
 - 临时产物统一写 `tmp/`（已 gitignore）。
 
-**实测（2026-09-19）**：全量 118 个用例约 1 秒；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
+**实测（2026-09-19）**：全量 207 个用例约 1 秒；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
 
 ## 6. 本工程对 `tools/` 的改动清单
 
@@ -207,6 +207,11 @@ server/bin/moe-kill.exe --test core.reload    # 热重载套件（机制 + 真�
 server/bin/moe-kill.exe --test rule           # 规则集加载套件（清单/依赖/定义入口/失败）
 server/bin/moe-kill.exe --test rule.meta      # 互斥 / 预解析 / 包元信息套件
 server/bin/moe-kill.exe --test rule.vfs       # 包来源与虚拟文件系统套件（来源语法/覆盖/合并/不缓存）
+server/bin/moe-kill.exe --test rule.base      # 基础规则包套件（规则数值/体力初值/牌堆构建与洗牌）
+server/bin/moe-kill.exe --test rule.identity  # 身份场套件（人数配置/身份写标签/主公加成与先手）
+server/bin/moe-kill.exe --test rule.setup     # 开局装配套件（8 人完整开局 + 可复现）
+server/bin/moe-kill.exe --test core.desk      # 桌子套件（座位 / 行动顺序 / 距离求值）
+server/bin/moe-kill.exe --test core.player    # 玩家套件（属性实例 / 牌区增删 / 标签 / 参与行动）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 
