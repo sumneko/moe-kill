@@ -10,9 +10,9 @@
 - **牌堆与区域合并成同一套抽象**（一个基类 + 参数 + 少数能力），手牌区 / 装备区 / 判定区 / 抽牌堆 / 弃牌堆 / 处理区都是它的实例。
 - **接入 `sumneko/utility` 的 `attribute` 库**做通用属性；属性名与公式由调用方（将来的规则集）定义，内核不预设。
 - 玩家叫 `Player`；房间不设人数上限。
-- **规则集目录**：项目根 `game/`（中文包名，如 `game/基础规则/`、`game/卡牌包/标准/`），与 `script/` 平级；本批只建立目录与加载路径，不实现规则。
+- **规则集目录**：项目根 `game/`（中文包名，如 `game/基础规则/`、`game/卡牌包/标准/`），与 `server/` 平级；本批只记录约定，不创建目录、不实现规则。
 
-现状：`script/engine/` 只有一个空表（`---@class Engine`）。本批改名为 `script/core/` 并填入内容；已归档的 `headless-server`（`script/server/`）不动也不被依赖。
+现状：`server/core/` 只有一个空表（`---@class Core`）；已归档的 `headless-server`（`server/session/`）不动也不被依赖。
 
 ## Goals / Non-Goals
 
@@ -33,10 +33,11 @@
 
 ### D1 落点与门面
 
-- `script/engine/` → `script/core/`（`---@class Engine` → `---@class Core`），门面 `moe.core`。
-- **规则集放项目根 `game/`**，与 `script/` 平级：`game/` 是"内容/包"，`script/` 是"代码根"（引导、内核、会话、工具）。依赖方向只能是 `game/ → script/core`，内核永不反向依赖 `game`。
+- `script/` → `server/`（后端代码根，与将来的 `client/` 对称）；`engine/` → `core/`（`---@class Engine` → `---@class Core`），门面 `moe.core`。
+- 会话外壳目录随之从 `server/server/` 改名为 `server/session/`（避免同名嵌套），门面仍是 `moe.server`。
+- **规则集放项目根 `game/`**，与 `server/` 平级：`game/` 是"内容/包"，`server/` 是"后端代码根"（引导、内核、会话、工具）。依赖方向只能是 `game/ → server/core`，内核永不反向依赖 `game`。
   - **本批不创建该目录**（用户 2026-09-19 定）：约定先写在这里与技能文档，目录本体、`package.path`（`game/?.lua`、`game/?/init.lua`）与加载方式等后续批次测到规则集时再落地。
-- 不把 `script/` 改名为 `core` / `server`：它同时含 `tools/`、会话外壳、引导与调试，改名名不副实且要动引导脚本。
+- 入口脚本（根 `main.lua` / `test.lua` / `bin/main.lua`）**不挪进 `server/`**：`bin/main.lua` 是 exe 固定从同目录加载的引导产物；根 `main.lua` 是进程入口，且 `master.lua` 用 `arg[0]` 父目录当 `ROOT_PATH`（日志目录与 `test.lua` 定位都依赖它），挪动会连带改变路径语义。前端将来 `client/` 有自己的入口，不必与后端入口同构。
 
 ### D2 内核与规则的分界线（本批最重要的约束）
 
@@ -56,7 +57,7 @@
 
 ### D4 属性：接入 `attribute` 库，内核不预设属性名
 
-- 照搬 `sumneko/utility` 的 `attribute.lua` 到 `script/tools/attribute.lua`（照搬区，**不要随便改**），并在 `moe-kill-dev` 技能的 `tools/` 清单里登记来源与版本（该文件在 LuaLS 4.0.0 里没有，属通用能力库上游）。
+- 照搬 `sumneko/utility` 的 `attribute.lua` 到 `server/tools/attribute.lua`（照搬区，**不要随便改**），并在 `moe-kill-dev` 技能的 `tools/` 清单里登记来源与版本（该文件在 LuaLS 4.0.0 里没有，属通用能力库上游）。
 - 内核只做**接入**：属性系统**挂在房间上** —— 由调用方通过 `room:setPlayerAttributeSystem(system)` 设置，之后房间创建玩家时用该系统创建属性实例（用户定：不在玩家构造参数上传递）。
 - 因此"体力 / 体力上限"**不在内核里**：它们是规则集声明的属性名。
 - 备选与取舍：自己写一套属性系统——否决，`attribute` 已提供上下限、公式、惰性重算与变更事件，且是本项目工具的既定来源。
@@ -89,7 +90,7 @@
 
 ## Migration Plan
 
-改名 + 纯新增：`script/engine/` → `script/core/`、新增 `script/core/*`、`script/tools/attribute.lua`、`test/core/`、`moe.engine` → `moe.core`。回滚即还原目录名与门面那一行，并删除新增文件。
+改名 + 纯新增：`script/` → `server/`（含 `server/session/`、`test/session/`）、`server/engine/` → `server/core/`、新增 `server/core/*`、`server/tools/attribute.lua`、`test/core/`、`moe.engine` → `moe.core`。回滚即还原目录名与门面那一行，并删除新增文件。
 
 ## Open Questions
 

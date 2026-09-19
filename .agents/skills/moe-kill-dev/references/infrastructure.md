@@ -28,7 +28,7 @@
 
 ## 3. 构建（luamake）
 
-形态：**一个 exe + 一棵 Lua 脚本树**。exe 负责加载 `bin/main.lua` 引导脚本，引导脚本设 `package.path`（`script/?.lua`、`script/?/init.lua`、`script/tools/?.lua`、`script/tools/?/init.lua`）并处理 `arg`。
+形态：**一个 exe + 一棵 Lua 脚本树**。exe 负责加载 `bin/main.lua` 引导脚本，引导脚本设 `package.path`（`server/?.lua`、`server/?/init.lua`、`server/tools/?.lua`、`server/tools/?/init.lua`）并处理 `arg`。
 
 `make.lua` 骨架（照搬 LuaLS 4.0.0）：
 
@@ -67,7 +67,10 @@ lm:copy "copy_bootstrap" {
   main.lua              真正入口（被引导脚本加载）
   make/bootstrap.lua    → 构建时复制为 bin/main.lua
   make/modules.cpp      C 模块注册占位
-  script/               脚本树（script/?.lua、script/tools/?.lua）
+  server/               后端代码根（server/?.lua、server/tools/?.lua）
+    core/  session/  tools/  moe-kill.lua  master.lua  args.lua  debugger.lua  async-io.lua
+  game/                规则集（后续批次创建；与 server/ 平级）
+  client/              前端（将来；与 server/ 平级）
   test/  test.lua       测试
   bin/                  产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
   build/                中间产物（git 忽略）
@@ -77,7 +80,7 @@ exe 的引导链路（**关键，容易踩坑**）：
 
 1. exe 内嵌引导把 `package.cpath` 设为 `<exe目录>/?.dll`，然后 `loadfile(<exe目录>/main.lua)` 并调用它。
 2. 此时 `arg[0]` 是**占位字符串 `"!main.lua"`**（由 C 侧 `createargtable` 写入），不是可用路径；用户参数从 `arg[1]` 开始。
-3. 所以 `make/bootstrap.lua` 不能靠 `arg[0]` 推根目录，改为 **`progdir = exe目录`，`root = progdir/..`**（并用「根下是否有 `script/`」做兜底，支持 `MOE_KILL_ROOT` 环境变量覆盖）。
+3. 所以 `make/bootstrap.lua` 不能靠 `arg[0]` 推根目录，改为 **`progdir = exe目录`，`root = progdir/..`**（并用「根下是否有 `server/`」做兜底，支持 `MOE_KILL_ROOT` 环境变量覆盖）。
 4. 引导脚本若发现 `arg[1]` 是以 `.lua` 结尾的非选项参数，就把它当入口脚本并左移参数表，最后把 `arg[0]` 设为真实入口路径 —— 这样「业务代码看不到 `main.lua` 自身」且 `lua-debug` 的 launch（`luaexe` + `program`）也能直接用。
 
 已验证行为：
@@ -95,7 +98,7 @@ exe 的引导链路（**关键，容易踩坑**）：
 
 ## 4. 调试（lua-debug）
 
-目标进程内按需加载调试器（`script/debugger.lua` 去 VS Code 扩展目录里找最新的 `actboy168.lua-debug-*/script/debugger.lua`）：
+目标进程内按需加载调试器（`server/debugger.lua` 去 VS Code 扩展目录里找最新的 `actboy168.lua-debug-*/script/debugger.lua`，注意扩展自己的 `script/` 与我们无关）：
 
 ```lua
 if moe.args.DEVELOP then
@@ -108,9 +111,9 @@ end
 ```
 
 - **`dbg:start(地址)` 默认是"监听"**：扩展脚本里 `cfg.client` 为空时会用 `listen:地址`，即目标进程开端口等调试器接入；只有传 `{ address = ..., client = true }` 才是反向连接（`connect:`）。
-- 因此 VS Code 侧与 `request: attach` 配对（`address: 127.0.0.1:<port>` + `sourceMaps`，把运行时的 `script/*` 映射回工作区）。
+- 因此 VS Code 侧与 `request: attach` 配对（`address: 127.0.0.1:<port>` + `sourceMaps`，把运行时的 `server/*` 映射回工作区）。
 - `request: launch`（`luaexe` + `program`）依赖扩展注入；我们的引导脚本保留了 `-e <expr>` 处理（照搬 4.0.0）以兼容这条路径。
-- 两套配置都建议 `skipFiles: ["script/tools/class.lua"]`（类系统内部实现会污染单步）。
+- 两套配置都建议 `skipFiles: ["server/tools/class.lua"]`（类系统内部实现会污染单步）。
 - 调试接入放在 `main.lua` 的**测试分支之前**，所以 `--test --develop` 也能 attach 调试测试。
 - 用完及时断开，开新会话前先停掉旧会话。
 
@@ -133,16 +136,16 @@ end
 
 ## 6. 本工程对 `tools/` 的改动清单
 
-`script/tools/` 的基准是 LuaLS `4.0.0`。以下改动是本工程有意为之（用户确认），从上游同步时**逐条比对，不要被覆盖**：
+`server/tools/` 的基准是 LuaLS `4.0.0`。以下改动是本工程有意为之（用户确认），从上游同步时**逐条比对，不要被覆盖**：
 
 | 文件 | 改动 | 原因 |
 | ---- | ---- | ---- |
 | `event-loop.lua` | 删掉 `busyTime` / `markBusy` / `getIdleTime` 与「忙就不睡」的分级 sleep；`start(options, errorHandler)` 改为注入 `waiter(seconds)` / `deadline()` / `waker()`；空闲时等待到「下一个定时任务到期」（没有定时任务则无限阻塞）；停止前先请求唤醒 | 上游的忙等是为「worker 线程 + channel 回传」设计的；本工程没有线程，忙等只剩空转：全量测试 0.07 秒 → 1.4 秒、事件循环迭代 61 万次 |
 | `timer.lua` | 新增 `M.getNextDeadline()`：距最近一个定时任务到期还有多少秒（没有则返回 `nil`） | 供事件循环计算等待时长，替代空转 |
-| `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `script/async-io.lua`，不污染照搬文件 |
+| `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `server/async-io.lua`，不污染照搬文件 |
 | `attribute.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（**LuaLS 4.0.0 里没有它**）；861 行，`System:define(name, simple, min, max)` → `Instance:get/set/add/getMin/getMax/event`，含公式（基础值 + 百分比）、上下限、惰性重算与变更事件 | 内核的“通用属性”直接接它，不自己写一套 |
 
-等待与唤醒的接线在 `script/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
+等待与唤醒的接线在 `server/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
 
 ### `bee.async` 踩坑（本机实测）
 

@@ -20,7 +20,7 @@
                 "stderr"
             ],
             "skipFiles": [
-                "script/tools/class.lua"
+                "server/tools/class.lua"
             ],
             "arg": [
                 "--test"
@@ -44,7 +44,7 @@
                 "stderr"
             ],
             "skipFiles": [
-                "script/tools/class.lua"
+                "server/tools/class.lua"
             ],
             "arg": [
                 "--test",
@@ -60,21 +60,21 @@
             "sourceFormat": "string",
             "sourceMaps": [
                 [
-                    "script/*",
-                    "${workspaceFolder}/script/*"
+                    "server/*",
+                    "${workspaceFolder}/server/*"
                 ]
             ],
             "windows": {
                 "sourceMaps": [
                     [
-                        "script\\*",
-                        "${workspaceFolder}/script/*"
+                        "server\\*",
+                        "${workspaceFolder}/server/*"
                     ]
                 ]
             },
             "skipFiles": [
-                "script/tools/class.lua",
-                "${workspaceFolder}/script/tools/class.lua"
+                "server/tools/class.lua",
+                "${workspaceFolder}/server/tools/class.lua"
             ]
         }
     ]

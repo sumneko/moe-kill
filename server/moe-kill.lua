@@ -57,7 +57,7 @@ moe.tools = {
 
 moe.core = require 'core'
 
-moe.server = require 'server'
+moe.server = require 'session'
 
 local inspect = require 'tools.inspect'
 

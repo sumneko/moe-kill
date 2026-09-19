@@ -90,7 +90,7 @@ local lt = require 'test.ltest'
 test.enableMemoryGuard()
 
 test.require 'test.smoke'
-test.require 'test.server'
+test.require 'test.session'
 test.require 'test.async'
 
 local bodyDone = false

@@ -17,9 +17,9 @@ local root    = getenv 'MOE_KILL_ROOT'
 
 if not root then
     local parent = progdir:parent_path()
-    if fs.exists(parent / 'script') then
+    if fs.exists(parent / 'server') then
         root = parent:string()
-    elseif fs.exists(progdir / 'script') then
+    elseif fs.exists(progdir / 'server') then
         root = progdir:string()
     else
         root = parent:string()
@@ -33,10 +33,10 @@ end
 root = toNative(root)
 
 local patterns = {
-    'script/?.lua',
-    'script/?/init.lua',
-    'script/tools/?.lua',
-    'script/tools/?/init.lua',
+    'server/?.lua',
+    'server/?/init.lua',
+    'server/tools/?.lua',
+    'server/tools/?/init.lua',
     '?.lua',
     '?/init.lua',
 }

@@ -4,41 +4,42 @@
 
 ## 1. 改名、门面与目录约定
 
-- [ ] 1.1 `script/engine/` → `script/core/`（`git mv`），`---@class Engine` → `---@class Core`
-- [ ] 1.2 `script/moe-kill.lua`：`moe.engine` → `moe.core`，类型注解同步
-- [ ] 1.3 项目根 `game/` 与 `make/bootstrap.lua` 的 `game/?.lua` 路径**本批不建**（用户定：后续测到规则集时再落地）；约定写进设计与此处即可
+- [x] 1.1 `server/engine/` → `server/core/`（`git mv`），`---@class Engine` → `---@class Core`
+- [x] 1.2 `server/moe-kill.lua`：`moe.engine` → `moe.core`，类型注解同步
+- [x] 1.3 项目根 `game/` 与 `make/bootstrap.lua` 的 `game/?.lua` 路径**本批不建**（用户定：后续测到规则集时再落地）；约定写进设计与此处即可
+- [x] 1.4 目录改名（用户 2026-09-19 定）：`script/` → `server/`（与将来的 `client/` 对称）、`script/server/` → `server/session/`、`test/server/` → `test/session/`；同步 `make/bootstrap.lua`、`.luarc.json`、`.vscode/launch.json`、技能文档
 
 ## 2. 照搬属性库
 
-- [ ] 2.1 从 `sumneko/utility` 取 `attribute.lua` 放 `script/tools/attribute.lua`（**原样不改**）
-- [ ] 2.2 `moe-kill-dev` 技能的 `tools/` 清单登记该文件来源（LuaLS 4.0.0 无此文件，来自通用能力库上游）
+- [x] 2.1 从 `sumneko/utility` 取 `attribute.lua` 放 `server/tools/attribute.lua`（**原样不改**）
+- [x] 2.2 `moe-kill-dev` 技能的 `tools/` 清单登记该文件来源（LuaLS 4.0.0 无此文件，来自通用能力库上游）
 
 ## 3. 随机源（`core-random`）
 
-- [ ] 3.1 `script/core/random.lua`：按 seed 构造的可实例化伪随机源（取范围整数 / 取元素 / 打乱序列），不触碰全局 `math.random` 状态
+- [ ] 3.1 `server/core/random.lua`：按 seed 构造的可实例化伪随机源（取范围整数 / 取元素 / 打乱序列），不触碰全局 `math.random` 状态
 - [ ] 3.2 相同 seed 产生相同序列；两个实例互不干扰
 
 ## 4. 牌区（`core-zones`）
 
-- [ ] 4.1 `script/core/card.lua`：牌实例（唯一标识 + 标签，不含任何牌定义）
-- [ ] 4.2 `script/core/zone.lua`：牌区基类（放入 / 取出 / 查看 / 计数 / 列举 / 清空；空区取牌等非法操作明确失败）
+- [ ] 4.1 `server/core/card.lua`：牌实例（唯一标识 + 标签，不含任何牌定义）
+- [ ] 4.2 `server/core/zone.lua`：牌区基类（放入 / 取出 / 查看 / 计数 / 列举 / 清空；空区取牌等非法操作明确失败）
 - [ ] 4.3 区域参数：设置 / 读取 / 修改不透明参数，内核不解释含义
 - [ ] 4.4 动态添加 / 删除牌区，以及禁用 / 启用（禁用后不在默认列举中、操作明确失败、可恢复）
 - [ ] 4.5 有序能力用**子类**表达（基类 `Zone` 不含取顶/洗牌，子类如 `OrderedZone` 提供按顺序取顶 + 消费注入随机源洗牌）；未具备该能力的牌区被要求取顶/洗牌时明确失败（具体子类实例由 game 层创建，内核不预设）
 
 ## 5. 属性（`core-attributes`）
 
-- [ ] 5.1 `script/core/attribute.lua`：接入照搬的库 —— 由调用方声明属性（名 / 上下限 / 公式）后创建实例
+- [ ] 5.1 `server/core/attribute.lua`：接入照搬的库 —— 由调用方声明属性（名 / 上下限 / 公式）后创建实例
 - [ ] 5.2 实例按名读写、上下限生效；增减操作同样受约束
 - [ ] 5.3 实例间相互独立
 - [ ] 5.4 变更可观察：订阅某属性变化或查询自上次检查以来的变化；实例创建后新增定义明确失败
 
 ## 6. 对象模型（`core-objects`）
 
-- [ ] 6.1 `script/core/player.lua`：持有属性实例、参与行动标记、不透明标签、一组可增删禁用的牌区
-- [ ] 6.2 `script/core/table.lua`：入座、座位序号、按行动顺序遍历（跳过不参与行动的玩家）、相邻座位
+- [ ] 6.1 `server/core/player.lua`：持有属性实例、参与行动标记、不透明标签、一组可增删禁用的牌区
+- [ ] 6.2 `server/core/table.lua`：入座、座位序号、按行动顺序遍历（跳过不参与行动的玩家）、相邻座位
 - [ ] 6.3 座位距离求值：沿两侧取较小值、最小为 1、修正参与求值且修正后仍最小为 1（求值非缓存）
-- [ ] 6.4 `script/core/room.lua`：加入玩家、持有桌面与牌区集合、查询当前局面；**`room:setPlayerAttributeSystem(system)` 设置玩家属性系统**（创建玩家时用该系统造属性实例）；不设人数上限；两个房间互不影响
+- [ ] 6.4 `server/core/room.lua`：加入玩家、持有桌面与牌区集合、查询当前局面；**`room:setPlayerAttributeSystem(system)` 设置玩家属性系统**（创建玩家时用该系统造属性实例）；不设人数上限；两个房间互不影响
 
 ## 7. 测试（`test/core/`）
 
@@ -54,5 +55,5 @@
 - [ ] 8.1 `luamake -notest` 编译通过；`bin/moe-kill.exe --test` 全绿、退出码 0；问题面板 information 及以上归零
 - [ ] 8.2 `architecture.md`：分层图补 `core`（内核，与规则无关）与 `game`（规则集，调用内核）；「无头可测」补"内核接口可直接调用、调用方自行组合场景"
 - [ ] 8.3 `sanguosha-rules` 技能：把「决策点统一走请求输入 → 挂起 → 恢复」的主语改为 **Room 内部**（后续批次实现），并注明**内核不含任何流程且不预设区域名/属性名**
-- [ ] 8.4 `setup-backend-infra/design.md` 里过期的"`script/engine/` 未来放纯规则引擎"一句修正为 `core` + `game` 的新划分
+- [ ] 8.4 `setup-backend-infra/design.md` 里过期的"`script/engine/` 未来放纯规则引擎"一句修正为 `server/core` + `game/` 的新划分（含 `script/` → `server/` 改名）
 - [ ] 8.5 清理 `tmp/`、`log/` 中的临时产物
