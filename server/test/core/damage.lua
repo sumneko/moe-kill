@@ -60,12 +60,12 @@ lt.test('伤害：伤害前与伤害后时机的先后与上下文', function ()
     ---@type Player?
     local seenTo = nil
 
-    ---@param ctx Game.EventCtx.伤害
+    ---@param ctx Damage
     local function onBefore(ctx)
         trace[#trace + 1] = '前 {} {}' % { target:getAttr('体力'), ctx.amount }
     end
 
-    ---@param ctx Game.EventCtx.伤害
+    ---@param ctx Damage
     local function onAfter(ctx)
         trace[#trace + 1] = '后 {} {}' % { target:getAttr('体力'), ctx.amount }
         seenTo = ctx.to
@@ -86,4 +86,66 @@ lt.test('伤害：没有订阅者时照常', function ()
     game:damage(players[1], players[2], 1)
 
     lt.assertEquals('照样掉血', 3, players[2]:getAttr('体力'))
+end)
+
+lt.test('伤害：建实例先不结算就不掉血', function ()
+    local game, players = newGame(2)
+    local damage = moe.damage.create {
+        game   = game,
+        from   = players[1],
+        to     = players[2],
+        amount = 2,
+    }
+
+    lt.assertEquals('实例带来源', players[1], damage.from)
+    lt.assertEquals('实例带目标', players[2], damage.to)
+    lt.assertEquals('实例带点数', 2, damage.amount)
+    lt.assertEquals('实例知道自己属于哪一局', game, damage.game)
+    lt.assertEquals('还没结算，体力不变', 4, players[2]:getAttr('体力'))
+
+    damage:apply()
+
+    lt.assertEquals('结算之后才变化', 2, players[2]:getAttr('体力'))
+end)
+
+lt.test('伤害：便利入口与手写两步等价', function ()
+    local game, players = newGame(3)
+
+    game:damage(players[1], players[2], 2)
+    moe.damage.create {
+        game   = game,
+        from   = players[1],
+        to     = players[3],
+        amount = 2,
+    }:apply()
+
+    lt.assertEquals('两条路的结果一样', players[2]:getAttr('体力'), players[3]:getAttr('体力'))
+    lt.assertEquals('结果确实是 2', 2, players[3]:getAttr('体力'))
+end)
+
+lt.test('伤害：两个时机收到同一个实例', function ()
+    local game, players = newGame(2)
+
+    ---@type Damage?
+    local before = nil
+    ---@type Damage?
+    local after = nil
+
+    ---@param ctx Damage
+    local function onBefore(ctx)
+        before = ctx
+    end
+
+    ---@param ctx Damage
+    local function onAfter(ctx)
+        after = ctx
+    end
+
+    game.events:on('伤害-前', onBefore)
+    game.events:on('伤害-后', onAfter)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('前后是同一个对象', before, after)
+    lt.assertEquals('就是这次伤害（点数对得上）', 1, after and after.amount)
 end)

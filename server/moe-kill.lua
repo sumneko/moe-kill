@@ -22,6 +22,7 @@
 ---@field desk Desk
 ---@field player Player
 ---@field game Game
+---@field damage Damage
 ---@field loader Loader
 ---@field server Server
 ---@field inspect fun(root: any): string

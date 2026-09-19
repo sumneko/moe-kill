@@ -367,11 +367,12 @@ end
 ---@param to Player # 承受者
 ---@param amount integer # 点数
 function M:damage(from, to, amount)
-    ---@type Game.EventCtx.伤害
-    local ctx = { from = from, to = to, amount = amount }
-    self:fire('伤害-前', ctx)
-    to:addAttr('体力', -amount)
-    self:fire('伤害-后', ctx)
+    moe.damage.create {
+        game   = self,
+        from   = from,
+        to     = to,
+        amount = amount,
+    }:apply()
 end
 
 ---@param user Player # 使用者

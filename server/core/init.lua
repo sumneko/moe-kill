@@ -19,5 +19,6 @@ moe.loader      = includeCore 'core.loader'
 moe.desk        = includeCore 'core.desk'
 moe.player      = includeCore 'core.player'
 moe.game        = includeCore 'core.game'
+moe.damage      = includeCore 'core.damage'
 
 return moe
