@@ -140,6 +140,7 @@ end
 | `event-loop.lua` | 删掉 `busyTime` / `markBusy` / `getIdleTime` 与「忙就不睡」的分级 sleep；`start(options, errorHandler)` 改为注入 `waiter(seconds)` / `deadline()` / `waker()`；空闲时等待到「下一个定时任务到期」（没有定时任务则无限阻塞）；停止前先请求唤醒 | 上游的忙等是为「worker 线程 + channel 回传」设计的；本工程没有线程，忙等只剩空转：全量测试 0.07 秒 → 1.4 秒、事件循环迭代 61 万次 |
 | `timer.lua` | 新增 `M.getNextDeadline()`：距最近一个定时任务到期还有多少秒（没有则返回 `nil`） | 供事件循环计算等待时长，替代空转 |
 | `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `script/async-io.lua`，不污染照搬文件 |
+| `attribute.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（**LuaLS 4.0.0 里没有它**）；861 行，`System:define(name, simple, min, max)` → `Instance:get/set/add/getMin/getMax/event`，含公式（基础值 + 百分比）、上下限、惰性重算与变更事件 | 内核的“通用属性”直接接它，不自己写一套 |
 
 等待与唤醒的接线在 `script/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
 

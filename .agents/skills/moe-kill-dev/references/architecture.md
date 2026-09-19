@@ -7,13 +7,13 @@
     ↕ JSON-RPC（通用协议）
 [transport]  帧编解码、连接生命周期、反向请求路由
 [proto]      方法名 / 参数 / 返回结构的唯一定义（前后端共用事实来源）
-[game]       对局会话：把协议方法翻译成引擎操作，把引擎事件翻译成协议通知
-[server]     外壳：会话容器 + 决策挂起/恢复通道 + 事件收集（不认识任何规则）
-[engine]     纯规则引擎：状态 + 结算栈 + 时机系统 + 卡牌 / 武将 / 牌堆 + AI
+[game]       规则集：开局装配、回合流程、牌的效果、技能（项目根 `game/`，按包组织）
+[session]    会话外壳：会话容器 + 决策挂起/恢复通道 + 事件收集（`script/server/`）
+[core]       内核：玩家 / 桌子 / 房间 / 牌区 / 属性 / 随机源（**与规则无关**，可直接单测）
 [tools]      基础设施：event-loop / await / timer / log / json / inspect / uri …
 ```
 
-依赖方向只能自上而下。**`engine` 不得依赖 `game`、`proto`、`transport` 以及任何 IO**；这样引擎可以脱离协议与网络被直接驱动。
+依赖方向只能自上而下。**`core` 不得依赖规则集、会话、协议、网络与任何 IO**；这样内核可以脱离协议与网络被直接驱动。协议方法到规则操作的翻译层属会话/协议批次，目录名待定。
 
 ## 2. 启动与运行模型
 
@@ -43,7 +43,7 @@ sequenceDiagram
     participant FE as 前端
     participant TR as transport
     participant G as game
-    participant E as engine
+    participant E as core
 
     FE->>TR: game/submitDecision(version, decision)
     TR->>G: 分发请求
@@ -58,7 +58,7 @@ sequenceDiagram
 
 ## 5. 重要边界
 
-- 规则逻辑只进 `engine`；协议路由与序列化只进 `transport` / `game`。
+- 规则集只进 `game/`（项目根）；内核只进 `script/core/`；协议路由与序列化只进 `transport` / `proto`（翻译层目录名待定）。
 - 引擎的随机源必须可注入：固定 seed 能复现整局（便于回放、复现 bug、写测试）。
 - 事件流是**表现层契约**：一旦下发就应稳定，不能因为前端改需求而让引擎改逻辑。
 - 跨线程 / worker 边界只传可序列化 plain data。

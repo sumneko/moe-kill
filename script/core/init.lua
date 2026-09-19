@@ -1,4 +1,4 @@
----@class Engine
+---@class Core
 local M = {}
 
 return M

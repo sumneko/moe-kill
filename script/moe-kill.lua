@@ -12,7 +12,7 @@
 ---@field asyncIO AsyncIO
 ---@field sevent table
 ---@field tools MoeKill.Tools
----@field engine Engine
+---@field core Core
 ---@field server Server
 ---@field inspect fun(root: any): string
 moe = {}
@@ -55,7 +55,7 @@ moe.tools = {
     activePool    = require 'tools.active-pool',
 }
 
-moe.engine = require 'engine'
+moe.core = require 'core'
 
 moe.server = require 'server'
 

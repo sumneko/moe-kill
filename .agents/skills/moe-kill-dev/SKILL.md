@@ -35,8 +35,8 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `script/tools/` | 基础设施（event-loop / await / timer / log / json / inspect / uri…）与通用库（class、utility），照搬 4.0.0；**不要随便改** |
 | `script/server/` | 无头服务器外壳：会话容器、决策挂起/恢复通道、事件收集（不含任何规则） |
 | `script/async-io.lua` | 等待与异步 I/O 接线：`bee.async` 实例、完成事件分发、异步文件读写、外部事件源注册（详见 `references/infrastructure.md` 第 6 节） |
-| `script/engine/` | 纯规则引擎：状态、结算栈、时机系统、AI（**不依赖 IO**） |
-| `script/engine/` 之下的卡牌 / 武将 / 牌堆 | 规则数据与技能实现 |
+| `script/core/` | 内核：玩家、桌子、房间、牌区、属性、随机源（**与规则无关**，接口可直接调用、可单测） |
+| `game/`（项目根，与 `script/` 平级） | 规则集：基础规则 / 卡牌包 / 技能（**后续批次，目录尚未创建**；依赖 `script/core`，不反向） |
 | `script/proto/` | 协议定义（方法名、参数与返回结构），前后端共用的事实来源 |
 | `script/transport/` | JSON-RPC 帧与连接层 |
 | `test/` | 无头测试 |

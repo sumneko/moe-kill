@@ -17,7 +17,7 @@
 ## What Changes
 
 - **改名**：`script/engine/` → `script/core/`，`moe.engine` → `moe.core`。
-- **新增规则集目录**：项目根 `game/`（与 `script/` 平级），按中文包组织（如 `game/基础规则/`、`game/卡牌包/标准/`）；本批只**建立目录与加载路径约定**、写一份 README 说明，**不实现任何规则**。
+- **规则集目录（本批只记录约定，不创建）**：项目根 `game/`（与 `script/` 平级），按中文包组织（如 `game/基础规则/`、`game/卡牌包/标准/`）；目录本体、`package.path` 与加载方式**测试到那部分时再落地**，本批只把约定写进设计与技能文档，**不实现任何规则**。
 - **牌区（统一容器）**：通用牌区 + 参数 + 动态增删禁用；抽牌堆多一项"按顺序取顶 + 洗牌（消费注入的随机源）"的能力；牌实例只承载唯一标识与标签，牌的定义属配置。
 - **属性**：照搬 `sumneko/utility` 的 `attribute.lua` 到 `tools/`（照搬区），并在内核里接入为通用属性（玩家持有属性实例；属性名 / 公式 / 上下限由调用方定义）。
 - **对象模型**：玩家（属性实例 + 参与标记 + 不透明标签 + 一组牌区）、桌子（座位、行动顺序、座位距离求值）、房间（装配根，持有桌面与牌区；不设人数上限）；房间之间互不影响。
@@ -40,9 +40,9 @@
 
 ## Impact
 
-- **新增**：`script/core/`（内核）、`game/`（规则集目录与 README，本批不含规则实现）、`test/core/`（单元测试）、`script/tools/attribute.lua`（照搬）。
+- **新增**：`script/core/`（内核）、`test/core/`（单元测试）、`script/tools/attribute.lua`（照搬）。
 - **改名**：`script/engine/` → `script/core/`；`script/moe-kill.lua` 的 `moe.engine` → `moe.core`。
-- **构建**：`make/bootstrap.lua` 的 `package.path` 补 `game/?.lua`、`game/?/init.lua`。
+- **延后**：`game/` 目录本体、`make/bootstrap.lua` 里的 `game/?.lua` 路径、规则集加载方式 —— 等后续批次测到规则集时再落地（本批只写约定）。
 - **文档**：`moe-kill-dev` 技能的分层图、目录职责表与 `tools/` 改动清单（新增照搬的 `attribute.lua`）；`setup-backend-infra/design.md` 里"`script/engine/` 未来放纯规则引擎"一句已过期，一并修正。
 - **不改**：`script/server/`（Session 保留不动）、`script/async-io.lua`、协议层、前端。
 - **后续顺序提醒**：规则集（开局装配 / 阶段流程 / 牌的效果 / 技能）与"内核与会话串起来"都在后面的批次；**卡牌开搞前先与用户预研**。

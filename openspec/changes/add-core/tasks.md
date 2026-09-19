@@ -1,11 +1,12 @@
 # Tasks
 
+**交付方式（用户 2026-09-19 定）**：一个功能点做完就与用户对齐一次。建议轮次：① 改名 core + 照搬 attribute → ② `core-random` → ③ `core-zones` → ④ `core-attributes` → ⑤ `core-objects` → ⑥ 文档与验收。
+
 ## 1. 改名、门面与目录约定
 
 - [ ] 1.1 `script/engine/` → `script/core/`（`git mv`），`---@class Engine` → `---@class Core`
 - [ ] 1.2 `script/moe-kill.lua`：`moe.engine` → `moe.core`，类型注解同步
-- [ ] 1.3 项目根新建 `game/`（与 `script/` 平级）与 `game/README.md`（说明规则集/卡牌包的目录约定与本批不含实现），按中文包名建占位目录
-- [ ] 1.4 `make/bootstrap.lua`：`package.path` 补 `game/?.lua`、`game/?/init.lua`，并实测 `require` 能取到 `game/` 下的模块
+- [ ] 1.3 项目根 `game/` 与 `make/bootstrap.lua` 的 `game/?.lua` 路径**本批不建**（用户定：后续测到规则集时再落地）；约定写进设计与此处即可
 
 ## 2. 照搬属性库
 
@@ -23,7 +24,7 @@
 - [ ] 4.2 `script/core/zone.lua`：牌区基类（放入 / 取出 / 查看 / 计数 / 列举 / 清空；空区取牌等非法操作明确失败）
 - [ ] 4.3 区域参数：设置 / 读取 / 修改不透明参数，内核不解释含义
 - [ ] 4.4 动态添加 / 删除牌区，以及禁用 / 启用（禁用后不在默认列举中、操作明确失败、可恢复）
-- [ ] 4.5 有序能力：按顺序取顶 + 消费注入随机源洗牌；未声明该能力的牌区请求取顶/洗牌时明确失败
+- [ ] 4.5 有序能力用**子类**表达（基类 `Zone` 不含取顶/洗牌，子类如 `OrderedZone` 提供按顺序取顶 + 消费注入随机源洗牌）；未具备该能力的牌区被要求取顶/洗牌时明确失败（具体子类实例由 game 层创建，内核不预设）
 
 ## 5. 属性（`core-attributes`）
 
@@ -37,7 +38,7 @@
 - [ ] 6.1 `script/core/player.lua`：持有属性实例、参与行动标记、不透明标签、一组可增删禁用的牌区
 - [ ] 6.2 `script/core/table.lua`：入座、座位序号、按行动顺序遍历（跳过不参与行动的玩家）、相邻座位
 - [ ] 6.3 座位距离求值：沿两侧取较小值、最小为 1、修正参与求值且修正后仍最小为 1（求值非缓存）
-- [ ] 6.4 `script/core/room.lua`：加入玩家、持有桌面与牌区集合、查询当前局面；不设人数上限；两个房间互不影响
+- [ ] 6.4 `script/core/room.lua`：加入玩家、持有桌面与牌区集合、查询当前局面；**`room:setPlayerAttributeSystem(system)` 设置玩家属性系统**（创建玩家时用该系统造属性实例）；不设人数上限；两个房间互不影响
 
 ## 7. 测试（`test/core/`）
 
