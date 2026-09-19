@@ -97,4 +97,7 @@ return {
 ```
 
 - 调试时把 `script/class.lua` 放进 `skipFiles`（类系统内部实现会污染单步）。
+- **换行符：仓库内存 LF，工作区用平台本地换行符**。实现方式是 `.gitattributes` 只写 `* text=auto`（**不要写 `eol=lf`**，那会强制工作区也用 LF）、`.editorconfig` 用 `end_of_line = unset`、本地 `core.autocrlf=true`。
+  - 效果：工作区是 LF 还是 CRLF，git 都不会视为修改；**不要**为了"统一"去批量转换行尾。
+  - 注意：改动 `.gitattributes` 后如出现一批"被修改"的文件，跑一次 `git add --renormalize .` 即可消除。
 - PowerShell 写文件务必指定 `-Encoding UTF8`，否则 UTF-8 源码会乱码（项目源码统一 UTF-8 无 BOM）。
