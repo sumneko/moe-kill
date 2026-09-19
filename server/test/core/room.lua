@@ -119,3 +119,14 @@ lt.test('场地：两个场地的规则互不影响', function ()
     lt.assertEquals('第二个不受影响', nil, ruleB:getValue('牌表'))
     lt.assertEquals('第二个的条目也不受影响', nil, ruleB:getCard('杀'))
 end)
+
+lt.test('场地：规则实例能读回所属场地', function ()
+    local room = newRoom()
+
+    lt.assertEquals('场地建的实例读回同一个场地', room, room:getRule():getRoom())
+
+    local rule = moe.rule.create {}
+    lt.assertError('独立建的实例没有场地', function ()
+        rule:getRoom()
+    end)
+end)

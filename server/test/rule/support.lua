@@ -7,7 +7,7 @@
 local M = {}
 
 ---@class Test.RuleSupport.StartOptions
----@field packages string[] # 规则集加载清单
+---@field packages string[]? # 规则集加载清单（省略时只装默认加载的包）
 ---@field count integer # 座位数
 ---@field sources string[]? # 包来源（省略时用默认来源）
 ---@field seed? integer
@@ -32,7 +32,7 @@ function M.start(options)
         desk:sit(i, player)
         players[i] = player
     end
-    rule:fire('游戏-开始', { desk = desk, random = random, room = room })
+    rule:fire('游戏-开始', {})
     return { players = players, desk = desk, random = random, room = room, rule = rule }
 end
 

@@ -14,11 +14,9 @@ local M = Class 'Moe.Room'
 
 ---@param desk Moe.Desk
 ---@param random Moe.Random
----@param rule Moe.Rule
-function M:__init(desk, random, rule)
+function M:__init(desk, random)
     self.desk     = desk
     self.random   = random
-    self.rule     = rule
     self.zoneList = {}
     self.zoneMap  = {}
 end
@@ -29,11 +27,13 @@ function M.create(options)
     if not options or not options.desk or not options.random then
         error('场地需要一张桌子与一个随机源', 2)
     end
-    local rule = moe.rule.create {
+    local room = New 'Moe.Room' (options.desk, options.random)
+    room.rule  = moe.rule.create {
+        room     = room,
         sources  = options.sources,
         packages = options.packages or {},
     }
-    return New 'Moe.Room' (options.desk, options.random, rule)
+    return room
 end
 
 ---@return Moe.Rule

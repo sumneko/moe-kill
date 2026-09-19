@@ -176,8 +176,9 @@ M.__counter = M.__counter or moe.util.counter()
 ### 9.1 落点与外观
 
 - 代码在 `server/core/rule/`：`init.lua`（`Moe.Rule` 类 + 加载器）、`vfs.lua`（包来源合并成的虚拟文件系统）、`preparse.lua`（试跑）、`env-meta.lua`（纯类型文件）。`server/core/init.lua` 里与其它内核模块一样 `includeCore 'core.rule'` ⇒ `moe.rule` 是**这个类**（可热重载），类上再挂 `create`。
-- `moe.rule.create { sources?, packages? }` 建一份**规则实例**：规则表、包顺序、包元信息、规则数值、时机注册、属性系统、来源全挂在实例上，**实例之间互不影响**；给了 `packages` 就立刻加载（连同自动加载的默认包，见 9.3），没给则建出一份空实例（可稍后 `rule:load(清单)`）。
-- **一局的规则实例由场地持有**：`room.create { desk, random, sources?, packages }` 建场地时把规则装好，`room:getRule()` 读回（见 `core-room`）。
+- `moe.rule.create { room?, sources?, packages? }` 建一份**规则实例**并**立刻加载**：规则表、包顺序、包元信息、规则数值、时机注册、属性系统、来源全挂在实例上，**实例之间互不影响**；`packages` 省略视同空清单 ⇒ 只装默认加载的包（见 9.3）—— 即 `create {}` 与 `create { packages = {} }` 行为一致；要换规则走 `rule:load(清单)`。
+- **实例能读回场地**：`rule:getRoom()`（场地建实例时绑定；独立建的实例读它会报错）—— 规则包要这一局的牌区 / 桌子 / 随机源就从这里取（见 9.6）。
+- **一局的规则实例由场地持有**：`room.create { desk, random, sources?, packages }` 建场地时把规则装好（先建场地对象 → 建规则实例并绑定回去 → 装到场地上），`room:getRule()` 读回（见 `core-room`）。
 - 测试套件：`server/test/rule/init.lua`（加载/依赖/重载，`--test rule`）与 `server/test/rule/vfs.lua`（来源与合并，`--test rule.vfs`）。
 
 ### 9.2 包来源与虚拟文件系统（`server/core/rule/vfs.lua`）
@@ -257,11 +258,11 @@ local slash = rule.card '杀'          -- 登记为 标准.杀
 - 加载时用 `load(chunk, '@' .. 路径, 't', env)` 把 `rule` 与内核门面 `core` **注入**执行环境，所以规则集文件**不需要 `require` 任何东西**；以 `@路径` 作 chunkname，报错与堆栈里显示真实文件路径（中文路径同样可用）。
 - 注入面只有 `rule` + 一份**标准库白名单**（`string` / `table` / `math` / `utf8` / `pcall` 等基函数）；`core`、`require`、`io`、`os` 以及 `moe.*` 一律不给 —— 规则集是内容，不该具备开文件 / 起进程的能力。
 - **规则包需要的内核能力由 `rule` 收口**（用户 2026-09-19 定）：`rule:getAttributeSystem()` —— 属性系统由**该规则实例**持有（一局一份；实例清空重载时置空 ⇒ **重载后是一个全新的系统**：属性定义是规则集内容，属性库也不允许编译后再 `define`）；包在**加载期**往它上面 `define`，装配方再用 `createInstance()` 给玩家建属性实例。
-- **一局的资源走场地（`ctx.room`）**：牌与牌区是运行期的东西，由场地按名字建（`room:createZone(名字, 有序?)` / `room:createCard(名字)`），场地还提供随机源与桌子。
+- **一局的资源从规则实例取（`rule:getRoom()`）**：牌与牌区是运行期的东西，由场地按名字建（`room:createZone(名字, 有序?)` / `room:createCard(名字)`），场地还提供随机源与桌子（`room:getDesk()` / `room:getRandom()`）。**环境对象不走时机上下文**（见第 10 节）。
   - 分工：**公共牌区**（抽牌堆 / 弃牌堆 / 处理区）挂场地；**玩家侧牌区**（手牌 / 装备 / 判定）用 `player:addZone(名字)`。
 - **装配方不受限**：测试与将来的 Room 直接用 `moe.*` 组合开局（它们不是包）。
 - 规则集文件里**可以用中文标识符**（构建期补丁，见 `infrastructure.md`），但**中文只用于难翻译的内容名**：技能名 / 卡牌名 / 身份名，以及作为数据取值与配置键的名字（`'杀'`、`'体力上限'`、`'游戏-开始'`）；**字段名 / 局部变量 / 函数名一律英文**（详见 `code-style.md` 第 8 节）。
-- 规则集里**不要为空值防御**：注入的 `ctx` 按约定一定有 `desk` 与 `random`（类型上必填），直接用；只有**运行期真的会缺**的才 `error`（如没牌表、人数不在配置表里）。见 `code-style.md` 第 9 节。
+- 规则集里**不要为空值防御**：注入的 `rule` 与它绑的场地（`rule:getRoom()`）按约定一定拿得到（实例由场地建出），直接用；只有**运行期真的会缺**的才 `error`（如没牌表、人数不在配置表里）。见 `code-style.md` 第 9 节。
 - 这两个全局与各时机的上下文类型写在一份**纯类型文件** `server/core/rule/env-meta.lua`（顶部 `---@meta`，不参与运行）：见 9.7 与第 10 节。
 
 ### 9.7 规则数值（可覆盖的配置）
@@ -315,13 +316,11 @@ local slash = rule.card '杀'
 - 实现是「时机名 → `moe.sevent`」的薄封装（`server/core/event.lua`），顺序与错误隔离都沿用 `simple-event`。
 - **实例由规则实例持有**（`rule.events`）并在**每次 `load` 重置** —— 于是注册的生命周期天然等于一轮加载，清空重载不会残留旧回调，也不会串到别的局。
 - **时机名不预设**：内核与加载器不认识任何具体时机名，`'游戏-开始'` / `'回合-开始'` 都是规则集自己约定的字符串。**项目约定用 `分类-动作` 命名**（前一段是分类、后一段是动作，便于按分类聚合事件列表），这只是写法规约，没有任何强校验。
+- **上下文只装事件参数**：`ctx` = 这个时机对外声明的参数（`'游戏-开始'` 没有参数 ⇒ 传空表）；环境对象（场地 / 桌子 / 随机源）不进上下文，从 `rule:getRoom()` 取。
 - **事件参数写进 meta**：`server/core/rule/env-meta.lua`（纯类型文件，不参与运行）为每个时机声明一个上下文类型与 `on` / `fire` 的重载，于是规则集里 `rule:on('游戏-开始', function (ctx) ... end)` 的 `ctx` 能**按事件名收窄**出字段类型：
 
 ```lua
----@class Moe.Rule.EventCtx.游戏开始
----@field desk Moe.Desk
----@field random Moe.Random
----@field room Moe.Room
+---@class Moe.Rule.EventCtx.游戏开始 # 目前没有事件参数：触发时给空表
 
 ---@class Moe.Rule
 ---@field on fun(self: Moe.Rule, name: '游戏-开始', callback: fun(ctx: Moe.Rule.EventCtx.游戏开始)): function

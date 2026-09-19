@@ -43,7 +43,7 @@ lt.test('基础：规则数值后者覆盖前者', function ()
     local probe <close> = useProbe()
     write('覆盖/配置.lua', 'rule:setValues { 默认体力 = 6 }')
 
-    local rule = moe.rule.create { packages = {} }
+    local rule = moe.rule.create {}
     lt.assertEquals('默认体力来自基础包（它默认加载，不需要写进清单）', 5, rule:getValue('默认体力'))
 
     rule:setRoots { './package/*', probeDir:string() .. '/*' }
@@ -64,7 +64,7 @@ lt.test('基础：清空重载后不保留', function ()
 end)
 
 lt.test('基础：未设置的名字读到不存在', function ()
-    local rule = moe.rule.create { packages = {} }
+    local rule = moe.rule.create {}
 
     lt.assertEquals('读到不存在', nil, rule:getValue('根本没有这个名字'))
 
@@ -145,7 +145,7 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
 end)
 
 lt.test('基础：没有牌表时不建牌堆', function ()
-    local game = support.start { packages = {}, count = 4 }
+    local game = support.start { count = 4 }
 
     lt.assertEquals('没有牌表就不建出抽牌堆（回调报错被时机机制记录）', nil, game.room:getZone('抽牌堆'))
 end)

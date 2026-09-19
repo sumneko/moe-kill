@@ -3,10 +3,7 @@
 ---@type Moe.Rule
 rule = nil
 
----@class Moe.Rule.EventCtx.游戏开始
----@field desk Moe.Desk
----@field random Moe.Random
----@field room Moe.Room
+---@class Moe.Rule.EventCtx.游戏开始 # 目前没有事件参数：触发时给空表，环境对象从 rule:getRoom() 取
 
 ---@class Moe.Rule
 ---@field on fun(self: Moe.Rule, name: '游戏-开始', callback: fun(ctx: Moe.Rule.EventCtx.游戏开始)): function

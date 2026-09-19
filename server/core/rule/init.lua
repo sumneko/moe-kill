@@ -81,8 +81,9 @@ local ALLOWED_GLOBALS = {
 ---@field excludes table<string, string>
 
 ---@class Moe.Rule.CreateOptions
+---@field room Moe.Room? # 所属场地（场地建实例时给；独立建的实例取不到场地）
 ---@field sources string[]? # 包来源（省略时用默认来源）
----@field packages string[]? # 加载清单（给了就立刻加载）
+---@field packages string[]? # 加载清单（省略时只装默认加载的包）
 
 ---@class Moe.Rule
 ---@field cards table<string, table<string, Moe.Rule.Card>> # 包名 → 裸名 → 定义
@@ -91,6 +92,7 @@ local ALLOWED_GLOBALS = {
 ---@field meta table<string, Moe.Rule.PackageMeta> # 包元信息（预解析产物，随每次加载重建）
 ---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者，随每次加载清空）
 ---@field sources string[] # 包来源（顺序即优先级）
+---@field room Moe.Room? # 这一局的场地（场地建本实例时绑定）
 ---@field card fun(name: string): Moe.Rule.Card # 加载期声明定义（点号调用，作用在本实例）
 ---@field depends fun(items: string[]) # 加载期声明依赖（点号调用，作用在本实例）
 ---@field private attributeSystem Moe.AttributeSystem? # 属性系统（规则集内容，随每次加载重建）
@@ -102,8 +104,10 @@ local M = Class 'Moe.Rule'
 ---@type string[] # 默认来源：仓库根下项目自己的包容器
 M.DEFAULT_SOURCES = { './package/*' }
 
+---@param room? Moe.Room
 ---@param sources? string[]
-function M:__init(sources)
+function M:__init(room, sources)
+    self.room     = room
     self.sources  = sources or M.DEFAULT_SOURCES
     self.cards    = {}
     self.packages = {}
@@ -120,11 +124,17 @@ function M.create(options)
     if options and options.sources ~= nil and type(options.sources) ~= 'table' then
         error('规则集来源必须是字符串列表', 2)
     end
-    local instance = New 'Moe.Rule' (options and options.sources)
-    if options and options.packages ~= nil then
-        instance:load(options.packages)
-    end
+    local instance = New 'Moe.Rule' (options and options.room, options and options.sources)
+    instance:load(options and options.packages or {})
     return instance
+end
+
+---@return Moe.Room
+function M:getRoom()
+    if not self.room then
+        error('这份规则实例不属于任何场地', 2)
+    end
+    return self.room
 end
 
 ---@param ruleTable table

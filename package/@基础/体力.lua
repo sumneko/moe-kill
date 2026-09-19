@@ -11,9 +11,9 @@ attributeSystem:define('体力上限', {
     simple = true,
 })
 
-rule:on('游戏-开始', function (ctx)
+rule:on('游戏-开始', function ()
     local defaultHp = rule:getValue('默认体力') or 5
-    for _, player in ipairs(ctx.desk:getPlayers()) do
+    for _, player in ipairs(rule:getRoom():getDesk():getPlayers()) do
         player:setAttr('体力上限', defaultHp)
         player:setAttr('体力',    defaultHp)
     end

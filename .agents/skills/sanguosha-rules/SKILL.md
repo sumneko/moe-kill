@@ -99,7 +99,7 @@ description: 三国杀规则知识（身份场配置、胜负奖惩、回合阶�
 - 技能分：触发技（被动，挂时机）、主动技（出牌阶段主动发动）、锁定技（必发，不可放弃）。
 - **技能可以在任意时机插入**，因此引擎必须支持**挂起 / 恢复**：遇到需要玩家决策的点就让出，等输入后再继续，而不是一路跑到底的函数调用。
 - **建议：时机名用 `分类-动作` 风格**（`'游戏-开始'`、`'回合-开始'`、`'判定-前'`、`'伤害-后'`…）—— 前一段是分类、后一段是动作，便于把事件表按分类聚合；与“集中定义成一张枚举表”的初衷一致，但**不预设、不校验**（时机名仍是任意字符串，写法规约而已）。
-- **落定机制（已实现）**：规则集用 `rule:on(时机名, function (ctx) ... end)` 注册、装配 / 流程代码用 `rule:fire(时机名, ctx)` 触发（时机名**不预设**，注册顺序即执行顺序，注册随清空重载清空）；每个时机的 `ctx` 类型写在 `server/core/rule/env-meta.lua`（纯类型文件，按事件名收窄字段类型；详见 `moe-kill-dev` 的 `references/architecture.md` 第 10 节）。
+- **落定机制（已实现）**：规则集用 `rule:on(时机名, function (ctx) ... end)` 注册、装配 / 流程代码用 `rule:fire(时机名, ctx)` 触发（时机名**不预设**，注册顺序即执行顺序，注册随清空重载清空）。上下文**只装该时机的参数**（`'游戏-开始'` 没有参数 ⇒ 传空表），环境对象（场地 / 桌子 / 随机源）从 `rule:getRoom()` 取；每个时机的 `ctx` 类型写在 `server/core/rule/env-meta.lua`（纯类型文件，按事件名收窄字段类型；详见 `moe-kill-dev` 的 `references/architecture.md` 第 10 节）。
 - `ctx` 约定**只读**；加载期的回调**报错被隔离**（只记日志、不影响其它回调），所以“规则包出错”的可见信号是**状态没写**（如没写出牌堆），装配方要在 `fire` 之后断言必需状态。
 - 要"覆盖"别人的效果就改**状态**（写标签 / 改属性 / 加标记），不做"回调返回值改事件载荷"那一套。
 
@@ -123,17 +123,18 @@ local attributeSystem = rule:getAttributeSystem()      -- 属性系统由这一�
 attributeSystem:define('体力上限', { min = 0, max = 999999 })
 attributeSystem:define('体力', { min = -999999, max = '体力上限' })   -- 体力可为负、写值钳到上限
 
-rule:on('游戏-开始', function (ctx)          -- 挂时机（分类-动作）
-    local deck = ctx.room:createZone('抽牌堆', true)   -- 公共牌区挂场地（第二个参数 = 需要有顺序能力）
-    deck:put(ctx.room:createCard('杀'))                 -- 牌由场地建（牌名进不透明标签）
-    deck:shuffle()                                      -- 有序牌区洗牌不用再传随机源
+rule:on('游戏-开始', function ()          -- 挂时机（分类-动作）：这个时机没有事件参数，上下文是空表
+    local room = rule:getRoom()             -- 这一局的场地从规则实例取（环境对象不进上下文）
+    local deck = room:createZone('抽牌堆', true)   -- 公共牌区挂场地（第二个参数 = 需要有顺序能力）
+    deck:put(room:createCard('杀'))                 -- 牌由场地建（牌名进不透明标签）
+    deck:shuffle()                                 -- 有序牌区洗牌不用再传随机源
 end)
 
 local slash = rule.card '杀'
     :on('使用', function () end)    -- 事件名与签名做「杀」时再定
 ```
 
-- 入口：规则加载器 `moe.rule`（`server/core/rule/`）—— `Moe.Rule` 类，`moe.rule.create { sources?, packages }` 建**一局一份**的规则实例，场地建场地时就装好（`room:getRule()` 读回）；内容放在项目根 `package/` 下、**按包组织**（`package/标准/…`、`package/军争/…`）。
+- 入口：规则加载器 `moe.rule`（`server/core/rule/`）—— `Moe.Rule` 类，`moe.rule.create { room?, sources?, packages }` 建**一局一份**的规则实例（**建实例即加载**，清单省略就只装默认加载的包），场地建场地时就装好（`room:getRule()` 读回，`rule:getRoom()` 反向取场地）；内容放在项目根 `package/` 下、**按包组织**（`package/标准/…`、`package/军争/…`）。
 - **来源与合并**：可配置多个来源（`rule:setRoots { './package/*', 'D:/某合集/*' }`）；来源里**后面的覆盖前面的**，同一逻辑路径只执行最后一个来源的那个文件（用户自定义包就是靠这个替换标准包的文件）。逻辑路径第一层恒为包目录名。
 - **清单项是逻辑路径**（如 `标准/卡牌/杀`）：先按文件解释（`.lua` 可省），不存在再按目录解释（递归、只取 `.lua`）；清单是唯一入口（加进去即生效，移除即失效）。
 - **依赖用路径写、写在文件顶部**，并**支持相对路径**：`rule.depends { './卡牌/杀' }`、`rule.depends { '../../基础规则/回合流程' }`。- **互斥**：`rule.depends { '!国战' }` 表示本轮不能加载该项（模式之间互斥靠它）；项与依赖项同一套路径解析（含相对路径），没被加载就不报错，冲突时在**执行任何文件之前**报错。- **包与名字路由**：包名 = 逻辑路径第一层目录；`package/军争/卡牌/火杀.lua` 里写 `rule.card '火杀'` 登记为 `军争.火杀`。**同包内不许重复声明**（两处建同名条目直接报错），跨包同名合法并存。
@@ -143,11 +144,11 @@ local slash = rule.card '杀'
 - 条目带 `name` / `package` / `fullName` / `source`（声明它的文件），报错与排查时直接用。
 - **挂时机**：`rule:on('游戏-开始', function (ctx) ... end)` —— 只在加载期可注册，注册顺序即执行顺序（后注册的后执行，写下的状态覆盖先前的，所以“覆盖别人的默认值”也靠它——例：身份场把主公体力上限抬 1）；**内容包不要主动 `rule:fire`**（触发是装配 / 流程代码的事）。
 - **规则数值**：`rule:setValue(名字, 值)` / `rule:setValues { ... }` 落默认值，读用 `rule:getValue(名字)`（没设置得到 `nil`，自己写 `or 默认`）；**全局一张表、按加载顺序后者覆盖前者**（这就是后续包改默认值的正道），与规则表同生命周期。**不要往里存函数**：行为写时机注册。
-- **注入面只有一个全局 `rule`**（就是**本轮加载的那个规则实例**）：内核门面 `moe`（含 `core` 这类写法）、`require` / `io` / `os` 与其它 `moe.*` 都拿不到。包需要的内核资源只有两处：**属性系统**用 `rule:getAttributeSystem()`，**这一局的牌与牌区**用 `ctx.room`（`ctx.room:createCard(name)` / `ctx.room:createZone(名字, 有序?)`）。
+- **注入面只有一个全局 `rule`**（就是**本轮加载的那个规则实例**）：内核门面 `moe`（含 `core` 这类写法）、`require` / `io` / `os` 与其它 `moe.*` 都拿不到。包需要的内核资源只有两处：**属性系统**用 `rule:getAttributeSystem()`，**这一局的场地（及其牌、牌区、桌子、随机源）**用 `rule:getRoom()`（`room:createCard(name)` / `room:createZone(名字, 有序?)` / `room:getDesk()` / `room:getRandom()`）。
 - **接口面在哪（包作者视角）**：`server/core/rule/env-meta.lua` 是纯类型文件，声明了注入的 `rule` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条。**不提供可单独分发的 meta**（引用链横跨 `Moe.Rule` / `Moe` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
-- **不要为空值防御**：`ctx` 由装配方按约定注入（`ctx.desk` / `ctx.random` / `ctx.room` 在类型上都是必填，直接用 `ctx.room:createCard(...)`）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
+- **不要为空值防御**：规则实例与它绑的场地按约定一定在（实例就是场地建出来的，`rule:getRoom()` 直接用）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
 - **属性定义只能在加载期写**：属性系统由**这一局的规则实例**持有（一局一份，实例清空重载时重置），属性库把定义编译成生成函数、**编译后不允许再 `define`**（会在运行期报 `Cannot define new attributes after compilation`）⇒ `define` 写在包文件顶层，别写进「游戏-开始」回调。玩家侧读写用 `player:setAttr / getAttr / addAttr`（等价于 `player:getAttributes():set/get/add`）。
-- **公共牌区与玩家牌区的分工**：抽牌堆 / 弃牌堆 / 处理区这类**公共区域**用 `ctx.room:createZone(名字, 有序?)`（按名字登记，之后 `room:getZone(名字)` 取回）；手牌 / 装备 / 判定这类**属于某个玩家**的牌区用 `player:addZone(名字)`。
+- **公共牌区与玩家牌区的分工**：抽牌堆 / 弃牌堆 / 处理区这类**公共区域**用 `rule:getRoom():createZone(名字, 有序?)`（按名字登记，之后 `room:getZone(名字)` 取回）；手牌 / 装备 / 判定这类**属于某个玩家**的牌区用 `player:addZone(名字)`。
 - 文件里**不需要 `require`**：加载器注入 `rule` + 一份标准库白名单（`require` / `io` / `os` 一律没有）。
 - **中文标识符只留给难翻译的内容名**（技能名 / 卡牌名 / 身份名，以及规则数值的键与属性名），**字段名 / 局部变量 / 函数名一律英文**（如 `local slash = rule.card '杀'`）；中文标识符本身是构建期给 Lua 打的补丁（见 `moe-kill-dev` 的 `references/infrastructure.md`），关键字与 ASCII 标识符行为不变。
 - 重载 = **清空规则表 + 重新加载**（不做按名单卸载）；同一份清单重复加载会**重新执行**所有文件。加载、依赖、定义入口的细节见 `moe-kill-dev` 的 `references/architecture.md` 第 9 节，规格见 `openspec/specs/rule-loading/spec.md`。

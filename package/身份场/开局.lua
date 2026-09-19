@@ -1,7 +1,8 @@
 rule.depends { '../基础' }
 
-rule:on('游戏-开始', function (ctx)
-    local seats = ctx.desk:getPlayers()
+rule:on('游戏-开始', function ()
+    local room  = rule:getRoom()
+    local seats = room:getDesk():getPlayers()
     local config = rule:getValue('身份配置')
     local entries = config and config[#seats]
     if not entries then
@@ -18,7 +19,7 @@ rule:on('游戏-开始', function (ctx)
     if #pool ~= #seats - 1 then
         error('身份配置与 {} 人局对不上：除了主公还差 {} 个人' % { #seats, #pool })
     end
-    ctx.random:shuffle(pool)
+    room:getRandom():shuffle(pool)
 
     for i = 2, #seats do
         seats[i]:setTag('身份', pool[i - 1])
