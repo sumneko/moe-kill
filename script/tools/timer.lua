@@ -298,4 +298,23 @@ function M.clock()
     return curMS
 end
 
+-- 距离最近一个定时任务到期还有多少秒，没有定时任务时返回 nil
+---@return number?
+function M.getNextDeadline()
+    local nextMS
+    for ms in pairs(timerQueues) do
+        if not nextMS or ms < nextMS then
+            nextMS = ms
+        end
+    end
+    if not nextMS then
+        return nil
+    end
+    local delta = nextMS - curMS
+    if delta < 0 then
+        return 0
+    end
+    return delta / 1000.0
+end
+
 return M

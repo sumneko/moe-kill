@@ -20,8 +20,8 @@
 
 - `bee.thread.create(source, ...)` 起线程（**不共享全局变量**），`bee.channel` 做线程间通信，数据会被序列化 → **只能传 plain data**。
 - `bee.time.monotonic()` 返回毫秒整数，单调递增，用于计时。
-- `bee.socket` 提供 tcp/udp/unix 与 `fd:handle()`；`bee.epoll` / `bee.select` 用于等待；`bee.async` 是更新的异步 IO 层（ring buffer 读写）。
-- LuaLS 4.0.0 的实践：**不用 `bee.async`**，而是把阻塞 IO（stdio、文件）丢给 worker 线程 + channel，主线程只跑 event-loop。
+- `bee.socket` 提供 tcp/udp/unix 与 `fd:handle()`；`bee.epoll` / `bee.select` 用于等待；`bee.async` 是**跨平台异步 I/O 层**（Windows/IOCP、macOS/GCD、Linux/io_uring・epoll），提供 `wait(timeout)` 阻塞等待、`submit_read/write/accept/connect`、`submit_file_read/write`、`submit_poll`（监听 fd 可读）。
+- LuaLS 4.0.0 的实践是**不用 `bee.async`**，把阻塞 IO（stdio、文件）丢给 worker 线程 + channel，主线程只跑 event-loop；**本工程反过来**：没有线程，等待与唤醒全部交给 `bee.async`（见第 6 节）。
 - **可选链**（`?.` `?:` `?[` `?(`）在 `master` 上，由 `3rd/lua-patch/optchain/` 在**构建期** `git apply` 补丁实现，**门控完全在构建层**（`compile/common.lua` 的 `lua_patches` 注册表；不打补丁时是纯官方 Lua，行为零影响）。
   - 启用方式：`luamake -optchain`，或在 `make.lua` 里写 `lm.optchain = true`（luamake 把命令行 flag 暴露为 `lm.<flag>`）。
   - 因此**该开关必须是项目默认构建的一部分**：源码里写了 `?.` 而构建未启用时会直接解析失败。
@@ -129,9 +129,29 @@ end
 - 内存护栏只在显式传 `--mem-limit` 时启用。
 - 临时产物统一写 `tmp/`（已 gitignore）。
 
-**实测（2026-09-19）**：20 个用例约 0.07 秒；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
+**实测（2026-09-19）**：43 个用例约 0.65 秒（事件循环迭代 20 次，与用例里的真实等待时间相当）；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
 
-## 6. 命令速查
+## 6. 本工程对 `tools/` 的改动清单
+
+`script/tools/` 的基准是 LuaLS `4.0.0`。以下改动是本工程有意为之（用户确认），从上游同步时**逐条比对，不要被覆盖**：
+
+| 文件 | 改动 | 原因 |
+| ---- | ---- | ---- |
+| `event-loop.lua` | 删掉 `busyTime` / `markBusy` / `getIdleTime` 与「忙就不睡」的分级 sleep；`start(options, errorHandler)` 改为注入 `waiter(seconds)` / `deadline()` / `waker()`；空闲时等待到「下一个定时任务到期」（没有定时任务则无限阻塞）；停止前先请求唤醒 | 上游的忙等是为「worker 线程 + channel 回传」设计的；本工程没有线程，忙等只剩空转：全量测试 0.07 秒 → 1.4 秒、事件循环迭代 61 万次 |
+| `timer.lua` | 新增 `M.getNextDeadline()`：距最近一个定时任务到期还有多少秒（没有则返回 `nil`） | 供事件循环计算等待时长，替代空转 |
+| `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `script/async-io.lua`，不污染照搬文件 |
+
+等待与唤醒的接线在 `script/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
+
+### `bee.async` 踩坑（本机实测）
+
+- **`submit_poll` 在 Windows 下是零字节 `WSARecv`**：只能用于 socket 类句柄，且**必须先 `asfd:associate(fd)`**；未关联时完成事件永远不来（表现为等待超时，而不是报错）。`bee.channel` 的 fd 在 Windows 上就是 socket，用前同样要 `associate`（上游 `3rd/bee.lua/test/test_async.lua` 的 `test_submit_poll_channel` 就是这么写的）。
+- `asfd:wait(timeout)` 的超时单位是**毫秒**，`-1` 表示无限等待；若有已就绪的同步完成事件则立即返回。
+- `asfd:associate_file(io.open(...))` 会**就地**把底层句柄换成 overlapped / IOCP 关联句柄；异步路径用完后要 `close`，且不要与同步读写混用同一句柄。
+- 完成事件的 `udata` 原样返回，可以直接放登记表项（本工程就是用它把结果交回挂起的协程）。
+- `bee.async.create()` 返回 `(fd, err)`；创建失败必须报错，不要静默降级 —— 否则会变成「看起来能用但永远不会被唤醒」。
+
+## 7. 命令速查
 
 ```powershell
 luamake                          # 编译 + 跑无头测试

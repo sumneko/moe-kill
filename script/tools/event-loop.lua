@@ -1,5 +1,9 @@
 local thread = require 'bee.thread'
-local time   = require 'bee.time'
+
+---@class EventLoop.Options
+---@field waiter?   fun(seconds: number?) # 阻塞等待：睡满秒数，或被完成事件 / 唤醒请求打断；nil 表示无限期等待直到被唤醒
+---@field deadline? fun(): number?        # 距离下一个定时任务到期还有多少秒；没有定时任务时返回 nil
+---@field waker?    fun()                 # 请求立即唤醒正在阻塞的等待
 
 ---@class EventLoop
 local M = {}
@@ -10,41 +14,73 @@ M.tasks = {}
 M.highTasks = {}
 ---@package
 M.started = false
----@package
-M.busyTime = 0
 
----@param sleeper? fun(seconds: number)
----@param errorHandler? fun(err: string)
-function M.start(sleeper, errorHandler)
-    if not sleeper then
-        sleeper = function (seconds)
-            thread.sleep(math.floor(seconds * 1000))
-        end
+---@type fun(seconds: number?)
+local waiter = function (seconds)
+    if not seconds then
+        seconds = 0.1
     end
+    thread.sleep(math.max(math.floor(seconds * 1000), 1))
+end
+
+---@type fun(): number?
+local deadline = function ()
+    return nil
+end
+
+---@type fun()
+local waker = function ()
+end
+
+---@param options? EventLoop.Options
+---@param errorHandler? fun(err: string)
+---@return boolean
+function M.start(options, errorHandler)
+    options = options or {}
+    waiter   = options.waiter   or waiter
+    deadline = options.deadline or deadline
+    waker    = options.waker    or waker
     if not errorHandler then
         errorHandler = print
     end
     M.started = true
     while M.started do
         M.runTask(errorHandler)
-        local busy = M.runDelayQueue(100, errorHandler)
-        if busy then
-            M.markBusy()
-        end
-        local idleTime = M.getIdleTime()
-        if idleTime < 1 then
-        elseif idleTime < 10 then
-            sleeper(0.001)
-        elseif idleTime < 60 then
-            sleeper(0.01)
-        else
-            sleeper(0.1)
+        M.runDelayQueue(100, errorHandler)
+        if M.started and not M.delayQueue then
+            waiter(M.getWaitSeconds())
         end
     end
+    return true
 end
 
+---@return boolean
 function M.stop()
+    if not M.started then
+        return false
+    end
     M.started = false
+    waker()
+    return true
+end
+
+-- 请求立即唤醒正在阻塞的等待
+function M.wake()
+    waker()
+end
+
+---@private
+---@return number?
+function M.getWaitSeconds()
+    local seconds = deadline()
+    if not seconds then
+        return nil
+    end
+    local ms = math.ceil(seconds * 1000) + 1
+    if ms < 1 then
+        ms = 1
+    end
+    return ms / 1000
 end
 
 ---@private
@@ -99,14 +135,6 @@ function M.addDelayQueue(callback)
         M.delayQueue = {}
     end
     M.delayQueue[#M.delayQueue+1] = callback
-end
-
-function M.markBusy()
-    M.busyTime = time.monotonic()
-end
-
-function M.getIdleTime()
-    return (time.monotonic() - M.busyTime) / 1000
 end
 
 return M

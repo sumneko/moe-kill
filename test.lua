@@ -1,7 +1,6 @@
-local thread = require 'bee.thread'
-
 ---@class Test
 ---@field filter? string
+---@field loopTicks integer
 test = {}
 
 ---@type { name: string, message: string }[]
@@ -92,26 +91,26 @@ test.enableMemoryGuard()
 
 test.require 'test.smoke'
 test.require 'test.server'
+test.require 'test.async'
 
 local bodyDone = false
 local bodyFailures = 0
 local caseTotal = 0
+local stopResults = {}
 
 ---@async
 moe.await.call(function ()
     bodyFailures, caseTotal = lt.runAll()
     bodyDone = true
-    moe.eventLoop.stop()
+    stopResults[1] = moe.eventLoop.stop()
+    stopResults[2] = moe.eventLoop.stop()
 end)
 
 moe.eventLoop.addTask(function ()
     test.loopTicks = test.loopTicks + 1
 end)
 
-moe.eventLoop.start(function ()
-    moe.timer.update(1000)
-    thread.sleep(1)
-end, log.error)
+moe.eventLoop.start(moe.eventLoopOptions(), log.error)
 
 if not bodyDone then
     test.failures[#test.failures + 1] = {
@@ -124,6 +123,16 @@ if test.loopTicks == 0 then
     test.failures[#test.failures + 1] = {
         name    = '事件循环',
         message = '注册的任务没有被执行',
+    }
+end
+
+if stopResults[1] ~= true or stopResults[2] ~= false then
+    test.failures[#test.failures + 1] = {
+        name    = '事件循环',
+        message = '停止语义异常：首次 {}，重复 {}' % {
+            tostring(stopResults[1]),
+            tostring(stopResults[2]),
+        },
     }
 end
 

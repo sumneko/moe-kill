@@ -9,6 +9,7 @@
 ---@field timer Timer
 ---@field await Await.API
 ---@field eventLoop EventLoop
+---@field asyncIO AsyncIO
 ---@field sevent table
 ---@field tools MoeKill.Tools
 ---@field engine Engine
@@ -43,6 +44,7 @@ moe.timer   = require 'tools.timer'
 moe.await   = require 'tools.await'
 moe.eventLoop = require 'tools.event-loop'
 moe.sevent  = require 'tools.simple-event'
+moe.asyncIO = require 'async-io'
 
 ---@class MoeKill.Tools
 moe.tools = {
@@ -90,6 +92,21 @@ moe.await.setSleepWaker(function (time, callback)
     end
 end)
 
+moe.eventLoop.addHighTask(function ()
+    moe.asyncIO.poll()
+end)
+
 moe.eventLoop.addHighTask(moe.timer.update)
+
+---@return EventLoop.Options
+function moe.eventLoopOptions()
+    return {
+        waiter   = function (seconds)
+            moe.asyncIO.wait(seconds)
+        end,
+        deadline = moe.timer.getNextDeadline,
+        waker    = moe.asyncIO.wake,
+    }
+end
 
 return moe

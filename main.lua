@@ -28,4 +28,4 @@ print = log.debug
 moe.server.start()
 
 log.info('enter service mode')
-moe.eventLoop.start(nil, log.error)
+moe.eventLoop.start(moe.eventLoopOptions(), log.error)

@@ -1,5 +1,4 @@
 local lt     = require 'test.ltest'
-local thread = require 'bee.thread'
 
 ---@async
 lt.test('延迟队列中的任务会被执行', function ()
@@ -34,16 +33,4 @@ lt.test('定时器可重复触发', function ()
 
     timer:remove()
     lt.assertEquals('至少触发三次', true, count >= 3)
-end)
-
----@async
-lt.test('空闲时间随真实时间推进', function ()
-    moe.eventLoop.markBusy()
-    local justMarked = moe.eventLoop.getIdleTime()
-    lt.assertEquals('刚标记后空闲时间接近 0', true, justMarked < 0.05)
-
-    thread.sleep(5)
-    moe.await.sleep(0)
-
-    lt.assertEquals('空闲时间随时间增长', true, moe.eventLoop.getIdleTime() > justMarked)
 end)
