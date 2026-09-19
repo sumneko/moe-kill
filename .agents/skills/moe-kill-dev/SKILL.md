@@ -50,7 +50,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 
 | 文件 | 内容 |
 | --- | --- |
-| `references/architecture.md` | 分层、数据流、边界、协议设计原则、无头可测要求、热重载（8）、规则集加载（9）、时机与事件（10） |
+| `references/architecture.md` | 分层、数据流、边界、协议设计原则、无头可测要求、热重载（8）、规则集加载（9）、时机与事件（10）、预解析与包元信息（11） |
 | `references/code-style.md` | 代码风格（照搬 LuaLS 4.0.0） |
 | `references/infrastructure.md` | 参考仓库位置、bee.lua 构建与引导、lua-debug 调试、测试与命令速查 |
 

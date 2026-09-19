@@ -1,4 +1,5 @@
-local vfs = require 'rule.vfs'
+local vfs      = require 'rule.vfs'
+local preparse = require 'rule.preparse'
 
 ---@class Rule.Card
 ---@field name string # 裸名
@@ -50,6 +51,7 @@ end
 ---@field loaded table<string, true>
 ---@field order string[]
 ---@field current string?
+---@field excludes table<string, string> # 互斥项 → 声明者
 
 ---@type string[]
 local ALLOWED_GLOBALS = {
@@ -59,10 +61,30 @@ local ALLOWED_GLOBALS = {
     'string', 'table', 'tonumber', 'tostring', 'type', 'utf8', 'xpcall',
 }
 
+---@class Rule.MetaFile
+---@field logical string
+---@field source string
+---@field ok boolean
+---@field err? string
+---@field entries string[]
+
+---@class Rule.PackageMeta
+---@field name string
+---@field depends string[]
+---@field excludes string[]
+---@field entries string[]
+---@field files Rule.MetaFile[]
+
+---@class Rule.Plan
+---@field meta table<string, Rule.PackageMeta>
+---@field loaded table<string, true>
+---@field excludes table<string, string>
+
 ---@class Rule
 ---@field cards table<string, table<string, Rule.Card>> # 包名 → 裸名 → 定义
 ---@field packages string[] # 包的加载顺序（首次出现的顺序）
 ---@field events Core.Event # 时机注册（随每次加载重置）
+---@field meta table<string, Rule.PackageMeta> # 包元信息（预解析产物，随每次加载重建）
 ---@field private context Rule.Context?
 ---@field private lastList string[]?
 local M = {}
@@ -79,6 +101,9 @@ M.packages = {}
 ---@type Core.Event # 时机注册（每次加载重置）
 M.events = moe.core.event.create()
 
+---@type table<string, Rule.PackageMeta>
+M.meta = {}
+
 ---@type string[] # 当前来源
 M.sources = M.DEFAULT_SOURCES
 
@@ -90,12 +115,12 @@ M.context = nil
 ---@type string[]?
 M.lastList = nil
 
----@private
+---@param ruleTable table
 ---@return table
-local function makeEnv()
+local function makeEnv(ruleTable)
     ---@type table<string, any>
     local env = {
-        rule = M,
+        rule = ruleTable,
     }
     for _, name in ipairs(ALLOWED_GLOBALS) do
         env[name] = _G[name]
@@ -194,7 +219,57 @@ end
 function M.clear()
     M.cards    = {}
     M.packages = {}
+    M.meta     = {}
     M.events:clear()
+end
+
+---@param meta Rule.PackageMeta
+---@return Rule.PackageMeta
+local function copyMeta(meta)
+    ---@type Rule.PackageMeta
+    local copy = {
+        name     = meta.name,
+        depends  = {},
+        excludes = {},
+        entries  = {},
+        files    = {},
+    }
+    table.move(meta.depends, 1, #meta.depends, 1, copy.depends)
+    table.move(meta.excludes, 1, #meta.excludes, 1, copy.excludes)
+    table.move(meta.entries, 1, #meta.entries, 1, copy.entries)
+    for i, file in ipairs(meta.files) do
+        ---@type Rule.MetaFile
+        local copied = {
+            logical = file.logical,
+            source  = file.source,
+            ok      = file.ok,
+            err     = file.err,
+            entries = {},
+        }
+        table.move(file.entries, 1, #file.entries, 1, copied.entries)
+        copy.files[i] = copied
+    end
+    return copy
+end
+
+---@param name string
+---@return Rule.PackageMeta?
+function M:getPackageMeta(name)
+    local meta = M.meta[name]
+    if not meta then
+        return nil
+    end
+    return copyMeta(meta)
+end
+
+---@return table<string, Rule.PackageMeta>
+function M:getMetas()
+    ---@type table<string, Rule.PackageMeta>
+    local result = {}
+    for name, meta in pairs(M.meta) do
+        result[name] = copyMeta(meta)
+    end
+    return result
 end
 
 ---@param path string
@@ -203,14 +278,13 @@ local function parentLogical(path)
     return path:match '^(.*)/[^/]*$' or ''
 end
 
----@param ctx Rule.Context
+---@param current string? # 当前文件的逻辑路径（相对路径的基准）
 ---@param item string
 ---@return string
-local function resolveLogical(ctx, item)
+local function resolveItem(current, item)
     if item:sub(1, 1) ~= '.' then
         return vfs.normalize(item)
     end
-    local current = ctx.current
     if not current then
         error('相对路径只能用在规则集文件里：{}' % { item }, 0)
     end
@@ -234,7 +308,7 @@ local function loadFile(ctx, logical)
     if not source then
         error('规则集文件读取失败：{}（{}）' % { logical, err }, 0)
     end
-    local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', makeEnv())
+    local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', makeEnv(M))
     if not chunk then
         error('规则集文件解析失败：{}（{}）' % { logical, loadErr }, 0)
     end
@@ -264,7 +338,7 @@ local function loadItem(ctx, item)
     if type(item) ~= 'string' or item == '' then
         error('规则集项必须是非空字符串', 0)
     end
-    local logical = resolveLogical(ctx, item)
+    local logical = resolveItem(ctx.current, item)
     if ctx.vfs:isFile(logical) then
         loadFile(ctx, logical)
         return
@@ -280,6 +354,179 @@ local function loadItem(ctx, item)
     error('规则集项不存在：{}' % { item }, 0)
 end
 
+---@param logical string
+---@param item string
+---@return boolean
+local function matchItem(logical, item)
+    return logical == item or logical:sub(1, #item + 1) == item .. '/'
+end
+
+---@param loaded table<string, true>
+---@param item string
+---@return string? # 命中的逻辑路径
+local function findLoaded(loaded, item)
+    for logical in pairs(loaded) do
+        if matchItem(logical, item) then
+            return logical
+        end
+    end
+    return nil
+end
+
+---@param loaded table<string, true>
+---@param excludes table<string, string>
+local function checkExcludes(loaded, excludes)
+    for item, owner in pairs(excludes) do
+        local hit = findLoaded(loaded, item)
+        if hit then
+            error('互斥冲突：{} 声明了 !{}，但本轮加载了 {}' % { owner, item, hit }, 0)
+        end
+    end
+end
+
+---@param meta table<string, Rule.PackageMeta>
+local function checkDuplicates(meta)
+    for _, packageMeta in pairs(meta) do
+        ---@type table<string, string>
+        local owners = {}
+        for _, file in ipairs(packageMeta.files) do
+            for _, name in ipairs(file.entries) do
+                local first = owners[name]
+                if first then
+                    error('同一个包里重复声明了 {}：{} 与 {}' % { name, first, file.logical }, 0)
+                end
+                owners[name] = file.logical
+            end
+        end
+    end
+end
+
+---@param instance Rule.Vfs
+---@param list string[]
+---@return Rule.Plan
+local function prepare(instance, list)
+    ---@type Rule.Plan
+    local plan = {
+        meta     = {},
+        loaded   = {},
+        excludes = {},
+    }
+    ---@type string[]
+    local queue = {}
+    ---@type table<string, true>
+    local seen = {}
+
+    ---@param item string
+    local function expandItem(item)
+        local logical = vfs.normalize(item)
+        ---@type string[]
+        local found
+        if instance:isFile(logical) then
+            found = { logical }
+        elseif instance:isFile(logical .. '.lua') then
+            found = { logical .. '.lua' }
+        elseif instance:isDirectory(logical) then
+            found = instance:listFiles(logical)
+        else
+            error('规则集项不存在：{}' % { item }, 0)
+        end
+        for _, path in ipairs(found) do
+            if not seen[path] then
+                seen[path] = true
+                queue[#queue+1] = path
+            end
+        end
+    end
+
+    for _, item in ipairs(list) do
+        expandItem(item)
+    end
+
+    local index = 1
+    while index <= #queue do
+        local logical = queue[index]
+        index = index + 1
+
+        local owner = packageOf(logical)
+        if not owner then
+            error('规则集文件必须位于包目录里：{}' % { logical }, 0)
+        end
+        local packageMeta = plan.meta[owner]
+        if not packageMeta then
+            packageMeta = {
+                name     = owner,
+                depends  = {},
+                excludes = {},
+                entries  = {},
+                files    = {},
+            }
+            plan.meta[owner] = packageMeta
+        end
+
+        local source, readErr = instance:read(logical)
+        if not source then
+            error('规则集文件读取失败：{}（{}）' % { logical, readErr }, 0)
+        end
+
+        ---@type Rule.MetaFile
+        local file = {
+            logical = logical,
+            source  = instance:resolve(logical) or logical,
+            ok      = true,
+            entries = {},
+        }
+        packageMeta.files[#packageMeta.files+1] = file
+        plan.loaded[logical] = true
+
+        ---@type string[]
+        local declaredDepends = {}
+        ---@type string[]
+        local declaredExcludes = {}
+
+        local probe = {
+            depends = function (items)
+                if type(items) ~= 'table' then
+                    error('rule.depends 需要一个字符串列表', 2)
+                end
+                for _, item in ipairs(items) do
+                    if type(item) ~= 'string' or item == '' then
+                        error('依赖项必须是非空字符串', 2)
+                    end
+                    if item:sub(1, 1) == '!' then
+                        declaredExcludes[#declaredExcludes+1] = resolveItem(logical, item:sub(2))
+                    else
+                        declaredDepends[#declaredDepends+1] = resolveItem(logical, item)
+                    end
+                end
+            end,
+            card = function (name)
+                if type(name) == 'string' and name ~= '' then
+                    file.entries[#file.entries+1] = name
+                    packageMeta.entries[#packageMeta.entries+1] = name
+                end
+            end,
+        }
+
+        local ok, err = preparse.run(source, '@' .. file.source, makeEnv(probe))
+        if not ok then
+            file.ok  = false
+            file.err = err
+            log.warn('规则集预解析失败：{}（{}）' % { logical, err })
+        end
+
+        for _, item in ipairs(declaredDepends) do
+            packageMeta.depends[#packageMeta.depends+1] = item
+            expandItem(item)
+        end
+        for _, item in ipairs(declaredExcludes) do
+            packageMeta.excludes[#packageMeta.excludes+1] = item
+            plan.excludes[item] = plan.excludes[item] or logical
+        end
+    end
+
+    return plan
+end
+
 ---@param items string[]
 function M.depends(items)
     local ctx = M.context
@@ -287,7 +534,19 @@ function M.depends(items)
         error('rule.depends 只能在加载规则集时声明', 2)
     end
     for _, item in ipairs(items) do
-        loadItem(ctx, item)
+        if type(item) ~= 'string' or item == '' then
+            error('依赖项必须是非空字符串', 2)
+        end
+        if item:sub(1, 1) == '!' then
+            local target = resolveItem(ctx.current, item:sub(2))
+            local hit    = findLoaded(ctx.loaded, target)
+            if hit then
+                error('互斥冲突：{} 声明了 !{}，但本轮已经加载了 {}' % { ctx.current, target, hit }, 2)
+            end
+            ctx.excludes[target] = ctx.excludes[target] or ctx.current
+        else
+            loadItem(ctx, item)
+        end
     end
 end
 
@@ -345,15 +604,20 @@ function M.load(list)
         error('没有可用的加载清单', 2)
     end
     local instance = vfs.create(M.sources, moe.env.ROOT_PATH:parent_path())
+    local plan     = prepare(instance, list)
+
+    checkExcludes(plan.loaded, plan.excludes)
+    checkDuplicates(plan.meta)
 
     M.clear()
 
     ---@type Rule.Context
     local ctx = {
-        vfs     = instance,
-        loading = {},
-        loaded  = {},
-        order   = {},
+        vfs      = instance,
+        loading  = {},
+        loaded   = {},
+        order    = {},
+        excludes = {},
     }
     M.context = ctx
     local guard <close> = moe.util.defer(function ()
@@ -363,6 +627,9 @@ function M.load(list)
     for _, item in ipairs(list) do
         loadItem(ctx, item)
     end
+
+    checkExcludes(ctx.loaded, ctx.excludes)
+    M.meta = plan.meta
 
     return ctx.order
 end

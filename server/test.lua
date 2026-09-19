@@ -98,6 +98,7 @@ test.require 'test.rule'
 test.require 'test.rule.vfs'
 test.require 'test.rule.routing'
 test.require 'test.rule.event'
+test.require 'test.rule.meta'
 
 local bodyDone = false
 local bodyFailures = 0
