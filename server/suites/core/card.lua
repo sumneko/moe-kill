@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 lt.test('牌：每个实例有唯一标识', function ()
     local first  = moe.core.card.create('杀')

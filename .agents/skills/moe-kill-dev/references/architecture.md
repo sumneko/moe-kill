@@ -19,7 +19,7 @@
 
 - exe + `bin/main.lua` 引导（照搬 LuaLS 4.0.0）：引导脚本设好 `package.path`，再按参数决定进「服务模式」还是「测试模式」。
 - 服务模式：建立 event-loop → 起 transport → 进入事件循环。
-- 测试模式：**不建 transport**，直接 `dofile 'test.lua'` 加载测试。
+- 测试模式：**不建 transport**，直接 `require 'test'`（即 `server/test.lua`）加载测试套件。
 - 空闲与等待：循环空闲时**阻塞等待到「下一个定时任务到期」**（没有定时任务则无限阻塞），等待 / 唤醒由 `bee.async` 承担（`server/async-io.lua`）；停止走自唤醒通道，不靠轮询也不靠分片。
 - 挂起模型：遇到需要玩家决策的点，用协程 `await` 让出（照搬 LuaLS 4.0.0 的 `ls.await` 思路），而不是阻塞等待或轮询。
 

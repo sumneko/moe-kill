@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 ---@class Test.Server.IdleHandler : Server.Handler
 local IdleHandler = Class 'Test.Server.IdleHandler'

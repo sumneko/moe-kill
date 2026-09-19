@@ -16,7 +16,7 @@
 
 - 发布形态是「**exe + `bin/main.lua` 引导 + `script/` 脚本树**」；引导脚本负责设置 `package.path` 与整理 `arg`。
 - 主线程跑单线程事件循环，`await` 用协程实现；**阻塞 IO（stdio、文件）交给 worker 线程 + `bee.channel`**，4.0.0 全程不使用 `bee.async`。
-- 测试走 `--test` 参数，`main.lua` 里 `dofile 'test.lua'` 进入测试模式。
+- 测试走 `--test` 参数，`main.lua` 里 `require 'test'` 进入测试模式。
 - 调试由目标进程主动连接调试器（`require 'debugger'` + `dbg:start(addr:port)`）。
 
 关于可选链：它由 bee.lua `master` 上的 `3rd/lua-patch/optchain/` 提供，通过**构建期 `git apply` 补丁**实现，门控完全在构建层（`compile/common.lua` 的 `lua_patches` 注册表）；不打补丁时编译的是纯官方 Lua，行为零影响。启用方式为 `luamake -optchain`，或在 `make.lua` 里写 `lm.optchain = true`。

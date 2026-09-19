@@ -1,4 +1,4 @@
-local lt     = require 'test.ltest'
+local lt     = require 'suites.ltest'
 
 ---@async
 lt.test('延迟队列中的任务会被执行', function ()

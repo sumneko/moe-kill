@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 ---@param seed integer
 ---@param count integer

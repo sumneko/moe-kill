@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 ---@async
 lt.test('空闲时不空转', function ()

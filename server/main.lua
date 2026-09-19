@@ -18,8 +18,7 @@ xpcall(function ()
 end, log.warn)
 
 if moe.args.TEST then
-    local testEntry = (moe.env.ROOT_PATH / 'test.lua'):string()
-    dofile(testEntry)
+    require 'test'
     return
 end
 

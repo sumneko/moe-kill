@@ -1,4 +1,4 @@
-local lt      = require 'test.ltest'
+local lt      = require 'suites.ltest'
 local btime   = require 'bee.time'
 local channel = require 'bee.channel'
 

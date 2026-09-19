@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 local DECK = { '甲', '乙', '丙', '丁', '戊', '己', '庚', '辛' }
 

@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 lt.test('可选链：字段与索引短路', function ()
     local nested = { b = { c = 42 } }

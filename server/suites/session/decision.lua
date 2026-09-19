@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 ---@class Test.Server.AnswerHandler : Server.Handler
 ---@field first? any

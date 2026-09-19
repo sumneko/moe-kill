@@ -13,7 +13,7 @@ test.loopTicks = 0
 
 local target = moe.args.TEST
 if type(target) == 'string' then
-    test.filter = 'test.' .. target:gsub('%.lua$', ''):gsub('[/\\]', '.')
+    test.filter = 'suites.' .. target:gsub('%.lua$', ''):gsub('[/\\]', '.')
 end
 
 ---@param modname string
@@ -85,14 +85,14 @@ local function report()
     end
 end
 
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 test.enableMemoryGuard()
 
-test.require 'test.smoke'
-test.require 'test.session'
-test.require 'test.async'
-test.require 'test.core'
+test.require 'suites.smoke'
+test.require 'suites.session'
+test.require 'suites.async'
+test.require 'suites.core'
 
 local bodyDone = false
 local bodyFailures = 0

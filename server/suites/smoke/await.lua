@@ -1,4 +1,4 @@
-local lt = require 'test.ltest'
+local lt = require 'suites.ltest'
 
 ---@async
 lt.test('协程可挂起并由定时器恢复', function ()
