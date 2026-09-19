@@ -92,6 +92,7 @@ test.enableMemoryGuard()
 test.require 'test.smoke'
 test.require 'test.session'
 test.require 'test.async'
+test.require 'test.core'
 
 local bodyDone = false
 local bodyFailures = 0
@@ -100,14 +101,25 @@ local stopResults = {}
 
 ---@async
 moe.await.call(function ()
-    bodyFailures, caseTotal = lt.runAll()
+    local ok, first, second = xpcall(lt.runAll, debug.traceback)
+    if ok then
+        bodyFailures = first
+        caseTotal    = second
+    else
+        test.failures[#test.failures + 1] = {
+            name    = '测试执行',
+            message = tostring(first),
+        }
+    end
     bodyDone = true
-    stopResults[1] = moe.eventLoop.stop()
-    stopResults[2] = moe.eventLoop.stop()
 end)
 
 moe.eventLoop.addTask(function ()
     test.loopTicks = test.loopTicks + 1
+    if bodyDone and not stopResults[1] then
+        stopResults[1] = moe.eventLoop.stop()
+        stopResults[2] = moe.eventLoop.stop()
+    end
 end)
 
 moe.eventLoop.start(moe.eventLoopOptions(), log.error)

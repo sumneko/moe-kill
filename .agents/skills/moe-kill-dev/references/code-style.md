@@ -38,6 +38,7 @@ end
 ## 4. 语法陷阱
 
 - **语句不要以 `(` 开头**：Lua 的 newline-call 规则会把「上一行以函数调用结尾 + 下一行以 `(` 开头」连成链式调用。必要时在上一行末尾加 `;` 断句。测试用例同样遵守。
+- **`_` 作 for 循环变量是常量**：Lua 5.5 里 `for _ = 1, n do ... end` 合法，但**循环体内给 `_` 赋值是编译期错误**（`attempt to assign to const variable '_'`）；报错发生在 `load` 阶段，`pcall` 抓不住。需要赋值时改用具名循环变量。
 - **可选链**：本工程支持 `?.` `?:` `?[` `?(`。该支持来自 bee.lua 的构建期补丁（**已在 bee.lua `master` 上**），由 `luamake -optchain` / `lm.optchain = true` 启用 —— 启用是项目默认构建的一部分，否则写了 `?.` 会直接解析失败。
   - 不要写 `a and a.b and a.b.c`，写 `a?.b?.c`。
   - `?.` 之后的类型收窄不可靠，因此**链上每一级都带 `?`**。
@@ -65,6 +66,7 @@ return {
 ```
 
 - 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
+- **内核对象模块直接返回类表**（`core/` 下的 `random` / `zone` / `player` / `room` 等）：`local M = Class 'Core.Random'` … `return M`，并在类上再挂一个 `create(...)` 静态工厂，于是 `moe.core.random.create(种子)` 与 `New 'Core.Random' (种子)` 两种写法都可用（`create` 在实例上也可见，属可接受的取舍）。
 - **`server/tools/` 是照搬来的基础设施，不要随便改**：这些文件保持上游原样（风格与本工程不一致也照旧），确需改动先问用户。
   - 从 4.0.0 的 `script/` 根搬进来的通用库也在里面：`tools/class.lua`（类系统）、`tools/utility.lua`（工具库）、`tools/attribute.lua`（属性库，来自 `sumneko/utility` 上游）。上游这些文件位于 `script/` 根，**从上游更新时注意路径差异**。
 - 全局：`Class` / `New` / `Delete` / `Type` / `IsValid` / `Extends` / `Presize` 由引导文件挂到全局；项目自己的命名空间也挂在全局（LuaLS 用 `ls`，本工程用 `moe`，只在 `server/moe-kill.lua` 里赋值一次）。
