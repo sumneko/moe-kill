@@ -2,7 +2,7 @@ local vfs = require 'rule.vfs'
 
 ---@class Rule.Card
 ---@field name string # 裸名
----@field packageName string # 所属包名
+---@field public package string # 所属包名（显式写 public：否则 package 会被当成访问修饰符）
 ---@field fullName string # 完整名（包名.名字）
 ---@field source string # 声明它的文件（逻辑路径）
 ---@field private handlers table<string, function[]>
@@ -12,11 +12,11 @@ local Card = Class 'Rule.Card'
 ---@param owner string
 ---@param source string
 function Card:__init(name, owner, source)
-    self.name        = name
-    self.packageName = owner
-    self.fullName    = owner .. '.' .. name
-    self.source      = source
-    self.handlers    = {}
+    self.name     = name
+    self.package  = owner
+    self.fullName = owner .. '.' .. name
+    self.source   = source
+    self.handlers = {}
 end
 
 ---@param event string

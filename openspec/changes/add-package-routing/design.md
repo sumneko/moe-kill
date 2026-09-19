@@ -55,8 +55,8 @@
 
 ### D5 条目元数据
 
-- 定义对象带 `name`（裸名）、`packageName`（所属包名）、`fullName`（`包名.名字`）、`source`（声明它的文件逻辑路径）。
-- **字段名用 `packageName` 而不是 `package`**：LuaDoc 里 `package` 是访问修饰符（`private` / `protected` / `package` / `public`），字段叫 `package` 会让 `---@field` 解析错位（`luadoc-miss-type-name` / `undefined-doc-name`）。
+- 定义对象带 `name`（裸名）、`package`（所属包名）、`fullName`（`包名.名字`）、`source`（声明它的文件逻辑路径）。
+- **字段叫 `package` 时注解要显式写访问修饰符**：LuaDoc 里 `package` / `private` / `protected` / `public` 是访问修饰符，直接写 `---@field package string` 会被解析成「修饰符 + 名字」，于是报 `luadoc-miss-type-name` / `undefined-doc-name`；写成 `---@field public package string # 所属包名`（显式 `public`）就正常。
 - 用途：报错信息、日志与排查；前端将来若要显示「这张牌来自哪个包」也能直接用。
 
 ## Risks / Trade-offs

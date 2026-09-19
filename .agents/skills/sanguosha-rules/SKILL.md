@@ -115,7 +115,7 @@ local 杀 = rule.card '杀'
 - **包与名字路由**：包名 = 逻辑路径第一层目录；`package/军争/卡牌/火杀.lua` 里写 `rule.card '火杀'` 登记为 `军争.火杀`。**同包内不许重复声明**（两处建同名条目直接报错），跨包同名合法并存。
 - **裸名带包内作用域**：包内写裸名**先取本包**，本包没有才按清单顺序取第一个定义它的包；**引用他包的同名条目必须写限定名**（军争里想用标准版「杀」要写 `标准.杀`）。包外（游戏运行期）的裸名直接按清单顺序取先加载的包。
 - **跨文件给同一条定义追加回调**：先 `rule.depends { '../卡牌/杀' }` 保证顺序，再 `rule.getCard('杀'):on(...)` —— **不能用 `rule.card` 再声明一次**。
-- 条目带 `name` / `packageName` / `fullName` / `source`（声明它的文件），报错与排查时直接用。
+- 条目带 `name` / `package` / `fullName` / `source`（声明它的文件），报错与排查时直接用。
 - 文件里**不需要 `require`**：加载器注入 `rule` + 一份标准库白名单（`require` / `io` / `os` 一律没有）。
 - **可以用中文标识符**（如 `local 杀 = ...`、`local function 造成伤害(目标)`），这是构建期给 Lua 打的补丁（见 `moe-kill-dev` 的 `references/infrastructure.md`）；关键字与 ASCII 标识符行为不变。
 - 重载 = **清空规则表 + 重新加载**（不做按名单卸载）；同一份清单重复加载会**重新执行**所有文件。加载、依赖、定义入口的细节见 `moe-kill-dev` 的 `references/architecture.md` 第 9 节，规格见 `openspec/specs/rule-loading/spec.md`。

@@ -42,7 +42,7 @@ lt.test('包：定义自动带包前缀并带来源信息', function ()
 
     local 杀 = card('杀')
     lt.assertEquals('裸名', '杀', 杀.name)
-    lt.assertEquals('包名', '标准', 杀.packageName)
+    lt.assertEquals('包名', '标准', 杀.package)
     lt.assertEquals('完整名', '标准.杀', 杀.fullName)
     lt.assertEquals('声明它的文件', '标准/卡牌/杀.lua', 杀.source)
 end)
@@ -53,7 +53,7 @@ lt.test('包：包名取自一级目录', function ()
 
     moe.rule.load(list('军争'))
 
-    lt.assertEquals('包名是一级目录而不是卡牌', '军争', card('火杀').packageName)
+    lt.assertEquals('包名是一级目录而不是卡牌', '军争', card('火杀').package)
     lt.assertEquals('完整名只有两层', '军争.火杀', card('火杀').fullName)
 end)
 

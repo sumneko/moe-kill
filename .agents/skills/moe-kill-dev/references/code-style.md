@@ -91,6 +91,8 @@ return {
   - 例外：报告"用例/模块失败"的测试入口（`test.lua`、`test/ltest.lua`）仍用 `debug.traceback` —— 那里堆栈本身就是报告内容。
 - 访问动态键（如命令行参数表）时，用 `---@type table<string, T>` 显式标注该局部变量来表达"这里故意访问未知键"，不要用 disable 注释。
 - 跨模块传递的结构体在 `---@class` 里声明全部字段，而不是只写 usage。
+- **字段名撞 LuaDoc 访问修饰符时要显式写修饰符**：`private` / `protected` / `package` / `public` 是 **LuaDoc 的访问修饰符**，字段真叫 `package` 时直接写 `---@field package string` 会被解析成「修饰符 + 名字」而报 `luadoc-miss-type-name`（去掉 `#` 后又报 `undefined-doc-name`）；正确写法是 **`---@field public package string # 所属包名`**。
+  - 同理：`---@field` 的描述必须带 `#` 引导（`类型 # 描述`），直接跟中文会被当成第二个类型。
 
 ## 7. 语言与编辑器配置
 

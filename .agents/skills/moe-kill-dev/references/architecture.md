@@ -229,7 +229,7 @@ local 杀 = rule.card '杀'          -- 登记为 标准.杀
 | `rule.card '名字'` | **只在加载过程中可用**：声明本包的一条定义；同包重复声明报错（报错指出两处来源） |
 | `rule.getCard('名字')` | 查询：裸名带**包内作用域**，限定名（`军争.杀`）精确取到指定包 |
 | `Card:on(事件, 回调)` | 链式登记回调，返回同一条定义；**跨文件追加回调用 `rule.getCard` + `rule.depends` 定顺序** |
-| 条目字段 | `name`（裸名）/ `packageName`（包名）/ `fullName`（`标准.杀`）/ `source`（声明它的文件） |
+| 条目字段 | `name`（裸名）/ `package`（包名）/ `fullName`（`标准.杀`）/ `source`（声明它的文件）——字段叫 `package`，注解必须写成 `---@field public package string` |
 
 **裸名的解析顺序：**
 

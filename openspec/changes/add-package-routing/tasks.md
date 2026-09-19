@@ -12,7 +12,7 @@
 
 - [x] 2.1 `rule.card` 只在加载过程中可用（加载之外调用报错）；名字里含 `.` 报错；验证：两个用例都通过
 - [x] 2.2 同包重复声明报错，报错信息带两处来源（两个文件逻辑路径）；跨包同名不报错；验证：两个用例都通过
-- [x] 2.3 定义对象带 `name` / `packageName` / `fullName` / `source`（字段名不用 `package`：LuaDoc 里它是访问修饰符）；验证：元数据用例通过
+- [x] 2.3 定义对象带 `name` / `package` / `fullName` / `source`（字段叫 `package` 时注解要显式写 `---@field public package string`）；验证：元数据用例通过
 
 ## 3. 名字路由
 
