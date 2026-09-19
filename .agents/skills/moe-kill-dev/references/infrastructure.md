@@ -151,7 +151,7 @@ end
 
 等待与唤醒的接线在 `server/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
 
-**加载期顺序（踩过）**：`include` 在**日志系统就绪之前**就会被用到（`server/moe-kill.lua` 加载内核时），而 `log` 实例是 `server/master.lua` 在 `moe-kill` **之后**创建的。所以 `tools/reload.lua` 的错误报告在拿不到 `log` 时退回 `stderr`（并把消息作为返回值交回）。要真要动这个顺序，得把 `moe.env`（由 `arg[0]` 推出根目录）一并前移，属于架构调整，先问用户。
+**初始化顺序（2026-09-19 按用户要求调整，勿改回去）**：`moe.env`（由 `arg[0]` 推出的根目录 / 日志路径）与 `log` 实例**都在 `server/moe-kill.lua` 里创建**，位置在 `moe.util` 的 `enable*` 之后、挂载其它工具与**加载内核之前**；`server/master.lua` 只留线程名、启动日志与内存定时上报。这样任何 `include`（内核模块）执行时日志一定就绪，`tools/reload.lua` 直接用 `xpcall(f, log.error, ...)` 即可。注意两点：日志块里的 `print` 回调用了 `%` 语法糖，所以它必须在 `enableFormatString()` **之后**；`moe.env` 仍由 `arg[0]` 推出，别把它再搬回 `master.lua`。
 
 ### `bee.async` 踩坑（本机实测）
 

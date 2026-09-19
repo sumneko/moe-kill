@@ -33,18 +33,6 @@ M.afterReloadCallbacks = {}
 ---@type Reload.Optional?
 M.defaultReloadOptional = nil
 
----@private
----@param err any
----@return string
-function M.reportError(err)
-    if log then
-        return (log.error(err))
-    end
-    local message = debug.traceback(tostring(err), 2)
-    io.stderr:write(message, '\n')
-    return message
-end
-
 ---@param optional? Reload.Optional
 function M:__init(optional)
     self.optional = optional
@@ -73,7 +61,7 @@ function M:isValidName(name)
     if not self.filter then
         return false
     end
-    local suc, result = xpcall(self.filter, M.reportError, name, self)
+    local suc, result = xpcall(self.filter, log.error, name, self)
     if not suc then
         return false
     end
@@ -94,7 +82,7 @@ function M:fire()
         if not willReload then
             beforeReloadCallbacksNoReload[#beforeReloadCallbacksNoReload+1] = data
         end
-        xpcall(data.callback, M.reportError, self, willReload)
+        xpcall(data.callback, log.error, self, willReload)
     end
 
     for _, data in ipairs(M.afterReloadCallbacks) do
@@ -124,7 +112,7 @@ function M:fire()
     end
 
     for _, data in ipairs(M.afterReloadCallbacks) do
-        xpcall(data.callback, M.reportError, self, self:isValidName(data.name))
+        xpcall(data.callback, log.error, self, self:isValidName(data.name))
     end
     log.info('=========== reload finish ===========')
     M._reloading = false
@@ -149,7 +137,7 @@ function M.include(modname)
         M.includedNames[#M.includedNames+1] = modname
     end
     M.includeStack[#M.includeStack+1] = modname
-    local suc, result, loaderdata = xpcall(originRequire, M.reportError, modname)
+    local suc, result, loaderdata = xpcall(originRequire, log.error, modname)
     M.includeStack[#M.includeStack] = nil
     if not suc then
         return false, tostring(result)

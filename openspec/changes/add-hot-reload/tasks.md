@@ -7,6 +7,7 @@
 - [x] 1.3 `server/moe-kill.lua` 挂载 `moe.reload = require 'tools.reload'`（不额外注入全局名），并核对全局 `require` 覆盖后原有加载行为不变；验证：`--test` 全绿、退出码 0
 - [x] 1.4 同步 `server/tools/class.lua` 上游一行修复：`class:__newindex` 首行补 `config:init()`；验证：该处与 `D:\Github\utility\class.lua` 一致，且全量用例仍全绿
 - [x] 1.5 `.luarc.json` 增加 `runtime.special`：`{ "include": "require" }`（按用户要求已落）；验证：2.1 改用 `include` 后内核文件不出现 `undefined-global`，且 `include 'core.card'` 能跳转到模块定义
+- [x] 1.6 按用户要求把日志前移（“优先加载日志”）：`moe.env` 与 `log` 实例移到 `server/moe-kill.lua`（`enable*` 之后、加载内核之前），`server/master.lua` 只留线程名与启动日志；随之去掉 1.1 为旧顺序加的兜底、直接 `xpcall(f, log.error, ...)`；验证：`--test` 全绿，且内核加载期用 `log` 不报 `nil`
 
 ## 2. 内核门面与跨重载存活状态
 

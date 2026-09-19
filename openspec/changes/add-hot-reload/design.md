@@ -32,7 +32,7 @@
 - `y3.util.X` → `moe.util.X`；`Class 'Reload'` 保持（本工程有同名全局）；挂到 `moe.reload = require 'tools.reload'`，并把 `M` 同时作为全局 `reload` 暴露？→ **不暴露全局**，只走 `moe.reload`（本工程除 `Class`/`New`/`Delete`/`Type`/`Extends`/`Presize` 外不再往全局加东西）。
 - 回调注册 `onBeforeReload` / `onAfterReload` **返回 disposer**（上游返回空），以符合项目约定；撤销后再次重载不再触发。
 - **实施时踩到并就地的四处改动**（原样照搬会出问题）：
-  1. **加载期还没有日志**：`include` 在 `server/moe-kill.lua` 加载内核时就要用，而 `log` 实例是 `server/master.lua` 在之后创建的 ⇒ 上游直接写 `xpcall(f, log.error, ...)` 会在引导期因 `log` 为 `nil` 而崩。改为经 `M.reportError`：有 `log` 用 `log.error`，没有则退回 `stderr` 并把消息回传。（真正的前置问题是「日志就绪晚于内核加载」，但那要把 `moe.env` 一并前移，属架构调整，留给后续决策。）
+  1. **加载期还没有日志**：`include` 在 `server/moe-kill.lua` 加载内核时就要用，而 `log` 实例原本是 `server/master.lua` 在之后创建的 ⇒ 上游直接写 `xpcall(f, log.error, ...)` 会在引导期因 `log` 为 `nil` 而崩。**用户裁定“优先加载日志”** ⇒ 把 `moe.env`（由 `arg[0]` 推根目录）与 `log` 实例前移到 `server/moe-kill.lua`（在 `enable*` 之后、加载内核之前），`server/master.lua` 只留线程名与启动日志；因此**不需要**兼容旧顺序的兜底，直接用 `log.error`。
   2. **回调撤销与数组整体替换冲突**：`fire()` 每次都会用过滤后的新数组替换 `M.before/afterReloadCallbacks`，因此捕获数组引用的 disposer 会失效（实测「撤销后仍被调用」）。改为 disposer 在撤销时**按当前数组**查找并移除。
   3. `getIncludeName` 在上游用 `M.includedNameMap[modName]` 直接索引，`modName` 为 `nil` 时会在读取时……实际是允许的，但为清晰起见补了显式 `nil` 判断。
   4. `include` 失败时把错误信息作为第二个返回值交回，`server/core/init.lua` 据此在引导期**大声失败**（否则会留下 `moe.core.card = false` 这种后续才炸的状态）。
