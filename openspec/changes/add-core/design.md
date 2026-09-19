@@ -55,6 +55,13 @@
 - **有序能力用子类表达**（用户定）：基类 `Zone` 不带取顶/洗牌；子类（如 `OrderedZone`）声明"有序"能力；**具体子类实例由 game 层创建**（内核不预设任何具体牌区，连"抽牌堆"都不建）。
 - 手牌区 / 装备区 / 判定区 / 抽牌堆 / 弃牌堆 / 处理区**都是它的实例**，名字与用途由调用方决定。
 
+补充口径（用户 2026-09-19 定，轮次③ 实施）：
+
+- **顺序口径**：有序牌区的列表顺序 = **从顶到底**（下标 1 是顶）；`put` 追加到底部，`takeTop` 取下标 1，`shuffle` 重排整条列表 —— 故“洗牌后依次取顶”得到的正是洗牌结果的顺序。
+- **能力检测与失败方式**：基类保留同名方法 `takeTop` / `shuffle`，调用即报“不具备有序能力”；能力本身仍由类判定（`Core.OrderedZone`）—— 比调用不存在的方法（`attempt to call a nil value`）能说清原因。
+- **禁用边界**：禁用只挡“牌的进出”（`put` / `take` / `clear` / `shuffle`）；读取（`count` / `list` / `peek`）与参数读写不受限；“不出现在默认列举中”由持有牌区的集合（轮次⑤ 的 `Player`）负责过滤。
+- **落地位置**：`Core.Zone` 在 `server/core/zone.lua`，`Core.OrderedZone` 在 `server/core/ordered-zone.lua`（后者 `Extends` 前者）。
+
 ### D4 属性：接入 `attribute` 库，内核不预设属性名
 
 - 照搬 `sumneko/utility` 的 `attribute.lua` 到 `server/tools/attribute.lua`（照搬区，**不要随便改**），并在 `moe-kill-dev` 技能的 `tools/` 清单里登记来源与版本（该文件在 LuaLS 4.0.0 里没有，属通用能力库上游）。
@@ -82,7 +89,7 @@
 ### D7 命名与目录
 
 - 代码标识符用英文（`Core` / `Room` / `Player` / `Table` / `Zone` / `Card` / `Random`）；规则集目录用中文（`game/基础规则/`）。
-- 内核在 `moe.core` 下扁平挂载（`moe.core.room` / `player` / `table` / `zone` / `card` / `random` / `attribute`）。
+- 内核在 `moe.core` 下扁平挂载（`moe.core.room` / `player` / `table` / `zone` / `orderedZone` / `card` / `random` / `attribute`）。
 
 ## Risks / Trade-offs
 
