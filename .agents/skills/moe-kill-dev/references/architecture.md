@@ -8,6 +8,7 @@
 [transport]  帧编解码、连接生命周期、反向请求路由
 [proto]      方法名 / 参数 / 返回结构的唯一定义（前后端共用事实来源）
 [game]       对局会话：把协议方法翻译成引擎操作，把引擎事件翻译成协议通知
+[server]     外壳：会话容器 + 决策挂起/恢复通道 + 事件收集（不认识任何规则）
 [engine]     纯规则引擎：状态 + 结算栈 + 时机系统 + 卡牌 / 武将 / 牌堆 + AI
 [tools]      基础设施：event-loop / await / timer / log / json / inspect / uri …
 ```
@@ -68,3 +69,34 @@ sequenceDiagram
   2. 决策点走同一套「请求输入 → 挂起 → 恢复」路径，测试用「脚本化玩家 / AI」自动应答，而不是给引擎开测试专用后门。
   3. 另设一层协议契约测试：对 `proto` 里每个方法做编解码往返与错误分支验证，不必真的开 socket。
 - 回归口径：改引擎必须能只用测试二进制跑完整对局并复现。
+
+## 7. 外壳接口约定（headless-server）
+
+`script/server/` 是当前唯一的「服务」层，只做容器：它不认识牌、阶段、胜负。规则与协议两边各接一个形状，外壳自身不用改。
+
+### 7.1 逻辑处理器（挂在会话上的规则入口）
+
+- 形状：table + `run(self, session)`（写作 `handler:run(session)`），**入口必须是异步函数**（可被协程承载），否则表现为「会话卡住不动」。
+- 约定：入口内用 `session:requestInput(...)` 索取输入、`session:emit(...)` 上报表现事件、`session:finish()` 结束；入口**正常返回也视为结束**。
+- 入口抛错：会话转「已中止」，原因可用 `session:getAbortReason()` 取到。
+
+### 7.2 驱动者（给输入的一方）
+
+只需三个动作，测试里的「脚本化驱动者」与将来的协议层实现同一形状：
+
+| 动作 | 说明 |
+| ---- | ---- |
+| `session:getPendingRequest()` | 读当前待处理事项（没有时返回 `nil`），形状 `{ kind, payload? }` |
+| `session:submit(...)` | 提交结果，支持多个值；没有等待中的请求时报错 |
+| `session:cancelRequest(reason?)` | 取消等待中的请求，挂起方收到取消错误 |
+
+- 事件的形状同为 `{ kind, payload? }`，`session:getEvents()` 返回只读快照（后续发出的事件不会影响已取得的快照）。
+- `requestInput` 的第三个参数是超时（秒），超时会以错误交回发起方，不静默卡住。
+
+### 7.3 会话阶段
+
+`pending → running → finished / aborted → destroyed`。`finished`、`aborted`、`destroyed` 都是**终态**，之后任何生命周期操作（启动 / 结束 / 中止 / 提交 / 取消 / 发事件）一律报错；阶段常量在 `moe.server.Phase`。
+
+### 7.4 主循环归属
+
+`server.start()` / `server.stop()` **不接管事件循环**，只做状态标记与日志；主循环仍由入口负责 —— 服务模式由 `main.lua` 常驻，测试模式由 `test.lua` 控制。这样外壳的启停是同步的、可直接被测试驱动，也不会在测试里嵌套启动事件循环。

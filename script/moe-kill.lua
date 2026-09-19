@@ -12,6 +12,7 @@
 ---@field sevent table
 ---@field tools MoeKill.Tools
 ---@field engine Engine
+---@field server Server
 ---@field inspect fun(root: any): string
 moe = {}
 
@@ -53,6 +54,8 @@ moe.tools = {
 }
 
 moe.engine = require 'engine'
+
+moe.server = require 'server'
 
 local inspect = require 'tools.inspect'
 

@@ -33,6 +33,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `<exe>` + `bin/main.lua` | 引导入口（照搬 LuaLS 4.0.0 的 exe + main.lua 形态） |
 | `script/moe-kill.lua` | 建立全局命名空间 `moe`、挂载工具集与语法糖（全局只在此处赋值一次） |
 | `script/tools/` | 基础设施（event-loop / await / timer / log / json / inspect / uri…）与通用库（class、utility），照搬 4.0.0；**不要随便改** |
+| `script/server/` | 无头服务器外壳：会话容器、决策挂起/恢复通道、事件收集（不含任何规则） |
 | `script/engine/` | 纯规则引擎：状态、结算栈、时机系统、AI（**不依赖 IO**） |
 | `script/engine/` 之下的卡牌 / 武将 / 牌堆 | 规则数据与技能实现 |
 | `script/proto/` | 协议定义（方法名、参数与返回结构），前后端共用的事实来源 |

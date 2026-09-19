@@ -91,6 +91,7 @@ local lt = require 'test.ltest'
 test.enableMemoryGuard()
 
 test.require 'test.smoke'
+test.require 'test.server'
 
 local bodyDone = false
 local bodyFailures = 0
