@@ -228,7 +228,7 @@ M.__counter = M.__counter or moe.util.counter()
 ```lua
 -- package/标准/卡牌/杀.lua
 local slash = Card '杀'          -- 登记为 标准.杀
-    :on('使用', function () end)
+    : on('使用', function () end)
 ```
 
 | 接口 | 说明 |
@@ -290,7 +290,7 @@ game:setValues {
 
 ```lua
 local slash = Card '杀'
-    :on('使用', function () end)
+    : on('使用', function () end)
 ```
 
 - `Card '名字'` = 声明（名字不含 `.`、完整名由装载器拼）；`Card:on(事件, 回调)` 链式登记；查询用 `game:getCard`（未登记得到 `nil`）。

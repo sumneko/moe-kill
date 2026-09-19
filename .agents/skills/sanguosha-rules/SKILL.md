@@ -134,7 +134,7 @@ game:on('游戏-开始', function ()          -- 挂时机（分类-动作）：
 end)
 
 local slash = Card '杀'
-    :on('使用', function () end)    -- 事件名与签名做「杀」时再定
+    : on('使用', function () end)    -- 事件名与签名做「杀」时再定
 ```
 
 - 入口：**装载器 `moe.loader`**（`server/core/loader/`）+ **局 `moe.game`**（`server/core/game.lua`）：`moe.game.create { desk, random, sources?, packages }` 建**一局**并把规则装好（**建局即装**，清单省略就只装默认加载的包），重装走 `moe.loader.install(game, { packages = 清单 })`（省略参数就复用局上记的来源与清单）；内容放在项目根 `package/` 下、**按包组织**（`package/标准/…`、`package/军争/…`）。
@@ -161,7 +161,7 @@ local slash = Card '杀'
 ```lua
 -- package/标准/卡牌/杀.lua
 Card '杀'
-    :on('目标合法', function (ctx)              -- 合法性由牌自己声明：内核不作任何具体判定
+    : on('目标合法', function (ctx)              -- 合法性由牌自己声明：内核不作任何具体判定
         local desk  = game:getDesk()
         local range = ctx.user:getAttr('攻击范围')
         for _, target in ipairs(ctx.targets) do
@@ -170,7 +170,7 @@ Card '杀'
             end
         end
     end)
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         for _, target in ipairs(ctx.targets) do
             game:damage(ctx.user, target, 1)     -- 伤害入口：写体力 + 触发伤害前 / 后时机
         end

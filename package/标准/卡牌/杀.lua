@@ -1,5 +1,5 @@
 Card '杀'
-    :on('目标合法', function (ctx)
+    : on('目标合法', function (ctx)
         local desk  = game:getDesk()
         local range = ctx.user:getAttr('攻击范围')
         for _, target in ipairs(ctx.targets) do
@@ -8,7 +8,7 @@ Card '杀'
             end
         end
     end)
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         for _, target in ipairs(ctx.targets) do
             game:damage(ctx.user, target, 1)
         end

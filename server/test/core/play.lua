@@ -50,10 +50,10 @@ lt.test('使用：用一张牌并结算', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '一')
     end)
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '二')
         ctx.user:setTag('目标', ctx.targets[1])
     end)
@@ -90,7 +90,7 @@ lt.test('使用：牌不在使用者手上时报错', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         ctx.user:setTag('用了', true)
     end)
 ]])
@@ -127,10 +127,10 @@ lt.test('使用：目标不合法时不动牌', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    :on('目标合法', function (ctx)
+    : on('目标合法', function (ctx)
         return ctx.targets[1] ~= ctx.user
     end)
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         ctx.user:setTag('用了', true)
     end)
 ]])
@@ -153,7 +153,7 @@ lt.test('使用：没声明目标合法性的牌不受额外限制', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         ctx.user:setTag('用了', ctx.targets[1])
     end)
 ]])
@@ -173,7 +173,7 @@ lt.test('使用：结算期间这次使用在栈上', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    :on('使用', function (ctx)
+    : on('使用', function (ctx)
         ctx.user:setTag('栈顶是这次使用', game:getCurrentEffect() == ctx)
         ctx.user:setTag('种类', ctx.kind)
     end)
@@ -196,7 +196,7 @@ lt.test('使用：失败后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    :on('目标合法', function (ctx)
+    : on('目标合法', function (ctx)
         return ctx.targets[1] ~= ctx.user
     end)
 ]])
@@ -216,7 +216,7 @@ lt.test('使用：结算中抛错后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    :on('使用', function ()
+    : on('使用', function ()
         error('故意报错')
     end)
 ]])
