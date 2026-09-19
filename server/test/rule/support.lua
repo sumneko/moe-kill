@@ -25,7 +25,7 @@ end
 ---@param seed? integer
 ---@return Test.RuleSupport
 function M.start(count, seed)
-    local attributeSystem = assert(moe.rule:getValue('属性系统'), '基础包没有提供属性系统')
+    local attributeSystem = assert(moe.rule:getAttributeSystem(), '基础包没有提供属性系统')
     local desk            = moe.core.desk.create(count)
     local random          = moe.core.random.create(seed or 1)
     ---@type Core.Player[]

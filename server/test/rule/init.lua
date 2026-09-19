@@ -255,7 +255,7 @@ lt.test('规则集：拿不到内核门面，但能从 rule 上建属性系统',
         moe.rule.load(list('a'))
     end)
 
-    write('b.lua', 'local system = rule:createAttributeSystem()\n'
+    write('b.lua', 'local system = rule:getAttributeSystem()\n'
         .. 'system:define("体力上限", { min = 0 })\n'
         .. 'local attrs = system:createInstance()\n'
         .. 'attrs:set("体力上限", 3)\n'

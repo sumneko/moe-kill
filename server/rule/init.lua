@@ -86,6 +86,7 @@ local ALLOWED_GLOBALS = {
 ---@field events Core.Event # 时机注册（随每次加载重置）
 ---@field meta table<string, Rule.PackageMeta> # 包元信息（预解析产物，随每次加载重建）
 ---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者，随每次加载清空）
+---@field package __attributeSystem Core.AttributeSystem? # 属性系统（规则集内容，随每次加载重建）
 ---@field private context Rule.Context?
 ---@field private lastList string[]?
 local M = {}
@@ -225,6 +226,7 @@ function M.clear()
     M.packages = {}
     M.meta     = {}
     M.values   = {}
+    M.__attributeSystem = nil
     M.events:clear()
 end
 
@@ -267,8 +269,9 @@ function M:getValues()
 end
 
 ---@return Core.AttributeSystem
-function M:createAttributeSystem()
-    return moe.core.attribute.create()
+function M:getAttributeSystem()
+    M.__attributeSystem = M.__attributeSystem or moe.core.attribute.create()
+    return M.__attributeSystem
 end
 
 ---@param meta Rule.PackageMeta

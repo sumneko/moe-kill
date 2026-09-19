@@ -153,3 +153,32 @@ lt.test('基础：没有牌表时不建牌堆', function ()
 
     lt.assertEquals('没有牌表就不建出抽牌堆（回调报错被时机机制记录）', nil, game.room:getZone('抽牌堆'))
 end)
+
+lt.test('基础：体力可以降到负数，写值会被钳到上限', function ()
+    local guard <close> = support.load { '身份场', '标准' }
+
+    local game   = support.start(4)
+    local player = game.players[2]
+
+    lt.assertEquals('开局体力等于上限', 5, player:getAttr('体力'))
+
+    player:setAttr('体力', 99)
+    lt.assertEquals('超过上限被钳到上限', 5, player:getAttr('体力'))
+
+    player:setAttr('体力', -2)
+    lt.assertEquals('体力可以为负（濒死要用）', -2, player:getAttr('体力'))
+
+    player:addAttr('体力上限', 1)
+    lt.assertEquals('抬上限不动体力', -2, player:getAttr('体力'))
+end)
+
+lt.test('基础：属性系统由门面持有，随清空重载重建', function ()
+    local guard <close> = support.load { '身份场', '标准' }
+
+    local before = moe.rule:getAttributeSystem()
+    lt.assertEquals('包已经定义过属性', true, before ~= nil)
+
+    moe.rule.load { '身份场', '标准' }
+
+    lt.assertEquals('重载后换了一个属性系统', false, moe.rule:getAttributeSystem() == before)
+end)

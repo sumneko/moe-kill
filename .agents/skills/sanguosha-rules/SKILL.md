@@ -32,6 +32,7 @@ description: 三国杀规则知识（身份场配置、胜负奖惩、回合阶�
 - 身份写进玩家的**不透明标签**（`player:setTag('身份', ...)`）：内核只记录、不解释取值。
 - 主公 +1 走**改体力上限**（`attrs:add('体力上限', 加成)`，加成取规则数值 `主公体力上限加成`），**不是**直接改体力值；因为基础包先把体力与上限都写成了默认值，身份场只需再“抬”一次，体力自然跟上。
 - **规则数值里的 `默认体力` 是「无武将时的开局体力初值」**（`package/@基础/配置.lua` 里为 5）：它同时被用作战玩家的 `体力上限`，也是「主公 +1」的**基数**，所以现在必须留着（用户 2026-09-19 确认）；等**武将**接管上限后，它就只剩“武将没写时的兜底”一个用途，可以退休。
+- **体力属性的边界（已实现）**：`体力` 下界为负（`-999999`，濒死结算要用）、上界写**字符串引用** `'体力上限'` ⇒ 写值会**钳到当前上限**；`体力上限` 自带 `0..999999`。抬上限**不会**自动加体力（所以主公那句「上限与体力各 +1」仍必要）。
 
 ## 2. 胜负与奖惩
 
@@ -118,8 +119,9 @@ rule.depends { '../基础' }   -- 写在文件顶部：执行到该行时同步�
 
 rule:setValues { 默认体力 = 5 }               -- 规则数值：可被后续包覆盖的配置
 
-local attributeSystem = rule:createAttributeSystem()   -- 规则层给的工厂：包不许直接调内核
-attributeSystem:define('体力上限', { min = 0 })
+local attributeSystem = rule:getAttributeSystem()      -- 属性系统由门面持有（包在加载期 define）
+attributeSystem:define('体力上限', { min = 0, max = 999999 })
+attributeSystem:define('体力', { min = -999999, max = '体力上限' })   -- 体力可为负、写值钳到上限
 
 rule:on('游戏-开始', function (ctx)          -- 挂时机（分类-动作）
     local deck = ctx.room:createZone('抽牌堆', true)   -- 公共牌区挂场地（第二个参数 = 需要有顺序能力）
@@ -144,6 +146,7 @@ local slash = rule.card '杀'
 - **注入面只有一个全局 `rule`**：内核门面 `core`、`require` / `io` / `os` 与 `moe.*` 都拿不到。包需要的内核对象从 `rule` 的**工厂**建：`rule:createAttributeSystem()`（属性系统）、`rule:createCard(name)`（牌实例，牌名进不透明标签）、`rule:createZone()` / `rule:createOrderedZone()`（牌区，有序那个即牌堆）。
 - **接口面在哪（包作者视角）**：`server/rule/env-meta.lua` 是纯类型文件，声明了注入的 `rule` / `core` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条。**不提供可单独分发的 meta**（引用链横跨 `Rule` / `Core` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
 - **不要为空值防御**：`ctx` 由装配方按约定注入（`ctx.desk` / `ctx.random` / `ctx.room` 在类型上都是必填，直接用 `ctx.room:createCard(...)`）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
+- **属性定义只能在加载期写**：属性系统由 `rule:getAttributeSystem()` 持有（清空重载时重置），属性库把定义编译成生成函数、**编译后不允许再 `define`**（会在运行期报 `Cannot define new attributes after compilation`）⇒ `define` 写在包文件顶层，别写进「游戏-开始」回调。玩家侧读写用 `player:setAttr / getAttr / addAttr`（等价于 `player:getAttributes():set/get/add`）。
 - **公共牌区与玩家牌区的分工**：抽牌堆 / 弃牌堆 / 处理区这类**公共区域**用 `ctx.room:createZone(名字, 有序?)`（按名字登记，之后 `room:getZone(名字)` 取回）；手牌 / 装备 / 判定这类**属于某个玩家**的牌区用 `player:addZone(名字)`。
 - 文件里**不需要 `require`**：加载器注入 `rule` 与 `core` + 一份标准库白名单（`require` / `io` / `os` 一律没有）。
 - **中文标识符只留给难翻译的内容名**（技能名 / 卡牌名 / 身份名，以及规则数值的键与属性名），**字段名 / 局部变量 / 函数名一律英文**（如 `local slash = rule.card '杀'`）；中文标识符本身是构建期给 Lua 打的补丁（见 `moe-kill-dev` 的 `references/infrastructure.md`），关键字与 ASCII 标识符行为不变。

@@ -46,6 +46,19 @@ lt.test('玩家：同名牌区报错', function ()
     end)
 end)
 
+lt.test('玩家：属性读写代理', function ()
+    local system = newSystem()
+    system:define('体力上限', { min = 0 })
+    local player = moe.core.player.create { attributes = system:createInstance() }
+
+    player:setAttr('体力上限', 4)
+    lt.assertEquals('setAttr 写进去', 4, player:getAttr('体力上限'))
+
+    player:addAttr('体力上限', -1)
+    lt.assertEquals('addAttr 做增减', 3, player:getAttr('体力上限'))
+    lt.assertEquals('与 getAttributes 是同一份数据', 3, player:getAttributes():get('体力上限'))
+end)
+
 lt.test('玩家：标签原样存取', function ()
     local system = newSystem()
     local player = moe.core.player.create { attributes = system:createInstance() }

@@ -36,6 +36,24 @@ function M:getAttributes()
     return self.attributes
 end
 
+---@param name string
+---@param value number
+function M:setAttr(name, value)
+    self.attributes:set(name, value)
+end
+
+---@param name string
+---@return number
+function M:getAttr(name)
+    return self.attributes:get(name)
+end
+
+---@param name string
+---@param value number
+function M:addAttr(name, value)
+    self.attributes:add(name, value)
+end
+
 ---@return string?
 function M:getName()
     return self.name

@@ -29,8 +29,7 @@ rule:on('游戏-开始', function (ctx)
 
     local bonus = rule:getValue('主公体力上限加成') or 0
     if bonus ~= 0 then
-        local attributes = lord:getAttributes()
-        attributes:add('体力上限', bonus)
-        attributes:add('体力', bonus)
+        lord:addAttr('体力上限', bonus)
+        lord:addAttr('体力', bonus)
     end
 end)
