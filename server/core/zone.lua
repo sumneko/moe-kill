@@ -4,6 +4,31 @@
 ---@field private enabled boolean
 local M = Class 'Core.Zone'
 
+local class = require 'tools.class'
+
+---@param count integer
+---@param position? integer
+---@return integer
+local function resolvePosition(count, position)
+    if position == nil then
+        return count + 1
+    end
+    assert(math.type(position) == 'integer', '位置必须是整数')
+    local index = position
+    if index < 0 then
+        index = count + index + 2
+    end
+    if index < 1 or index > count + 1 then
+        error('位置 {} 超出可插入范围（共 {} 个位置：1..{} 或 -1..-{}）' % {
+            position,
+            count + 1,
+            count + 1,
+            count + 1,
+        }, 3)
+    end
+    return index
+end
+
 ---@param params? table<string, any>
 function M:__init(params)
     self.cards   = {}
@@ -52,6 +77,40 @@ function M:take(index)
     self:checkEnabled('取牌')
     self:checkIndex(index)
     return table.remove(self.cards, index)
+end
+
+---@private
+---@param card Core.Card
+---@return integer?
+function M:indexOf(card)
+    for i = 1, #self.cards do
+        if self.cards[i] == card then
+            return i
+        end
+    end
+    return nil
+end
+
+---@param card Core.Card
+---@param to Core.Zone
+---@param position? integer
+---@return Core.Card
+function M:move(card, to, position)
+    assert(class.isInstanceOf(to, 'Core.Zone'), '移动目标必须是牌区')
+    self:checkEnabled('移出牌')
+    to:checkEnabled('移入牌')
+    local index = self:indexOf(card)
+    if not index then
+        error('源牌区中没有这张牌', 3)
+    end
+    local count = #to.cards
+    if to == self then
+        count = count - 1
+    end
+    local target = resolvePosition(count, position)
+    table.remove(self.cards, index)
+    table.insert(to.cards, target, card)
+    return card
 end
 
 ---@param index integer
