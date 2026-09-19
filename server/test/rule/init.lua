@@ -139,7 +139,7 @@ lt.test('规则集：链式登记并可按名字查询', function ()
 
     local 杀 = card('杀')
     lt.assertEquals('可以按名字查到', true, 杀 ~= nil)
-    lt.assertEquals('同名得到同一条定义', 杀, moe.rule.card('杀'))
+    lt.assertEquals('同名得到同一条定义', 杀, moe.rule.getCard('杀'))
     lt.assertEquals('同名的不同回调分别登记', 1, #杀:getHandlers('选目标'))
     lt.assertEquals('同名回调按次累积', 2, #杀:getHandlers('使用'))
     lt.assertEquals('未登记的事件取到空集合', 0, #杀:getHandlers('不存在'))

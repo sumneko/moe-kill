@@ -95,6 +95,7 @@ test.require 'test.async'
 test.require 'test.core'
 test.require 'test.rule'
 test.require 'test.rule.vfs'
+test.require 'test.rule.routing'
 
 local bodyDone = false
 local bodyFailures = 0

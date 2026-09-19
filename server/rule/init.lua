@@ -1,14 +1,22 @@
 local vfs = require 'rule.vfs'
 
 ---@class Rule.Card
----@field name string
+---@field name string # 裸名
+---@field packageName string # 所属包名
+---@field fullName string # 完整名（包名.名字）
+---@field source string # 声明它的文件（逻辑路径）
 ---@field private handlers table<string, function[]>
 local Card = Class 'Rule.Card'
 
 ---@param name string
-function Card:__init(name)
-    self.name     = name
-    self.handlers = {}
+---@param owner string
+---@param source string
+function Card:__init(name, owner, source)
+    self.name        = name
+    self.packageName = owner
+    self.fullName    = owner .. '.' .. name
+    self.source      = source
+    self.handlers    = {}
 end
 
 ---@param event string
@@ -52,7 +60,8 @@ local ALLOWED_GLOBALS = {
 }
 
 ---@class Rule
----@field cards table<string, Rule.Card>
+---@field cards table<string, table<string, Rule.Card>> # 包名 → 裸名 → 定义
+---@field packages string[] # 包的加载顺序（首次出现的顺序）
 ---@field private context Rule.Context?
 ---@field private lastList string[]?
 local M = {}
@@ -60,8 +69,11 @@ local M = {}
 ---@type string[] # 默认来源：仓库根下项目自己的包容器
 M.DEFAULT_SOURCES = { './package/*' }
 
----@type table<string, Rule.Card>
+---@type table<string, table<string, Rule.Card>>
 M.cards = {}
+
+---@type string[] # 包的加载顺序
+M.packages = {}
 
 ---@type string[] # 当前来源
 M.sources = M.DEFAULT_SOURCES
@@ -87,29 +99,97 @@ local function makeEnv()
     return env
 end
 
+---@param logical string
+---@return string? # 包名（逻辑路径的第一层目录）
+local function packageOf(logical)
+    return logical:match '^([^/]+)/'
+end
+
+---@param name string
+---@param level integer
+local function checkSimpleName(name, level)
+    if type(name) ~= 'string' or name == '' then
+        error('规则名必须是非空字符串', level)
+    end
+    if name:find('.', 1, true) then
+        error('规则名里不能含 "."（完整名由加载器拼接）：{}' % { name }, level)
+    end
+end
+
+---@param name string
+---@return string? # 包名（限定名才有）
+---@return string # 条目名
+local function splitName(name)
+    if type(name) ~= 'string' or name == '' then
+        error('规则名必须是非空字符串', 3)
+    end
+    local owner, entry = name:match '^([^%.]+)%.(.+)$'
+    if owner then
+        return owner, entry
+    end
+    return nil, name
+end
+
 ---@param name string
 ---@return Rule.Card?
 function M.getCard(name)
-    return M.cards[name]
+    local owner, entry = splitName(name)
+    if owner then
+        local cards = M.cards[owner]
+        return cards and cards[entry] or nil
+    end
+    local ctx = M.context
+    local current = ctx and ctx.current
+    local mine    = current and packageOf(current)
+    if mine then
+        local cards = M.cards[mine]
+        local found = cards and cards[entry]
+        if found then
+            return found
+        end
+    end
+    for _, package in ipairs(M.packages) do
+        local cards = M.cards[package]
+        local found = cards and cards[entry]
+        if found then
+            return found
+        end
+    end
+    return nil
 end
 
 ---@param name string
 ---@return Rule.Card
 function M.card(name)
-    if type(name) ~= 'string' or name == '' then
-        error('规则名必须是非空字符串', 2)
+    local ctx = M.context
+    if not ctx then
+        error('规则定义只能在加载规则集时声明', 2)
     end
-    local card = M.cards[name]
-    if not card then
-        card = New 'Rule.Card' (name)
-        M.cards[name] = card
+    local current = ctx.current
+    local owner   = current and packageOf(current)
+    if not owner then
+        error('规则定义只能写在包目录里的文件里', 2)
     end
+    checkSimpleName(name, 2)
+    local cards = M.cards[owner]
+    if not cards then
+        cards = {}
+        M.cards[owner] = cards
+        M.packages[#M.packages+1] = owner
+    end
+    local existing = cards[name]
+    if existing then
+        error('同一个包里重复声明了 {}：{} 与 {}' % { name, existing.source, current }, 2)
+    end
+    local card = New 'Rule.Card' (name, owner, current)
+    cards[name] = card
     return card
 end
 
 ---@private
 function M.clear()
-    M.cards = {}
+    M.cards    = {}
+    M.packages = {}
 end
 
 ---@param path string
@@ -137,6 +217,13 @@ end
 local function loadFile(ctx, logical)
     if ctx.loaded[logical] or ctx.loading[logical] then
         return
+    end
+    local owner = packageOf(logical)
+    if not owner then
+        error('规则集文件必须位于包目录里：{}' % { logical }, 0)
+    end
+    if owner:find('.', 1, true) then
+        error('包目录名里不能含 "."：{}' % { owner }, 0)
     end
     local source, err = ctx.vfs:read(logical)
     if not source then
