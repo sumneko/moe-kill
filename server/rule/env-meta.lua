@@ -3,9 +3,6 @@
 ---@type Rule
 rule = nil
 
----@type Core
-core = nil
-
 ---@class Rule.EventCtx.游戏开始
 ---@field desk Core.Desk
 ---@field random Core.Random

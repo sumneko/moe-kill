@@ -7,7 +7,7 @@
     ↕ JSON-RPC（通用协议）
 [transport]  帧编解码、连接生命周期、反向请求路由
 [proto]      方法名 / 参数 / 返回结构的唯一定义（前后端共用事实来源）
-[game]       规则集：项目根 `package/` 按包组织（现有 `基础` / `身份场` / `标准`），开局装配用 `rule.*` 与注入的 `core.*` 实现
+[game]       规则集：项目根 `package/` 按包组织（现有 `基础` / `身份场` / `标准`），只拿注入的 `rule` —— 需要的内核对象由 `rule` 的工厂建（依赖方向 `package/ → rule → core`）
 [session]    会话外壳：会话容器 + 决策挂起/恢复通道 + 事件收集（`server/session/`）
 [core]       内核：牌 / 牌区（移动、洗牌）/ 属性 / 随机源 / 桌子（座位与行动顺序）/ 玩家（牌区、标签）（**与规则无关**，可直接单测）
 [tools]      基础设施：event-loop / await / timer / log / json / inspect / uri / reload …
@@ -249,8 +249,9 @@ local slash = rule.card '杀'          -- 登记为 标准.杀
 ### 9.6 规则集侧的书写环境
 
 - 加载时用 `load(chunk, '@' .. 路径, 't', env)` 把 `rule` 与内核门面 `core` **注入**执行环境，所以规则集文件**不需要 `require` 任何东西**；以 `@路径` 作 chunkname，报错与堆栈里显示真实文件路径（中文路径同样可用）。
-- 注入面只有 `rule` + `core` + 一份**标准库白名单**（`string` / `table` / `math` / `utf8` / `pcall` 等基函数）；`require`、`io`、`os` 以及 `moe.*` 一律不给 —— 规则集是内容，不该具备开文件 / 起进程的能力。
-  - `core` 给的是**内核门面本身**（`core.card.create('杀')` / `core.orderedZone.create()` / `core.attribute.create()` / `core.desk.create(人数)` …）：分层本来就规定 `package/ → server/core`，所以这是正当依赖；但规则集**只该用与规则相关的内核能力**（内核里没有游戏流程，见第 5 节）。
+- 注入面只有 `rule` + 一份**标准库白名单**（`string` / `table` / `math` / `utf8` / `pcall` 等基函数）；`core`、`require`、`io`、`os` 以及 `moe.*` 一律不给 —— 规则集是内容，不该具备开文件 / 起进程的能力。
+- **规则包需要的内核能力由 `rule` 收口**（用户 2026-09-19 定）：`rule:createAttributeSystem()` / `rule:createCard(name)` / `rule:createZone()` / `rule:createOrderedZone()` —— 就这四个，不新增游戏语义接口（不下放「牌堆 / 手牌区」这类概念）。分层是 `package/ → rule → core`：内容不认识内核实现面，内核接口演进时不必直接破包。
+  - **装配方不受限**：测试与将来的 Room 直接用 `moe.core.*` 组合开局（它们不是包）。
 - 规则集文件里**可以用中文标识符**（构建期补丁，见 `infrastructure.md`），但**中文只用于难翻译的内容名**：技能名 / 卡牌名 / 身份名，以及作为数据取值与配置键的名字（`'杀'`、`'体力上限'`、`'游戏-开始'`）；**字段名 / 局部变量 / 函数名一律英文**（详见 `code-style.md` 第 8 节）。
 - 规则集里**不要为空值防御**：注入的 `ctx` 按约定一定有 `desk` 与 `random`（类型上必填），直接用；只有**运行期真的会缺**的才 `error`（如没牌表、人数不在配置表里）。见 `code-style.md` 第 9 节。
 - 这两个全局与各时机的上下文类型写在一份**纯类型文件** `server/rule/env-meta.lua`（顶部 `---@meta`，不参与运行）：见 9.7 与第 10 节。

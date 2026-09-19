@@ -1,4 +1,4 @@
-local attributeSystem = core.attribute.create()
+local attributeSystem = rule:createAttributeSystem()
 
 attributeSystem:define('体力', { min = 0 })
 attributeSystem:define('体力上限', { min = 0 })

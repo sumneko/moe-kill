@@ -247,6 +247,30 @@ lt.test('规则集：文件里不需要 require，也拿不到 require', functio
     end)
 end)
 
+lt.test('规则集：拿不到内核门面，但能从 rule 上建对象', function ()
+    local guard <close> = prepare()
+    write('a.lua', 'local x = core.card.create("杀")')
+
+    lt.assertError('拿不到 core', function ()
+        moe.rule.load(list('a'))
+    end)
+
+    write('b.lua', 'local system = rule:createAttributeSystem()\n'
+        .. 'system:define("体力上限", { min = 0 })\n'
+        .. 'local attrs = system:createInstance()\n'
+        .. 'attrs:set("体力上限", 3)\n'
+        .. 'local zone = rule:createZone()\n'
+        .. 'local ordered = rule:createOrderedZone()\n'
+        .. 'ordered:put(rule:createCard("杀"))\n'
+        .. 'rule.card("测"):on("跑", function ()\n'
+        .. '    return attrs:get("体力上限") .. "," .. zone:count() .. "," .. ordered:count()\n'
+        .. 'end)')
+
+    moe.rule.load(list('b'))
+
+    lt.assertEquals('工厂建出的对象可用', '3,0,1', card('测'):getHandlers('跑')[1]())
+end)
+
 lt.test('规则集：文件可以用中文标识符书写', function ()
     local guard <close> = prepare()
     write('杀.lua', 'local 杀 = rule.card "杀"\n'

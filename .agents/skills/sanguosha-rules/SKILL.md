@@ -117,8 +117,8 @@ rule.depends { '../基础' }   -- 写在文件顶部：执行到该行时同步�
 
 rule:setValues { 体力上限 = 4 }               -- 规则数值：可被后续包覆盖的配置
 
-local 属性系统 = core.attribute.create()      -- 注入的内核门面：建玩家 / 牌区 / 牌 / 属性 / 随机源
-属性系统:define('体力上限', { min = 0 })
+local attributeSystem = rule:createAttributeSystem()   -- 规则层给的工厂：包不许直接调内核
+attributeSystem:define('体力上限', { min = 0 })
 
 rule:on('游戏-开始', function (ctx)          -- 挂时机（分类-动作）
     ctx.desk:getPlayers()
@@ -137,7 +137,7 @@ local slash = rule.card '杀'
 - 条目带 `name` / `package` / `fullName` / `source`（声明它的文件），报错与排查时直接用。
 - **挂时机**：`rule:on('游戏-开始', function (ctx) ... end)` —— 只在加载期可注册，注册顺序即执行顺序（后注册的后执行，写下的状态覆盖先前的，所以“覆盖别人的默认值”也靠它——例：身份场把主公体力上限抬 1）；**内容包不要主动 `rule:fire`**（触发是装配 / 流程代码的事）。
 - **规则数值**：`rule:setValue(名字, 值)` / `rule:setValues { ... }` 落默认值，读用 `rule:getValue(名字)`（没设置得到 `nil`，自己写 `or 默认`）；**全局一张表、按加载顺序后者覆盖前者**（这就是后续包改默认值的正道），与规则表同生命周期。**不要往里存函数**：行为写时机注册。
-- **注入面**有两个全局：`rule`（本段全部接口）与 `core`（内核门面：`core.card` / `core.orderedZone` / `core.attribute` / `core.random` / `core.desk` / `core.player` / `core.event`）；`require` / `io` / `os` 与 `moe.*` 都没有。
+- **注入面只有一个全局 `rule`**：内核门面 `core`、`require` / `io` / `os` 与 `moe.*` 都拿不到。包需要的内核对象从 `rule` 的**工厂**建：`rule:createAttributeSystem()`（属性系统）、`rule:createCard(name)`（牌实例，牌名进不透明标签）、`rule:createZone()` / `rule:createOrderedZone()`（牌区，有序那个即牌堆）。
 - **接口面在哪（包作者视角）**：`server/rule/env-meta.lua` 是纯类型文件，声明了注入的 `rule` / `core` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条。**不提供可单独分发的 meta**（引用链横跨 `Rule` / `Core` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
 - **不要为空值防御**：`ctx` 由装配方按约定注入（`ctx.desk` / `ctx.random` 在类型上都是必填，直接用 `ctx.random`）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
 - 文件里**不需要 `require`**：加载器注入 `rule` 与 `core` + 一份标准库白名单（`require` / `io` / `os` 一律没有）。
