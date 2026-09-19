@@ -15,7 +15,7 @@
 ---@field inspect fun(root: any): string
 moe = {}
 
-local class = require 'class'
+local class = require 'tools.class'
 
 Class   = class.declare
 New     = class.new
@@ -29,7 +29,7 @@ local args = require 'args'
 
 moe.args = args.current(arg)
 
-moe.util = require 'utility'
+moe.util = require 'tools.utility'
 moe.util.enableCloseFunction()
 moe.util.enableFormatString()
 moe.util.enableDividStringAsPath()

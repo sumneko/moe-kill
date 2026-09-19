@@ -20,7 +20,7 @@
                 "stderr"
             ],
             "skipFiles": [
-                "script/class.lua"
+                "script/tools/class.lua"
             ],
             "arg": [
                 "--test"
@@ -44,7 +44,7 @@
                 "stderr"
             ],
             "skipFiles": [
-                "script/class.lua"
+                "script/tools/class.lua"
             ],
             "arg": [
                 "--test",
@@ -73,8 +73,8 @@
                 ]
             },
             "skipFiles": [
-                "script/class.lua",
-                "${workspaceFolder}/script/class.lua"
+                "script/tools/class.lua",
+                "${workspaceFolder}/script/tools/class.lua"
             ]
         }
     ]

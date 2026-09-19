@@ -110,7 +110,7 @@ end
 - **`dbg:start(地址)` 默认是"监听"**：扩展脚本里 `cfg.client` 为空时会用 `listen:地址`，即目标进程开端口等调试器接入；只有传 `{ address = ..., client = true }` 才是反向连接（`connect:`）。
 - 因此 VS Code 侧与 `request: attach` 配对（`address: 127.0.0.1:<port>` + `sourceMaps`，把运行时的 `script/*` 映射回工作区）。
 - `request: launch`（`luaexe` + `program`）依赖扩展注入；我们的引导脚本保留了 `-e <expr>` 处理（照搬 4.0.0）以兼容这条路径。
-- 两套配置都建议 `skipFiles: ["script/class.lua"]`（类系统内部实现会污染单步）。
+- 两套配置都建议 `skipFiles: ["script/tools/class.lua"]`（类系统内部实现会污染单步）。
 - 调试接入放在 `main.lua` 的**测试分支之前**，所以 `--test --develop` 也能 attach 调试测试。
 - 用完及时断开，开新会话前先停掉旧会话。
 
