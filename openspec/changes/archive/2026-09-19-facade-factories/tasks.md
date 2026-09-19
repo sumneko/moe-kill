@@ -15,4 +15,5 @@
 
 - [x] 3.1 `code-style.md`：「内核对象模块直接返回类表」改成「返回门面表，只放工厂」（含类型命名与 `Effect` 的特例、装载器不适用）；`architecture.md` §1 补一句门面口径、§12 机制表把 `moe.effect` 那行改成类（门面无工厂）
 - [x] 3.2 全量 `server\bin\moe-kill.exe --test` 0 失败（273 个用例）；问题面板 information 及以上为 0
-- [ ] 3.3 `openspec validate --all --strict` 全通过；勾完任务 → 提交推送 → 归档 → 再提交推送
+- [x] 3.3 `openspec validate --all --strict` 全通过；勾完任务 → 提交推送 → 归档 → 再提交推送
+
