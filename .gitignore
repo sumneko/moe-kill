@@ -28,7 +28,7 @@ __pycache__/
 venv/
 
 # Lua 后端构建与运行时产物
-/bin
-/log
-/tmp
+/server/bin
+/server/log
+/server/tmp
 /.vs

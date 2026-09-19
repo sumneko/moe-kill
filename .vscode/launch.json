@@ -6,10 +6,10 @@
             "type": "lua",
             "request": "launch",
             "stopOnEntry": false,
-            "program": "${workspaceFolder}/main.lua",
-            "luaexe": "${workspaceFolder}/bin/moe-kill",
+            "program": "${workspaceFolder}/server/main.lua",
+            "luaexe": "${workspaceFolder}/server/bin/moe-kill",
             "windows": {
-                "luaexe": "${workspaceFolder}/bin/moe-kill.exe"
+                "luaexe": "${workspaceFolder}/server/bin/moe-kill.exe"
             },
             "luaVersion": "lua55",
             "sourceCoding": "utf8",
@@ -31,10 +31,10 @@
             "type": "lua",
             "request": "launch",
             "stopOnEntry": false,
-            "program": "${workspaceFolder}/main.lua",
-            "luaexe": "${workspaceFolder}/bin/moe-kill",
+            "program": "${workspaceFolder}/server/main.lua",
+            "luaexe": "${workspaceFolder}/server/bin/moe-kill",
             "windows": {
-                "luaexe": "${workspaceFolder}/bin/moe-kill.exe"
+                "luaexe": "${workspaceFolder}/server/bin/moe-kill.exe"
             },
             "luaVersion": "lua55",
             "sourceCoding": "utf8",

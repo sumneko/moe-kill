@@ -40,8 +40,8 @@
 
 ## Impact
 
-- **新增**：`server/core/`（内核）、`test/core/`（单元测试）、`server/tools/attribute.lua`（照搬）。
-- **改名（本轮已完成）**：`script/` → `server/`；`server/session/`（原 `script/server/`）；`test/session/`（原 `test/server/`）；`server/engine/` → `server/core/`；`moe.engine` → `moe.core`。
+- **新增**：`server/core/`（内核）、`server/test/core/`（单元测试）、`server/tools/attribute.lua`（照搬）。
+- **改名（本轮已完成）**：`script/` → `server/`；`server/session/`（原 `script/server/`）；`server/test/`（原 `test/`）；`server/engine/` → `server/core/`；`moe.engine` → `moe.core`；入口与产物入 `server/`（`server/main.lua`、`server/test.lua`、`server/bin/`、`server/log/`、`server/tmp/`）。
 - **延后**：`game/` 目录本体、`make/bootstrap.lua` 里的 `game/?.lua` 路径、规则集加载方式 —— 等后续批次测到规则集时再落地（本批只写约定）。
 - **文档**：`moe-kill-dev` 技能的分层图、目录职责表与 `tools/` 改动清单（新增照搬的 `attribute.lua`）；`setup-backend-infra/design.md` 里"`script/engine/` 未来放纯规则引擎"一句已过期，一并修正。
 - **不改**：`server/session/`（Session 保留不动）、`server/async-io.lua`、协议层、前端。

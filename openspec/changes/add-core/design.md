@@ -37,7 +37,7 @@
 - 会话外壳目录随之从 `server/server/` 改名为 `server/session/`（避免同名嵌套），门面仍是 `moe.server`。
 - **规则集放项目根 `game/`**，与 `server/` 平级：`game/` 是"内容/包"，`server/` 是"后端代码根"（引导、内核、会话、工具）。依赖方向只能是 `game/ → server/core`，内核永不反向依赖 `game`。
   - **本批不创建该目录**（用户 2026-09-19 定）：约定先写在这里与技能文档，目录本体、`package.path`（`game/?.lua`、`game/?/init.lua`）与加载方式等后续批次测到规则集时再落地。
-- 入口脚本（根 `main.lua` / `test.lua` / `bin/main.lua`）**不挪进 `server/`**：`bin/main.lua` 是 exe 固定从同目录加载的引导产物；根 `main.lua` 是进程入口，且 `master.lua` 用 `arg[0]` 父目录当 `ROOT_PATH`（日志目录与 `test.lua` 定位都依赖它），挪动会连带改变路径语义。前端将来 `client/` 有自己的入口，不必与后端入口同构。
+- 入口与产物也归 `server/`（用户 2026-09-19 定）：`server/main.lua`、`server/test.lua`、`server/test/`、`server/bin/`（构建产物）、`server/log/`、`server/tmp/`。**`server/master.lua` 的 `ROOT_PATH` = `<根>/server`**（日志、临时产物、测试入口都在 `server/` 下自洽）；`bin/` 是 `lm:copy` 指定的分发目录（luamake 自己的中间产物在 `build/bin`），所以可以自由选定位置。前端将来 `client/` 有自己的入口，不必与后端入口同构。
 
 ### D2 内核与规则的分界线（本批最重要的约束）
 
@@ -90,7 +90,7 @@
 
 ## Migration Plan
 
-改名 + 纯新增：`script/` → `server/`（含 `server/session/`、`test/session/`）、`server/engine/` → `server/core/`、新增 `server/core/*`、`server/tools/attribute.lua`、`test/core/`、`moe.engine` → `moe.core`。回滚即还原目录名与门面那一行，并删除新增文件。
+改名 + 纯新增：`script/` → `server/`（含 `server/session/`、`server/test/`）、`server/engine/` → `server/core/`、根 `main.lua`/`test.lua`/`test/`/`bin/` → `server/` 下、新增 `server/core/*`、`server/tools/attribute.lua`、`server/test/core/`、`moe.engine` → `moe.core`。回滚即还原目录名与门面那一行，并删除新增文件。
 
 ## Open Questions
 

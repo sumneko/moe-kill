@@ -8,6 +8,7 @@
 - [x] 1.2 `server/moe-kill.lua`：`moe.engine` → `moe.core`，类型注解同步
 - [x] 1.3 项目根 `game/` 与 `make/bootstrap.lua` 的 `game/?.lua` 路径**本批不建**（用户定：后续测到规则集时再落地）；约定写进设计与此处即可
 - [x] 1.4 目录改名（用户 2026-09-19 定）：`script/` → `server/`（与将来的 `client/` 对称）、`script/server/` → `server/session/`、`test/server/` → `test/session/`；同步 `make/bootstrap.lua`、`.luarc.json`、`.vscode/launch.json`、技能文档
+- [x] 1.5 入口与产物归入 `server/`（用户 2026-09-19 定）：`main.lua` / `test.lua` / `test/` / `bin/` 全部移入；`make.lua` 的 copy 目标改 `server/bin/`、引导脚本上溯两级求根、`ROOT_PATH` 变为 `<根>/server`；`.gitignore` / `.luarc.json` / `.vscode` / 文档同步
 
 ## 2. 照搬属性库
 
@@ -41,9 +42,9 @@
 - [ ] 6.3 座位距离求值：沿两侧取较小值、最小为 1、修正参与求值且修正后仍最小为 1（求值非缓存）
 - [ ] 6.4 `server/core/room.lua`：加入玩家、持有桌面与牌区集合、查询当前局面；**`room:setPlayerAttributeSystem(system)` 设置玩家属性系统**（创建玩家时用该系统造属性实例）；不设人数上限；两个房间互不影响
 
-## 7. 测试（`test/core/`）
+## 7. 测试（`server/test/core/`）
 
-- [ ] 7.1 新增 `test/core/init.lua` 并挂到测试入口的套件列表
+- [ ] 7.1 新增 `server/test/core/init.lua` 并挂到测试入口的套件列表
 - [ ] 7.2 覆盖随机源：同种子同序列、不同种子不同序列、实例间互不干扰
 - [ ] 7.3 覆盖牌区：放入 / 取出 / 计数 / 列举 / 清空、空区取牌明确失败、参数设置与修改、动态增删与禁用启用、相同随机源洗出相同顺序、按顺序取牌、无序牌区取顶失败、牌实例标识可区分
 - [ ] 7.4 覆盖属性：自定义属性名、上下限约束（含增减越界）、实例独立、变更可观察、实例创建后新增定义失败
@@ -52,7 +53,7 @@
 
 ## 8. 验收与文档
 
-- [ ] 8.1 `luamake -notest` 编译通过；`bin/moe-kill.exe --test` 全绿、退出码 0；问题面板 information 及以上归零
+- [ ] 8.1 `luamake -notest` 编译通过；`server/bin/moe-kill.exe --test` 全绿、退出码 0；问题面板 information 及以上归零
 - [ ] 8.2 `architecture.md`：分层图补 `core`（内核，与规则无关）与 `game`（规则集，调用内核）；「无头可测」补"内核接口可直接调用、调用方自行组合场景"
 - [ ] 8.3 `sanguosha-rules` 技能：把「决策点统一走请求输入 → 挂起 → 恢复」的主语改为 **Room 内部**（后续批次实现），并注明**内核不含任何流程且不预设区域名/属性名**
 - [ ] 8.4 `setup-backend-infra/design.md` 里过期的"`script/engine/` 未来放纯规则引擎"一句修正为 `server/core` + `game/` 的新划分（含 `script/` → `server/` 改名）

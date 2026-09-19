@@ -16,14 +16,11 @@ local progdir = sys.exe_path():parent_path()
 local root    = getenv 'MOE_KILL_ROOT'
 
 if not root then
-    local parent = progdir:parent_path()
-    if fs.exists(parent / 'server') then
-        root = parent:string()
-    elseif fs.exists(progdir / 'server') then
-        root = progdir:string()
-    else
-        root = parent:string()
+    local serverdir = progdir:parent_path()
+    if not fs.exists(serverdir / 'core') then
+        serverdir = progdir
     end
+    root = serverdir:parent_path():string()
 end
 
 if root == '' then
@@ -103,7 +100,7 @@ if main then
     end
     arg[n] = nil
 else
-    entry = root .. sep .. 'main.lua'
+    entry = root .. sep .. toNative('server') .. sep .. 'main.lua'
 end
 
 arg[0] = entry

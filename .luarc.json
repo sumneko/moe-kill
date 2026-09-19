@@ -24,9 +24,9 @@
         "ignoreDir": [
             "/3rd",
             "/build",
-            "/bin",
-            "/log",
-            "/tmp",
+            "/server/bin",
+            "/server/log",
+            "/server/tmp",
             "/.vscode"
         ],
         "maxPreload": 1600,

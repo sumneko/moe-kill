@@ -28,7 +28,7 @@
 
 ## 3. 构建（luamake）
 
-形态：**一个 exe + 一棵 Lua 脚本树**。exe 负责加载 `bin/main.lua` 引导脚本，引导脚本设 `package.path`（`server/?.lua`、`server/?/init.lua`、`server/tools/?.lua`、`server/tools/?/init.lua`）并处理 `arg`。
+形态：**一个 exe + 一棵 Lua 脚本树**。exe 与引导脚本同在 `server/bin/`，exe 负责加载同目录的 `bin/main.lua` 引导脚本，引导脚本设 `package.path`（`server/?.lua`、`server/?/init.lua`、`server/tools/?.lua`、`server/tools/?/init.lua`）并处理 `arg`。
 
 `make.lua` 骨架（照搬 LuaLS 4.0.0）：
 
@@ -64,29 +64,32 @@ lm:copy "copy_bootstrap" {
 ```
 <根>/
   make.lua              构建定义
-  main.lua              真正入口（被引导脚本加载）
-  make/bootstrap.lua    → 构建时复制为 bin/main.lua
+  make/bootstrap.lua    → 构建时复制为 server/bin/main.lua
   make/modules.cpp      C 模块注册占位
-  server/               后端代码根（server/?.lua、server/tools/?.lua）
-    core/  session/  tools/  moe-kill.lua  master.lua  args.lua  debugger.lua  async-io.lua
+  server/               后端根（代码 + 入口 + 测试 + 产物）
+    main.lua  test.lua   进程入口与测试入口
+    moe-kill.lua  master.lua  args.lua  debugger.lua  async-io.lua
+    core/  session/  tools/
+    test/                无头测试（test.smoke / test.session / test.core…）
+    bin/                 产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
+    log/  tmp/           运行时产物（git 忽略）
   game/                规则集（后续批次创建；与 server/ 平级）
   client/              前端（将来；与 server/ 平级）
-  test/  test.lua       测试
-  bin/                  产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
-  build/                中间产物（git 忽略）
+  build/                中间产物（luamake 的 $bin/obj 等，git 忽略）
 ```
 
 exe 的引导链路（**关键，容易踩坑**）：
 
 1. exe 内嵌引导把 `package.cpath` 设为 `<exe目录>/?.dll`，然后 `loadfile(<exe目录>/main.lua)` 并调用它。
 2. 此时 `arg[0]` 是**占位字符串 `"!main.lua"`**（由 C 侧 `createargtable` 写入），不是可用路径；用户参数从 `arg[1]` 开始。
-3. 所以 `make/bootstrap.lua` 不能靠 `arg[0]` 推根目录，改为 **`progdir = exe目录`，`root = progdir/..`**（并用「根下是否有 `server/`」做兜底，支持 `MOE_KILL_ROOT` 环境变量覆盖）。
-4. 引导脚本若发现 `arg[1]` 是以 `.lua` 结尾的非选项参数，就把它当入口脚本并左移参数表，最后把 `arg[0]` 设为真实入口路径 —— 这样「业务代码看不到 `main.lua` 自身」且 `lua-debug` 的 launch（`luaexe` + `program`）也能直接用。
+3. 所以 `make/bootstrap.lua` 不能靠 `arg[0]` 推根目录：exe 在 `<根>/server/bin/`，于是 **`progdir = <根>/server/bin`，`root = progdir/../..`**（并用「该层是否有 `core/`」做兜底、支持 `MOE_KILL_ROOT` 环境变量覆盖）。
+4. 引导脚本随后加载 **`<根>/server/main.lua`**；若发现 `arg[1]` 是以 `.lua` 结尾的非选项参数，就把它当入口脚本并左移参数表，最后把 `arg[0]` 设为真实入口路径 —— 这样「业务代码看不到 `main.lua` 自身」且 `lua-debug` 的 launch（`luaexe` + `program`）也能直接用。
+5. 于是 `server/master.lua` 里 `ROOT_PATH = arg[0] 的父目录` = **`<根>/server`**：日志、临时产物、测试入口（`server/test.lua`）都在 `server/` 下自洽；`--root` 可覆盖。
 
 已验证行为：
 
-- `bin/moe-kill.exe`（不带参数）→ 自动加载根 `main.lua`，正常退出码 0。
-- `bin/moe-kill.exe tmp/x.lua --flag=1` → 加载 `tmp/x.lua`，参数表里不残留脚本名。
+- `server/bin/moe-kill.exe`（不带参数）→ 自动加载 `server/main.lua`，正常退出码 0。
+- `server/bin/moe-kill.exe server/tmp/x.lua --flag=1` → 加载该脚本，参数表里不残留脚本名。
 - 可选链四种形式、链式组合、短路无副作用、`?:` 保留多返回值，均实测通过。
 
 ### 本机环境实测（Windows，2026-09-19）
@@ -159,11 +162,11 @@ end
 
 ```powershell
 luamake                          # 编译 + 跑无头测试
-luamake -notest                  # 只编译（产出 bin/moe-kill.exe + bin/main.lua）
-bin/moe-kill.exe --test          # 无头跑全部测试（退出码 0 = 全通过）
-bin/moe-kill.exe --test smoke.await    # 只跑一个套件
-bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
-bin/moe-kill.exe                 # 服务模式（常驻事件循环）
+luamake -notest                  # 只编译（产出 server/bin/moe-kill.exe + server/bin/main.lua）
+server/bin/moe-kill.exe --test          # 无头跑全部测试（退出码 0 = 全通过）
+server/bin/moe-kill.exe --test smoke.await    # 只跑一个套件
+server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
+server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 
 openspec list                     # 进行中的变更
 openspec status --change <name>   # 工件完成度

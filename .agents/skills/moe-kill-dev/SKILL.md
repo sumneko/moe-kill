@@ -24,23 +24,25 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 - 重连由**专门的协议方法全量同步状态**（不靠增量事件重放）。
 - 前端暂不实现；**先做无头后端并跑测试**。
 - 调试用 VS Code 的 `actboy168.lua-debug` 扩展。
-- Lua 版本 **5.5**；测试用 LuaLS 4.0.0 的 `--test` 入口与断言风格（`test/ltest.lua` 是本工程的可读精简实现）。
+- Lua 版本 **5.5**；测试用 LuaLS 4.0.0 的 `--test` 入口与断言风格（`server/test/ltest.lua` 是本工程的可读精简实现）。
 
 ## 2. 目录职责（规划）
 
 | 路径 | 职责 |
 | --- | --- |
-| `<exe>` + `bin/main.lua` | 引导入口（照搬 LuaLS 4.0.0 的 exe + main.lua 形态） |
+| `<exe>` + `server/bin/main.lua` | 引导入口（exe 与引导产物同在 `server/bin/`） |
+| `server/main.lua` / `server/test.lua` | 进程入口与测试入口 |
 | `server/moe-kill.lua` | 建立全局命名空间 `moe`、挂载工具集与语法糖（全局只在此处赋值一次） |
 | `server/tools/` | 基础设施（event-loop / await / timer / log / json / inspect / uri…）与通用库（class、utility、attribute），照搬；**不要随便改** |
 | `server/session/` | 无头服务器外壳：会话容器、决策挂起/恢复通道、事件收集（不含任何规则）；门面是 `moe.server` |
 | `server/async-io.lua` | 等待与异步 I/O 接线：`bee.async` 实例、完成事件分发、异步文件读写、外部事件源注册（详见 `references/infrastructure.md` 第 6 节） |
 | `server/core/` | 内核：玩家、桌子、房间、牌区、属性、随机源（**与规则无关**，接口可直接调用、可单测） |
+| `server/test/` | 无头测试（套件名如 `test.smoke` / `test.session` / `test.core`） |
+| `server/bin/` `server/log/` `server/tmp/` | 构建产物与运行时产物（均 git 忽略） |
 | `game/`（项目根，与 `server/` 平级） | 规则集：基础规则 / 卡牌包 / 技能（**后续批次，目录尚未创建**；依赖 `server/core`，不反向） |
 | `server/proto/` | 协议定义（方法名、参数与返回结构），前后端共用的事实来源 |
 | `server/transport/` | JSON-RPC 帧与连接层 |
 | `client/`（将来） | 前端（TypeScript / Web）；与 `server/` 平级 |
-| `test/` | 无头测试 |
 
 ## 3. references
 
@@ -56,5 +58,5 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 - 决策点统一为「请求输入 → 挂起 → 恢复」，无头测试与前端共用同一条路径。
 - 随机数可注入 seed，保证整局可复现。
 - 跨 worker / 线程边界只传可序列化的 plain data（table / string / number / boolean）。
-- 临时调试产物统一放 `tmp/`，用完清理，不要留在 `server/` 或 `test/`。
+- 临时调试产物统一放 `server/tmp/`，用完清理，不要留在代码目录里。
 - 风格与基础设施以 LuaLS `4.0.0` 分支为准（见 `references/`），不要照搬其 `master`（2022 老架构）。

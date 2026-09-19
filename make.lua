@@ -24,17 +24,17 @@ local exe      = platform.os == 'windows' and ".exe" or ""
 
 lm:copy "copy_moe-kill" {
     inputs = "$bin/moe-kill" .. exe,
-    outputs = "bin/moe-kill" .. exe,
+    outputs = "server/bin/moe-kill" .. exe,
 }
 
 lm:copy "copy_bootstrap" {
     inputs = "make/bootstrap.lua",
-    outputs = "bin/main.lua",
+    outputs = "server/bin/main.lua",
 }
 
 lm:msvc_copydll "copy_vcrt" {
     type = "vcrt",
-    outputs = "bin",
+    outputs = "server/bin",
 }
 
 lm:phony "all" {
@@ -58,7 +58,7 @@ if lm.notest then
 end
 
 lm:rule "run-unit-test" {
-    args = { "bin/moe-kill" .. exe, "--test" },
+    args = { "server/bin/moe-kill" .. exe, "--test" },
     description = "Run test.",
     pool = "console",
 }

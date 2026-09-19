@@ -23,7 +23,7 @@
         {
             "type": "shell",
             "label": "Test",
-            "command": "bin/moe-kill.exe --test",
+            "command": "server/bin/moe-kill.exe --test",
             "problemMatcher": []
         }
     ]
