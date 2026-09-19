@@ -96,6 +96,21 @@ local function copyMeta(meta)
     return copy
 end
 
+---@param user Moe.Player
+---@param card Moe.Card
+---@return Moe.Zone? # 牌所在的牌区（找到时才有）
+---@return integer? # 牌在该牌区里的位置
+local function findHeldZone(user, card)
+    for _, zone in ipairs(user:getZones()) do
+        for i, held in ipairs(zone:list()) do
+            if held == card then
+                return zone, i
+            end
+        end
+    end
+    return nil, nil
+end
+
 ---@class Moe.Game.CreateOptions
 ---@field desk Moe.Desk
 ---@field random Moe.Random
@@ -346,6 +361,50 @@ function M:createCard(name)
         error('牌名必须是非空字符串', 2)
     end
     return moe.card.create(name)
+end
+
+---@param from Moe.Player # 伤害来源
+---@param to Moe.Player # 承受者
+---@param amount integer # 点数
+function M:damage(from, to, amount)
+    ---@type Moe.Game.EventCtx.伤害
+    local ctx = { from = from, to = to, amount = amount }
+    self:fire('伤害-前', ctx)
+    to:addAttr('体力', -amount)
+    self:fire('伤害-后', ctx)
+end
+
+---@param user Moe.Player # 使用者
+---@param card Moe.Card # 被使用的牌
+---@param targets Moe.Player[] # 目标（可以为空表）
+function M:play(user, card, targets)
+    local name = card:getLabel()
+    if type(name) ~= 'string' then
+        error('这张牌没有牌名，查不到内容定义', 2)
+    end
+    local def = self:getCard(name)
+    if not def then
+        error('没有叫「{}」的内容定义' % { name }, 2)
+    end
+
+    local zone, index = findHeldZone(user, card)
+    if not zone or not index then
+        error('使用者手上没有这张牌', 2)
+    end
+
+    ---@type Moe.Game.EventCtx.卡牌
+    local ctx = { user = user, card = card, targets = targets }
+    for _, handler in ipairs(def:getHandlers('目标合法')) do
+        if handler(ctx) == false then
+            error('「{}」的目标不合法' % { def.fullName }, 2)
+        end
+    end
+
+    zone:take(index)
+    for _, handler in ipairs(def:getHandlers('使用')) do
+        handler(ctx)
+    end
+    self:fire('卡牌-结算后', ctx)
 end
 
 return M

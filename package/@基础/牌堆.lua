@@ -11,4 +11,13 @@ game:on('游戏-开始', function ()
         end
     end
     deck:shuffle()
+
+    game:createZone('弃牌堆')
+    for _, player in ipairs(game:getDesk():getPlayers()) do
+        player:addZone('手牌')
+    end
+end)
+
+game:on('卡牌-结算后', function (ctx)
+    game:getZone('弃牌堆'):put(ctx.card)
 end)

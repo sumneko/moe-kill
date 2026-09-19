@@ -97,6 +97,8 @@ test.require 'test.core.event'
 test.require 'test.core.desk'
 test.require 'test.core.player'
 test.require 'test.core.game'
+test.require 'test.core.damage'
+test.require 'test.core.play'
 test.require 'test.rule'
 test.require 'test.rule.vfs'
 test.require 'test.rule.routing'
@@ -105,6 +107,7 @@ test.require 'test.rule.meta'
 test.require 'test.rule.base'
 test.require 'test.rule.identity'
 test.require 'test.rule.setup'
+test.require 'test.rule.slash'
 
 local bodyDone = false
 local bodyFailures = 0
