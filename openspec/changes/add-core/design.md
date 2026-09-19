@@ -78,8 +78,7 @@
 - **本轮不暴露**：公式 / 复杂属性（`setFormula` / `setBaseSymbol` / 字符串型 `min`-`max` 引用）与“查询自上次检查以来的变化”（库的 `getTouched`，返回的是变化**前**的取值）—— 等规则层真需要百分比修正 / 批量差分时再一起过语义，避免现在猜错库里的生成语义。
 
 ### D5 桌子：座位与行动顺序，距离是求值
-
-- 座位序号 = 入座顺序；行动顺序遍历跳过"不参与行动"的玩家（规则层把"阵亡"映射为该标记）。
+- **代码里叫 `Desk`**（`Core.Desk` / `server/core/desk.lua` / `moe.core.desk`）：`Table` 会与 Lua 的全局 `table` 混，`Desk` 与中文“桌子”也对得上（用户 2026-09-19 定）。- 座位序号 = 入座顺序；行动顺序遍历跳过"不参与行动"的玩家（规则层把"阵亡"映射为该标记）。
 - 座位距离 = `min(顺时针, 逆时针)`，最小 1；修正值由调用方设置，修正后仍最小 1；距离是**求值函数**不是缓存字段（装备/技能变化必须立即反映）。
 
 ### D6 随机源：自带可实例化实现
@@ -96,8 +95,8 @@
 
 ### D7 命名与目录
 
-- 代码标识符用英文（`Core` / `Room` / `Player` / `Table` / `Zone` / `Card` / `Random`）；规则集目录用中文（`game/基础规则/`）。
-- 内核在 `moe.core` 下扁平挂载（`moe.core.room` / `player` / `table` / `zone` / `orderedZone` / `card` / `random` / `attribute`）。
+- 代码标识符用英文（`Core` / `Room` / `Player` / `Desk` / `Zone` / `Card` / `Random`）；规则集目录用中文（`game/基础规则/`）。
+- 内核在 `moe.core` 下扁平挂载（`moe.core.room` / `player` / `desk` / `zone` / `orderedZone` / `card` / `random` / `attribute`）。
 
 ## Risks / Trade-offs
 
