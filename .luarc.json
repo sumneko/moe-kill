@@ -1,0 +1,68 @@
+{
+    "runtime": {
+        "version": "Lua 5.5",
+        "path": [
+            "script/?.lua",
+            "script/?/init.lua",
+            "script/tools/?.lua",
+            "script/tools/?/init.lua",
+            "?.lua",
+            "?/init.lua"
+        ],
+        "pathStrict": true,
+        "nonstandardSymbol": [
+            "?.",
+            "?:",
+            "?(",
+            "?["
+        ]
+    },
+    "workspace": {
+        "library": [
+            "3rd/bee.lua/meta"
+        ],
+        "ignoreDir": [
+            "/3rd",
+            "/build",
+            "/bin",
+            "/log",
+            "/tmp",
+            "/.vscode"
+        ],
+        "maxPreload": 1600,
+        "preloadFileSize": 1000,
+        "checkThirdParty": false
+    },
+    "diagnostics": {
+        "globals": [
+            "jit"
+        ],
+        "disable": [
+            "close-non-object",
+            "missing-local-export-doc"
+        ],
+        "groupFileStatus": {
+            "ambiguity": "Any",
+            "await": "Any",
+            "duplicate": "Any",
+            "global": "Any",
+            "luadoc": "Any",
+            "redefined": "Any",
+            "strict": "Any",
+            "type-check": "Any",
+            "unbalanced": "Any",
+            "unused": "Any"
+        },
+        "ignoredFiles": "Disable",
+        "libraryFiles": "Opened"
+    },
+    "type": {
+        "castNumberToInteger": true,
+        "weakUnionCheck": false
+    },
+    "doc": {
+        "privateName": [
+            "_*"
+        ]
+    }
+}
