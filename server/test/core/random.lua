@@ -4,7 +4,7 @@ local lt = require 'test.ltest'
 ---@param count integer
 ---@return string
 local function sequence(seed, count)
-    local generator = moe.core.random.create(seed)
+    local generator = moe.random.create(seed)
     local values    = {}
     for i = 1, count do
         values[i] = generator:nextInt(1, 1000000)
@@ -26,7 +26,7 @@ end
 ---@param count integer
 ---@return string
 local function shuffled(seed, count)
-    local generator = moe.core.random.create(seed)
+    local generator = moe.random.create(seed)
     local values    = {}
     for i = 1, count do
         values[i] = i
@@ -41,8 +41,8 @@ lt.test('随机源：同种子同序列、异种子异序列', function ()
 end)
 
 lt.test('随机源：实例之间互不干扰', function ()
-    local first  = moe.core.random.create(7)
-    local second = moe.core.random.create(7)
+    local first  = moe.random.create(7)
+    local second = moe.random.create(7)
 
     for i = 1, 50 do
         first:nextInt(1, 1000)
@@ -60,7 +60,7 @@ lt.test('随机源：实例之间互不干扰', function ()
 end)
 
 lt.test('随机源：取范围整数落在闭区间内', function ()
-    local generator = moe.core.random.create(2026)
+    local generator = moe.random.create(2026)
     local counts    = {}
 
     for i = 1, 3000 do
@@ -77,7 +77,7 @@ lt.test('随机源：取范围整数落在闭区间内', function ()
 end)
 
 lt.test('随机源：取元素来自给定序列', function ()
-    local generator = moe.core.random.create(20260919)
+    local generator = moe.random.create(20260919)
     local list      = { '甲', '乙', '丙', '丁' }
     local seen      = {}
 
@@ -92,7 +92,7 @@ lt.test('随机源：取元素来自给定序列', function ()
 end)
 
 lt.test('随机源：打乱保留元素且改变顺序', function ()
-    local generator = moe.core.random.create(20260919)
+    local generator = moe.random.create(20260919)
     local list      = {}
 
     for i = 1, 108 do
@@ -128,7 +128,7 @@ lt.test('随机源：不触碰全局随机状态', function ()
     local before = math.random(1, 1000000)
 
     math.randomseed(20260919)
-    local generator = moe.core.random.create(20260919)
+    local generator = moe.random.create(20260919)
     generator:nextInt(1, 100)
     generator:shuffle({ 1, 2, 3, 4, 5 })
     local after = math.random(1, 1000000)
@@ -137,7 +137,7 @@ lt.test('随机源：不触碰全局随机状态', function ()
 end)
 
 lt.test('随机源：非法请求明确失败', function ()
-    local generator = moe.core.random.create(1)
+    local generator = moe.random.create(1)
 
     lt.assertError('下界大于上界', function ()
         generator:nextInt(5, 4)
@@ -149,6 +149,6 @@ lt.test('随机源：非法请求明确失败', function ()
         generator:pick({})
     end)
     lt.assertError('种子非整数', function ()
-        moe.core.random.create(1.5)
+        moe.random.create(1.5)
     end)
 end)

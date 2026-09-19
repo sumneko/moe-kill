@@ -1,7 +1,7 @@
 local lt = require 'test.ltest'
 
 lt.test('事件：按名分发', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
     ---@type string[]
     local log = {}
     event:on('甲', function () log[#log+1] = '甲的1' end)
@@ -15,7 +15,7 @@ lt.test('事件：按名分发', function ()
 end)
 
 lt.test('事件：注册顺序即执行顺序', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
     ---@type integer[]
     local log = {}
     for i = 1, 3 do
@@ -28,7 +28,7 @@ lt.test('事件：注册顺序即执行顺序', function ()
 end)
 
 lt.test('事件：撤销一次注册', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
     ---@type integer[]
     local log = {}
     local undo = event:on('甲', function () log[#log+1] = 1 end)
@@ -45,7 +45,7 @@ lt.test('事件：撤销一次注册', function ()
 end)
 
 lt.test('事件：未注册的时机名是空操作', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
 
     lt.assertEquals('一开始没有注册过', false, event:has('甲'))
     event:fire('甲')
@@ -53,7 +53,7 @@ lt.test('事件：未注册的时机名是空操作', function ()
 end)
 
 lt.test('事件：回调报错不影响其余回调', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
     ---@type integer[]
     local log = {}
     event:on('甲', function () log[#log+1] = 1 end)
@@ -66,7 +66,7 @@ lt.test('事件：回调报错不影响其余回调', function ()
 end)
 
 lt.test('事件：上下文透传', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
     local received
     event:on('甲', function (ctx) received = ctx end)
 
@@ -78,7 +78,7 @@ lt.test('事件：上下文透传', function ()
 end)
 
 lt.test('事件：clear 清空全部注册', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
     local count = 0
     event:on('甲', function () count = count + 1 end)
     event:on('乙', function () count = count + 1 end)
@@ -92,7 +92,7 @@ lt.test('事件：clear 清空全部注册', function ()
 end)
 
 lt.test('事件：可以列出已注册的时机名', function ()
-    local event = moe.core.event.create()
+    local event = moe.event.create()
     event:on('b', function () end)
     event:on('a', function () end)
 

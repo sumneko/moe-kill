@@ -118,6 +118,22 @@ lt.test('重载：默认范围只含登记过的模块', function ()
     lt.assertEquals('基础设施模块未被重新执行', toolsClass, package.loaded['tools.class'])
 end)
 
+lt.test('重载：场地里的规则实例跨重载照常可用', function ()
+    local desk   = moe.desk.create(4)
+    local random = moe.random.create(1)
+    local room   = moe.room.create { desk = desk, random = random, packages = { '标准' } }
+
+    local rule     = room:getRule()
+    local cardTable = rule:getValue('牌表')
+
+    local reloaded = moe.reload.reload()
+
+    lt.assertEquals('规则加载器本身在重载名单里', true, moe.util.arrayHas(reloaded, 'core.rule'))
+    lt.assertEquals('还是同一个规则实例', rule, room:getRule())
+    lt.assertEquals('规则数值照旧', cardTable, rule:getValue('牌表'))
+    lt.assertEquals('包元信息照旧可取', true, rule:getPackageMeta('标准') ~= nil)
+end)
+
 lt.test('重载：新增模块无需额外配置即进入范围', function ()
     local mod = include 'test.reload.probe.added'
     lt.assertEquals('首次加载执行一次', 1, state.addedRuns)
@@ -230,9 +246,9 @@ lt.test('重载：已存在的实例立即使用新代码', function ()
 end)
 
 lt.test('重载：牌的唯一标识跨重载不重复', function ()
-    local before = moe.core.card.create()
+    local before = moe.card.create()
     local reloaded = moe.reload.reload()
-    local after = moe.core.card.create()
+    local after = moe.card.create()
 
     lt.assertEquals('内核模块在重载名单里', true, moe.util.arrayHas(reloaded, 'core.card'))
     lt.assertEquals('标识继续增长', true, after:getId() > before:getId())
@@ -241,12 +257,12 @@ end)
 
 lt.test('重载：recycle 立即执行、重载后重跑并回收旧对象', function ()
     local runs  = 0
-    ---@type Core.Card[]
+    ---@type Moe.Card[]
     local trash = {}
 
     local function rebuild(trashFn)
         runs = runs + 1
-        trash[#trash + 1] = trashFn(moe.core.card.create())
+        trash[#trash + 1] = trashFn(moe.card.create())
         return runs
     end
 

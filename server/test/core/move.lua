@@ -1,18 +1,18 @@
 local lt = require 'test.ltest'
 
----@param zone Core.Zone
+---@param zone Moe.Zone
 ---@param source string[]
----@return Core.Card[]
+---@return Moe.Card[]
 local function fill(zone, source)
     local cards = {}
     for i = 1, #source do
-        cards[i] = moe.core.card.create(source[i])
+        cards[i] = moe.card.create(source[i])
         zone:put(cards[i])
     end
     return cards
 end
 
----@param zone Core.Zone
+---@param zone Moe.Zone
 ---@return string
 local function zoneLabels(zone)
     local list  = zone:list()
@@ -24,8 +24,8 @@ local function zoneLabels(zone)
 end
 
 lt.test('移动：跨区移动改变两边的计数与顺序', function ()
-    local from  = moe.core.zone.create()
-    local to    = moe.core.zone.create()
+    local from  = moe.zone.create()
+    local to    = moe.zone.create()
     local cards = fill(from, { '甲', '乙', '丙' })
     fill(to, { '一', '二' })
 
@@ -38,8 +38,8 @@ lt.test('移动：跨区移动改变两边的计数与顺序', function ()
 end)
 
 lt.test('移动：位置 1 是顶、-1 与省略是底', function ()
-    local from  = moe.core.zone.create()
-    local to    = moe.core.zone.create()
+    local from  = moe.zone.create()
+    local to    = moe.zone.create()
     local cards = fill(from, { '甲', '乙', '丙' })
     fill(to, { '一', '二' })
 
@@ -54,8 +54,8 @@ lt.test('移动：位置 1 是顶、-1 与省略是底', function ()
 end)
 
 lt.test('移动：其它下标按从顶部数或从底部数解释', function ()
-    local from  = moe.core.zone.create()
-    local to    = moe.core.zone.create()
+    local from  = moe.zone.create()
+    local to    = moe.zone.create()
     local cards = fill(from, { '甲', '乙', '丙', '丁' })
     fill(to, { '一', '二', '三' })
 
@@ -67,7 +67,7 @@ lt.test('移动：其它下标按从顶部数或从底部数解释', function ()
 end)
 
 lt.test('移动：同一牌区内移动就是重排', function ()
-    local zone  = moe.core.zone.create()
+    local zone  = moe.zone.create()
     local cards = fill(zone, { '甲', '乙', '丙' })
 
     zone:move(cards[3], zone, 1)
@@ -80,9 +80,9 @@ lt.test('移动：同一牌区内移动就是重排', function ()
 end)
 
 lt.test('移动：牌不在源区时报错且两边不变', function ()
-    local from    = moe.core.zone.create()
-    local to      = moe.core.zone.create()
-    local stranger = moe.core.card.create('丙')
+    local from    = moe.zone.create()
+    local to      = moe.zone.create()
+    local stranger = moe.card.create('丙')
     fill(from, { '甲', '乙' })
     fill(to, { '一' })
 
@@ -92,8 +92,8 @@ lt.test('移动：牌不在源区时报错且两边不变', function ()
 end)
 
 lt.test('移动：任一端被禁用都失败', function ()
-    local from  = moe.core.zone.create()
-    local to    = moe.core.zone.create()
+    local from  = moe.zone.create()
+    local to    = moe.zone.create()
     local cards = fill(from, { '甲' })
     fill(to, { '一' })
 
@@ -109,8 +109,8 @@ lt.test('移动：任一端被禁用都失败', function ()
 end)
 
 lt.test('移动：位置越界或不是整数时报错', function ()
-    local from  = moe.core.zone.create()
-    local to    = moe.core.zone.create()
+    local from  = moe.zone.create()
+    local to    = moe.zone.create()
     local cards = fill(from, { '甲' })
 
     lt.assertError('位置 0', function () from:move(cards[1], to, 0) end)
@@ -126,9 +126,9 @@ lt.test('移动：位置越界或不是整数时报错', function ()
 end)
 
 lt.test('移动：内核不记录牌的归属', function ()
-    local first  = moe.core.zone.create()
-    local second = moe.core.zone.create()
-    local card   = moe.core.card.create('甲')
+    local first  = moe.zone.create()
+    local second = moe.zone.create()
+    local card   = moe.card.create('甲')
 
     first:put(card)
     second:put(card)
@@ -138,8 +138,8 @@ lt.test('移动：内核不记录牌的归属', function ()
 end)
 
 lt.test('移动：手牌放进有序牌区顶部后即可被取顶', function ()
-    local pile  = moe.core.orderedZone.create()
-    local hand  = moe.core.zone.create()
+    local pile  = moe.orderedZone.create()
+    local hand  = moe.zone.create()
     local pileCards = fill(pile, { '甲', '乙', '丙' })
     local handCards = fill(hand, { '闪' })
 

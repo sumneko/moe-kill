@@ -1,30 +1,30 @@
 require 'core.zone'
 
----@class Core.OrderedZone : Core.Zone
----@field private random Core.Random?
-local M = Class 'Core.OrderedZone'
+---@class Moe.OrderedZone : Moe.Zone
+---@field private random Moe.Random?
+local M = Class 'Moe.OrderedZone'
 
-Extends('Core.OrderedZone', 'Core.Zone')
+Extends('Moe.OrderedZone', 'Moe.Zone')
 
----@param random? Core.Random # 绑定后 shuffle 可以不带参数
+---@param random? Moe.Random # 绑定后 shuffle 可以不带参数
 function M:__init(random)
     self.kind   = 'orderedZone'
     self.random = random
 end
 
----@param random? Core.Random
----@return Core.OrderedZone
+---@param random? Moe.Random
+---@return Moe.OrderedZone
 function M.create(random)
-    return New 'Core.OrderedZone' (random)
+    return New 'Moe.OrderedZone' (random)
 end
 
----@return Core.Card
+---@return Moe.Card
 function M:takeTop()
     return self:take(1)
 end
 
----@param random? Core.Random # 省略时用创建时绑定的随机源
----@return Core.OrderedZone
+---@param random? Moe.Random # 省略时用创建时绑定的随机源
+---@return Moe.OrderedZone
 function M:shuffle(random)
     self:checkEnabled('洗牌')
     local source = random or self.random

@@ -1,15 +1,15 @@
 local lt = require 'test.ltest'
 
----@return Core.AttributeSystem
+---@return Moe.AttributeSystem
 local function newSystem()
-    return moe.core.attribute.create()
+    return moe.attribute.create()
 end
 
 lt.test('玩家：持有属性实例', function ()
     local system = newSystem()
     system:define('体力上限', { min = 0 })
-    local a = moe.core.player.create { attributes = system:createInstance() }
-    local b = moe.core.player.create { attributes = system:createInstance() }
+    local a = moe.player.create { attributes = system:createInstance() }
+    local b = moe.player.create { attributes = system:createInstance() }
 
     a:getAttributes():set('体力上限', 4)
     b:getAttributes():set('体力上限', 3)
@@ -20,7 +20,7 @@ end)
 
 lt.test('玩家：牌区可增删', function ()
     local system = newSystem()
-    local player = moe.core.player.create { attributes = system:createInstance() }
+    local player = moe.player.create { attributes = system:createInstance() }
 
     local undo = player:addZone('手牌区')
     player:addZone('装备区')
@@ -38,7 +38,7 @@ end)
 
 lt.test('玩家：同名牌区报错', function ()
     local system = newSystem()
-    local player = moe.core.player.create { attributes = system:createInstance() }
+    local player = moe.player.create { attributes = system:createInstance() }
     player:addZone('手牌区')
 
     lt.assertError('重复名字报错', function ()
@@ -49,7 +49,7 @@ end)
 lt.test('玩家：属性读写代理', function ()
     local system = newSystem()
     system:define('体力上限', { min = 0 })
-    local player = moe.core.player.create { attributes = system:createInstance() }
+    local player = moe.player.create { attributes = system:createInstance() }
 
     player:setAttr('体力上限', 4)
     lt.assertEquals('setAttr 写进去', 4, player:getAttr('体力上限'))
@@ -61,7 +61,7 @@ end)
 
 lt.test('玩家：标签原样存取', function ()
     local system = newSystem()
-    local player = moe.core.player.create { attributes = system:createInstance() }
+    local player = moe.player.create { attributes = system:createInstance() }
 
     player:setTag('身份', '主公')
     lt.assertEquals('读到的就是写入的', '主公', player:getTag('身份'))
@@ -77,7 +77,7 @@ end)
 
 lt.test('玩家：参与行动标记', function ()
     local system = newSystem()
-    local player = moe.core.player.create { attributes = system:createInstance() }
+    local player = moe.player.create { attributes = system:createInstance() }
 
     lt.assertEquals('默认参与行动', true, player:isActing())
     player:setActing(false)

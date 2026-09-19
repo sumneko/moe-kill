@@ -1,17 +1,17 @@
----@class Core.Player.CreateOptions
----@field attributes Core.Attributes
+---@class Moe.Player.CreateOptions
+---@field attributes Moe.Attributes
 ---@field name string?
 
----@class Core.Player
+---@class Moe.Player
 ---@field private name string?
----@field private attributes Core.Attributes
----@field private zoneList Core.Zone[]
----@field private zoneMap table<string, Core.Zone>
+---@field private attributes Moe.Attributes
+---@field private zoneList Moe.Zone[]
+---@field private zoneMap table<string, Moe.Zone>
 ---@field private tags table<string, any>
 ---@field private acting boolean
-local M = Class 'Core.Player'
+local M = Class 'Moe.Player'
 
----@param attributes Core.Attributes
+---@param attributes Moe.Attributes
 ---@param name string?
 function M:__init(attributes, name)
     self.name       = name
@@ -22,16 +22,16 @@ function M:__init(attributes, name)
     self.acting     = true
 end
 
----@param options Core.Player.CreateOptions
----@return Core.Player
+---@param options Moe.Player.CreateOptions
+---@return Moe.Player
 function M.create(options)
     if not options or not options.attributes then
         error('玩家需要一个属性实例', 2)
     end
-    return New 'Core.Player' (options.attributes, options.name)
+    return New 'Moe.Player' (options.attributes, options.name)
 end
 
----@return Core.Attributes
+---@return Moe.Attributes
 function M:getAttributes()
     return self.attributes
 end
@@ -60,7 +60,7 @@ function M:getName()
 end
 
 ---@param name string
----@param zone Core.Zone? # 省略时新建一个普通牌区
+---@param zone Moe.Zone? # 省略时新建一个普通牌区
 ---@return function # 撤销这次添加（移除该牌区）
 function M:addZone(name, zone)
     if type(name) ~= 'string' or name == '' then
@@ -69,7 +69,7 @@ function M:addZone(name, zone)
     if self.zoneMap[name] then
         error('这个玩家已经有叫 {} 的牌区了' % { name }, 2)
     end
-    local instance = zone or New 'Core.Zone' ()
+    local instance = zone or New 'Moe.Zone' ()
     self.zoneMap[name] = instance
     self.zoneList[#self.zoneList+1] = instance
     local removed = false
@@ -89,14 +89,14 @@ function M:addZone(name, zone)
 end
 
 ---@param name string
----@return Core.Zone?
+---@return Moe.Zone?
 function M:getZone(name)
     return self.zoneMap[name]
 end
 
----@return Core.Zone[] # 按加入顺序
+---@return Moe.Zone[] # 按加入顺序
 function M:getZones()
-    ---@type Core.Zone[]
+    ---@type Moe.Zone[]
     local zones = {}
     table.move(self.zoneList, 1, #self.zoneList, 1, zones)
     return zones

@@ -22,15 +22,16 @@ local function useProbe()
     end)
 end
 
----@param player Core.Player
----@return Core.Attributes
+---@param player Moe.Player
+---@return Moe.Attributes
 local function attributes(player)
     return player:getAttributes()
 end
 
+---@param rule Moe.Rule
 ---@return integer # 当前牌表的总张数
-local function totalCards()
-    local cardTable = assert(moe.rule:getValue('牌表'), '没有牌表')
+local function totalCards(rule)
+    local cardTable = assert(rule:getValue('牌表'), '没有牌表')
     local total = 0
     for _, entry in ipairs(cardTable) do
         total = total + entry.count
@@ -39,45 +40,44 @@ local function totalCards()
 end
 
 lt.test('基础：规则数值后者覆盖前者', function ()
-    local guard <close> = support.load {}
-    lt.assertEquals('默认体力来自基础包（它默认加载，不需要写进清单）', 5, moe.rule:getValue('默认体力'))
-
     local probe <close> = useProbe()
     write('覆盖/配置.lua', 'rule:setValues { 默认体力 = 6 }')
-    moe.rule.setRoots { './package/*', probeDir:string() .. '/*' }
-    moe.rule.load { '覆盖' }
 
-    lt.assertEquals('后加载的包覆盖了先前的值', 6, moe.rule:getValue('默认体力'))
+    local rule = moe.rule.create { packages = {} }
+    lt.assertEquals('默认体力来自基础包（它默认加载，不需要写进清单）', 5, rule:getValue('默认体力'))
+
+    rule:setRoots { './package/*', probeDir:string() .. '/*' }
+    rule:load { '覆盖' }
+
+    lt.assertEquals('后加载的包覆盖了先前的值', 6, rule:getValue('默认体力'))
 end)
 
 lt.test('基础：清空重载后不保留', function ()
-    local guard <close> = support.load { '标准' }
-    lt.assertEquals('标准包提供了牌表', true, moe.rule:getValue('牌表') ~= nil)
-    lt.assertEquals('默认包的值也在', 5, moe.rule:getValue('默认体力'))
+    local rule = moe.rule.create { packages = { '标准' } }
+    lt.assertEquals('标准包提供了牌表', true, rule:getValue('牌表') ~= nil)
+    lt.assertEquals('默认包的值也在', 5, rule:getValue('默认体力'))
 
-    moe.rule.load { '身份场' }
+    rule:load { '身份场' }
 
-    lt.assertEquals('上一轮非默认包的值被清空', nil, moe.rule:getValue('牌表'))
-    lt.assertEquals('默认包总会重新加载，所以值还在', 5, moe.rule:getValue('默认体力'))
+    lt.assertEquals('上一轮非默认包的值被清空', nil, rule:getValue('牌表'))
+    lt.assertEquals('默认包总会重新加载，所以值还在', 5, rule:getValue('默认体力'))
 end)
 
 lt.test('基础：未设置的名字读到不存在', function ()
-    local guard <close> = support.load {}
+    local rule = moe.rule.create { packages = {} }
 
-    lt.assertEquals('读到不存在', nil, moe.rule:getValue('根本没有这个名字'))
+    lt.assertEquals('读到不存在', nil, rule:getValue('根本没有这个名字'))
 
-    local snapshot = moe.rule:getValues()
+    local snapshot = rule:getValues()
     lt.assertEquals('取全部数值里能看到已设置的', 5, snapshot['默认体力'])
 
-    moe.rule:setValue('临时', 1)
+    rule:setValue('临时', 1)
     lt.assertEquals('快照不跟随后续修改', nil, snapshot['临时'])
-    lt.assertEquals('但规则数值里已经有了', 1, moe.rule:getValue('临时'))
+    lt.assertEquals('但规则数值里已经有了', 1, rule:getValue('临时'))
 end)
 
 lt.test('基础：体力初值等于上限', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(4)
+    local game = support.start { packages = { '身份场', '标准' }, count = 4 }
 
     for i = 1, 4 do
         lt.assertEquals('第 {} 个玩家的体力等于上限' % { i }, attributes(game.players[i]):get('体力上限'), attributes(game.players[i]):get('体力'))
@@ -85,28 +85,28 @@ lt.test('基础：体力初值等于上限', function ()
 end)
 
 lt.test('基础：体力上限跟着覆盖后的规则数值', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-    moe.rule:setValues { 默认体力 = 3 }
+    local probe <close> = useProbe()
+    write('我的配置/配置.lua', 'rule:setValue("默认体力", 3)')
 
-    local game = support.start(4)
+    local game = support.start {
+        sources  = { './package/*', probeDir:string() .. '/*' },
+        packages = { '我的配置', '身份场', '标准' },
+        count    = 4,
+    }
 
     lt.assertEquals('用了覆盖后的上限', 3, attributes(game.players[2]):get('体力上限'))
     lt.assertEquals('体力也跟着走', 3, attributes(game.players[2]):get('体力'))
 end)
 
 lt.test('基础：按牌表建出牌堆', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(4)
+    local game = support.start { packages = { '身份场', '标准' }, count = 4 }
 
     local deck = assert(game.room:getZone('抽牌堆'), '没有建出抽牌堆')
-    lt.assertEquals('张数等于牌表总数', totalCards(), deck:count())
+    lt.assertEquals('张数等于牌表总数', totalCards(game.rule), deck:count())
     lt.assertEquals('每张牌都带牌名标签', '杀', deck:list()[1]:getLabel())
 end)
 
 lt.test('基础：洗牌可复现', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
     ---@param game Test.RuleSupport
     ---@return string[] # 抽牌堆上的牌名序列
     local function deckLabels(game)
@@ -119,17 +119,15 @@ lt.test('基础：洗牌可复现', function ()
         return result
     end
 
-    local first  = deckLabels(support.start(4, 20260919))
-    local second = deckLabels(support.start(4, 20260919))
+    local first  = deckLabels(support.start { packages = { '身份场', '标准' }, count = 4, seed = 20260919 })
+    local second = deckLabels(support.start { packages = { '身份场', '标准' }, count = 4, seed = 20260919 })
 
     lt.assertEquals('两次张数一致', #first, #second)
     lt.assertEquals('同一 seed 洗出的顺序一致', table.concat(first, ','), table.concat(second, ','))
 end)
 
 lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(4)
+    local game = support.start { packages = { '身份场', '标准' }, count = 4 }
 
     ---@type table<string, integer>
     local counts = {}
@@ -147,17 +145,13 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
 end)
 
 lt.test('基础：没有牌表时不建牌堆', function ()
-    local guard <close> = support.load {}
-
-    local game = support.start(4)
+    local game = support.start { packages = {}, count = 4 }
 
     lt.assertEquals('没有牌表就不建出抽牌堆（回调报错被时机机制记录）', nil, game.room:getZone('抽牌堆'))
 end)
 
 lt.test('基础：体力可以降到负数，写值会被钳到上限', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game   = support.start(4)
+    local game   = support.start { packages = { '身份场', '标准' }, count = 4 }
     local player = game.players[2]
 
     lt.assertEquals('开局体力等于上限', 5, player:getAttr('体力'))
@@ -172,13 +166,13 @@ lt.test('基础：体力可以降到负数，写值会被钳到上限', function
     lt.assertEquals('抬上限不动体力', -2, player:getAttr('体力'))
 end)
 
-lt.test('基础：属性系统由门面持有，随清空重载重建', function ()
-    local guard <close> = support.load { '身份场', '标准' }
+lt.test('基础：属性系统由规则实例持有，随清空重载重建', function ()
+    local rule = moe.rule.create { packages = { '身份场', '标准' } }
 
-    local before = moe.rule:getAttributeSystem()
+    local before = rule:getAttributeSystem()
     lt.assertEquals('包已经定义过属性', true, before ~= nil)
 
-    moe.rule.load { '身份场', '标准' }
+    rule:load { '身份场', '标准' }
 
-    lt.assertEquals('重载后换了一个属性系统', false, moe.rule:getAttributeSystem() == before)
+    lt.assertEquals('重载后换了一个属性系统', false, rule:getAttributeSystem() == before)
 end)

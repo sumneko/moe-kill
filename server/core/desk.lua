@@ -1,7 +1,7 @@
----@class Core.Desk
----@field private seats table<integer, Core.Player>
+---@class Moe.Desk
+---@field private seats table<integer, Moe.Player>
 ---@field private count integer
-local M = Class 'Core.Desk'
+local M = Class 'Moe.Desk'
 
 ---@param count integer
 function M:__init(count)
@@ -10,12 +10,12 @@ function M:__init(count)
 end
 
 ---@param count integer
----@return Core.Desk
+---@return Moe.Desk
 function M.create(count)
     if type(count) ~= 'number' or math.type(count) ~= 'integer' or count < 1 then
         error('桌子需要正整数个座位：{}' % { tostring(count) }, 2)
     end
-    return New 'Core.Desk' (count)
+    return New 'Moe.Desk' (count)
 end
 
 ---@return integer
@@ -24,7 +24,7 @@ function M:getCount()
 end
 
 ---@param index integer
----@param player Core.Player
+---@param player Moe.Player
 function M:sit(index, player)
     if type(index) ~= 'number' or math.type(index) ~= 'integer' or index < 1 or index > self.count then
         error('座位号必须是 1 到 {} 之间的整数：{}' % { self.count, tostring(index) }, 2)
@@ -36,14 +36,14 @@ function M:sit(index, player)
 end
 
 ---@param index integer
----@return Core.Player?
+---@return Moe.Player?
 function M:getPlayer(index)
     return self.seats[index]
 end
 
----@return Core.Player[] # 按座位号升序，含不参与行动者
+---@return Moe.Player[] # 按座位号升序，含不参与行动者
 function M:getPlayers()
-    ---@type Core.Player[]
+    ---@type Moe.Player[]
     local players = {}
     for index = 1, self.count do
         local player = self.seats[index]
@@ -54,7 +54,7 @@ function M:getPlayers()
     return players
 end
 
----@param player Core.Player
+---@param player Moe.Player
 ---@return integer?
 function M:getIndex(player)
     for index = 1, self.count do
@@ -65,8 +65,8 @@ function M:getIndex(player)
     return nil
 end
 
----@param player Core.Player
----@return Core.Player? # 下一个参与行动的玩家，没有则返回「不存在」
+---@param player Moe.Player
+---@return Moe.Player? # 下一个参与行动的玩家，没有则返回「不存在」
 function M:getNext(player)
     local index = self:getIndex(player)
     if not index then
@@ -82,8 +82,8 @@ function M:getNext(player)
     return nil
 end
 
----@param from Core.Player
----@param to Core.Player
+---@param from Moe.Player
+---@param to Moe.Player
 ---@return integer # 两个方向取较小值，最小为 1
 function M:getDistance(from, to)
     local a = self:getIndex(from)

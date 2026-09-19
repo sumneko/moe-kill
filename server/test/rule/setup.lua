@@ -1,15 +1,16 @@
 local lt      = require 'test.ltest'
 local support = require 'test.rule.support'
 
----@param player Core.Player
----@return Core.Attributes
+---@param player Moe.Player
+---@return Moe.Attributes
 local function attributes(player)
     return player:getAttributes()
 end
 
+---@param rule Moe.Rule
 ---@return integer # 当前牌表的总张数
-local function totalCards()
-    local cardTable = assert(moe.rule:getValue('牌表'), '没有牌表')
+local function totalCards(rule)
+    local cardTable = assert(rule:getValue('牌表'), '没有牌表')
     local total = 0
     for _, entry in ipairs(cardTable) do
         total = total + entry.count
@@ -29,9 +30,7 @@ local function allHaveIdentity(game)
 end
 
 lt.test('开局：8 人完整装配', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(8)
+    local game = support.start { packages = { '身份场', '标准' }, count = 8 }
 
     lt.assertEquals('八个人都在桌上', 8, #game.desk:getPlayers())
     lt.assertEquals('1 号位是主公', '主公', game.players[1]:getTag('身份'))
@@ -39,16 +38,14 @@ lt.test('开局：8 人完整装配', function ()
     lt.assertEquals('主公体力也是 6', 6, attributes(game.players[1]):get('体力'))
     lt.assertEquals('其他人上限 5', 5, attributes(game.players[8]):get('体力上限'))
     lt.assertEquals('牌堆建好了', true, game.room:getZone('抽牌堆') ~= nil)
-    lt.assertEquals('牌堆张数等于牌表总张数', totalCards(), assert(game.room:getZone('抽牌堆')):count())
+    lt.assertEquals('牌堆张数等于牌表总张数', totalCards(game.rule), assert(game.room:getZone('抽牌堆')):count())
     lt.assertEquals('每人都有身份', true, allHaveIdentity(game))
 end)
 
 lt.test('开局：同一 seed 两次开局的分配一致', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
     ---@return string[]
     local function identitySequence()
-        local game = support.start(8, 42)
+        local game = support.start { packages = { '身份场', '标准' }, count = 8, seed = 42 }
         ---@type string[]
         local result = {}
         for i = 1, 8 do
@@ -61,12 +58,10 @@ lt.test('开局：同一 seed 两次开局的分配一致', function ()
 end)
 
 lt.test('开局：换一个 seed 身份分配（通常）不同', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
     ---@param seed integer
     ---@return string
     local function identityString(seed)
-        local game = support.start(8, seed)
+        local game = support.start { packages = { '身份场', '标准' }, count = 8, seed = seed }
         ---@type string[]
         local result = {}
         for i = 2, 8 do

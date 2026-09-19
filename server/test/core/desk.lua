@@ -1,13 +1,13 @@
 local lt = require 'test.ltest'
 
----@return Core.Player
+---@return Moe.Player
 local function newPlayer()
-    local system = moe.core.attribute.create()
-    return moe.core.player.create { attributes = system:createInstance() }
+    local system = moe.attribute.create()
+    return moe.player.create { attributes = system:createInstance() }
 end
 
 lt.test('桌子：座位号决定行动顺序', function ()
-    local desk = moe.core.desk.create(3)
+    local desk = moe.desk.create(3)
     local a    = newPlayer()
     local b    = newPlayer()
     local c    = newPlayer()
@@ -25,7 +25,7 @@ lt.test('桌子：座位号决定行动顺序', function ()
 end)
 
 lt.test('桌子：跳过不参与行动的玩家', function ()
-    local desk = moe.core.desk.create(3)
+    local desk = moe.desk.create(3)
     local a    = newPlayer()
     local b    = newPlayer()
     local c    = newPlayer()
@@ -41,7 +41,7 @@ lt.test('桌子：跳过不参与行动的玩家', function ()
 end)
 
 lt.test('桌子：跳过空座位', function ()
-    local desk = moe.core.desk.create(5)
+    local desk = moe.desk.create(5)
     local a    = newPlayer()
     local b    = newPlayer()
     desk:sit(1, a)
@@ -53,7 +53,7 @@ lt.test('桌子：跳过空座位', function ()
 end)
 
 lt.test('桌子：同一座位与相邻座位距离都是 1', function ()
-    local desk = moe.core.desk.create(8)
+    local desk = moe.desk.create(8)
     local a    = newPlayer()
     local b    = newPlayer()
     desk:sit(1, a)
@@ -64,7 +64,7 @@ lt.test('桌子：同一座位与相邻座位距离都是 1', function ()
 end)
 
 lt.test('桌子：沿较短方向计算距离', function ()
-    local desk = moe.core.desk.create(8)
+    local desk = moe.desk.create(8)
     local a    = newPlayer()
     local b    = newPlayer()
     local c    = newPlayer()
@@ -78,8 +78,8 @@ lt.test('桌子：沿较短方向计算距离', function ()
 end)
 
 lt.test('桌子：距离按座位总数求值', function ()
-    local wide   = moe.core.desk.create(8)
-    local narrow = moe.core.desk.create(5)
+    local wide   = moe.desk.create(8)
+    local narrow = moe.desk.create(5)
     local a      = newPlayer()
     local b      = newPlayer()
     wide:sit(1, a)
@@ -92,7 +92,7 @@ lt.test('桌子：距离按座位总数求值', function ()
 end)
 
 lt.test('桌子：非法入座报错', function ()
-    local desk = moe.core.desk.create(3)
+    local desk = moe.desk.create(3)
     local a    = newPlayer()
     local b    = newPlayer()
     desk:sit(1, a)
@@ -109,7 +109,7 @@ lt.test('桌子：非法入座报错', function ()
 end)
 
 lt.test('桌子：不在桌上的玩家不能参与求值', function ()
-    local desk = moe.core.desk.create(3)
+    local desk = moe.desk.create(3)
     local a    = newPlayer()
     local b    = newPlayer()
     desk:sit(1, a)

@@ -37,11 +37,11 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `server/tools/` | 基础设施（event-loop / await / timer / log / json / inspect / uri…）与通用库（class、utility、attribute），照搬；**不要随便改** |
 | `server/session/` | 无头服务器外壳：会话容器、决策挂起/恢复通道、事件收集（不含任何规则）；门面是 `moe.server` |
 | `server/async-io.lua` | 等待与异步 I/O 接线：`bee.async` 实例、完成事件分发、异步文件读写、外部事件源注册（详见 `references/infrastructure.md` 第 6 节） |
-| `server/core/` | 内核：牌、牌区（移动 / 洗牌）、属性、随机源、**事件机制**、**桌子**（座位与行动顺序、`getDistance`）、**玩家**（属性实例 + `setAttr/getAttr/addAttr` 代理 + 牌区 + 标签 + 参与行动标记）、**场地**（一张桌子 + 一个随机源 + 按名字登记的公共牌区，另建牌）（**与规则无关**，接口可直接调用、可单测） |
-| `server/rule/` | 规则集加载器与规则表（`moe.rule`）：`init.lua`（门面 / 加载 / 规则表 / 规则数值 / **属性系统**（`getAttributeSystem`，随清空重载重建） / 包与名字路由）+ `vfs.lua`（包来源合并成虚拟文件系统）+ `preparse.lua`（试跑与包元信息）+ `env-meta.lua`（**纯类型文件**：注入的 `rule` 与各时机上下文的签名 —— **包作者（含第三方）可见的类型契约**，改时机 / 改签名要同步改它）；**游戏业务**功能，与开发期热重载无关（详见 `references/architecture.md` 第 9 节） |
+| `server/core/` | 内核模块组：牌、牌区（移动 / 洗牌）、属性、随机源、**事件机制**、**桌子**（座位与行动顺序、`getDistance`）、**玩家**（属性实例 + `setAttr/getAttr/addAttr` 代理 + 牌区 + 标签 + 参与行动标记）、**场地**（一张桌子 + 一个随机源 + 按名字登记的公共牌区，另建牌，并持有**这一局的规则实例**）（接口可直接调用、可单测）；全部**直接挂在 `moe` 上**（`moe.desk` / `moe.room` / `moe.rule` …，**没有 `moe.core`**），类型名统一 `Moe.` 前缀 |
+| `server/core/rule/` | 规则加载器（`moe.rule` 是 `Moe.Rule` 类）：`init.lua`（类 + 加载 / 规则表 / 规则数值 / **属性系统**（`getAttributeSystem`，随实例清空重载重建） / 包与名字路由）+ `vfs.lua`（包来源合并成虚拟文件系统）+ `preparse.lua`（试跑与包元信息）+ `env-meta.lua`（**纯类型文件**：注入的 `rule` 与各时机上下文的签名 —— **包作者（含第三方）可见的类型契约**，改时机 / 改签名要同步改它）；`moe.rule.create { sources?, packages? }` 建**一局一份**的规则实例（建场地时就装好），改规则只影响这一局（详见 `references/architecture.md` 第 9 节） |
 | `server/test/` | 无头测试（套件名如 `test.smoke` / `test.session` / `test.core`） |
 | `server/bin/` `server/log/` `server/tmp/` | 构建产物与运行时产物（均 git 忽略） |
-| `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（现有 `@基础` / `身份场` / `标准`，将来 `军争`…）；包 = 一级目录（根下**不许有散落文件**），目录名以 `@` 开头表示**默认加载**（`@基础` ⇒ 逻辑包名 `基础`，清单不用写它，引用也不写 `@`）；跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.rule` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参与热重载；只拿注入的 `rule`（内核能力经 `rule` 的工厂收口），不反向 |
+| `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（现有 `@基础` / `身份场` / `标准`，将来 `军争`…）；包 = 一级目录（根下**不许有散落文件**），目录名以 `@` 开头表示**默认加载**（`@基础` ⇒ 逻辑包名 `基础`，清单不用写它，引用也不写 `@`）；跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.rule` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参与热重载；只拿注入的 `rule`（内核能力经规则实例与场地收口），不反向 |
 | `server/proto/` | 协议定义（方法名、参数与返回结构），前后端共用的事实来源 |
 | `server/transport/` | JSON-RPC 帧与连接层 |
 | `client/`（将来） | 前端（TypeScript / Web）；与 `server/` 平级 |

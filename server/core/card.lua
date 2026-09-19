@@ -1,8 +1,8 @@
----@class Core.Card
+---@class Moe.Card
 ---@field private id integer
 ---@field private label? any
 ---@field package __counter fun():integer
-local M = Class 'Core.Card'
+local M = Class 'Moe.Card'
 
 M.__counter = M.__counter or moe.util.counter()
 
@@ -13,9 +13,9 @@ function M:__init(label)
 end
 
 ---@param label? any
----@return Core.Card
+---@return Moe.Card
 function M.create(label)
-    return New 'Core.Card' (label)
+    return New 'Moe.Card' (label)
 end
 
 ---@return integer

@@ -1,22 +1,22 @@
 local attribute = require 'tools.attribute'
 
----@class Core.AttributeSpec
+---@class Moe.AttributeSpec
 ---@field simple? boolean
 ---@field min? number | string
 ---@field max? number | string
 
----@class Core.AttributeSystem
+---@class Moe.AttributeSystem
 ---@field private system Attribute.System
-local System = Class 'Core.AttributeSystem'
+local System = Class 'Moe.AttributeSystem'
 
----@class Core.Attributes
+---@class Moe.Attributes
 ---@field private system Attribute.System
 ---@field private instance Attribute.Instance
-local Attributes = Class 'Core.Attributes'
+local Attributes = Class 'Moe.Attributes'
 
----@return Core.AttributeSystem
+---@return Moe.AttributeSystem
 function System.create()
-    return New 'Core.AttributeSystem' ()
+    return New 'Moe.AttributeSystem' ()
 end
 
 function System:__init()
@@ -24,8 +24,8 @@ function System:__init()
 end
 
 ---@param name string
----@param spec? Core.AttributeSpec
----@return Core.AttributeSystem
+---@param spec? Moe.AttributeSpec
+---@return Moe.AttributeSystem
 function System:define(name, spec)
     assert(type(name) == 'string' and name ~= '', '属性名必须是非空字符串')
     self.system:define(name, spec?.simple ~= false, spec?.min, spec?.max)
@@ -33,9 +33,9 @@ function System:define(name, spec)
 end
 
 ---@param customData? any
----@return Core.Attributes
+---@return Moe.Attributes
 function System:createInstance(customData)
-    return New 'Core.Attributes' (self.system, self.system:instance(customData))
+    return New 'Moe.Attributes' (self.system, self.system:instance(customData))
 end
 
 function System:updateEvents()

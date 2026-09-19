@@ -1,13 +1,13 @@
-local vfs      = require 'rule.vfs'
-local preparse = require 'rule.preparse'
+local vfs      = require 'core.rule.vfs'
+local preparse = require 'core.rule.preparse'
 
----@class Rule.Card
+---@class Moe.Rule.Card
 ---@field name string # 裸名
 ---@field public package string # 所属包名（显式写 public：否则 package 会被当成访问修饰符）
 ---@field fullName string # 完整名（包名.名字）
 ---@field source string # 声明它的文件（逻辑路径）
 ---@field private handlers table<string, function[]>
-local Card = Class 'Rule.Card'
+local Card = Class 'Moe.Rule.Card'
 
 ---@param name string
 ---@param owner string
@@ -22,7 +22,7 @@ end
 
 ---@param event string
 ---@param handler function
----@return Rule.Card
+---@return Moe.Rule.Card
 function Card:on(event, handler)
     local list = self.handlers[event]
     if not list then
@@ -45,8 +45,8 @@ function Card:getHandlers(event)
     return snapshot
 end
 
----@class Rule.Context
----@field vfs Rule.Vfs
+---@class Moe.Rule.Context
+---@field vfs Moe.Rule.Vfs
 ---@field loading table<string, true>
 ---@field loaded table<string, true>
 ---@field order string[]
@@ -61,64 +61,71 @@ local ALLOWED_GLOBALS = {
     'string', 'table', 'tonumber', 'tostring', 'type', 'utf8', 'xpcall',
 }
 
----@class Rule.MetaFile
+---@class Moe.Rule.MetaFile
 ---@field logical string
 ---@field source string
 ---@field ok boolean
 ---@field err? string
 ---@field entries string[]
 
----@class Rule.PackageMeta
+---@class Moe.Rule.PackageMeta
 ---@field name string
 ---@field depends string[]
 ---@field excludes string[]
 ---@field entries string[]
----@field files Rule.MetaFile[]
+---@field files Moe.Rule.MetaFile[]
 
----@class Rule.Plan
----@field meta table<string, Rule.PackageMeta>
+---@class Moe.Rule.Plan
+---@field meta table<string, Moe.Rule.PackageMeta>
 ---@field loaded table<string, true>
 ---@field excludes table<string, string>
 
----@class Rule
----@field cards table<string, table<string, Rule.Card>> # 包名 → 裸名 → 定义
+---@class Moe.Rule.CreateOptions
+---@field sources string[]? # 包来源（省略时用默认来源）
+---@field packages string[]? # 加载清单（给了就立刻加载）
+
+---@class Moe.Rule
+---@field cards table<string, table<string, Moe.Rule.Card>> # 包名 → 裸名 → 定义
 ---@field packages string[] # 包的加载顺序（首次出现的顺序）
----@field events Core.Event # 时机注册（随每次加载重置）
----@field meta table<string, Rule.PackageMeta> # 包元信息（预解析产物，随每次加载重建）
+---@field events Moe.Event # 时机注册（随每次加载重置）
+---@field meta table<string, Moe.Rule.PackageMeta> # 包元信息（预解析产物，随每次加载重建）
 ---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者，随每次加载清空）
----@field package __attributeSystem Core.AttributeSystem? # 属性系统（规则集内容，随每次加载重建）
----@field private context Rule.Context?
----@field private lastList string[]?
-local M = {}
+---@field sources string[] # 包来源（顺序即优先级）
+---@field card fun(name: string): Moe.Rule.Card # 加载期声明定义（点号调用，作用在本实例）
+---@field depends fun(items: string[]) # 加载期声明依赖（点号调用，作用在本实例）
+---@field private attributeSystem Moe.AttributeSystem? # 属性系统（规则集内容，随每次加载重建）
+---@field private context Moe.Rule.Context?
+---@field private list string[]? # 上一次用的加载清单
+---@field private loadedFiles string[]? # 上一次加载实际执行的文件（按执行完成顺序）
+local M = Class 'Moe.Rule'
 
 ---@type string[] # 默认来源：仓库根下项目自己的包容器
 M.DEFAULT_SOURCES = { './package/*' }
 
----@type table<string, table<string, Rule.Card>>
-M.cards = {}
+---@param sources? string[]
+function M:__init(sources)
+    self.sources  = sources or M.DEFAULT_SOURCES
+    self.cards    = {}
+    self.packages = {}
+    self.events   = moe.event.create()
+    self.meta     = {}
+    self.values   = {}
+    self.card     = function (name) return self:declareCard(name) end
+    self.depends  = function (items) return self:declareDepends(items) end
+end
 
----@type string[] # 包的加载顺序
-M.packages = {}
-
----@type Core.Event # 时机注册（每次加载重置）
-M.events = moe.core.event.create()
-
----@type table<string, Rule.PackageMeta>
-M.meta = {}
-
----@type table<string, any>
-M.values = {}
-
----@type string[] # 当前来源
-M.sources = M.DEFAULT_SOURCES
-
----@private
----@type Rule.Context?
-M.context = nil
-
----@private
----@type string[]?
-M.lastList = nil
+---@param options? Moe.Rule.CreateOptions
+---@return Moe.Rule
+function M.create(options)
+    if options and options.sources ~= nil and type(options.sources) ~= 'table' then
+        error('规则集来源必须是字符串列表', 2)
+    end
+    local instance = New 'Moe.Rule' (options and options.sources)
+    if options and options.packages ~= nil then
+        instance:load(options.packages)
+    end
+    return instance
+end
 
 ---@param ruleTable table
 ---@return table
@@ -165,25 +172,25 @@ local function splitName(name)
 end
 
 ---@param name string
----@return Rule.Card?
-function M.getCard(name)
+---@return Moe.Rule.Card?
+function M:getCard(name)
     local owner, entry = splitName(name)
     if owner then
-        local cards = M.cards[owner]
+        local cards = self.cards[owner]
         return cards and cards[entry] or nil
     end
-    local ctx = M.context
+    local ctx = self.context
     local current = ctx and ctx.current
     local mine    = current and packageOf(current)
     if mine then
-        local cards = M.cards[mine]
+        local cards = self.cards[mine]
         local found = cards and cards[entry]
         if found then
             return found
         end
     end
-    for _, package in ipairs(M.packages) do
-        local cards = M.cards[package]
+    for _, package in ipairs(self.packages) do
+        local cards = self.cards[package]
         local found = cards and cards[entry]
         if found then
             return found
@@ -192,10 +199,11 @@ function M.getCard(name)
     return nil
 end
 
+---@private
 ---@param name string
----@return Rule.Card
-function M.card(name)
-    local ctx = M.context
+---@return Moe.Rule.Card
+function M:declareCard(name)
+    local ctx = self.context
     if not ctx then
         error('规则定义只能在加载规则集时声明', 2)
     end
@@ -205,29 +213,29 @@ function M.card(name)
         error('规则定义只能写在包目录里的文件里', 2)
     end
     checkSimpleName(name, 2)
-    local cards = M.cards[owner]
+    local cards = self.cards[owner]
     if not cards then
         cards = {}
-        M.cards[owner] = cards
-        M.packages[#M.packages+1] = owner
+        self.cards[owner] = cards
+        self.packages[#self.packages+1] = owner
     end
     local existing = cards[name]
     if existing then
         error('同一个包里重复声明了 {}：{} 与 {}' % { name, existing.source, current }, 2)
     end
-    local card = New 'Rule.Card' (name, owner, current)
+    local card = New 'Moe.Rule.Card' (name, owner, current)
     cards[name] = card
     return card
 end
 
 ---@private
-function M.clear()
-    M.cards    = {}
-    M.packages = {}
-    M.meta     = {}
-    M.values   = {}
-    M.__attributeSystem = nil
-    M.events:clear()
+function M:clear()
+    self.cards    = {}
+    self.packages = {}
+    self.meta     = {}
+    self.values   = {}
+    self.attributeSystem = nil
+    self.events:clear()
 end
 
 ---@param name string
@@ -236,7 +244,7 @@ function M:setValue(name, value)
     if type(name) ~= 'string' or name == '' then
         error('规则数值的名字必须是非空字符串', 2)
     end
-    M.values[name] = value
+    self.values[name] = value
 end
 
 ---@param values table<string, any>
@@ -245,7 +253,7 @@ function M:setValues(values)
         error('规则数值必须是一张名字到值的表', 2)
     end
     for name, value in pairs(values) do
-        M:setValue(name, value)
+        self:setValue(name, value)
     end
 end
 
@@ -255,29 +263,29 @@ function M:getValue(name)
     if type(name) ~= 'string' or name == '' then
         error('规则数值的名字必须是非空字符串', 2)
     end
-    return M.values[name]
+    return self.values[name]
 end
 
 ---@return table<string, any>
 function M:getValues()
     ---@type table<string, any>
     local result = {}
-    for name, value in pairs(M.values) do
+    for name, value in pairs(self.values) do
         result[name] = value
     end
     return result
 end
 
----@return Core.AttributeSystem
+---@return Moe.AttributeSystem
 function M:getAttributeSystem()
-    M.__attributeSystem = M.__attributeSystem or moe.core.attribute.create()
-    return M.__attributeSystem
+    self.attributeSystem = self.attributeSystem or moe.attribute.create()
+    return self.attributeSystem
 end
 
----@param meta Rule.PackageMeta
----@return Rule.PackageMeta
+---@param meta Moe.Rule.PackageMeta
+---@return Moe.Rule.PackageMeta
 local function copyMeta(meta)
-    ---@type Rule.PackageMeta
+    ---@type Moe.Rule.PackageMeta
     local copy = {
         name     = meta.name,
         depends  = {},
@@ -289,7 +297,7 @@ local function copyMeta(meta)
     table.move(meta.excludes, 1, #meta.excludes, 1, copy.excludes)
     table.move(meta.entries, 1, #meta.entries, 1, copy.entries)
     for i, file in ipairs(meta.files) do
-        ---@type Rule.MetaFile
+        ---@type Moe.Rule.MetaFile
         local copied = {
             logical = file.logical,
             source  = file.source,
@@ -304,23 +312,34 @@ local function copyMeta(meta)
 end
 
 ---@param name string
----@return Rule.PackageMeta?
+---@return Moe.Rule.PackageMeta?
 function M:getPackageMeta(name)
-    local meta = M.meta[name]
+    local meta = self.meta[name]
     if not meta then
         return nil
     end
     return copyMeta(meta)
 end
 
----@return table<string, Rule.PackageMeta>
+---@return table<string, Moe.Rule.PackageMeta>
 function M:getMetas()
-    ---@type table<string, Rule.PackageMeta>
+    ---@type table<string, Moe.Rule.PackageMeta>
     local result = {}
-    for name, meta in pairs(M.meta) do
+    for name, meta in pairs(self.meta) do
         result[name] = copyMeta(meta)
     end
     return result
+end
+
+---@return string[] # 上一次加载实际执行的文件（按执行完成顺序）
+function M:getLoadedFiles()
+    ---@type string[]
+    local snapshot = {}
+    local files = self.loadedFiles
+    if files then
+        table.move(files, 1, #files, 1, snapshot)
+    end
+    return snapshot
 end
 
 ---@param path string
@@ -342,9 +361,10 @@ local function resolveItem(current, item)
     return vfs.normalize(parentLogical(current) .. '/' .. item)
 end
 
----@param ctx Rule.Context
+---@param rule Moe.Rule
+---@param ctx Moe.Rule.Context
 ---@param logical string
-local function loadFile(ctx, logical)
+local function loadFile(rule, ctx, logical)
     if ctx.loaded[logical] or ctx.loading[logical] then
         return
     end
@@ -362,7 +382,7 @@ local function loadFile(ctx, logical)
     if not source then
         error('规则集文件读取失败：{}（{}）' % { logical, err }, 0)
     end
-    local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', makeEnv(M))
+    local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', makeEnv(rule))
     if not chunk then
         error('规则集文件解析失败：{}（{}）' % { logical, loadErr }, 0)
     end
@@ -378,31 +398,33 @@ local function loadFile(ctx, logical)
     ctx.order[#ctx.order+1] = logical
 end
 
----@param ctx Rule.Context
+---@param rule Moe.Rule
+---@param ctx Moe.Rule.Context
 ---@param logicalDir string
-local function loadDirectory(ctx, logicalDir)
+local function loadDirectory(rule, ctx, logicalDir)
     for _, logical in ipairs(ctx.vfs:listFiles(logicalDir)) do
-        loadFile(ctx, logical)
+        loadFile(rule, ctx, logical)
     end
 end
 
----@param ctx Rule.Context
+---@param rule Moe.Rule
+---@param ctx Moe.Rule.Context
 ---@param item string
-local function loadItem(ctx, item)
+local function loadItem(rule, ctx, item)
     if type(item) ~= 'string' or item == '' then
         error('规则集项必须是非空字符串', 0)
     end
     local logical = resolveItem(ctx.current, item)
     if ctx.vfs:isFile(logical) then
-        loadFile(ctx, logical)
+        loadFile(rule, ctx, logical)
         return
     end
     if ctx.vfs:isFile(logical .. '.lua') then
-        loadFile(ctx, logical .. '.lua')
+        loadFile(rule, ctx, logical .. '.lua')
         return
     end
     if ctx.vfs:isDirectory(logical) then
-        loadDirectory(ctx, logical)
+        loadDirectory(rule, ctx, logical)
         return
     end
     error('规则集项不存在：{}' % { item }, 0)
@@ -438,7 +460,7 @@ local function checkExcludes(loaded, excludes)
     end
 end
 
----@param meta table<string, Rule.PackageMeta>
+---@param meta table<string, Moe.Rule.PackageMeta>
 local function checkDuplicates(meta)
     for _, packageMeta in pairs(meta) do
         ---@type table<string, string>
@@ -455,11 +477,11 @@ local function checkDuplicates(meta)
     end
 end
 
----@param instance Rule.Vfs
+---@param instance Moe.Rule.Vfs
 ---@param list string[]
----@return Rule.Plan
+---@return Moe.Rule.Plan
 local function prepare(instance, list)
-    ---@type Rule.Plan
+    ---@type Moe.Rule.Plan
     local plan = {
         meta     = {},
         loaded   = {},
@@ -522,7 +544,7 @@ local function prepare(instance, list)
             error('规则集文件读取失败：{}（{}）' % { logical, readErr }, 0)
         end
 
-        ---@type Rule.MetaFile
+        ---@type Moe.Rule.MetaFile
         local file = {
             logical = logical,
             source  = instance:resolve(logical) or logical,
@@ -581,9 +603,10 @@ local function prepare(instance, list)
     return plan
 end
 
+---@private
 ---@param items string[]
-function M.depends(items)
-    local ctx = M.context
+function M:declareDepends(items)
+    local ctx = self.context
     if not ctx then
         error('rule.depends 只能在加载规则集时声明', 2)
     end
@@ -599,7 +622,7 @@ function M.depends(items)
             end
             ctx.excludes[target] = ctx.excludes[target] or ctx.current
         else
-            loadItem(ctx, item)
+            loadItem(self, ctx, item)
         end
     end
 end
@@ -608,7 +631,7 @@ end
 ---@param callback fun(context: table)
 ---@return function # 撤销这次注册
 function M:on(name, callback)
-    if not M.context then
+    if not self.context then
         error('时机注册只能在加载规则集时声明', 2)
     end
     if type(name) ~= 'string' or name == '' then
@@ -617,7 +640,7 @@ function M:on(name, callback)
     if type(callback) ~= 'function' then
         error('时机回调必须是函数', 2)
     end
-    return M.events:on(name, callback)
+    return self.events:on(name, callback)
 end
 
 ---@param name string
@@ -626,38 +649,38 @@ function M:fire(name, ...)
     if type(name) ~= 'string' or name == '' then
         error('时机名必须是非空字符串', 2)
     end
-    M.events:fire(name, ...)
+    self.events:fire(name, ...)
 end
 
 ---@param sources string[]
-function M.setRoots(sources)
+function M:setRoots(sources)
     if type(sources) ~= 'table' then
         error('规则集来源必须是字符串列表', 2)
     end
-    M.sources = sources
+    self.sources = sources
 end
 
 ---@param root string|bee.fspath
-function M.setRoot(root)
-    M.setRoots { tostring(root) }
+function M:setRoot(root)
+    self:setRoots { tostring(root) }
 end
 
 ---@return string[]
-function M.getRoots()
-    return M.sources
+function M:getRoots()
+    return self.sources
 end
 
----@param list? string[]
+---@param list? string[] # 省略时复用上一次的清单
 ---@return string[] # 被加载的文件（逻辑路径），按执行完成的顺序
-function M.load(list)
+function M:load(list)
     if list then
-        M.lastList = list
+        self.list = list
     end
-    list = M.lastList
+    list = self.list
     if not list then
         error('没有可用的加载清单', 2)
     end
-    local instance = vfs.create(M.sources, moe.env.ROOT_PATH:parent_path())
+    local instance = vfs.create(self.sources, moe.env.ROOT_PATH:parent_path())
 
     ---@type string[]
     local items = {}
@@ -673,9 +696,9 @@ function M.load(list)
     checkExcludes(plan.loaded, plan.excludes)
     checkDuplicates(plan.meta)
 
-    M.clear()
+    self:clear()
 
-    ---@type Rule.Context
+    ---@type Moe.Rule.Context
     local ctx = {
         vfs      = instance,
         loading  = {},
@@ -683,17 +706,18 @@ function M.load(list)
         order    = {},
         excludes = {},
     }
-    M.context = ctx
+    self.context = ctx
     local guard <close> = moe.util.defer(function ()
-        M.context = nil
+        self.context = nil
     end)
 
     for _, item in ipairs(items) do
-        loadItem(ctx, item)
+        loadItem(self, ctx, item)
     end
 
     checkExcludes(ctx.loaded, ctx.excludes)
-    M.meta = plan.meta
+    self.meta        = plan.meta
+    self.loadedFiles = ctx.order
 
     return ctx.order
 end

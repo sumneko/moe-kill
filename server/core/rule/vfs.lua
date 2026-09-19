@@ -1,10 +1,10 @@
 local fs = require 'bee.filesystem'
 
----@class Rule.Vfs
+---@class Moe.Rule.Vfs
 ---@field private files table<string, string>
 ---@field private dirs table<string, true>
 ---@field private defaults table<string, true>
-local M = Class 'Rule.Vfs'
+local M = Class 'Moe.Rule.Vfs'
 
 function M:__init()
     self.files    = {}
@@ -101,13 +101,13 @@ end
 
 ---@param sources string[]
 ---@param base string|bee.fspath
----@return Rule.Vfs
+---@return Moe.Rule.Vfs
 function M.create(sources, base)
     if type(sources) ~= 'table' then
         error('规则集来源必须是字符串列表', 2)
     end
     local root = fs.absolute(fs.path(base))
-    local self = New 'Rule.Vfs' ()
+    local self = New 'Moe.Rule.Vfs' ()
     for _, pattern in ipairs(sources) do
         if type(pattern) ~= 'string' or pattern == '' then
             error('规则集来源必须是非空字符串', 2)

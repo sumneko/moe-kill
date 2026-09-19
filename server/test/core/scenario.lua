@@ -1,6 +1,6 @@
 local lt = require 'test.ltest'
 
----@param zone Core.Zone
+---@param zone Moe.Zone
 ---@return string
 local function zoneLabels(zone)
     local list  = zone:list()
@@ -12,13 +12,13 @@ local function zoneLabels(zone)
 end
 
 lt.test('场景：调用方自己组合出「发牌」', function ()
-    local pile = moe.core.orderedZone.create()
-    local hand = moe.core.zone.create()
+    local pile = moe.orderedZone.create()
+    local hand = moe.zone.create()
 
     for i = 1, 10 do
-        pile:put(moe.core.card.create('第{}张' % { i }))
+        pile:put(moe.card.create('第{}张' % { i }))
     end
-    pile:shuffle(moe.core.random.create(20260919))
+    pile:shuffle(moe.random.create(20260919))
 
     local top3 = {}
     for i = 1, 3 do
@@ -33,12 +33,12 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
 end)
 
 lt.test('场景：用移动一次把牌送进牌区', function ()
-    local pile  = moe.core.orderedZone.create()
-    local hand  = moe.core.zone.create()
+    local pile  = moe.orderedZone.create()
+    local hand  = moe.zone.create()
     local cards = {}
 
     for i = 1, 5 do
-        cards[i] = moe.core.card.create('第{}张' % { i })
+        cards[i] = moe.card.create('第{}张' % { i })
         pile:put(cards[i])
     end
 
@@ -49,11 +49,11 @@ lt.test('场景：用移动一次把牌送进牌区', function ()
 end)
 
 lt.test('场景：区域名、参数与属性名全由调用方决定', function ()
-    local zone = moe.core.zone.create({ ['谁能看到'] = '只有自己', ['属于谁'] = '玩家甲' })
+    local zone = moe.zone.create({ ['谁能看到'] = '只有自己', ['属于谁'] = '玩家甲' })
     lt.assertEquals('区域参数原样保存', '只有自己', zone:getParam('谁能看到'))
     lt.assertEquals('没有的键读到 nil', nil, zone:getParam('手牌'))
 
-    local system = moe.core.attribute.create()
+    local system = moe.attribute.create()
     system:define('体力', { min = 0, max = 4 })
     system:define('手牌上限', { min = 0, max = 20 })
 

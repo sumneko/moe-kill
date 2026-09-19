@@ -1,8 +1,8 @@
 local lt = require 'test.ltest'
 
----@return Core.AttributeSystem
+---@return Moe.AttributeSystem
 local function createSystem()
-    local system = moe.core.attribute.create()
+    local system = moe.attribute.create()
     system:define('体力', { min = 0, max = 5 })
     system:define('攻击距离', { min = 1, max = 3 })
     return system
@@ -28,7 +28,7 @@ lt.test('属性：按调用方声明的名字读写', function ()
 end)
 
 lt.test('属性：内核不预设任何属性名', function ()
-    local system = moe.core.attribute.create()
+    local system = moe.attribute.create()
     local attrs  = system:createInstance()
 
     lt.assertError('未声明的名字读不到', function () attrs:get('体力') end)
@@ -142,7 +142,7 @@ lt.test('属性：实例创建后不能新增定义', function ()
 end)
 
 lt.test('属性：属性名必须是非空字符串', function ()
-    local system = moe.core.attribute.create()
+    local system = moe.attribute.create()
 
     ---@type any
     local notString = 1

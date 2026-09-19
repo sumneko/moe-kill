@@ -13,8 +13,16 @@
 ---@field sevent table
 ---@field tools MoeKill.Tools
 ---@field reload Reload
----@field core Core
----@field rule Rule
+---@field card Moe.Card
+---@field zone Moe.Zone
+---@field orderedZone Moe.OrderedZone
+---@field random Moe.Random
+---@field attribute Moe.AttributeSystem
+---@field event Moe.Event
+---@field desk Moe.Desk
+---@field player Moe.Player
+---@field room Moe.Room
+---@field rule Moe.Rule
 ---@field server Server
 ---@field inspect fun(root: any): string
 moe = {}
@@ -106,9 +114,7 @@ moe.reload = require 'tools.reload'
 ---@diagnostic disable-next-line: lowercase-global
 include    = moe.reload.include
 
-moe.core = require 'core'
-
-moe.rule = require 'rule'
+require 'core'
 
 moe.server = require 'session'
 

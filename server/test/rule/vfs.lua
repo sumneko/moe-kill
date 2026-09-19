@@ -1,7 +1,7 @@
 local fs = require 'bee.filesystem'
 local lt = require 'test.ltest'
 
-local vfs    = require 'rule.vfs'
+local vfs    = require 'core.rule.vfs'
 local rootDir = moe.env.ROOT_PATH / 'tmp' / 'vfs-probe'
 local base    = moe.env.ROOT_PATH:parent_path()
 

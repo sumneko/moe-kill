@@ -1,12 +1,12 @@
 local lt = require 'test.ltest'
 
 lt.test('牌：每个实例有唯一标识', function ()
-    local first  = moe.core.card.create('杀')
-    local second = moe.core.card.create('杀')
+    local first  = moe.card.create('杀')
+    local second = moe.card.create('杀')
     local marks  = {}
 
     for i = 1, 100 do
-        local card = moe.core.card.create()
+        local card = moe.card.create()
         lt.assertNotEquals('标识不与既有的重复', first:getId(), card:getId())
         lt.assertEquals('标识未被用过', nil, marks[card:getId()])
         marks[card:getId()] = true
@@ -16,10 +16,10 @@ lt.test('牌：每个实例有唯一标识', function ()
 end)
 
 lt.test('牌：标签由调用方给出且可修改', function ()
-    local plain = moe.core.card.create()
+    local plain = moe.card.create()
     lt.assertEquals('默认没有标签', nil, plain:getLabel())
 
-    local card = moe.core.card.create('杀')
+    local card = moe.card.create('杀')
     lt.assertEquals('创建时给出标签', '杀', card:getLabel())
 
     card:setLabel('闪')
@@ -28,7 +28,7 @@ lt.test('牌：标签由调用方给出且可修改', function ()
 end)
 
 lt.test('牌：内核不预设任何牌的定义', function ()
-    local card = moe.core.card.create('杀')
+    local card = moe.card.create('杀')
     local keys = {}
 
     for key in pairs(card) do

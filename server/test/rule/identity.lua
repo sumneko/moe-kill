@@ -22,16 +22,16 @@ local function useProbe()
     end)
 end
 
----@param player Core.Player
+---@param player Moe.Player
 ---@return any
 local function identity(player)
     return player:getTag('身份')
 end
 
 lt.test('身份场：8 人局的配置', function ()
-    local guard <close> = support.load { '身份场' }
+    local rule = moe.rule.create { packages = { '身份场' } }
 
-    local config = assert(moe.rule:getValue('身份配置')[8], '没有 8 人局配置')
+    local config = assert(rule:getValue('身份配置')[8], '没有 8 人局配置')
     ---@type table<string, integer>
     local counts = {}
     for _, entry in ipairs(config) do
@@ -45,21 +45,20 @@ lt.test('身份场：8 人局的配置', function ()
 end)
 
 lt.test('身份场：配置可以被后续包覆盖', function ()
-    local guard <close> = support.load { '身份场' }
-
     local probe <close> = useProbe()
     write('我的规则/配置.lua', 'rule:setValue("身份配置", { [4] = { { identity = "全部主公", count = 4 } } })')
-    moe.rule.setRoots { './package/*', probeDir:string() .. '/*' }
-    moe.rule.load { '身份场', '我的规则' }
 
-    local config = assert(moe.rule:getValue('身份配置')[4], '没有 4 人局配置')
+    local rule = moe.rule.create {
+        sources  = { './package/*', probeDir:string() .. '/*' },
+        packages = { '身份场', '我的规则' },
+    }
+
+    local config = assert(rule:getValue('身份配置')[4], '没有 4 人局配置')
     lt.assertEquals('被覆盖了', '全部主公', config[1].identity)
 end)
 
 lt.test('身份场：人数不在配置里时不分配身份', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(3)
+    local game = support.start { packages = { '身份场', '标准' }, count = 3 }
 
     for i = 1, 3 do
         lt.assertEquals('第 {} 个玩家拿不到身份（回调报错被时机机制记录）' % { i }, nil, identity(game.players[i]))
@@ -67,9 +66,7 @@ lt.test('身份场：人数不在配置里时不分配身份', function ()
 end)
 
 lt.test('身份场：身份被写进标签', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(8)
+    local game = support.start { packages = { '身份场', '标准' }, count = 8 }
 
     ---@type table<string, integer>
     local counts = {}
@@ -86,9 +83,7 @@ lt.test('身份场：身份被写进标签', function ()
 end)
 
 lt.test('身份场：主公坐 1 号位且体力上限多 1', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(8)
+    local game = support.start { packages = { '身份场', '标准' }, count = 8 }
     local lord = game.players[1]
 
     lt.assertEquals('1 号位是主公', '主公', identity(lord))
@@ -98,9 +93,7 @@ lt.test('身份场：主公坐 1 号位且体力上限多 1', function ()
 end)
 
 lt.test('身份场：首回合从主公开始', function ()
-    local guard <close> = support.load { '身份场', '标准' }
-
-    local game = support.start(8)
+    local game = support.start { packages = { '身份场', '标准' }, count = 8 }
 
     lt.assertEquals('最后一个座位之后回到主公', game.players[1], game.desk:getNext(game.players[8]))
 end)

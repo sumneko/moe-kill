@@ -1,6 +1,6 @@
----@class Core.Random
+---@class Moe.Random
 ---@field private state integer[]
-local M = Class 'Core.Random'
+local M = Class 'Moe.Random'
 
 local GOLDEN = 0x9E3779B97F4A7C15
 local MIX_A  = 0xBF58476D1CE4E5B9
@@ -46,9 +46,9 @@ function M:__init(seed)
 end
 
 ---@param seed integer
----@return Core.Random
+---@return Moe.Random
 function M.create(seed)
-    return New 'Core.Random' (seed)
+    return New 'Moe.Random' (seed)
 end
 
 ---@param min integer

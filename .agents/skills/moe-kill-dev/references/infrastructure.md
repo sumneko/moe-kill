@@ -103,11 +103,11 @@ lm:executable "moe-kill" {
   server/               后端根（代码 + 入口 + 测试 + 产物）
     main.lua  test.lua   进程入口与测试入口
     moe-kill.lua  master.lua  args.lua  debugger.lua  async-io.lua
-    core/  session/  rule/  tools/
+    core/  session/  tools/
     test/                无头测试（test.smoke / test.session / test.core…）
     bin/                 产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
     log/  tmp/           运行时产物（git 忽略）
-  package/             规则集（尚未创建；与 server/ 平级；由 moe.rule 读文件执行）
+  package/             规则集（与 server/ 平级；由 moe.rule 读文件执行，按包组织）
   client/              前端（将来；与 server/ 平级）
   build/                中间产物（luamake 的 $bin/obj 等，git 忽略）
 ```
@@ -182,7 +182,7 @@ end
 | `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `server/async-io.lua`，不污染照搬文件 |
 | `attribute.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（**LuaLS 4.0.0 里没有它**）；`System:define(name, simple, min, max)` → `Instance:get/set/add/getMin/getMax/event`，含公式（基础值 + 百分比）、上下限、惰性重算与变更事件；2026-09-19 已同步上游 `3f347e4`（“修复属性系统的报错”：给 `compileComplex` 的 `getMax` 生成块补 `local cache = instance.cache`）。**已知上游未修的同类坑**：`compileSimple` 的 `getMax` 生成块（约 613 行）同样缺这行 ⇒ `simple = true` 且 `max` 写字符串引用的属性调 `getMax` 会报 `attempt to index a nil value (global 'cache')`（写入钳制本身是好的） | 内核的“通用属性”直接接它，不自己写一套 |
 | `reload.lua` | **新增照搬文件**：来源 `y3-editor/y3-lualib` 的 `tools/reload.lua`（MIT，`Copyright (c) 2023 y3-editor`）—— `sumneko/utility` 与 LuaLS 4.0.0 都**没有**热重载库。改写点：`y3.util.*` → `moe.util.*`；回调注册**返回 disposer**（并因此修掉「回调数组每次重载整体替换、捕获的引用会失效」）；`include` 失败时把错误信息交回调用方；新增 `reportError`（拿不到 `log` 时退回 stderr） | 内核需要开发期热重载，见 `architecture.md` 第 8 节 |
-| `without-check-nil.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（原样、逐字节相同）。用 `debug.setmetatable(nil, mt)` 给 **`nil` 本身**装元表，让 nil 上的算术 / 拼接 / 索引 / 调用 / 比较都不崩；对外只有 `enable()` / `disable()`（`disable()` 仅在元表仍是它的那份时恢复） | 规则集**预解析试跑**用（`server/rule/preparse.lua`）：试跑要执行规则集代码但不该崩。注意它是**进程全局**改动，必须成对开关 |
+| `without-check-nil.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（原样、逐字节相同）。用 `debug.setmetatable(nil, mt)` 给 **`nil` 本身**装元表，让 nil 上的算术 / 拼接 / 索引 / 调用 / 比较都不崩；对外只有 `enable()` / `disable()`（`disable()` 仅在元表仍是它的那份时恢复） | 规则集**预解析试跑**用（`server/core/rule/preparse.lua`）：试跑要执行规则集代码但不该崩。注意它是**进程全局**改动，必须成对开关 |
 
 等待与唤醒的接线在 `server/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
 

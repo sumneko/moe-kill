@@ -1,14 +1,14 @@
 local lt = require 'test.ltest'
 
 ---@param seed? integer
----@return Core.Room
+---@return Moe.Room
 local function newRoom(seed)
-    local desk   = moe.core.desk.create(4)
-    local random = moe.core.random.create(seed or 1)
-    return moe.core.room.create { desk = desk, random = random }
+    local desk   = moe.desk.create(4)
+    local random = moe.random.create(seed or 1)
+    return moe.room.create { desk = desk, random = random }
 end
 
----@param zone Core.Zone
+---@param zone Moe.Zone
 ---@return string
 local function labels(zone)
     ---@type string[]
@@ -20,9 +20,9 @@ local function labels(zone)
 end
 
 lt.test('场地：持一张桌子与一个随机源', function ()
-    local desk   = moe.core.desk.create(4)
-    local random = moe.core.random.create(1)
-    local room   = moe.core.room.create { desk = desk, random = random }
+    local desk   = moe.desk.create(4)
+    local random = moe.random.create(1)
+    local room   = moe.room.create { desk = desk, random = random }
 
     lt.assertEquals('取回同一张桌子', desk, room:getDesk())
     lt.assertEquals('取回同一个随机源', random, room:getRandom())
@@ -30,7 +30,7 @@ lt.test('场地：持一张桌子与一个随机源', function ()
     ---@type any
     local missingRandom = { desk = desk }
     lt.assertError('缺桌子或随机源报错', function ()
-        moe.core.room.create(missingRandom)
+        moe.room.create(missingRandom)
     end)
 end)
 
@@ -85,13 +85,37 @@ lt.test('场地：有序牌区洗牌不用再传随机源', function ()
 end)
 
 lt.test('场地：没绑定随机源的有序牌区洗牌要传随机源', function ()
-    local zone = moe.core.orderedZone.create()
-    zone:put(moe.core.card.create('甲'))
+    local zone = moe.orderedZone.create()
+    zone:put(moe.card.create('甲'))
 
     lt.assertError('省略随机源报错', function ()
         zone:shuffle()
     end)
 
-    zone:shuffle(moe.core.random.create(1))
+    zone:shuffle(moe.random.create(1))
     lt.assertEquals('传了随机源就能洗', 1, zone:count())
+end)
+
+lt.test('场地：建场地时装好规则', function ()
+    local desk   = moe.desk.create(4)
+    local random = moe.random.create(1)
+    local room   = moe.room.create { desk = desk, random = random, packages = { '标准' } }
+
+    local rule = room:getRule()
+    lt.assertEquals('清单里的包已经装好', true, rule:getValue('牌表') ~= nil)
+    lt.assertEquals('默认加载的包也装了', 5, rule:getValue('默认体力'))
+    lt.assertEquals('属性系统也备好了', true, rule:getAttributeSystem() ~= nil)
+end)
+
+lt.test('场地：两个场地的规则互不影响', function ()
+    local ruleA = newRoom():getRule()
+    local ruleB = newRoom():getRule()
+
+    lt.assertEquals('两个场地各有自己的规则实例', false, ruleA == ruleB)
+    lt.assertEquals('属性系统也不是同一份', false, ruleA:getAttributeSystem() == ruleB:getAttributeSystem())
+
+    ruleA:load { '标准' }
+    lt.assertEquals('改了第一个：第一个有牌表', true, ruleA:getValue('牌表') ~= nil)
+    lt.assertEquals('第二个不受影响', nil, ruleB:getValue('牌表'))
+    lt.assertEquals('第二个的条目也不受影响', nil, ruleB:getCard('杀'))
 end)
