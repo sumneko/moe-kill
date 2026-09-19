@@ -50,6 +50,9 @@ lt.test('使用：用一张牌并结算', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
     : on('使用', function (ctx)
         ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '一')
     end)
@@ -123,12 +126,12 @@ lt.test('使用：牌没有内容定义时报错', function ()
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
 
-lt.test('使用：目标不合法时不动牌', function ()
+lt.test('使用：给出的目标必须是合法目标的子集', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('目标合法', function (ctx)
-        return ctx.targets[1] ~= ctx.user
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
     end)
     : on('使用', function (ctx)
         ctx.user:setTag('用了', true)
@@ -141,7 +144,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertError('不能对自己用', function ()
+    lt.assertError('自己不在合法目标里', function ()
         game:play(user, card, { user })
     end)
 
@@ -149,7 +152,7 @@ Card '测试杀'
     lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
 end)
 
-lt.test('使用：没声明目标合法性的牌不受额外限制', function ()
+lt.test('使用：没声明「获取目标」的牌用不了', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
@@ -164,15 +167,112 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
+    lt.assertError('漏写钩子不等于谁都能打', function ()
+        game:play(user, card, { target })
+    end)
+
+    lt.assertEquals('牌还留在手上', 1, hand:count())
+    lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
+end)
+
+lt.test('使用：钩子没返回列表时用不了', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        ctx.user:setTag('问过目标', true)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    lt.assertError('拿不到列表就谁都不给用', function ()
+        game:play(user, card, { target })
+    end)
+
+    lt.assertEquals('钩子确实跑过', true, user:getTag('问过目标'))
+    lt.assertEquals('牌还留在手上', 1, hand:count())
+end)
+
+lt.test('使用：合法目标为空时用不了', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return {}
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    lt.assertError('没有合法目标就用不了', function ()
+        game:play(user, card, { target })
+    end)
+
+    lt.assertEquals('牌还留在手上', 1, hand:count())
+end)
+
+lt.test('使用：给出的目标不能为空', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, _, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    lt.assertError('一个目标都不给就用不了', function ()
+        game:play(user, card, {})
+    end)
+
+    lt.assertEquals('牌还留在手上', 1, hand:count())
+end)
+
+lt.test('使用：多个钩子取交集', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return game.desk:getPlayers()
+    end)
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+    : on('使用', function (ctx)
+        ctx.user:setTag('用了', true)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    lt.assertError('被前一个钩子收窄掉的目标用不了', function ()
+        game:play(user, card, { user })
+    end)
+    lt.assertEquals('牌还留在手上', 1, hand:count())
+
     game:play(user, card, { target })
 
-    lt.assertEquals('照样用出去了', target, user:getTag('用了'))
+    lt.assertEquals('两个钩子都放行的目标能用', true, user:getTag('用了'))
+    lt.assertEquals('牌用出去了', 0, hand:count())
 end)
 
 lt.test('使用：结算期间这次使用在栈上', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
     : on('使用', function (ctx)
         ctx.user:setTag('栈顶是这次使用', game:getCurrentEffect() == ctx)
         ctx.user:setTag('种类', ctx.kind)
@@ -196,8 +296,8 @@ lt.test('使用：失败后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('目标合法', function (ctx)
-        return ctx.targets[1] ~= ctx.user
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
     end)
 ]])
 
@@ -216,6 +316,9 @@ lt.test('使用：结算中抛错后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
     : on('使用', function ()
         error('故意报错')
     end)

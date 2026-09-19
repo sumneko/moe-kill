@@ -61,3 +61,17 @@ lt.test('杀：攻击范围外的目标用不了', function ()
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
     lt.assertEquals('弃牌堆还是空的', 0, run.game:getZone('弃牌堆'):count())
 end)
+
+lt.test('杀：不能对自己用', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeSlash(run, user)
+
+    lt.assertError('自己的合法目标里没有自己', function ()
+        run.game:play(user, card, { user })
+    end)
+
+    lt.assertEquals('自己没掉血', 5, user:getAttr('体力'))
+    lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
+    lt.assertEquals('弃牌堆还是空的', 0, run.game:getZone('弃牌堆'):count())
+end)

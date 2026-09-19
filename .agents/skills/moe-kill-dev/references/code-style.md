@@ -21,7 +21,7 @@ end
 
 ```lua
 Card '杀'
-    : on('目标合法', function (ctx)
+    : on('获取目标', function (ctx)
     end)
     : on('使用', function (ctx)
     end)

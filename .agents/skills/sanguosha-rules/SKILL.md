@@ -161,14 +161,16 @@ local slash = Card '杀'
 ```lua
 -- package/标准/卡牌/杀.lua
 Card '杀'
-    : on('目标合法', function (ctx)              -- 合法性由牌自己声明：内核不作任何具体判定
+    : on('获取目标', function (ctx)              -- 合法目标由牌自己声明：内核不作任何具体判定
         local desk  = game:getDesk()
         local range = ctx.user:getAttr('攻击范围')
-        for _, target in ipairs(ctx.targets) do
-            if desk:getDistance(ctx.user, target) > range then
-                return false                     -- 返回 false = 不合法：使用失败，牌留在原处
+        local legal = {}
+        for _, player in ipairs(desk:getPlayers()) do
+            if player ~= ctx.user and desk:getDistance(ctx.user, player) <= range then
+                legal[#legal + 1] = player
             end
         end
+        return legal                         -- 返回合法目标列表：拿不到 / 空 = 现在用不了
     end)
     : on('使用', function (ctx)
         for _, target in ipairs(ctx.targets) do
@@ -178,10 +180,11 @@ Card '杀'
 ```
 
 - **用牌入口**：`game:play(使用者, 牌, 目标们)` —— 机制自己在**使用者名下牌区**里找到这张牌（内核不预设「手牌」这类区域名），**校验全部通过才取出**并结算；校验不通过时报错且牌留在原处。
-- **内容侧事件名（牌的钩子）**：`'目标合法'`（返回 `false` = 不合法）与 `'使用'`（结算，**按声明顺序**执行），上下文就是**这次使用的效果实例**（`UseCard`，字段 `user` / `card` / `targets`）。钩子是**固定集合**（与启用的包无关、没有扩展需求）：清单以 `server/core/loader/env-meta.lua` 为准，拼错在编辑期就报 —— 新加钩子要同步补进那里。
+- **目标口径（fail-closed）**：调用方给出的目标必须是牌声明的**合法目标列表的非空子集**（`{}` 也不行）；牌**没声明 `'获取目标'` 钩子 / 钩子没返回列表 / 列表为空** ⇒ 这张牌**现在用不了**（明确失败、牌留在原处），漏写钩子 MUST NOT 被当成「谁都能打」；同一张牌声明多个钩子时取**交集**（每个声明只能收窄）。
+- **内容侧事件名（牌的钩子）**：`'获取目标'`（返回合法目标列表 `Player[]`）与 `'使用'`（结算，**按声明顺序**执行），上下文就是**这次使用的效果实例**（`UseCard`，字段 `user` / `card` / `targets`）。钩子是**固定集合**（与启用的包无关、没有扩展需求）：清单以 `server/core/loader/env-meta.lua` 为准，拼错在编辑期就报 —— 新加钩子要同步补进那里。
 - **牌的去向**：结算完成后触发 `'卡牌-结算后'`，由基础规则把牌放进 `弃牌堆`（订阅写在 `package/@基础/牌堆.lua`）。
 - **区域名是内容侧约定**：`手牌`（玩家侧）与 `弃牌堆`（局侧）都由 `@基础` 建；内核只按名字登记牌区。
-- **本批不做**：回合与阶段（因此不限阶段、不限次数）、打出与响应（闪）、结算栈、濒死与死亡、装备、判定。
+- **本批不做**：目标数量（至多 / 至少 N 个）、回合与阶段（因此不限阶段、不限次数）、打出与响应（闪）、濒死与死亡、装备、判定。
 
 ## 10. 待确认口径
 
