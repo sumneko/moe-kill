@@ -3,11 +3,11 @@ local lt = require 'test.ltest'
 
 local probeDir = moe.env.ROOT_PATH / 'tmp' / 'rule-probe'
 
----@type Moe.Game
+---@type Game
 local game
 
 ---@param sources? string[]
----@return Moe.Game
+---@return Game
 local function newGame(sources)
     return moe.game.create {
         desk    = moe.desk.create(4),
@@ -53,7 +53,7 @@ local function list(...)
 end
 
 ---@param name string
----@return Moe.CardDef
+---@return CardDef
 local function card(name)
     return assert(game:getCard(name), '规则条目不存在：' .. name)
 end

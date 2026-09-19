@@ -13,16 +13,16 @@
 ---@field sevent table
 ---@field tools MoeKill.Tools
 ---@field reload Reload
----@field card Moe.Card
----@field zone Moe.Zone
----@field orderedZone Moe.OrderedZone
----@field random Moe.Random
----@field attribute Moe.AttributeSystem
----@field event Moe.Event
----@field desk Moe.Desk
----@field player Moe.Player
----@field game Moe.Game
----@field loader Moe.Loader
+---@field card Card
+---@field zone Zone
+---@field orderedZone OrderedZone
+---@field random Random
+---@field attribute AttributeSystem
+---@field event Event
+---@field desk Desk
+---@field player Player
+---@field game Game
+---@field loader Loader
 ---@field server Server
 ---@field inspect fun(root: any): string
 moe = {}

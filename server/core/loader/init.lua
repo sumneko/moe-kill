@@ -1,12 +1,12 @@
 local vfs      = require 'core.loader.vfs'
 local preparse = require 'core.loader.preparse'
 
----@class Moe.Loader.InstallOptions
+---@class Loader.InstallOptions
 ---@field sources? string[] # 包来源（省略时用局上记的来源，再退到默认来源）
 ---@field packages? string[] # 加载清单（省略时用局上记的清单）
 
----@class Moe.Loader.Context
----@field vfs Moe.Loader.Vfs
+---@class Loader.Context
+---@field vfs Loader.Vfs
 ---@field loading table<string, true>
 ---@field loaded table<string, true>
 ---@field order string[]
@@ -14,29 +14,29 @@ local preparse = require 'core.loader.preparse'
 ---@field public package? string # 正在执行的文件的所属包
 ---@field excludes table<string, string> # 互斥项 → 声明者
 
----@class Moe.Loader.MetaFile
+---@class Loader.MetaFile
 ---@field logical string
 ---@field source string
 ---@field ok boolean
 ---@field err? string
 ---@field entries string[]
 
----@class Moe.Loader.PackageMeta
+---@class Loader.PackageMeta
 ---@field name string
 ---@field depends string[]
 ---@field excludes string[]
 ---@field entries string[]
----@field files Moe.Loader.MetaFile[]
+---@field files Loader.MetaFile[]
 
----@class Moe.Loader.Plan
----@field meta table<string, Moe.Loader.PackageMeta>
+---@class Loader.Plan
+---@field meta table<string, Loader.PackageMeta>
 ---@field loaded table<string, true>
 ---@field excludes table<string, string>
 
----@class Moe.Loader # 装载器模块（无状态）：把规则装进某个局
+---@class Loader # 装载器模块（无状态）：把规则装进某个局
 ---@field DEFAULT_SOURCES string[]
----@field install fun(game: Moe.Game, options?: Moe.Loader.InstallOptions): string[]
----@field declareDepends fun(game: Moe.Game, ctx: Moe.Loader.Context, items: string[])
+---@field install fun(game: Game, options?: Loader.InstallOptions): string[]
+---@field declareDepends fun(game: Game, ctx: Loader.Context, items: string[])
 local M = {}
 
 ---@type string[] # 默认来源：仓库根下项目自己的包容器
@@ -89,8 +89,8 @@ local function resolveItem(current, item)
     return vfs.normalize(parentLogical(current) .. '/' .. item)
 end
 
----@param game Moe.Game
----@param ctx Moe.Loader.Context
+---@param game Game
+---@param ctx Loader.Context
 ---@param logical string
 local function loadFile(game, ctx, logical)
     if ctx.loaded[logical] or ctx.loading[logical] then
@@ -133,8 +133,8 @@ local function loadFile(game, ctx, logical)
     ctx.order[#ctx.order+1] = logical
 end
 
----@param game Moe.Game
----@param ctx Moe.Loader.Context
+---@param game Game
+---@param ctx Loader.Context
 ---@param logicalDir string
 local function loadDirectory(game, ctx, logicalDir)
     for _, logical in ipairs(ctx.vfs:listFiles(logicalDir)) do
@@ -142,8 +142,8 @@ local function loadDirectory(game, ctx, logicalDir)
     end
 end
 
----@param game Moe.Game
----@param ctx Moe.Loader.Context
+---@param game Game
+---@param ctx Loader.Context
 ---@param item string
 local function loadItem(game, ctx, item)
     if type(item) ~= 'string' or item == '' then
@@ -195,7 +195,7 @@ local function checkExcludes(loaded, excludes)
     end
 end
 
----@param meta table<string, Moe.Loader.PackageMeta>
+---@param meta table<string, Loader.PackageMeta>
 local function checkDuplicates(meta)
     for _, packageMeta in pairs(meta) do
         ---@type table<string, string>
@@ -212,11 +212,11 @@ local function checkDuplicates(meta)
     end
 end
 
----@param instance Moe.Loader.Vfs
+---@param instance Loader.Vfs
 ---@param list string[]
----@return Moe.Loader.Plan
+---@return Loader.Plan
 local function prepare(instance, list)
-    ---@type Moe.Loader.Plan
+    ---@type Loader.Plan
     local plan = {
         meta     = {},
         loaded   = {},
@@ -279,7 +279,7 @@ local function prepare(instance, list)
             error('规则集文件读取失败：{}（{}）' % { logical, readErr }, 0)
         end
 
-        ---@type Moe.Loader.MetaFile
+        ---@type Loader.MetaFile
         local file = {
             logical = logical,
             source  = instance:resolve(logical) or logical,
@@ -338,8 +338,8 @@ local function prepare(instance, list)
     return plan
 end
 
----@param game Moe.Game
----@param ctx Moe.Loader.Context
+---@param game Game
+---@param ctx Loader.Context
 ---@param items string[]
 function M.declareDepends(game, ctx, items)
     if type(items) ~= 'table' then
@@ -365,8 +365,8 @@ function M.declareDepends(game, ctx, items)
     end
 end
 
----@param game Moe.Game
----@param options? Moe.Loader.InstallOptions
+---@param game Game
+---@param options? Loader.InstallOptions
 ---@return string[] # 实际执行过的文件（逻辑路径），按执行完成顺序
 function M.install(game, options)
     options = options or {}
@@ -399,7 +399,7 @@ function M.install(game, options)
 
     game:resetContent()
 
-    ---@type Moe.Loader.Context
+    ---@type Loader.Context
     local ctx = {
         vfs      = instance,
         loading  = {},

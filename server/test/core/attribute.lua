@@ -1,6 +1,6 @@
 local lt = require 'test.ltest'
 
----@return Moe.AttributeSystem
+---@return AttributeSystem
 local function createSystem()
     local system = moe.attribute.create()
     system:define('体力', { min = 0, max = 5 })

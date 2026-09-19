@@ -1,7 +1,7 @@
 # kernel-facade Specification
 
 ## Purpose
-约定内核模块组的**门面落点与命名**：每个内核模块各自**直接挂在全局 `moe` 上**（`moe.card` / `moe.desk` / `moe.room` / `moe.rule` …），不设 `moe.core` 这类中间层；内核的类型名（类名与注解）统一用 `Moe.` 前缀。于是装配方只有一个命名层级，规则加载器与其它内核模块平级，规则包依旧只拿注入的 `rule`。
+约定内核模块组的**门面落点与命名**：每个内核模块各自**直接挂在全局 `moe` 上**（`moe.card` / `moe.desk` / `moe.game` / `moe.loader` …），不设 `moe.core` 这类中间层；类名与类型注解直接用类名本身，不带命名空间前缀。于是装配方只有一个命名层级，装载器与其它内核模块平级，规则包只拿注入的 `game` 与 `Card` / `Depends`。
 
 ## Requirements
 

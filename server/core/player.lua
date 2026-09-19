@@ -1,17 +1,17 @@
----@class Moe.Player.CreateOptions
----@field attributes Moe.Attributes
+---@class Player.CreateOptions
+---@field attributes Attributes
 ---@field name? string
 
----@class Moe.Player
+---@class Player
 ---@field private name? string
----@field private attributes Moe.Attributes
----@field private zoneList Moe.Zone[]
----@field private zoneMap table<string, Moe.Zone>
+---@field private attributes Attributes
+---@field private zoneList Zone[]
+---@field private zoneMap table<string, Zone>
 ---@field private tags table<string, any>
 ---@field private acting boolean
-local M = Class 'Moe.Player'
+local M = Class 'Player'
 
----@param attributes Moe.Attributes
+---@param attributes Attributes
 ---@param name? string
 function M:__init(attributes, name)
     self.name       = name
@@ -22,16 +22,16 @@ function M:__init(attributes, name)
     self.acting     = true
 end
 
----@param options Moe.Player.CreateOptions
----@return Moe.Player
+---@param options Player.CreateOptions
+---@return Player
 function M.create(options)
     if not options or not options.attributes then
         error('玩家需要一个属性实例', 2)
     end
-    return New 'Moe.Player' (options.attributes, options.name)
+    return New 'Player' (options.attributes, options.name)
 end
 
----@return Moe.Attributes
+---@return Attributes
 function M:getAttributes()
     return self.attributes
 end
@@ -60,7 +60,7 @@ function M:getName()
 end
 
 ---@param name string
----@param zone? Moe.Zone # 省略时新建一个普通牌区
+---@param zone? Zone # 省略时新建一个普通牌区
 ---@return function # 撤销这次添加（移除该牌区）
 function M:addZone(name, zone)
     if type(name) ~= 'string' or name == '' then
@@ -69,7 +69,7 @@ function M:addZone(name, zone)
     if self.zoneMap[name] then
         error('这个玩家已经有叫 {} 的牌区了' % { name }, 2)
     end
-    local instance = zone or New 'Moe.Zone' ()
+    local instance = zone or New 'Zone' ()
     self.zoneMap[name] = instance
     self.zoneList[#self.zoneList+1] = instance
     local removed = false
@@ -89,14 +89,14 @@ function M:addZone(name, zone)
 end
 
 ---@param name string
----@return Moe.Zone?
+---@return Zone?
 function M:getZone(name)
     return self.zoneMap[name]
 end
 
----@return Moe.Zone[] # 按加入顺序
+---@return Zone[] # 按加入顺序
 function M:getZones()
-    ---@type Moe.Zone[]
+    ---@type Zone[]
     local zones = {}
     table.move(self.zoneList, 1, #self.zoneList, 1, zones)
     return zones

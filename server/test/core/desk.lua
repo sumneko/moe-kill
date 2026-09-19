@@ -1,6 +1,6 @@
 local lt = require 'test.ltest'
 
----@return Moe.Player
+---@return Player
 local function newPlayer()
     local system = moe.attribute.create()
     return moe.player.create { attributes = system:createInstance() }

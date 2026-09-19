@@ -22,7 +22,7 @@ local function useProbe()
     end)
 end
 
----@param player Moe.Player
+---@param player Player
 ---@return any
 local function identity(player)
     return player:getTag('身份')
@@ -30,7 +30,7 @@ end
 
 ---@param sources? string[]
 ---@param items? string[]
----@return Moe.Game
+---@return Game
 local function newGame(sources, items)
     return moe.game.create {
         desk     = moe.desk.create(4),

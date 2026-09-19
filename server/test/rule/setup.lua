@@ -1,13 +1,13 @@
 local lt      = require 'test.ltest'
 local support = require 'test.rule.support'
 
----@param player Moe.Player
----@return Moe.Attributes
+---@param player Player
+---@return Attributes
 local function attributes(player)
     return player:getAttributes()
 end
 
----@param game Moe.Game
+---@param game Game
 ---@return integer # 当前牌表的总张数
 local function totalCards(game)
     local cardTable = assert(game:getValue('牌表'), '没有牌表')

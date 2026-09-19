@@ -1,6 +1,6 @@
 local lt = require 'test.ltest'
 
----@return Moe.AttributeSystem
+---@return AttributeSystem
 local function newSystem()
     return moe.attribute.create()
 end

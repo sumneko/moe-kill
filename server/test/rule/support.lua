@@ -1,8 +1,8 @@
 ---@class Test.RuleSupport
----@field players Moe.Player[]
----@field desk Moe.Desk
----@field random Moe.Random
----@field game Moe.Game
+---@field players Player[]
+---@field desk Desk
+---@field random Random
+---@field game Game
 local M = {}
 
 ---@class Test.RuleSupport.StartOptions
@@ -23,7 +23,7 @@ function M.start(options)
         packages = options.packages,
     }
     local attributeSystem = game:getAttributeSystem()
-    ---@type Moe.Player[]
+    ---@type Player[]
     local players = {}
     for i = 1, options.count do
         local player = moe.player.create { attributes = attributeSystem:createInstance() }

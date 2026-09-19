@@ -21,10 +21,10 @@ local function useProbe()
     end)
 end
 
----@return Moe.Game # 局（来源只有探针包）
----@return Moe.Player # 使用者（坐 1 号位）
----@return Moe.Player # 目标（坐 2 号位）
----@return Moe.Zone # 使用者的手牌区
+---@return Game # 局（来源只有探针包）
+---@return Player # 使用者（坐 1 号位）
+---@return Player # 目标（坐 2 号位）
+---@return Zone # 使用者的手牌区
 local function newGame()
     local desk = moe.desk.create(2)
     local game = moe.game.create {
@@ -34,7 +34,7 @@ local function newGame()
         packages = { '探针' },
     }
     local attributeSystem = game:getAttributeSystem()
-    ---@type Moe.Player[]
+    ---@type Player[]
     local players = {}
     for i = 1, 2 do
         local player = moe.player.create { attributes = attributeSystem:createInstance() }
@@ -65,12 +65,12 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    ---@type Moe.Card?
+    ---@type Card?
     local settledCard = nil
-    ---@type Moe.Player?
+    ---@type Player?
     local settledTarget = nil
 
-    ---@param ctx Moe.Game.EventCtx.卡牌
+    ---@param ctx Game.EventCtx.卡牌
     local function onSettled(ctx)
         settledCard   = ctx.card
         settledTarget = ctx.targets[1]

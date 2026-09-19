@@ -1,8 +1,8 @@
 local lt = require 'test.ltest'
 
 ---@param count integer
----@return Moe.Game
----@return Moe.Player[] # 按座位号升序
+---@return Game
+---@return Player[] # 按座位号升序
 local function newGame(count)
     local desk   = moe.desk.create(count)
     local random = moe.random.create(1)
@@ -13,7 +13,7 @@ local function newGame(count)
         max    = 999999,
         simple = true,
     })
-    ---@type Moe.Player[]
+    ---@type Player[]
     local players = {}
     for i = 1, count do
         local player = moe.player.create { attributes = attributeSystem:createInstance() }
@@ -57,15 +57,15 @@ lt.test('伤害：伤害前与伤害后时机的先后与上下文', function ()
 
     ---@type string[]
     local trace = {}
-    ---@type Moe.Player?
+    ---@type Player?
     local seenTo = nil
 
-    ---@param ctx Moe.Game.EventCtx.伤害
+    ---@param ctx Game.EventCtx.伤害
     local function onBefore(ctx)
         trace[#trace + 1] = '前 {} {}' % { target:getAttr('体力'), ctx.amount }
     end
 
-    ---@param ctx Moe.Game.EventCtx.伤害
+    ---@param ctx Game.EventCtx.伤害
     local function onAfter(ctx)
         trace[#trace + 1] = '后 {} {}' % { target:getAttr('体力'), ctx.amount }
         seenTo = ctx.to

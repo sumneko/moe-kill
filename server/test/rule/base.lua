@@ -6,7 +6,7 @@ local probeDir = moe.env.ROOT_PATH / 'tmp' / 'overlay-probe'
 
 ---@param sources? string[]
 ---@param items? string[]
----@return Moe.Game
+---@return Game
 local function newGame(sources, items)
     return moe.game.create {
         desk     = moe.desk.create(4),
@@ -34,13 +34,13 @@ local function useProbe()
     end)
 end
 
----@param player Moe.Player
----@return Moe.Attributes
+---@param player Player
+---@return Attributes
 local function attributes(player)
     return player:getAttributes()
 end
 
----@param game Moe.Game
+---@param game Game
 ---@return integer # 当前牌表的总张数
 local function totalCards(game)
     local cardTable = assert(game:getValue('牌表'), '没有牌表')

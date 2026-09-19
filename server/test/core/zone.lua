@@ -2,9 +2,9 @@ local lt = require 'test.ltest'
 
 local DECK = { '甲', '乙', '丙', '丁', '戊', '己', '庚', '辛' }
 
----@param zone Moe.Zone
+---@param zone Zone
 ---@param source string[]
----@return Moe.Card[]
+---@return Card[]
 local function fill(zone, source)
     local cards = {}
     for i = 1, #source do
@@ -14,7 +14,7 @@ local function fill(zone, source)
     return cards
 end
 
----@param zone Moe.Zone
+---@param zone Zone
 ---@return string
 local function zoneLabels(zone)
     local list  = zone:list()

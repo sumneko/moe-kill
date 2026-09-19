@@ -1,8 +1,8 @@
 local lt = require 'test.ltest'
 
----@param zone Moe.Zone
+---@param zone Zone
 ---@param source string[]
----@return Moe.Card[]
+---@return Card[]
 local function fill(zone, source)
     local cards = {}
     for i = 1, #source do
@@ -12,7 +12,7 @@ local function fill(zone, source)
     return cards
 end
 
----@param zone Moe.Zone
+---@param zone Zone
 ---@return string
 local function zoneLabels(zone)
     local list  = zone:list()

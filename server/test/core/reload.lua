@@ -257,7 +257,7 @@ end)
 
 lt.test('重载：recycle 立即执行、重载后重跑并回收旧对象', function ()
     local runs  = 0
-    ---@type Moe.Card[]
+    ---@type Card[]
     local trash = {}
 
     local function rebuild(trashFn)

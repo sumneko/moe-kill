@@ -1,6 +1,6 @@
 local lt = require 'test.ltest'
 
----@param zone Moe.Zone
+---@param zone Zone
 ---@return string
 local function zoneLabels(zone)
     local list  = zone:list()

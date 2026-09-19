@@ -1,10 +1,10 @@
 local lt      = require 'test.ltest'
 local support = require 'test.rule.support'
 
----@param game Moe.Game
+---@param game Game
 ---@param name string
----@return Moe.Card # 牌堆里第一张叫这个名字的牌
----@return Moe.Zone # 它所在的牌区
+---@return Card # 牌堆里第一张叫这个名字的牌
+---@return Zone # 它所在的牌区
 local function findCard(game, name)
     local deck = assert(game:getZone('抽牌堆'), '没有抽牌堆')
     for _, card in ipairs(deck:list()) do
@@ -16,8 +16,8 @@ local function findCard(game, name)
 end
 
 ---@param run Test.RuleSupport
----@param player Moe.Player
----@return Moe.Card # 已经摆进该玩家手牌的「杀」
+---@param player Player
+---@return Card # 已经摆进该玩家手牌的「杀」
 local function takeSlash(run, player)
     local card, deck = findCard(run.game, '杀')
     local hand = assert(player:getZone('手牌'), '没有手牌区')

@@ -1,14 +1,14 @@
 local lt = require 'test.ltest'
 
 ---@param seed? integer
----@return Moe.Game
+---@return Game
 local function newGame(seed)
     local desk   = moe.desk.create(4)
     local random = moe.random.create(seed or 1)
     return moe.game.create { desk = desk, random = random }
 end
 
----@param zone Moe.Zone
+---@param zone Zone
 ---@return string
 local function labels(zone)
     ---@type string[]

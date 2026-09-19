@@ -1,6 +1,6 @@
 local withoutCheckNil = require 'tools.without-check-nil'
 
----@class Moe.Loader.Preparse
+---@class Loader.Preparse
 local M = {}
 
 ---@param source string

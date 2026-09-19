@@ -1,14 +1,14 @@
----@class Moe.Event
+---@class Event
 ---@field private events table<string, SimpleEvent>
-local M = Class 'Moe.Event'
+local M = Class 'Event'
 
 function M:__init()
     self.events = {}
 end
 
----@return Moe.Event
+---@return Event
 function M.create()
-    return New 'Moe.Event' ()
+    return New 'Event' ()
 end
 
 ---@param name string

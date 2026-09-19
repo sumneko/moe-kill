@@ -1,9 +1,9 @@
----@class Moe.Zone
+---@class Zone
 ---@field kind string
----@field protected cards Moe.Card[]
+---@field protected cards Card[]
 ---@field private params table<string, any>
 ---@field private enabled boolean
-local M = Class 'Moe.Zone'
+local M = Class 'Zone'
 
 ---@param count integer
 ---@param position? integer
@@ -42,9 +42,9 @@ function M:__init(params)
 end
 
 ---@param params? table<string, any>
----@return Moe.Zone
+---@return Zone
 function M.create(params)
-    return New 'Moe.Zone' (params)
+    return New 'Zone' (params)
 end
 
 ---@param action string
@@ -62,8 +62,8 @@ function M:checkIndex(index)
     end
 end
 
----@param card Moe.Card
----@return Moe.Card
+---@param card Card
+---@return Card
 function M:put(card)
     self:checkEnabled('放入牌')
     self.cards[#self.cards + 1] = card
@@ -71,7 +71,7 @@ function M:put(card)
 end
 
 ---@param index integer
----@return Moe.Card
+---@return Card
 function M:take(index)
     self:checkEnabled('取牌')
     self:checkIndex(index)
@@ -79,7 +79,7 @@ function M:take(index)
 end
 
 ---@private
----@param card Moe.Card
+---@param card Card
 ---@return integer?
 function M:indexOf(card)
     for i = 1, #self.cards do
@@ -90,10 +90,10 @@ function M:indexOf(card)
     return nil
 end
 
----@param card Moe.Card
----@param to Moe.Zone
+---@param card Card
+---@param to Zone
 ---@param position? integer
----@return Moe.Card
+---@return Card
 function M:move(card, to, position)
     self:checkEnabled('移出牌')
     to:checkEnabled('移入牌')
@@ -112,7 +112,7 @@ function M:move(card, to, position)
 end
 
 ---@param index integer
----@return Moe.Card
+---@return Card
 function M:peek(index)
     self:checkIndex(index)
     return self.cards[index]
@@ -123,7 +123,7 @@ function M:count()
     return #self.cards
 end
 
----@return Moe.Card[]
+---@return Card[]
 function M:list()
     local snapshot = {}
     return table.move(self.cards, 1, #self.cards, 1, snapshot)
@@ -184,13 +184,13 @@ function M:isEnabled()
     return self.enabled
 end
 
----@return Moe.Card
+---@return Card
 function M:takeTop()
     error('该牌区不具备有序能力，无法取顶', 2)
 end
 
----@param random? Moe.Random
----@return Moe.Zone
+---@param random? Random
+---@return Zone
 function M:shuffle(random)
     error('该牌区不具备有序能力，无法洗牌', 2)
 end

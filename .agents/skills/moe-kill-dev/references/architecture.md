@@ -13,7 +13,7 @@
 [tools]      基础设施：event-loop / await / timer / log / json / inspect / uri / reload …
 ```
 
-依赖方向只能自上而下，且门面全部**直接挂在 `moe` 上**（`moe.desk` / `moe.game` / `moe.loader` …，没有 `moe.core` 中间层；类型名统一 `Moe.` 前缀）。**`core` 不得依赖任何具体规则集内容、会话、协议、网络与任何 IO** —— 它只提供「装载规则」的机制（加载器本身在内核模块组里）；这样内核可以脱离协议与网络被直接驱动。协议方法到规则操作的翻译层属会话/协议批次，目录名待定。
+依赖方向只能自上而下，且门面全部**直接挂在 `moe` 上**（`moe.desk` / `moe.game` / `moe.loader` …，没有 `moe.core` 中间层；类名与类型注解**直接用类名本身**，不带命名空间前缀）。**`core` 不得依赖任何具体规则集内容、会话、协议、网络与任何 IO** —— 它只提供「装载规则」的机制（加载器本身在内核模块组里）；这样内核可以脱离协议与网络被直接驱动。协议方法到规则操作的翻译层属会话/协议批次，目录名待定。
 
 ## 2. 启动与运行模型
 
@@ -175,7 +175,7 @@ M.__counter = M.__counter or moe.util.counter()
 
 ### 9.1 落点与外观
 
-- 装载器在 `server/core/loader/`：`init.lua`（`Moe.Loader` 模块：`install` / `declareDepends` / 名字路由 / 按预解析结果的执行）、`vfs.lua`（包来源合并成的虚拟文件系统）、`preparse.lua`（试跑）、`env-meta.lua`（纯类型文件：注入的 `game` / `Card` / `Depends` 与各时机上下文）。**局**在 `server/core/game.lua`（`Moe.Game` 类）。
+- 装载器在 `server/core/loader/`：`init.lua`（`Loader` 模块：`install` / `declareDepends` / 名字路由 / 按预解析结果的执行）、`vfs.lua`（包来源合并成的虚拟文件系统）、`preparse.lua`（试跑）、`env-meta.lua`（纯类型文件：注入的 `game` / `Card` / `Depends` 与各时机上下文）。**局**在 `server/core/game.lua`（`Game` 类）。
 - `server/core/init.lua` 里与其它内核模块一样 `includeCore 'core.game'` / `includeCore 'core.loader'` ⇒ `moe.game` / `moe.loader`（两份都可热重载）。
 - `moe.game.create { desk, random, sources?, packages? }` 建**一局**并**立刻装好规则**：除桌子与随机源外，规则表、包顺序、包元信息、规则数值、时机注册、属性系统、来源全挂在局上，**局之间互不影响**；`packages` 省略视同空清单 ⇒ 只装默认加载的包（见 9.3）—— 即 `create { desk, random }` 与 `create { desk, random, packages = {} }` 行为一致。要换规则走 `moe.loader.install(game, { packages = 清单 })`（省略参数就复用局上记的来源与清单）。
 - **包手里的 `game` 就是那一局**：规则包要这一局的牌区 / 桌子 / 随机源就直接用注入的 `game`（`game:createZone` / `game.desk` / `game.random`）—— 不再有「规则实例」这一层，也不存在「实例与场地互指」（见 9.6）。
@@ -236,7 +236,7 @@ local slash = Card '杀'          -- 登记为 标准.杀
 | `Card '名字'` | **只在加载过程中可用**（环境函数）：声明本包的一条定义；同包重复声明报错（报错指出两处来源） |
 | `game:getCard('名字')` | 查询：裸名带**包内作用域**，限定名（`军争.杀`）精确取到指定包 |
 | `Card:on(事件, 回调)` | 链式登记回调，返回同一条定义；**跨文件追加回调用 `game:getCard` + `Depends` 定顺序** |
-| 条目字段 | 定义对象是 `Moe.CardDef`，字段有 `name`（裸名）/ `package`（包名）/ `fullName`（`标准.杀`）/ `source`（声明它的文件）——字段叫 `package`，注解必须写成 `---@field public package string` |
+| 条目字段 | 定义对象是 `CardDef`，字段有 `name`（裸名）/ `package`（包名）/ `fullName`（`标准.杀`）/ `source`（声明它的文件）——字段叫 `package`，注解必须写成 `---@field public package string` |
 
 **裸名的解析顺序：**
 
@@ -284,7 +284,7 @@ game:setValues {
 - **按加载顺序后者覆盖前者**：这是有意提供的**覆盖通道**（例：军争要改血量上限就再写一份配置），与包路由的「同名并存」是两套语义。
 - 与规则表**同生命周期**：清空重装时一并清空（挂在局上）；读不到的默认值写在规则包里，读时 `or 默认`。
 - **函数不进规则数值**：行为（如「游戏开始时分身份」）走**时机注册**，不要存回调。
-- 类型声明：注入的 `game` 的类型写在 `server/core/loader/env-meta.lua`（`---@type Moe.Game` + 各时机的 `---@field` 重载）；数据字段写在类定义处（`server/core/game.lua`）。
+- 类型声明：注入的 `game` 的类型写在 `server/core/loader/env-meta.lua`（`---@type Game` + 各时机的 `---@field` 重载）；数据字段写在类定义处（`server/core/game.lua`）。
 
 ### 9.8 定义入口与重装语义
 
@@ -305,9 +305,9 @@ local slash = Card '杀'
 
 | 接口 | 说明 |
 | ---- | ---- |
-| `Moe.Event:on(名字, 回调)` | 按时机名注册，返回 disposer；**注册顺序即执行顺序** |
-| `Moe.Event:fire(名字, ...)` | 按名触发；未注册 = 空操作；单个回调报错不打断其余（`xpcall(回调, log.error, ...)`） |
-| `Moe.Event:has` / `getNames` / `clear` | 查询与清空 |
+| `Event:on(名字, 回调)` | 按时机名注册，返回 disposer；**注册顺序即执行顺序** |
+| `Event:fire(名字, ...)` | 按名触发；未注册 = 空操作；单个回调报错不打断其余（`xpcall(回调, log.error, ...)`） |
+| `Event:has` / `getNames` / `clear` | 查询与清空 |
 | `game:on(名字, 回调)` | **规则集侧**注册：只在加载过程中可用，返回 disposer |
 | `game:fire(名字, 上下文)` | 触发：给**装配 / 流程代码**与无头测试用；内容包不主动触发 |
 
@@ -318,17 +318,17 @@ local slash = Card '杀'
 - **事件参数写进 meta**：`server/core/loader/env-meta.lua`（纯类型文件，不参与运行）为每个时机声明一个上下文类型与 `on` / `fire` 的重载，于是规则集里 `game:on('游戏-开始', function (ctx) ... end)` 的 `ctx` 能**按事件名收窄**出字段类型：
 
 ```lua
----@class Moe.Game.EventCtx.游戏开始 # 目前没有事件参数：触发时给空表
+---@class Game.EventCtx.游戏开始 # 目前没有事件参数：触发时给空表
 
----@class Moe.Game
----@field on fun(self: Moe.Game, name: '游戏-开始', callback: fun(ctx: Moe.Game.EventCtx.游戏开始)): function
----@field fire fun(self: Moe.Game, name: '游戏-开始', ctx: Moe.Game.EventCtx.游戏开始)
----@field on fun(self: Moe.Game, name: string, callback: fun(ctx: any)): function
----@field fire fun(self: Moe.Game, name: string, ...: any)
+---@class Game
+---@field on fun(self: Game, name: '游戏-开始', callback: fun(ctx: Game.EventCtx.游戏开始)): function
+---@field fire fun(self: Game, name: '游戏-开始', ctx: Game.EventCtx.游戏开始)
+---@field on fun(self: Game, name: string, callback: fun(ctx: any)): function
+---@field fire fun(self: Game, name: string, ...: any)
 ```
 
-  类型名 = 事件名**去掉连字符**（连字符不是合法的 LuaDoc 类型名字符）；同名多行 `---@field` 会被当成多个签名候选（实测不报 `duplicate-doc-field`），**字面量事件名走专用那条、动态名字落到 `string` 兜底那条** —— 最后两条兜底候选不能省，否则动态时机名会被误报类型不匹配。新增时机时**顺手补一条**：不补也能跑（注入面与运行时都不校验时机名），只是调用点拿不到 `ctx` 的字段类型。
-- **这份 meta 就是包作者（含第三方）可见的类型契约，不额外做“可单独分发的 meta 包”**（用户 2026-09-19 定）：`Moe.Game` / `Moe` / `moe` / `bee` 的引用链横跨整个工程，单独导出难以完整 —— 第三方开发者**直接打开本工程**开发自己的包（包放自己目录、再写进来源清单，见 9.2）。因此**改时机名 / 改签名要顺手改这里**，它是对外接口面的一部分。
+  类型名的**最后一段** = 事件名**去掉连字符**（连字符不是合法的 LuaDoc 类型名字符），前面挂在自己类的命名空间下（`Game.EventCtx.游戏开始`、`Game.EventCtx.卡牌`）；形状相同的事件可以共用一个上下文类（如「伤害-前」与「伤害-后」都用 `Game.EventCtx.伤害`）。同名多行 `---@field` 会被当成多个签名候选（实测不报 `duplicate-doc-field`），**字面量事件名走专用那条、动态名字落到 `string` 兜底那条** —— 最后两条兜底候选不能省，否则动态时机名会被误报类型不匹配。新增时机时**顺手补一条**：不补也能跑（注入面与运行时都不校验时机名），只是调用点拿不到 `ctx` 的字段类型。
+- **这份 meta 就是包作者（含第三方）可见的类型契约，不额外做“可单独分发的 meta 包”**（用户 2026-09-19 定）：内核的类型（`Game` / `Player` 等）与 `moe` / `bee` 的引用链横跨整个工程，单独导出难以完整 —— 第三方开发者**直接打开本工程**开发自己的包（包放自己目录、再写进来源清单，见 9.2）。因此**改时机名 / 改签名要顺手改这里**，它是对外接口面的一部分。
   - 注意：`.luarc.json` 是**单根工作区**设置 —— 包目录在本工程之外时分析器不会跟着分析（多根工作区也拿不到该配置）；开发外部包时把目录放进工程里，或用单根工作区指向包含它的目录。
 - **覆盖靠顺序，不靠改载荷**：上下文约定为**只读**，要覆盖就改**状态**（写标签、改属性、加标记）—— 后注册的回调后执行，它写的状态自然生效（例：身份场写身份，后来者也注册同一时机，则后写者胜）。
 - **回调报错被隔离**：单个回调抛错只记录（`log.error`），**触发本身不会失败**；所以“规则包里出错”的可见信号是**状态没写**（不写牌堆、不写身份），装配方要在 `fire` 之后断言必需状态（见第 6 节的无头测试写法）。
@@ -352,8 +352,8 @@ local slash = Card '杀'
 | `game:damage(来源, 目标, 点数)` | **造成伤害**：触发 `'伤害-前'` → 目标的 `体力` 减去点数 → 触发 `'伤害-后'` |
 
 - **内核零区域名**：`play` 不预设「手牌 / 弃牌堆」，它自己在使用者名下牌区里找这张牌；**牌的去向由内容侧决定** —— 结算完成后触发 `'卡牌-结算后'`，`@基础` 订阅它把牌放进 `弃牌堆`。
-- **内容侧的挂法**：牌的定义上按内容侧事件名登记 —— `Card '杀' :on('目标合法', fn) :on('使用', fn)`；`'目标合法'` 返回 `false` 表示不合法（其它返回值视为通过），不合法时使用失败且牌留在原处；回调的上下文是 `{ user, card, targets }`（`Moe.Game.EventCtx.卡牌`）。
-- **伤害时机**：`'伤害-前'` / `'伤害-后'` 共用同一个上下文 `{ from, to, amount }`（`Moe.Game.EventCtx.伤害`）；前者触发时体力未变，后者已变。
+- **内容侧的挂法**：牌的定义上按内容侧事件名登记 —— `Card '杀' :on('目标合法', fn) :on('使用', fn)`；`'目标合法'` 返回 `false` 表示不合法（其它返回值视为通过），不合法时使用失败且牌留在原处；回调的上下文是 `{ user, card, targets }`（`Game.EventCtx.卡牌`）。
+- **伤害时机**：`'伤害-前'` / `'伤害-后'` 共用同一个上下文 `{ from, to, amount }`（`Game.EventCtx.伤害`）；前者触发时体力未变，后者已变。
 - **攻击范围**：基础规则给每个玩家写入属性 `攻击范围`（默认 1）；「够不够得着」由内容包把**距离**（`desk:getDistance`）与它组合得出 —— 内核不作任何具体判定（见 `package/标准/卡牌/杀.lua`）。
 - **本批边界**（见 `openspec/changes/archive/2026-09-19-add-slash/proposal.md`）：没有回合与阶段（因此不限阶段、不限次数）、没有「打出」与响应（闪）、没有结算栈、伤害不处理濒死 / 死亡（体力可为负）、没有装备与判定。
 - 测试：`--test core.play`（校验 / 取牌 / 结算回调 / 收尾时机）、`--test core.damage`（改体力 / 可为负 / 时机先后）、`--test rule.slash`（「杀」端到端：攻击范围 / 造成伤害 / 进弃牌堆）。
