@@ -1,0 +1,17 @@
+diff --git a/lctype.h b/lctype.h
+--- a/lctype.h
++++ b/lctype.h
+@@ -54,7 +54,11 @@
+ /*
+ ** 'lalpha' (Lua alphabetic) and 'lalnum' (Lua alphanumeric) both include '_'
+ */
+-#define lislalpha(c)	testprop(c, MASK(ALPHABIT))
+-#define lislalnum(c)	testprop(c, (MASK(ALPHABIT) | MASK(DIGITBIT)))
++/*
++** Allow UTF-8 identifier characters: any non-ASCII byte counts as a letter
++*/
++#define lisutf8byte(c)	((c) >= 0x80)
++#define lislalpha(c)	(testprop(c, MASK(ALPHABIT)) || lisutf8byte(c))
++#define lislalnum(c)	(testprop(c, (MASK(ALPHABIT) | MASK(DIGITBIT))) || lisutf8byte(c))
+ #define lisdigit(c)	testprop(c, MASK(DIGITBIT))
+ #define lisspace(c)	testprop(c, MASK(SPACEBIT))

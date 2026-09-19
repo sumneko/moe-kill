@@ -18,7 +18,8 @@
         ],
         "special": {
             "include": "require"
-        }
+        },
+        "unicodeName": true
     },
     "workspace": {
         "library": [
