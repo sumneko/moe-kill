@@ -15,7 +15,10 @@
             "?:",
             "?(",
             "?["
-        ]
+        ],
+        "special": {
+            "include": "require"
+        }
     },
     "workspace": {
         "library": [

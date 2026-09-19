@@ -5,6 +5,5 @@
         "--loglevel=trace"
     ],
     "files.trimTrailingWhitespace": true,
-    "files.insertFinalNewline": true,
-    "Lua.runtime.version": "Lua 5.5"
+    "files.insertFinalNewline": true
 }
