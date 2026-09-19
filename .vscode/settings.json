@@ -1,0 +1,10 @@
+{
+    "Lua.misc.parameters": [
+        "--develop=true",
+        "--dbgport=11418",
+        "--loglevel=trace"
+    ],
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "Lua.runtime.version": "Lua 5.5"
+}

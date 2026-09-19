@@ -1,0 +1,81 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🍺 测试（全部）",
+            "type": "lua",
+            "request": "launch",
+            "stopOnEntry": false,
+            "program": "${workspaceFolder}/main.lua",
+            "luaexe": "${workspaceFolder}/bin/moe-kill",
+            "windows": {
+                "luaexe": "${workspaceFolder}/bin/moe-kill.exe"
+            },
+            "luaVersion": "lua55",
+            "sourceCoding": "utf8",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "openOnSessionStart",
+            "outputCapture": [
+                "print",
+                "stderr"
+            ],
+            "skipFiles": [
+                "script/class.lua"
+            ],
+            "arg": [
+                "--test"
+            ]
+        },
+        {
+            "name": "🍺 测试（单个套件）",
+            "type": "lua",
+            "request": "launch",
+            "stopOnEntry": false,
+            "program": "${workspaceFolder}/main.lua",
+            "luaexe": "${workspaceFolder}/bin/moe-kill",
+            "windows": {
+                "luaexe": "${workspaceFolder}/bin/moe-kill.exe"
+            },
+            "luaVersion": "lua55",
+            "sourceCoding": "utf8",
+            "console": "integratedTerminal",
+            "outputCapture": [
+                "print",
+                "stderr"
+            ],
+            "skipFiles": [
+                "script/class.lua"
+            ],
+            "arg": [
+                "--test",
+                "smoke.await"
+            ]
+        },
+        {
+            "name": "🍄 附加（attach）",
+            "type": "lua",
+            "request": "attach",
+            "stopOnEntry": false,
+            "address": "127.0.0.1:11418",
+            "sourceFormat": "string",
+            "sourceMaps": [
+                [
+                    "script/*",
+                    "${workspaceFolder}/script/*"
+                ]
+            ],
+            "windows": {
+                "sourceMaps": [
+                    [
+                        "script\\*",
+                        "${workspaceFolder}/script/*"
+                    ]
+                ]
+            },
+            "skipFiles": [
+                "script/class.lua",
+                "${workspaceFolder}/script/class.lua"
+            ]
+        }
+    ]
+}

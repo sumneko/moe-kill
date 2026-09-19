@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "cwd": "${workspaceFolder}"
+    },
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build",
+            "command": "luamake -notest",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "Build and Test",
+            "command": "luamake",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "Test",
+            "command": "bin/moe-kill.exe --test",
+            "problemMatcher": []
+        }
+    ]
+}
