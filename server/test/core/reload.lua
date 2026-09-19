@@ -100,11 +100,22 @@ lt.test('重载：未登记的模块不受影响', function ()
 end)
 
 lt.test('重载：加载失败的模块以明确失败暴露', function ()
-    local mod, err = include 'test.reload.probe.broken'
+    local modName = 'test.reload.probe.broken'
+    local guard <close> = moe.util.defer(function ()
+        for i, name in ipairs(moe.reload.includedNames) do
+            if name == modName then
+                table.remove(moe.reload.includedNames, i)
+                break
+            end
+        end
+        moe.reload.includedNameMap[modName] = nil
+    end)
 
-    lt.assertEquals('返回失败', false, mod)
-    lt.assertEquals('失败原因为字符串', 'string', type(err))
-    lt.assertEquals('错误信息可读', false, err == nil or err == '')
+    local err = lt.assertError('加载失败会抛出', function ()
+        include(modName)
+    end) or ''
+
+    lt.assertEquals('失败信息带上了出处', true, err:find('探针模块故意报错', 1, true) ~= nil)
 end)
 
 lt.test('重载：默认范围只含登记过的模块', function ()

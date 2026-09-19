@@ -108,7 +108,7 @@ function M:fire()
     end
 
     for _, name in ipairs(needReload) do
-        M.include(name)
+        pcall(M.include, name)
     end
 
     for _, data in ipairs(M.afterReloadCallbacks) do
@@ -126,21 +126,29 @@ M.modNameMap = {}
 ---@private
 M.includeStack = {}
 
+-- 把错误记进日志（带堆栈）后原样返回，让 `include` 能重新抛出它
+---@param err any
+---@return any
+local function onLoadError(err)
+    log.error(err)
+    return err
+end
+
 -- 类似于 `require` ，但是会在重载时重新加载文件。
--- 加载文件时遇到错误会返回false而不是抛出异常。
+-- 加载文件出错时会记日志（带堆栈）并抛出错误。
 ---@param modname string
----@return any result # 失败时为 false
----@return string|unknown loaderdata # 失败时为错误信息
+---@return any result
+---@return string|unknown loaderdata
 function M.include(modname)
     if not M.includedNameMap[modname] then
         M.includedNameMap[modname] = true
         M.includedNames[#M.includedNames+1] = modname
     end
     M.includeStack[#M.includeStack+1] = modname
-    local suc, result, loaderdata = xpcall(originRequire, log.error, modname)
+    local suc, result, loaderdata = xpcall(originRequire, onLoadError, modname)
     M.includeStack[#M.includeStack] = nil
     if not suc then
-        return false, tostring(result)
+        error(result, 0)
     end
     if loaderdata ~= nil then
         M.modNameMap[loaderdata] = modname

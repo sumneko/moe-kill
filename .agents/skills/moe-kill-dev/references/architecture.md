@@ -129,7 +129,7 @@ sequenceDiagram
 | `moe.reload.isReloading()` | 当前是否正在重载（重载期间回调与模块加载都对真） |
 | `moe.reload.getIncludeName(fn)` / `getCurrentIncludeName()` | 反查函数 / 当前加载属于哪个可重载模块（将来按模块清理 timer 与订阅要用） |
 | `moe.reload.recycle(cb)` | 立即执行并在每次重载后重跑，同时在重载前回收它登记过的对象 |
-| `include 'x'` | 加载并登记；失败返回 `false, 错误信息`（不抛给调用方） |
+| `include 'x'` | 加载并登记；失败**记日志（带堆栈）并抛出错误**（不再返回 `false`）；重载过程中的失败由 `fire()` 用 `pcall` 隔离，不会中断整轮重载 |
 
 触发端（开发期文件监视、前端协议方法）本批**未实现**，只提供接口。编辑器侧靠 `.luarc.json` 的 `runtime.special` 把 `include` 当作 `require` 解析。
 
@@ -149,7 +149,7 @@ sequenceDiagram
 M.__counter = M.__counter or moe.util.counter()
 ```
 
-- 模块门面写成 `moe.card = includeCore 'core.card'`：`include` + `Class` 合并语义让重载复用同一张表，外部持有的引用（含已经建好的各局）不失效。
+- 模块门面写成 `moe.card = include 'core.card'`：`include` + `Class` 合并语义让重载复用同一张表，外部持有的引用（含已经建好的各局）不失效。`include` 失败会**抛错**（同时已记日志），所以这里不需要再包一层失败处理。
 - 用 **`__` 前缀**命名：`Class` 的 `Extends` 会把父类**非 `__` 开头**的字段复制给子类（并记入 `extendsKeys`，`reset` 时清除），挂在那种名字上会串到子类、还会在重载时被清掉。
 
 ### 8.5 撤销与自动注销的分工
@@ -176,7 +176,7 @@ M.__counter = M.__counter or moe.util.counter()
 ### 9.1 落点与外观
 
 - 装载器在 `server/core/loader/`：`init.lua`（`Loader` 模块：`install` / `declareDepends` / 名字路由 / 按预解析结果的执行）、`vfs.lua`（包来源合并成的虚拟文件系统）、`preparse.lua`（试跑）、`env-meta.lua`（纯类型文件：注入的 `game` / `Card` / `Depends` 与各时机上下文）。**局**在 `server/core/game.lua`（`Game` 类）。
-- `server/core/init.lua` 里与其它内核模块一样 `includeCore 'core.game'` / `includeCore 'core.loader'` ⇒ `moe.game` / `moe.loader`（两份都可热重载）。
+- `server/core/init.lua` 里与其它内核模块一样 `include 'core.game'` / `include 'core.loader'` ⇒ `moe.game` / `moe.loader`（两份都可热重载）。
 - `moe.game.create { desk, random, sources?, packages? }` 建**一局**并**立刻装好规则**：除桌子与随机源外，规则表、包顺序、包元信息、规则数值、时机注册、属性系统、来源全挂在局上，**局之间互不影响**；`packages` 省略视同空清单 ⇒ 只装默认加载的包（见 9.3）—— 即 `create { desk, random }` 与 `create { desk, random, packages = {} }` 行为一致。要换规则走 `moe.loader.install(game, { packages = 清单 })`（省略参数就复用局上记的来源与清单）。
 - **包手里的 `game` 就是那一局**：规则包要这一局的牌区 / 桌子 / 随机源就直接用注入的 `game`（`game:createZone` / `game.desk` / `game.random`）—— 不再有「规则实例」这一层，也不存在「实例与场地互指」（见 9.6）。
 - 测试套件：`server/test/rule/init.lua`（加载/依赖/重装，`--test rule`）与 `server/test/rule/vfs.lua`（来源与合并，`--test rule.vfs`）；局本身在 `server/test/core/game.lua`（`--test core.game`）。
