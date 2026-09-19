@@ -68,31 +68,38 @@ moe.env = {
 }
 
 fs.create_directories(moe.env.LOG_PATH)
-moe.env.LOG_FILE = moe.env.LOG_PATH / 'service.log'
+moe.env.LOG_FILE = moe.env.LOG_PATH / (moe.args.TEST and 'test.log' or 'service.log')
 
 require 'tools.log'
 
 local messageFormat = '[{}][{%5s}][{}] {}\n'
 
+---@param path string # 日志文件
+---@param errorStream file* # error / fatal 除写文件外再写到这个流
+---@return Log
+local function createLog(path, errorStream)
+    return New 'Log' {
+        clock = function ()
+            return time.monotonic() / 1000.0
+        end,
+        time  = function ()
+            return time.time() // 1000
+        end,
+        path  = path,
+        level = tostring(moe.args.LOGLEVEL or 'info'):lower(),
+        print = function (timeStamp, level, sourceStr, message)
+            local fullMessage = messageFormat % { timeStamp, level, sourceStr, message }
+            log:write(fullMessage)
+            if level == 'error' or level == 'fatal' then
+                errorStream:write(fullMessage)
+            end
+            return true
+        end,
+    }
+end
+
 ---@diagnostic disable-next-line: lowercase-global
-log = New 'Log' {
-    clock = function ()
-        return time.monotonic() / 1000.0
-    end,
-    time  = function ()
-        return time.time() // 1000
-    end,
-    path  = moe.env.LOG_FILE:string(),
-    level = tostring(moe.args.LOGLEVEL or 'info'):lower(),
-    print = function (timeStamp, level, sourceStr, message)
-        local fullMessage = messageFormat % { timeStamp, level, sourceStr, message }
-        log:write(fullMessage)
-        if level == 'error' or level == 'fatal' then
-            io.stderr:write(fullMessage)
-        end
-        return true
-    end,
-}
+log = createLog(moe.env.LOG_FILE:string(), moe.args.TEST and io.stdout or io.stderr)
 
 moe.fsu     = require 'tools.fs-utility'
 moe.json    = require 'tools.json'

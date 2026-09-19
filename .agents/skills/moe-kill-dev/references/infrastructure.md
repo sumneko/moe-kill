@@ -188,6 +188,8 @@ end
 
 **初始化顺序（2026-09-19 按用户要求调整，勿改回去）**：`moe.env`（由 `arg[0]` 推出的根目录 / 日志路径）与 `log` 实例**都在 `server/moe-kill.lua` 里创建**，位置在 `moe.util` 的 `enable*` 之后、挂载其它工具与**加载内核之前**；`server/master.lua` 只留线程名、启动日志与内存定时上报。这样任何 `include`（内核模块）执行时日志一定就绪，`tools/reload.lua` 直接用 `xpcall(f, log.error, ...)` 即可。注意两点：日志块里的 `print` 回调用了 `%` 语法糖，所以它必须在 `enableFormatString()` **之后**；`moe.env` 仍由 `arg[0]` 推出，别把它再搬回 `master.lua`。
 
+**日志按模式分流（2026-09-19 定）**：`createLog(路径, 错误流)` 这个局部工厂负责造实例，`moe-kill.lua` 按 `moe.args.TEST` 选参数 —— **服务模式** `service.log` + `io.stderr`、**测试模式** `test.log` + `io.stdout`（error / fatal 除写文件外再打到这个流）。两个好处：跑测试**不再清空/污染 `service.log`**（`Log` 构造时就以 `'w+b'` 截断，所以这个选择必须在 `moe-kill.lua` 里做完，等 `test.lua` 再换就晚了）；`moe.env.LOG_FILE` 也随之指向 `test.log`，于是 `master.lua` 的启动行与 `test/smoke/log.lua` 读的是同一个文件。
+
 ### `bee.async` 踩坑（本机实测）
 
 - **`submit_poll` 在 Windows 下是零字节 `WSARecv`**：只能用于 socket 类句柄，且**必须先 `asfd:associate(fd)`**；未关联时完成事件永远不来（表现为等待超时，而不是报错）。`bee.channel` 的 fd 在 Windows 上就是 socket，用前同样要 `associate`（上游 `3rd/bee.lua/test/test_async.lua` 的 `test_submit_poll_channel` 就是这么写的）。
