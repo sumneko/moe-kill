@@ -95,7 +95,8 @@ description: 三国杀规则知识（身份场配置、胜负奖惩、回合阶�
 - **死亡**：濒死结算失败后死亡，插入死亡结算 → 奖惩 → 胜负判定 → 可能立即结束游戏。
 - 以上都要求引擎具备**结算栈**：结算过程中可以压入新的结算，处理完再回到原处继续。
 - **已实现（部分）**：用牌与伤害都是**效果对象**（`UseCard : Effect` / `Damage : Effect`），结算走局的**结算栈** —— `Effect:apply()` = 记父（当时栈顶）→ 压栈 → 自己结算 → 退栈（抛错也会退），`game:getCurrentEffect()` / `game:getEffects()` 随时可查“正在结算什么”，栈深上限 100 层；`Effect.parent` 就是**外层效果**（根效果为空），沿着它往上走能还原整条结算链 —— 注意它是**结算嵌套**、“这一下算谁的”归伤害自己的 `from`（两者可不同）。伤害的结算内容仍是「改体力 + 触发 `'伤害-前'` / `'伤害-后'`」（上下文 = 这次伤害的实例）；用牌的结算内容是「校验 → 取出牌 → 跑「使用」回调 → 触发 `'卡牌-结算后'`」（上下文 = 这次使用的实例，`ctx.user` / `ctx.card` / `ctx.targets`）。
-- **还没做**：**插入**（体力归零的濒死、无懈可击的嵌套响应、死亡与奖惩）、「打出」这个动作与闪的响应、改伤害值 / 防止伤害 / 属性伤害。
+- **还没做**：**插入**（体力归零的濒死、无懈可击的嵌套响应）、奖惩与胜负判定、「打出」这个动作与闪的响应、改伤害值 / 防止伤害 / 属性伤害。
+  - **已落地的死亡最小形状**：`player:isAlive()` / `player:setAlive(false)`，从活变死时触发 **`'玩家-死亡'`**（上下文 = 这个玩家）；`desk.alivePlayers` 直接读“还活着的角色”。**濒死流程（体力 ≤ 0 → 求桃 → 才判定死亡）没做**，现在是由调用方直接置死；判定“阵亡者不参与行动”（`isActing`）也还没自动联动。
 
 ## 8. 时机系统（实现要点）
 
@@ -165,8 +166,9 @@ Card '杀'
     : on('获取目标', function (ctx)              -- 合法目标由牌自己声明：内核不作任何具体判定
         local desk  = game.desk
         local range = ctx.user:getAttr('攻击范围')
-        return util.filter(desk:getPlayers(), function (player)
-            return player ~= ctx.user and desk:getDistance(ctx.user, player) <= range
+        return util.filter(desk.alivePlayers, function (player)
+            return player ~= ctx.user
+               and desk:getDistance(ctx.user, player) <= range
         end)                                 -- 空列表 = 现在用不了
     end)
     : on('使用', function (ctx)

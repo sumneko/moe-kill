@@ -1,6 +1,7 @@
----@class Desk
----@field private seats table<integer, Player>
----@field private count integer
+---@class Desk: Class.Base
+---@field package seats table<integer, Player>
+---@field package count integer
+---@field package game? Game # 属于哪一局（bindGame 之后才有）
 local M = Class 'Desk'
 
 ---@param count integer
@@ -9,13 +10,15 @@ function M:__init(count)
     self.count = count
 end
 
----@param count integer
----@return Desk
-function M.create(count)
-    if type(count) ~= 'number' or math.type(count) ~= 'integer' or count < 1 then
-        error('桌子需要正整数个座位：{}' % { tostring(count) }, 2)
+---@param game Game
+function M:bindGame(game)
+    self.game = game
+    for i = 1, self.count do
+        local player = self.seats[i]
+        if player then
+            player:bindGame(game)
+        end
     end
-    return New 'Desk' (count)
 end
 
 ---@return integer
@@ -33,6 +36,9 @@ function M:sit(index, player)
         error('座位 {} 上已经有人了' % { index }, 2)
     end
     self.seats[index] = player
+    if self.game then
+        player:bindGame(self.game)
+    end
 end
 
 ---@param index integer
@@ -41,13 +47,32 @@ function M:getPlayer(index)
     return self.seats[index]
 end
 
----@return Player[] # 按座位号升序，含不参与行动者
-function M:getPlayers()
-    ---@type Player[]
+---@type Player[]
+M.players = nil
+
+---@param self Desk
+---@return Player[]
+M.__getter.players = function (self)
     local players = {}
-    for index = 1, self.count do
-        local player = self.seats[index]
+    for i = 1, self.count do
+        local player = self.seats[i]
         if player then
+            players[#players+1] = player
+        end
+    end
+    return players
+end
+
+---@type Player[]
+M.alivePlayers = nil
+
+---@param self Desk
+---@return Player[]
+M.__getter.alivePlayers = function (self)
+    local players = {}
+    for i = 1, self.count do
+        local player = self.seats[i]
+        if player and player:isAlive() then
             players[#players+1] = player
         end
     end
@@ -99,4 +124,16 @@ function M:getDistance(from, to)
     return distance
 end
 
-return M
+---@class Desk.API
+local API = {}
+
+---@param count integer
+---@return Desk
+function API.create(count)
+    if type(count) ~= 'number' or math.type(count) ~= 'integer' or count < 1 then
+        error('桌子需要正整数个座位：{}' % { tostring(count) }, 2)
+    end
+    return New 'Desk' (count)
+end
+
+return API

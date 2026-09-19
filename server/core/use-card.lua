@@ -25,12 +25,6 @@ function M:__init(game, user, card, targets)
     self.targets = targets
 end
 
----@param options UseCard.CreateOptions
----@return UseCard
-function M.create(options)
-    return New 'UseCard' (options.game, options.user, options.card, options.targets)
-end
-
 ---@param user Player
 ---@param card Card
 ---@return Zone? # 牌所在的牌区（找到时才有）
@@ -115,4 +109,13 @@ function M:settle()
     self.game:fire('卡牌-结算后', self)
 end
 
-return M
+---@class UseCard.API
+local API = {}
+
+---@param options UseCard.CreateOptions
+---@return UseCard
+function API.create(options)
+    return New 'UseCard' (options.game, options.user, options.card, options.targets)
+end
+
+return API

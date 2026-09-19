@@ -247,7 +247,7 @@ lt.test('使用：多个钩子取交集', function ()
     write('探针/牌.lua', [[
 Card '测试杀'
     : on('获取目标', function (ctx)
-        return game.desk:getPlayers()
+        return game.desk.players
     end)
     : on('获取目标', function (ctx)
         return { game.desk:getPlayer(2) }

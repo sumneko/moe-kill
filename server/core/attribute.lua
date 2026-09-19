@@ -14,11 +14,6 @@ local System = Class 'AttributeSystem'
 ---@field private instance Attribute.Instance
 local Attributes = Class 'Attributes'
 
----@return AttributeSystem
-function System.create()
-    return New 'AttributeSystem' ()
-end
-
 function System:__init()
     self.system = attribute.create()
 end
@@ -88,4 +83,12 @@ function Attributes:onChange(name, callback)
     return self.instance:event(name, callback)
 end
 
-return System
+---@class AttributeSystem.API
+local API = {}
+
+---@return AttributeSystem
+function API.create()
+    return New 'AttributeSystem' ()
+end
+
+return API

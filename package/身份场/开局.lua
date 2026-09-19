@@ -1,7 +1,7 @@
 Depends { '../基础' }
 
 game:on('游戏-开始', function ()
-    local seats  = game.desk:getPlayers()
+    local seats  = game.desk.players
     local config = game:getValue('身份配置')
     local entries = config and config[#seats]
     if not entries then

@@ -41,13 +41,6 @@ function M:__init(params)
     end
 end
 
----@param params? table<string, any>
----@return Zone
-function M.create(params)
-    return New 'Zone' (params)
-end
-
----@param action string
 function M:checkEnabled(action)
     if not self.enabled then
         error('牌区已被禁用，无法{}' % { action }, 3)
@@ -195,4 +188,13 @@ function M:shuffle(random)
     error('该牌区不具备有序能力，无法洗牌', 2)
 end
 
-return M
+---@class Zone.API
+local API = {}
+
+---@param params? table<string, any>
+---@return Zone
+function API.create(params)
+    return New 'Zone' (params)
+end
+
+return API

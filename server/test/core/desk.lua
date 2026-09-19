@@ -18,8 +18,8 @@ lt.test('桌子：座位号决定行动顺序', function ()
     lt.assertEquals('1 号位的下一个是 2 号位', b, desk:getNext(a))
     lt.assertEquals('再下一个是 3 号位', c, desk:getNext(b))
     lt.assertEquals('3 号位之后回到 1 号位', a, desk:getNext(c))
-    lt.assertEquals('座位列表按座位号升序', 3, #desk:getPlayers())
-    lt.assertEquals('第一个是 1 号位', a, desk:getPlayers()[1])
+    lt.assertEquals('座位列表按座位号升序', 3, #desk.players)
+    lt.assertEquals('第一个是 1 号位', a, desk.players[1])
     lt.assertEquals('1 号位上的玩家查得到', a, desk:getPlayer(1))
     lt.assertEquals('玩家能查出自己的座位号', 2, desk:getIndex(b))
 end)
@@ -49,7 +49,56 @@ lt.test('桌子：跳过空座位', function ()
 
     lt.assertEquals('从 1 号位直接跳到 4 号位', b, desk:getNext(a))
     lt.assertEquals('从 4 号位绕回 1 号位', a, desk:getNext(b))
-    lt.assertEquals('座位列表只有两个玩家', 2, #desk:getPlayers())
+    lt.assertEquals('座位列表只有两个玩家', 2, #desk.players)
+end)
+
+lt.test('桌子：座位列表跟着入座更新', function ()
+    local desk = moe.desk.create(3)
+    local a    = newPlayer()
+
+    desk:sit(1, a)
+    lt.assertEquals('先读一次（建立缓存）', 1, #desk.players)
+
+    local b = newPlayer()
+    desk:sit(3, b)
+    lt.assertEquals('新入座的也进列表', 2, #desk.players)
+    lt.assertEquals('按座位号排序', b, desk.players[2])
+end)
+
+lt.test('桌子：存活列表跟着死亡更新', function ()
+    local desk = moe.desk.create(3)
+    local a    = newPlayer()
+    local b    = newPlayer()
+    desk:sit(1, a)
+    desk:sit(2, b)
+
+    local game = moe.game.create { desk = desk, random = moe.random.create(1) }
+
+    lt.assertEquals('先读一次（建立缓存），两个都在', 2, #desk.alivePlayers)
+
+    a:setAlive(false)
+
+    lt.assertEquals('死掉的移出列表', 1, #desk.alivePlayers)
+    lt.assertEquals('留下的是活着的那个', b, desk.alivePlayers[1])
+    lt.assertEquals('座位列表不受影响', 2, #desk.players)
+    lt.assertEquals('局照旧带着这张桌子', desk, game.desk)
+end)
+
+lt.test('桌子：先有局再入座，玩家也拿得到局', function ()
+    local desk = moe.desk.create(2)
+    local game = moe.game.create { desk = desk, random = moe.random.create(1) }
+    local a    = newPlayer()
+    desk:sit(1, a)
+
+    ---@type Player?
+    local seen = nil
+    game.events:on('玩家-死亡', function (ctx)
+        seen = ctx
+    end)
+
+    a:setAlive(false)
+
+    lt.assertEquals('入座时回填了局，死亡时机发得出来', a, seen)
 end)
 
 lt.test('桌子：同一座位与相邻座位距离都是 1', function ()

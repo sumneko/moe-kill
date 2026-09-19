@@ -25,16 +25,19 @@ function M:__init(game, from, to, amount)
     self.amount = amount
 end
 
----@param options Damage.CreateOptions
----@return Damage
-function M.create(options)
-    return New 'Damage' (options.game, options.from, options.to, options.amount)
-end
-
 function M:settle()
     self.game:fire('伤害-前', self)
     self.to:addAttr('体力', -self.amount)
     self.game:fire('伤害-后', self)
 end
 
-return M
+---@class Damage.API
+local API = {}
+
+---@param options Damage.CreateOptions
+---@return Damage
+function API.create(options)
+    return New 'Damage' (options.game, options.from, options.to, options.amount)
+end
+
+return API

@@ -20,4 +20,7 @@ function M:settle()
     error('效果子类必须实现 settle', 2)
 end
 
-return M
+---@class Effect.API
+local API = {}
+
+return API

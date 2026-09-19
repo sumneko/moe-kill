@@ -68,15 +68,23 @@ end
 function M:doSomething(value)
 end
 
-return {
-    create = function (name)
-        return New 'Foo.Bar' (name)
-    end
-}
+---@class Foo.Bar.API
+local API = {}
+
+---@param name string
+---@return Foo.Bar
+function API.create(name)
+    return New 'Foo.Bar' (name)
+end
+
+return API
 ```
 
-- 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
-- **内核对象模块直接返回类表**（`core/` 下的 `random` / `zone` / `player` / `room` / `rule` 等）：`local M = Class 'Random'` … `return M`，并在类上再挂一个 `create(...)` 静态工厂，于是 `moe.random.create(种子)` 与 `New 'Random' (种子)` 两种写法都可用（`create` 在实例上也可见，属可接受的取舍）。
+- 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`，另起的 API 表写 `local API = {}`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
+- **内核对象模块返回「API 表」，只放工厂**（用户 2026-09-19 定）：`local M = Class 'Random'` 里只写类与实例方法（**类上不放 `create`**），末尾另起一张表 —— `---@class Random.API` + `local API = {}` + `function API.create(种子) return New 'Random' (种子) end` + `return API`。于是 `moe.random.create(种子)` 与 `New 'Random' (种子)` 两种写法都可用，而**类的方法不会从全局可达**（`moe.random:nextInt(...)` 这样的写法根本不存在，拼错/误用会当场 nil）。
+  - 类型名写成「类名.API」（`Player.API` / `Desk.API`），`server/moe-kill.lua` 里 `moe` 的字段就写这个类型；类上其余的静态成员（如 `Card.__counter`）仍留在类上、不进 API 表。
+  - 没有工厂的模块（`Effect`）API 表是空的（`{}`）；基类靠 `Extends` 声明继承，类名仍在类注册表里可用。
+  - `server/core/loader/` 是**纯模块**（`local M = {}` + `return M`），它的公开入口就是模块自己的字段（`install` / `DEFAULT_SOURCES`），不适用这条。
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
   - **但不必每次注册都去撤销它**：热重载下，可重载模块里“跟着模块走”的注册会**自动注销**，此时不要写 disposer；disposer 只用于两类情况——注册发生在不可重载的模块里，或资源必须重建/显式释放（详见 `references/architecture.md` 第 8.5 节）。
 - **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的数据挂到类表或门面表上，写成「有则复用」（`M.__counter = M.__counter or moe.util.counter()`），并用 **`__` 前缀**命名（`Extends` 会复制父类的非 `__` 字段给子类，且 `reset` 会清掉它们）。重载语义与边界见 `references/architecture.md` 第 8 节。

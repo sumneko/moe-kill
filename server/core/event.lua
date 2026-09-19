@@ -6,11 +6,6 @@ function M:__init()
     self.events = {}
 end
 
----@return Event
-function M.create()
-    return New 'Event' ()
-end
-
 ---@param name string
 ---@param callback fun(...)
 ---@return function # 撤销这次注册
@@ -54,4 +49,12 @@ function M:clear()
     self.events = {}
 end
 
-return M
+---@class Event.API
+local API = {}
+
+---@return Event
+function API.create()
+    return New 'Event' ()
+end
+
+return API

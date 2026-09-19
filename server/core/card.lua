@@ -12,12 +12,6 @@ function M:__init(label)
     self.label = label
 end
 
----@param label? any
----@return Card
-function M.create(label)
-    return New 'Card' (label)
-end
-
 ---@return integer
 function M:getId()
     return self.id
@@ -38,4 +32,13 @@ function M:__tostring()
     return '牌#{}' % { self.id }
 end
 
-return M
+---@class Card.API
+local API = {}
+
+---@param label? any
+---@return Card
+function API.create(label)
+    return New 'Card' (label)
+end
+
+return API

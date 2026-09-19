@@ -12,12 +12,6 @@ function M:__init(random)
     self.random = random
 end
 
----@param random? Random
----@return OrderedZone
-function M.create(random)
-    return New 'OrderedZone' (random)
-end
-
 ---@return Card
 function M:takeTop()
     return self:take(1)
@@ -35,4 +29,13 @@ function M:shuffle(random)
     return self
 end
 
-return M
+---@class OrderedZone.API
+local API = {}
+
+---@param random? Random
+---@return OrderedZone
+function API.create(random)
+    return New 'OrderedZone' (random)
+end
+
+return API

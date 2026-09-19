@@ -85,3 +85,60 @@ lt.test('玩家：参与行动标记', function ()
     player:setActing(true)
     lt.assertEquals('可以再置位', true, player:isActing())
 end)
+
+---@param count integer
+---@return Game # 一个装着这些玩家的局（座位号 = 参数顺序）
+---@return Player[]
+local function newGame(count)
+    local desk = moe.desk.create(count)
+    ---@type Player[]
+    local players = {}
+    for i = 1, count do
+        local system = newSystem()
+        local player = moe.player.create { attributes = system:createInstance() }
+        desk:sit(i, player)
+        players[i] = player
+    end
+    return moe.game.create { desk = desk, random = moe.random.create(1) }, players
+end
+
+lt.test('玩家：默认活着，死亡时触发时机', function ()
+    local game, players = newGame(2)
+    local dead         = players[1]
+
+    lt.assertEquals('默认活着', true, dead:isAlive())
+
+    ---@type Player?
+    local seen = nil
+    ---@type integer
+    local times = 0
+    game.events:on('玩家-死亡', function (ctx)
+        seen  = ctx
+        times = times + 1
+    end)
+
+    dead:setAlive(false)
+
+    lt.assertEquals('状态变了', false, dead:isAlive())
+    lt.assertEquals('时机收到的就是死者', dead, seen)
+    lt.assertEquals('只触发一次', 1, times)
+    lt.assertEquals('别人不受影响', true, players[2]:isAlive())
+
+    dead:setAlive(false)
+    lt.assertEquals('重复置死不再触发', 1, times)
+
+    dead:setAlive(true)
+    lt.assertEquals('可以复活', true, dead:isAlive())
+
+    dead:setAlive(false)
+    lt.assertEquals('再死一次会再触发', 2, times)
+end)
+
+lt.test('玩家：没上桌的玩家也能置存活状态', function ()
+    local system = newSystem()
+    local player = moe.player.create { attributes = system:createInstance() }
+
+    player:setAlive(false)
+
+    lt.assertEquals('照常改状态', false, player:isAlive())
+end)

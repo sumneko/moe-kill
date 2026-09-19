@@ -32,7 +32,7 @@ end
 lt.test('开局：8 人完整装配', function ()
     local run = support.start { packages = { '身份场', '标准' }, count = 8 }
 
-    lt.assertEquals('八个人都在桌上', 8, #run.desk:getPlayers())
+    lt.assertEquals('八个人都在桌上', 8, #run.desk.players)
     lt.assertEquals('1 号位是主公', '主公', run.players[1]:getTag('身份'))
     lt.assertEquals('主公上限 6', 6, attributes(run.players[1]):get('体力上限'))
     lt.assertEquals('主公体力也是 6', 6, attributes(run.players[1]):get('体力'))

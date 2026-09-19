@@ -132,21 +132,8 @@ function M:__init(desk, random)
     self.effects  = {}
     self.sources  = moe.loader.DEFAULT_SOURCES
     self.list     = {}
+    desk:bindGame(self)
     self:resetContent()
-end
-
----@param options Game.CreateOptions
----@return Game
-function M.create(options)
-    if not options or not options.desk or not options.random then
-        error('建局需要一张桌子与一个随机源', 2)
-    end
-    local game = New 'Game' (options.desk, options.random)
-    moe.loader.install(game, {
-        sources  = options.sources,
-        packages = options.packages,
-    })
-    return game
 end
 
 function M:resetContent()
@@ -399,4 +386,21 @@ function M:getEffects()
     return snapshot
 end
 
-return M
+---@class Game.API
+local API = {}
+
+---@param options Game.CreateOptions
+---@return Game
+function API.create(options)
+    if not options or not options.desk or not options.random then
+        error('建局需要一张桌子与一个随机源', 2)
+    end
+    local game = New 'Game' (options.desk, options.random)
+    moe.loader.install(game, {
+        sources  = options.sources,
+        packages = options.packages,
+    })
+    return game
+end
+
+return API

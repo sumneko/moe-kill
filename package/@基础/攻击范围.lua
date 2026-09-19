@@ -7,7 +7,7 @@ attributeSystem:define('攻击范围', {
 })
 
 game:on('游戏-开始', function ()
-    for _, player in ipairs(game.desk:getPlayers()) do
+    for _, player in ipairs(game.desk.players) do
         player:setAttr('攻击范围', 1)
     end
 end)

@@ -27,5 +27,7 @@ Depends = nil
 ---@field fire fun(self: Game, name: '伤害-前', ctx: Damage)
 ---@field on fun(self: Game, name: '伤害-后', callback: fun(ctx: Damage)): function
 ---@field fire fun(self: Game, name: '伤害-后', ctx: Damage)
+---@field on fun(self: Game, name: '玩家-死亡', callback: fun(ctx: Player)): function
+---@field fire fun(self: Game, name: '玩家-死亡', ctx: Player)
 ---@field on fun(self: Game, name: string, callback: fun(ctx: any)): function
 ---@field fire fun(self: Game, name: string, ...: any)

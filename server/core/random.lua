@@ -45,12 +45,6 @@ function M:__init(seed)
     self.state = state
 end
 
----@param seed integer
----@return Random
-function M.create(seed)
-    return New 'Random' (seed)
-end
-
 ---@param min integer
 ---@param max integer
 ---@return integer
@@ -97,4 +91,13 @@ function M:shuffle(list)
     return list
 end
 
-return M
+---@class Random.API
+local API = {}
+
+---@param seed integer
+---@return Random
+function API.create(seed)
+    return New 'Random' (seed)
+end
+
+return API

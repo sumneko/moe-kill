@@ -13,7 +13,7 @@ game:on('游戏-开始', function ()
     deck:shuffle()
 
     game:createZone('弃牌堆')
-    for _, player in ipairs(game.desk:getPlayers()) do
+    for _, player in ipairs(game.desk.players) do
         player:addZone('手牌')
     end
 end)
