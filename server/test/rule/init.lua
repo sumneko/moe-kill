@@ -348,3 +348,46 @@ lt.test('规则集：跨来源时只执行生效版本', function ()
     lt.assertEquals('生效的是后一个来源', true, moe.rule.getCard('后') ~= nil)
     lt.assertEquals('前一个来源的同路径文件没执行', nil, moe.rule.getCard('前'))
 end)
+
+---@param rel string
+---@param content string
+local function writeDefault(rel, content)
+    local file = probeDir / '@默认' / rel
+    fs.create_directories(file:parent_path())
+    local ok, err = moe.util.saveFile(file:string(), content)
+    assert(ok, err)
+end
+
+lt.test('规则集：@ 包默认加载、不在清单里、排在最前', function ()
+    local guard <close> = prepare()
+    write('乙/二.lua', 'rule.card("乙二")')
+    writeDefault('一.lua', 'rule.card("默认一")')
+
+    local loaded = moe.rule.load(list('乙'))
+
+    lt.assertEquals('清单只写了乙，默认包也执行了', 2, #loaded)
+    lt.assertEquals('默认包排在最前，逻辑路径不带 @', '默认/一.lua', loaded[1])
+    lt.assertEquals('清单项在后', 'pk/乙/二.lua', loaded[2])
+    lt.assertEquals('元信息里的包名也不带 @', true, moe.rule:getPackageMeta('默认') ~= nil)
+    lt.assertEquals('能按不带 @ 的限定名取到条目', '默认.默认一', card('默认.默认一').fullName)
+end)
+
+lt.test('规则集：显式写进清单的默认包也只执行一遍', function ()
+    local guard <close> = prepare()
+    write('乙/二.lua', 'rule.card("乙二")')
+    writeDefault('一.lua', 'rule.card("默认一")')
+
+    local loaded = moe.rule.load { '默认', 'pk/乙' }
+
+    lt.assertEquals('默认包只执行一次', 2, #loaded)
+    lt.assertEquals('顺序仍是默认包在前', '默认/一.lua', loaded[1])
+end)
+
+lt.test('规则集：包内出现 @ 前缀时明确报错', function ()
+    local guard <close> = prepare()
+    write('甲/@配置.lua', 'rule.card("甲")')
+
+    lt.assertError('@ 只能出现在包目录名开头', function ()
+        moe.rule.load(list('甲'))
+    end)
+end)

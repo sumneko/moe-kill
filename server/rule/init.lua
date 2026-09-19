@@ -368,6 +368,9 @@ local function loadFile(ctx, logical)
     if not owner then
         error('规则集文件必须位于包目录里：{}' % { logical }, 0)
     end
+    if logical:find('/@', 1, true) then
+        error('"@" 只能出现在包目录名的开头：{}' % { logical }, 0)
+    end
     if owner:find('.', 1, true) then
         error('包目录名里不能含 "."：{}' % { owner }, 0)
     end
@@ -671,7 +674,17 @@ function M.load(list)
         error('没有可用的加载清单', 2)
     end
     local instance = vfs.create(M.sources, moe.env.ROOT_PATH:parent_path())
-    local plan     = prepare(instance, list)
+
+    ---@type string[]
+    local items = {}
+    for _, name in ipairs(instance:getDefaultPackages()) do
+        items[#items+1] = name
+    end
+    for _, item in ipairs(list) do
+        items[#items+1] = item
+    end
+
+    local plan = prepare(instance, items)
 
     checkExcludes(plan.loaded, plan.excludes)
     checkDuplicates(plan.meta)
@@ -691,7 +704,7 @@ function M.load(list)
         M.context = nil
     end)
 
-    for _, item in ipairs(list) do
+    for _, item in ipairs(items) do
         loadItem(ctx, item)
     end
 

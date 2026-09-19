@@ -39,28 +39,30 @@ local function totalCards()
 end
 
 lt.test('基础：规则数值后者覆盖前者', function ()
-    local guard <close> = support.load { '基础' }
-    lt.assertEquals('默认体力上限来自基础包', 4, moe.rule:getValue('体力上限'))
+    local guard <close> = support.load {}
+    lt.assertEquals('默认体力上限来自基础包（它默认加载，不需要写进清单）', 4, moe.rule:getValue('体力上限'))
 
     local probe <close> = useProbe()
     write('覆盖/配置.lua', 'rule:setValues { 体力上限 = 6 }')
     moe.rule.setRoots { './package/*', probeDir:string() .. '/*' }
-    moe.rule.load { '基础', '覆盖' }
+    moe.rule.load { '覆盖' }
 
     lt.assertEquals('后加载的包覆盖了先前的值', 6, moe.rule:getValue('体力上限'))
 end)
 
 lt.test('基础：清空重载后不保留', function ()
-    local guard <close> = support.load { '基础' }
-    lt.assertEquals('先设置过', 4, moe.rule:getValue('体力上限'))
+    local guard <close> = support.load { '标准' }
+    lt.assertEquals('标准包提供了牌表', true, moe.rule:getValue('牌表') ~= nil)
+    lt.assertEquals('默认包的值也在', 4, moe.rule:getValue('体力上限'))
 
-    moe.rule.load { '标准' }
+    moe.rule.load { '身份场' }
 
-    lt.assertEquals('重载后不再保留', nil, moe.rule:getValue('体力上限'))
+    lt.assertEquals('上一轮非默认包的值被清空', nil, moe.rule:getValue('牌表'))
+    lt.assertEquals('默认包总会重新加载，所以值还在', 4, moe.rule:getValue('体力上限'))
 end)
 
 lt.test('基础：未设置的名字读到不存在', function ()
-    local guard <close> = support.load { '基础' }
+    local guard <close> = support.load {}
 
     lt.assertEquals('读到不存在', nil, moe.rule:getValue('根本没有这个名字'))
 
@@ -73,7 +75,7 @@ lt.test('基础：未设置的名字读到不存在', function ()
 end)
 
 lt.test('基础：体力初值等于上限', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     local game = support.start(4)
 
@@ -83,7 +85,7 @@ lt.test('基础：体力初值等于上限', function ()
 end)
 
 lt.test('基础：体力上限跟着覆盖后的规则数值', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
     moe.rule:setValues { 体力上限 = 3 }
 
     local game = support.start(4)
@@ -93,7 +95,7 @@ lt.test('基础：体力上限跟着覆盖后的规则数值', function ()
 end)
 
 lt.test('基础：按牌表建出牌堆', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     support.start(4)
 
@@ -103,7 +105,7 @@ lt.test('基础：按牌表建出牌堆', function ()
 end)
 
 lt.test('基础：洗牌可复现', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     ---@return string[] # 当前牌堆上的牌名序列
     local function deckLabels()
@@ -126,7 +128,7 @@ lt.test('基础：洗牌可复现', function ()
 end)
 
 lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     support.start(4)
 
@@ -146,7 +148,7 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
 end)
 
 lt.test('基础：没有牌表时不建牌堆', function ()
-    local guard <close> = support.load { '基础' }
+    local guard <close> = support.load {}
 
     support.start(4)
 

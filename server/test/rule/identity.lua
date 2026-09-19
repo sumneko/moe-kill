@@ -57,7 +57,7 @@ lt.test('身份场：配置可以被后续包覆盖', function ()
 end)
 
 lt.test('身份场：人数不在配置里时不分配身份', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     local game = support.start(3)
 
@@ -67,7 +67,7 @@ lt.test('身份场：人数不在配置里时不分配身份', function ()
 end)
 
 lt.test('身份场：身份被写进标签', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     local game = support.start(8)
 
@@ -86,7 +86,7 @@ lt.test('身份场：身份被写进标签', function ()
 end)
 
 lt.test('身份场：主公坐 1 号位且体力上限多 1', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     local game = support.start(8)
     local lord = game.players[1]
@@ -98,7 +98,7 @@ lt.test('身份场：主公坐 1 号位且体力上限多 1', function ()
 end)
 
 lt.test('身份场：首回合从主公开始', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     local game = support.start(8)
 

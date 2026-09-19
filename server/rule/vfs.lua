@@ -3,11 +3,13 @@ local fs = require 'bee.filesystem'
 ---@class Rule.Vfs
 ---@field private files table<string, string>
 ---@field private dirs table<string, true>
+---@field private defaults table<string, true>
 local M = Class 'Rule.Vfs'
 
 function M:__init()
-    self.files = {}
-    self.dirs  = {}
+    self.files    = {}
+    self.dirs     = {}
+    self.defaults = {}
 end
 
 ---@param path string
@@ -83,6 +85,20 @@ local function expandSource(pattern, base)
     return { { name = name, dir = dir } }
 end
 
+---@param name string
+---@return string # 逻辑名（去掉默认加载标记）
+---@return boolean # 是否带默认加载标记
+local function splitDefault(name)
+    if name:sub(1, 1) ~= '@' then
+        return name, false
+    end
+    local rest = name:sub(2)
+    if rest == '' then
+        error('来源目录名只有一个 "@"：默认加载标记后面必须还有名字', 3)
+    end
+    return rest, true
+end
+
 ---@param sources string[]
 ---@param base string|bee.fspath
 ---@return Rule.Vfs
@@ -97,10 +113,25 @@ function M.create(sources, base)
             error('规则集来源必须是非空字符串', 2)
         end
         for _, source in ipairs(expandSource(pattern, root)) do
-            self:index(source.dir, source.name)
+            local logical, isDefault = splitDefault(source.name)
+            self:index(source.dir, logical)
+            if isDefault then
+                self.defaults[logical] = true
+            end
         end
     end
     return self
+end
+
+---@return string[] # 默认加载的包（逻辑名，按名字升序）
+function M:getDefaultPackages()
+    ---@type string[]
+    local list = {}
+    for name in pairs(self.defaults) do
+        list[#list+1] = name
+    end
+    table.sort(list)
+    return list
 end
 
 ---@param logical string

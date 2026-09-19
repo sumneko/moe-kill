@@ -29,7 +29,7 @@ local function allHaveIdentity(game)
 end
 
 lt.test('开局：8 人完整装配', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     local game = support.start(8)
 
@@ -44,7 +44,7 @@ lt.test('开局：8 人完整装配', function ()
 end)
 
 lt.test('开局：同一 seed 两次开局的分配一致', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     ---@return string[]
     local function identitySequence()
@@ -61,7 +61,7 @@ lt.test('开局：同一 seed 两次开局的分配一致', function ()
 end)
 
 lt.test('开局：换一个 seed 身份分配（通常）不同', function ()
-    local guard <close> = support.load { '基础', '身份场', '标准' }
+    local guard <close> = support.load { '身份场', '标准' }
 
     ---@param seed integer
     ---@return string

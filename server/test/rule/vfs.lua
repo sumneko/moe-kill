@@ -136,3 +136,51 @@ lt.test('虚拟文件系统：默认来源', function ()
     lt.assertEquals('默认来源是项目自己的包容器', './package/*', moe.rule.DEFAULT_SOURCES[1])
     lt.assertEquals('默认只有一个来源', 1, #moe.rule.DEFAULT_SOURCES)
 end)
+
+lt.test('虚拟文件系统：@ 前缀的目录是默认加载的包', function ()
+    local guard <close> = prepare()
+    write('@基础/卡牌/杀.lua', 'x')
+    write('标准/卡牌/杀.lua', 'x')
+
+    local instance = vfs.create({ path('') .. '*' }, base)
+
+    lt.assertEquals('逻辑名去掉了 @', true, instance:isFile('基础/卡牌/杀.lua'))
+    lt.assertEquals('@ 不进逻辑路径', false, instance:isFile('@基础/卡牌/杀.lua'))
+    lt.assertEquals('普通包不受影响', true, instance:isFile('标准/卡牌/杀.lua'))
+    lt.assertEquals('默认加载的包名单', '基础', table.concat(instance:getDefaultPackages(), ','))
+end)
+
+lt.test('虚拟文件系统：容器里的 @ 目录也认', function ()
+    local guard <close> = prepare()
+    write('合集/@基础/卡牌/杀.lua', 'x')
+    write('合集/标准/卡牌/杀.lua', 'x')
+
+    local instance = vfs.create({ path('合集') .. '/*' }, base)
+
+    lt.assertEquals('容器子目录的 @ 同样剔离', '基础', table.concat(instance:getDefaultPackages(), ','))
+end)
+
+lt.test('虚拟文件系统：多来源时任一来源带标记即默认加载，且名单排序确定', function ()
+    local guard <close> = prepare()
+    write('前/基础/卡牌/杀.lua', 'x')
+    write('后/@基础/卡牌/闪.lua', 'x')
+    write('后/@其它/卡牌/桃.lua', 'x')
+
+    local instance = vfs.create({ path('前') .. '/*', path('后') .. '/*' }, base)
+
+    lt.assertEquals('标记只增不减，且按名字升序', '其它,基础', table.concat(instance:getDefaultPackages(), ','))
+    lt.assertEquals('两边的文件合并到同一逻辑包', true, instance:isFile('基础/卡牌/闪.lua'))
+end)
+
+lt.test('虚拟文件系统：目录名只有一个 @ 时报错', function ()
+    local guard <close> = prepare()
+    write('合集2/@/卡牌/杀.lua', 'x')
+    fs.create_directories(rootDir / '@')
+
+    lt.assertError('容器里带 @ 的子目录报错', function ()
+        vfs.create({ path('合集2') .. '/*' }, base)
+    end)
+    lt.assertError('目录本身作为来源时同样报错', function ()
+        vfs.create({ path('@') }, base)
+    end)
+end)
