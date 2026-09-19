@@ -1,0 +1,148 @@
+# 基础设施（参考仓库 / 构建 / 调试 / 测试）
+
+## 1. 参考仓库（本机克隆，优先本地查阅）
+
+| 仓库 | 本地路径 | 用途 | 注意 |
+| --- | --- | --- | --- |
+| bee.lua | `D:\Github\bee.lua` | Lua 运行时与系统库 | 可选链**已在 `master` 上**（构建期补丁，`luamake -optchain` 启用） |
+| utility | `D:\Github\utility` | 通用 Lua 工具库（风格语法糖、class 系统…） | 是 LuaLS 内副本的上游 |
+| lua-language-server | `D:\Github\lua-language-server` | **基础设施与风格的主要参考** | 本地工作区是 2022 年的 `master`；`4.0.0` 已 fetch 为 `origin/4.0.0`，**读它用 `git show origin/4.0.0:<path>`**，不要读工作区文件 |
+| lua-debug | `D:\Github\lua-debug` | 调试器（VS Code 扩展 `actboy168.lua-debug`） | 文档见 `docs/DebuggerInit.md`、`docs/luadebug/` |
+
+**查阅任何参考仓库前先 `git fetch origin --prune`**：本地工作副本可能停在旧分支，本地 `origin/*` 引用也可能滞后几周，直接 grep 本地引用会得出错误结论。
+
+## 2. bee.lua 提供的模块
+
+`socket`、`subprocess`、`thread`、`channel`、`async`、`filesystem`、`filewatch`、`epoll`、`select`、`serialization`、`time`、`crash`、`debugging`、`platform`、`sys`、`windows`
+（类型注解在 `bee.lua/meta/*.lua`，直接看注解即可掌握 API。）
+
+要点：
+
+- `bee.thread.create(source, ...)` 起线程（**不共享全局变量**），`bee.channel` 做线程间通信，数据会被序列化 → **只能传 plain data**。
+- `bee.time.monotonic()` 返回毫秒整数，单调递增，用于计时。
+- `bee.socket` 提供 tcp/udp/unix 与 `fd:handle()`；`bee.epoll` / `bee.select` 用于等待；`bee.async` 是更新的异步 IO 层（ring buffer 读写）。
+- LuaLS 4.0.0 的实践：**不用 `bee.async`**，而是把阻塞 IO（stdio、文件）丢给 worker 线程 + channel，主线程只跑 event-loop。
+- **可选链**（`?.` `?:` `?[` `?(`）在 `master` 上，由 `3rd/lua-patch/optchain/` 在**构建期** `git apply` 补丁实现，**门控完全在构建层**（`compile/common.lua` 的 `lua_patches` 注册表；不打补丁时是纯官方 Lua，行为零影响）。
+  - 启用方式：`luamake -optchain`，或在 `make.lua` 里写 `lm.optchain = true`（luamake 把命令行 flag 暴露为 `lm.<flag>`）。
+  - 因此**该开关必须是项目默认构建的一部分**：源码里写了 `?.` 而构建未启用时会直接解析失败。
+
+## 3. 构建（luamake）
+
+形态：**一个 exe + 一棵 Lua 脚本树**。exe 负责加载 `bin/main.lua` 引导脚本，引导脚本设 `package.path`（`script/?.lua`、`script/?/init.lua`、`script/tools/?.lua`、`script/tools/?/init.lua`）并处理 `arg`。
+
+`make.lua` 骨架（照搬 LuaLS 4.0.0）：
+
+```lua
+local lm = require 'luamake'
+
+lm.cxx = 'c++17'
+lm.lua = "55"
+lm.optchain = true -- 启用可选链补丁（等价于命令行 luamake -optchain）
+
+lm:import "3rd/bee.lua/make.lua"
+
+lm:executable "<名字>" {
+    deps = { "source_bee", "source_lua", "source_bootstrap" },
+    includes = { "3rd/bee.lua", "3rd/bee.lua/3rd/lua55" },
+    sources = "make/modules.cpp",
+}
+
+lm:copy "copy_bootstrap" {
+    inputs = "make/bootstrap.lua",
+    outputs = "bin/main.lua",
+}
+```
+
+- `bee.lua` 以 submodule 放在 `3rd/bee.lua`；`make/modules.cpp` 只做自有 C 模块注册（无自有 C 模块时留空壳）。
+- 常用命令：`luamake`（编译 + 测试）、`luamake -notest`（只编译）、`luamake -mode debug`、`luamake test -v`。
+- `includes` 里 Lua 目录的写法是 `"3rd/bee.lua/3rd/lua" .. lm.lua`，**不要写成 `"lua5" .. lm.lua`**（会拼成 `lua555`，然后 `lua.hpp` 找不到）。
+
+### 本仓库实测产物与行为（2026-09-19 已验证）
+
+目录布局：
+
+```
+<根>/
+  make.lua              构建定义
+  main.lua              真正入口（被引导脚本加载）
+  make/bootstrap.lua    → 构建时复制为 bin/main.lua
+  make/modules.cpp      C 模块注册占位
+  script/               脚本树（script/?.lua、script/tools/?.lua）
+  test/  test.lua       测试
+  bin/                  产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
+  build/                中间产物（git 忽略）
+```
+
+exe 的引导链路（**关键，容易踩坑**）：
+
+1. exe 内嵌引导把 `package.cpath` 设为 `<exe目录>/?.dll`，然后 `loadfile(<exe目录>/main.lua)` 并调用它。
+2. 此时 `arg[0]` 是**占位字符串 `"!main.lua"`**（由 C 侧 `createargtable` 写入），不是可用路径；用户参数从 `arg[1]` 开始。
+3. 所以 `make/bootstrap.lua` 不能靠 `arg[0]` 推根目录，改为 **`progdir = exe目录`，`root = progdir/..`**（并用「根下是否有 `script/`」做兜底，支持 `MOE_KILL_ROOT` 环境变量覆盖）。
+4. 引导脚本若发现 `arg[1]` 是以 `.lua` 结尾的非选项参数，就把它当入口脚本并左移参数表，最后把 `arg[0]` 设为真实入口路径 —— 这样「业务代码看不到 `main.lua` 自身」且 `lua-debug` 的 launch（`luaexe` + `program`）也能直接用。
+
+已验证行为：
+
+- `bin/moe-kill.exe`（不带参数）→ 自动加载根 `main.lua`，正常退出码 0。
+- `bin/moe-kill.exe tmp/x.lua --flag=1` → 加载 `tmp/x.lua`，参数表里不残留脚本名。
+- 可选链四种形式、链式组合、短路无副作用、`?:` 保留多返回值，均实测通过。
+
+### 本机环境实测（Windows，2026-09-19）
+
+- `luamake` 在 PATH：`D:\Github\luamake\luamake.exe`；它**自带 ninja**（`D:\Github\luamake\compile\ninja\ninja.exe`）。
+- `ninja` 与 `cl` **不在 PATH 是正常的** —— ninja 由 luamake 自带，MSVC 由 luamake 自行定位（`vswhere`），不需要开 VS 开发者命令提示符。
+- 因此构建只需在项目根执行 `luamake -notest`，无需额外准备环境。
+- `3rd/bee.lua` 固定提交：`88181ee`（`master`，2026-09-09）。子模块对象库已解耦为自包含（添加时用过 `--reference`，随后 `repack -a -d` 并删除 `alternates`）。
+
+## 4. 调试（lua-debug）
+
+目标进程内按需加载调试器（`script/debugger.lua` 去 VS Code 扩展目录里找最新的 `actboy168.lua-debug-*/script/debugger.lua`）：
+
+```lua
+if moe.args.DEVELOP then
+    local dbg = require 'debugger'
+    dbg:start(moe.args.DBGADDRESS .. ':' .. moe.args.DBGPORT)
+    if moe.args.DBGWAIT then
+        dbg:event 'wait'
+    end
+end
+```
+
+- **`dbg:start(地址)` 默认是"监听"**：扩展脚本里 `cfg.client` 为空时会用 `listen:地址`，即目标进程开端口等调试器接入；只有传 `{ address = ..., client = true }` 才是反向连接（`connect:`）。
+- 因此 VS Code 侧与 `request: attach` 配对（`address: 127.0.0.1:<port>` + `sourceMaps`，把运行时的 `script/*` 映射回工作区）。
+- `request: launch`（`luaexe` + `program`）依赖扩展注入；我们的引导脚本保留了 `-e <expr>` 处理（照搬 4.0.0）以兼容这条路径。
+- 两套配置都建议 `skipFiles: ["script/class.lua"]`（类系统内部实现会污染单步）。
+- 调试接入放在 `main.lua` 的**测试分支之前**，所以 `--test --develop` 也能 attach 调试测试。
+- 用完及时断开，开新会话前先停掉旧会话。
+
+**实测（2026-09-19）**：`bin/moe-kill.exe --develop --dbgport=11418` 后 127.0.0.1:11418 处于监听；伪造 `USERPROFILE` 使扩展缺失时只记一条警告并继续运行，退出码不受影响。
+
+## 5. 测试
+
+入口与风格照搬 LuaLS 4.0.0，**断言库不照搬**：
+
+- 入口：`bin/moe-kill.exe --test [套件]`；`main.lua` 里 `if moe.args.TEST then dofile '<root>/test.lua' return end`。
+- `test.lua` 负责：把过滤目标转成模块路径（`smoke.await` → `test.smoke.await`，支持逐层收窄）、逐模块加载、驱动事件循环、汇总失败并以退出码表示结果（`0` = 全通过）。
+- 过滤器没匹配到任何模块/用例时明确报错并以非 0 退出，不静默"全部通过"。
+- 断言用 `test/ltest.lua`：`lt.test(name, fn)` 注册用例，`lt.assertEquals` / `lt.assertNotEquals` / `lt.assertError`；`lt.runAll()` 逐个 `xpcall` 并打印失败堆栈。
+  - **不要 vendor 4.0.0 的 `test/ltest.lua`** —— 那是 36KB 压缩单文件（含 luac 反汇编与覆盖率机制），本工程用不到；4.0.0 的测试实际只用到 `assertEquals` / `assertNotEquals`。
+- **事件循环归入口所有**：`test.lua` 启动并停止它；套件内的用例只注册任务/定时器或 `await`，不要自己调 `eventLoop.start`（会与入口冲突）。
+- 内存护栏只在显式传 `--mem-limit` 时启用。
+- 临时产物统一写 `tmp/`（已 gitignore）。
+
+**实测（2026-09-19）**：20 个用例约 0.07 秒；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
+
+## 6. 命令速查
+
+```powershell
+luamake                          # 编译 + 跑无头测试
+luamake -notest                  # 只编译（产出 bin/moe-kill.exe + bin/main.lua）
+bin/moe-kill.exe --test          # 无头跑全部测试（退出码 0 = 全通过）
+bin/moe-kill.exe --test smoke.await    # 只跑一个套件
+bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
+bin/moe-kill.exe                 # 服务模式（常驻事件循环）
+
+openspec list                     # 进行中的变更
+openspec status --change <name>   # 工件完成度
+openspec validate --all           # 校验
+git show origin/4.0.0:<path>      # 读 LuaLS 4.0.0 的任意文件
+```

@@ -6,8 +6,12 @@
 
 ## 项目简介
 
-- 名称：`moe-kill`
-- 状态：初始化阶段（技术栈与玩法细节待补充，随项目推进更新本节）
+- 名称：`moe-kill`（三国杀，身份场）
+- 状态：基础设施搭建阶段（技术栈已定；具体规则口径待确认，见 `sanguosha-rules` 技能）
+- 技术栈：后端单进程 Lua 5.5（运行时 `actboy168/bee.lua`，构建 luamake，调试 `actboy168.lua-debug`）；前端 TypeScript/Web，暂不实现
+- 架构：前后端通过 JSON-RPC 通讯，协议为通用规范（一个后端可对接多种前端）；**所有游戏逻辑在后端**，前端只播放表现、采集输入；重连走专门方法全量同步状态
+- 验收硬约束：无前端时也能通过导出接口跑完整对局测试
+- 参考基准：基础设施与代码风格照搬 `LuaLS/lua-language-server` 的 `4.0.0` 分支；工具库来自 `sumneko/utility`
 - 文档与工件语言：简体中文（见 `openspec/config.yaml` 的 `context` 字段）
 
 ## 目录结构
@@ -19,6 +23,8 @@
 | `openspec/changes/archive/` | 已归档变更（保留历史） |
 | `openspec/config.yaml` | OpenSpec 项目配置（语言、工件规则、操作指引） |
 | `.agents/skills/openspec-*/` | 厂商中立技能（通用 Agent Skills 格式，任何客户端可加载；由 OpenSpec 生成，勿手改） |
+| `.agents/skills/moe-kill-dev/` | **项目技能：工程约定**（架构、协议分层、代码风格、构建与调试），开发前先读 |
+| `.agents/skills/sanguosha-rules/` | **项目技能：三国杀规则口径**（身份场、阶段、结算时序、时机系统） |
 | `.agents/skills/powershell-safe-invocation/`、`.agents/sync-manifest.json` | 来自通用能力库，见「通用能力」章节 |
 | `.github/` | GitHub 平台目录（当前为空，预留 CI 工作流 / issue 模板等） |
 
@@ -28,6 +34,7 @@
 
 - **不要直接修改** `.agents/skills/` 下由该仓库同步来的技能。需要改进时先把改动回传到源仓库，再从源仓库重新同步；否则项目副本会与真相源分叉，之后的同步会产生冲突。
 - 项目专属的定制（项目路径、团队约定）应写在项目自己的文件里，不要混进同步来的技能。
+- 项目自有技能（`moe-kill-dev`、`sanguosha-rules`）不登记进 `sync-manifest.json`，也不回传到通用能力库。
 
 ## 工作流（OpenSpec / OPSX）
 
@@ -55,10 +62,12 @@
 - 归档前先运行 `openspec validate <name>` 校验；实现完成后勾选 `tasks.md` 全部条目，再执行 `openspec archive <name> --yes`。
 - `.agents/skills/` 下由 OpenSpec 生成的文件不要手动修改；升级 CLI 后运行 `openspec update` 刷新。
 - 重大需求/架构调整先建变更提案，经确认后再写代码。
+- **改完 Lua 代码必须检查问题面板，把 information 及以上等级的问题清到 0**（hint 级不管）；改不动的来问用户，不要留着。一次性改动大量文件后语言服务器可能延迟甚至卡住，用 `lua.startServer` 重启后再检查。
 
 ## 环境注意（Windows / PowerShell）
 
-- 本机 PowerShell 执行策略禁止运行 `.ps1` 脚本：npm 请使用 `npm.cmd`，openspec 请使用 `openspec.cmd`。
+- 执行策略已设为 `RemoteSigned`，`npm` / `openspec` 的 `.ps1` shim **可直接使用**（不再需要 `.cmd` 变通）。
+- 用 PowerShell 写文件必须显式指定编码（如 `Set-Content -Encoding UTF8`），否则把 UTF-8 源码写成 GBK/UTF-16 会乱码。
 - 前置依赖：Node.js ≥ 20.19.0（OpenSpec CLI 要求）。
 
 ## 常用命令速查
