@@ -12,6 +12,7 @@
 ---@field asyncIO AsyncIO
 ---@field sevent table
 ---@field tools MoeKill.Tools
+---@field reload Reload
 ---@field core Core
 ---@field server Server
 ---@field inspect fun(root: any): string
@@ -54,6 +55,10 @@ moe.tools = {
     pqueue        = require 'tools.priority-queue',
     activePool    = require 'tools.active-pool',
 }
+
+moe.reload = require 'tools.reload'
+---@diagnostic disable-next-line: lowercase-global
+include    = moe.reload.include
 
 moe.core = require 'core'
 

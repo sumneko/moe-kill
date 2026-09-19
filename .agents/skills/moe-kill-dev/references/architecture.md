@@ -10,7 +10,7 @@
 [game]       规则集：开局装配、回合流程、牌的效果、技能（项目根 `game/`，按包组织）
 [session]    会话外壳：会话容器 + 决策挂起/恢复通道 + 事件收集（`server/session/`）
 [core]       内核：牌 / 牌区（移动、洗牌）/ 属性 / 随机源；玩家 / 桌子 / 房间 按业务需要再补（**与规则无关**，可直接单测）
-[tools]      基础设施：event-loop / await / timer / log / json / inspect / uri …
+[tools]      基础设施：event-loop / await / timer / log / json / inspect / uri / reload …
 ```
 
 依赖方向只能自上而下。**`core` 不得依赖规则集、会话、协议、网络与任何 IO**；这样内核可以脱离协议与网络被直接驱动。协议方法到规则操作的翻译层属会话/协议批次，目录名待定。
@@ -103,3 +103,44 @@ sequenceDiagram
 ### 7.4 主循环归属
 
 `server.start()` / `server.stop()` **不接管事件循环**，只做状态标记与日志；主循环仍由入口负责 —— 服务模式由 `main.lua` 常驻，测试模式由 `test.lua` 控制。这样外壳的启停是同步的、可直接被测试驱动，也不会在测试里嵌套启动事件循环。
+
+## 8. 热重载（`moe.reload`）
+
+### 8.1 加载方式即边界
+
+- `include 'x'` = **可重载**入口：与 `require` 等价，但会把模块登记进重载集合（登记顺序即加载顺序）。
+- `require 'x'` = 一次性加载：**永不参与重载**。因此**不需要**任何名单 / 过滤配置来划分范围。
+- 目前只有内核（`core/`）用 `include`（`server/core/init.lua` 逐个登记）；`server/tools/`、`session/`、`async-io.lua` 以及热重载自身一律 `require`，从根上避免基础设施被换掉。
+- 将来 `game/` 规则集只要改用 `include` 加载就自动进入范围（它可能走自建加载器以支持 mod 式卸载，届时报表另开变更）。
+
+### 8.2 接口
+
+| 接口 | 说明 |
+| ---- | ---- |
+| `moe.reload.reload()` | 重载全部已登记模块，返回被重载的模块名列表 |
+| `moe.reload.onBeforeReload(cb)` / `onAfterReload(cb)` | 重载前后回调，**返回撤销函数**；回调自动记录注册它的模块，该模块被重载时回调自动注销（不会重复堆积） |
+| `moe.reload.isReloading()` | 当前是否正在重载（重载期间回调与模块加载都对真） |
+| `moe.reload.getIncludeName(fn)` / `getCurrentIncludeName()` | 反查函数 / 当前加载属于哪个可重载模块（将来按模块清理 timer 与订阅要用） |
+| `moe.reload.recycle(cb)` | 立即执行并在每次重载后重跑，同时在重载前回收它登记过的对象 |
+| `include 'x'` | 加载并登记；失败返回 `false, 错误信息`（不抛给调用方） |
+
+触发端（开发期文件监视、前端协议方法）本批**未实现**，只提供接口。编辑器侧靠 `.luarc.json` 的 `runtime.special` 把 `include` 当作 `require` 解析。
+
+### 8.3 语义与限制
+
+- **同名类合并**：重载时 `Class 'X'` 复用**同一张类表**（`tools/class.lua` 的 `declare` → `config:reset()`），因此**已存在的实例立即用上新代码**，无需重建对象。
+- 限制一：**删除不生效** —— 合并只覆盖字段，源码里删掉的方法仍留在类表上。所以不要给公共方法改名或删除。
+- 限制二：**老实例不会重跑 `__init`** —— 新代码若要求实例多一个字段，老实例没有它，读字段要容忍 `nil`。
+- 模块级 `local` 只允许放**不可变常量与纯函数**（如 `random.lua` 的常量、`zone.lua` 的 `resolvePosition`）。
+- 现状核对（2026-09-19）：`random.lua` 只有常量与纯函数；`zone.lua` 只有 `resolvePosition` 纯函数；`ordered-zone.lua` 与 `attribute.lua` 只有类表与模块引用；`card.lua` 的标识计数器已挂到类表上（`M.__counter = M.__counter or moe.util.counter()`）—— 内核已无模块级可变状态。
+
+### 8.4 跨重载存活的数据
+
+必须存活的数据挂到「重载后仍是同一张表」的载体上（类表或门面表），并写成「有则复用」：
+
+```lua
+M.__counter = M.__counter or moe.util.counter()
+```
+
+- 门面写成 `moe.core = moe.core or {}`：重载复用同一张表，外部持有的引用不失效。
+- 用 **`__` 前缀**命名：`Class` 的 `Extends` 会把父类**非 `__` 开头**的字段复制给子类（并记入 `extendsKeys`，`reset` 时清除），挂在那种名字上会串到子类、还会在重载时被清掉。

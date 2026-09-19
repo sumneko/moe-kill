@@ -1,14 +1,14 @@
 ---@class Core.Card
 ---@field private id integer
 ---@field private label? any
+---@field package __counter fun():integer
 local M = Class 'Core.Card'
 
-local nextId = 0
+M.__counter = M.__counter or moe.util.counter()
 
 ---@param label? any
 function M:__init(label)
-    nextId = nextId + 1
-    self.id    = nextId
+    self.id    = M.__counter()
     self.label = label
 end
 

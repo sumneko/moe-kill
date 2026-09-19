@@ -4,12 +4,23 @@
 ---@field orderedZone Core.OrderedZone
 ---@field random Core.Random
 ---@field attribute Core.AttributeSystem
-local M = {}
+moe.core = moe.core or {}
 
-M.card        = require 'core.card'
-M.zone        = require 'core.zone'
-M.orderedZone = require 'core.ordered-zone'
-M.random      = require 'core.random'
-M.attribute   = require 'core.attribute'
+---@private
+---@param name string
+---@return any
+local function includeCore(name)
+    local mod, err = include(name)
+    if not mod then
+        error(('内核模块 {} 加载失败：{}' % { name, err }), 0)
+    end
+    return mod
+end
 
-return M
+moe.core.card        = includeCore 'core.card'
+moe.core.zone        = includeCore 'core.zone'
+moe.core.orderedZone = includeCore 'core.ordered-zone'
+moe.core.random      = includeCore 'core.random'
+moe.core.attribute   = includeCore 'core.attribute'
+
+return moe.core

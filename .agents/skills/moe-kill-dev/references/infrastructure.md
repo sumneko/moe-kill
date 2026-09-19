@@ -147,8 +147,11 @@ end
 | `timer.lua` | 新增 `M.getNextDeadline()`：距最近一个定时任务到期还有多少秒（没有则返回 `nil`） | 供事件循环计算等待时长，替代空转 |
 | `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `server/async-io.lua`，不污染照搬文件 |
 | `attribute.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（**LuaLS 4.0.0 里没有它**）；861 行，`System:define(name, simple, min, max)` → `Instance:get/set/add/getMin/getMax/event`，含公式（基础值 + 百分比）、上下限、惰性重算与变更事件 | 内核的“通用属性”直接接它，不自己写一套 |
+| `reload.lua` | **新增照搬文件**：来源 `y3-editor/y3-lualib` 的 `tools/reload.lua`（MIT，`Copyright (c) 2023 y3-editor`）—— `sumneko/utility` 与 LuaLS 4.0.0 都**没有**热重载库。改写点：`y3.util.*` → `moe.util.*`；回调注册**返回 disposer**（并因此修掉「回调数组每次重载整体替换、捕获的引用会失效」）；`getIncludeName` 补 `nil` 保护（模块名查不到时不再用 `nil` 键索引）；`include` 失败时把错误信息交回调用方；新增 `reportError`（拿不到 `log` 时退回 stderr） | 内核（以及将来的规则集）需要开发期热重载，见 `architecture.md` 第 8 节 |
 
 等待与唤醒的接线在 `server/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
+
+**加载期顺序（踩过）**：`include` 在**日志系统就绪之前**就会被用到（`server/moe-kill.lua` 加载内核时），而 `log` 实例是 `server/master.lua` 在 `moe-kill` **之后**创建的。所以 `tools/reload.lua` 的错误报告在拿不到 `log` 时退回 `stderr`（并把消息作为返回值交回）。要真要动这个顺序，得把 `moe.env`（由 `arg[0]` 推出根目录）一并前移，属于架构调整，先问用户。
 
 ### `bee.async` 踩坑（本机实测）
 
@@ -165,6 +168,7 @@ luamake                          # 编译 + 跑无头测试
 luamake -notest                  # 只编译（产出 server/bin/moe-kill.exe + server/bin/main.lua）
 server/bin/moe-kill.exe --test          # 无头跑全部测试（退出码 0 = 全通过）
 server/bin/moe-kill.exe --test smoke.await    # 只跑一个套件
+server/bin/moe-kill.exe --test core.reload    # 热重载套件（机制 + 真改文件端到端）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 

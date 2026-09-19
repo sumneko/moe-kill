@@ -63,6 +63,7 @@
 - `.agents/skills/` 下由 OpenSpec 生成的文件不要手动修改；升级 CLI 后运行 `openspec update` 刷新。
 - 重大需求/架构调整先建变更提案，经确认后再写代码。
 - **可叠加的操作必须返回撤销函数**：凡“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个 **disposer 函数**，调用它即精确撤销这次添加；不要只提供“移除”，也不要让调用方自己回滚。
+- **模块不得持模块级可变状态**（热重载要求）：必须跨重载存活的数据挂到类表或门面表上，写成「有则复用」（如 `M.__counter = M.__counter or moe.util.counter()`），并用 `__` 前缀命名；重载边界是**加载方式**（`include` 可重载 / `require` 不参与），详见 `moe-kill-dev` 技能的 `references/architecture.md` 第 8 节。
 - Git 提交信息：**AI 助手编写或修改的代码，提交信息开头加 `【AI】` 前缀**（如 `【AI】feat(core): 对象与牌堆骨架`）；人工提交不加。正文用简体中文 + conventional commits。
 - **改完 Lua 代码必须检查问题面板，把 information 及以上等级的问题清到 0**（hint 级不管）；改不动的来问用户，不要留着。一次性改动大量文件后语言服务器可能延迟甚至卡住，用 `lua.startServer` 重启后再检查。
 
