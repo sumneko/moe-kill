@@ -19,7 +19,15 @@
 | `openspec/changes/archive/` | 已归档变更（保留历史） |
 | `openspec/config.yaml` | OpenSpec 项目配置（语言、工件规则、操作指引） |
 | `.agents/skills/openspec-*/` | 厂商中立技能（通用 Agent Skills 格式，任何客户端可加载；由 OpenSpec 生成，勿手改） |
+| `.agents/skills/powershell-safe-invocation/`、`.agents/sync-manifest.json` | 来自通用能力库，见「通用能力」章节 |
 | `.github/` | GitHub 平台目录（当前为空，预留 CI 工作流 / issue 模板等） |
+
+## 通用能力
+
+本项目引入了来自通用能力库 [sumneko/skill](https://github.com/sumneko/skill) 的跨项目通用技能，来源仓库与版本记录见 `.agents/sync-manifest.json`。
+
+- **不要直接修改** `.agents/skills/` 下由该仓库同步来的技能。需要改进时先把改动回传到源仓库，再从源仓库重新同步；否则项目副本会与真相源分叉，之后的同步会产生冲突。
+- 项目专属的定制（项目路径、团队约定）应写在项目自己的文件里，不要混进同步来的技能。
 
 ## 工作流（OpenSpec / OPSX）
 

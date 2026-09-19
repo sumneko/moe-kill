@@ -1,0 +1,13 @@
+{
+  "_comment": "本项目从 sumneko/skill 引入的通用能力清单。用于正向更新与反向合并时判断差异来源。",
+  "source": "https://github.com/sumneko/skill",
+  "syncedAt": "2026-09-19",
+  "syncedCommit": "03b2c74",
+  "items": {
+    "powershell-safe-invocation": {
+      "source": "skills/tooling/powershell-safe-invocation",
+      "commit": "03b2c74",
+      "locallyModified": false
+    }
+  }
+}
