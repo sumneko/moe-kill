@@ -9,7 +9,7 @@
 [proto]      方法名 / 参数 / 返回结构的唯一定义（前后端共用事实来源）
 [game]       规则集：开局装配、回合流程、牌的效果、技能（项目根 `game/`，按包组织）
 [session]    会话外壳：会话容器 + 决策挂起/恢复通道 + 事件收集（`server/session/`）
-[core]       内核：玩家 / 桌子 / 房间 / 牌区 / 属性 / 随机源（**与规则无关**，可直接单测）
+[core]       内核：牌 / 牌区（移动、洗牌）/ 属性 / 随机源；玩家 / 桌子 / 房间 按业务需要再补（**与规则无关**，可直接单测）
 [tools]      基础设施：event-loop / await / timer / log / json / inspect / uri …
 ```
 
@@ -42,17 +42,19 @@
 sequenceDiagram
     participant FE as 前端
     participant TR as transport
-    participant G as game
-    participant E as core
+    participant RM as Room（内含会话外壳）
+    participant G as game 规则集
+    participant C as core 内核
 
     FE->>TR: game/submitDecision(version, decision)
-    TR->>G: 分发请求
-    G->>E: 应用决策
-    E-->>G: 事件流 + 新状态
-    G-->>TR: 通知 game/event × N
+    TR->>RM: 分发请求
+    RM->>G: 应用决策（规则）
+    G->>C: 调内核接口（移动牌 / 读写属性 / 洗牌）
+    G-->>RM: 产生的表现事件
+    RM-->>TR: 通知 game/event × N
     TR-->>FE: 事件流（播放动画）
-    E-->>G: 需要下一次决策
-    G-->>TR: 反向请求 game/requestInput(...)
+    G->>RM: 请求下一次决策（挂起在 Room 内部）
+    RM-->>TR: 反向请求 game/requestInput(...)
     TR-->>FE: 请求（渲染可选项）
 ```
 
@@ -66,7 +68,7 @@ sequenceDiagram
 ## 6. 无头可测（硬性要求）
 
 - 「无前端也能跑完整对局」是验收条件，因此：
-  1. 引擎 API 必须是可直接调用的纯 Lua 接口，不经过 JSON-RPC。
+  1. 引擎 API 必须是可直接调用的纯 Lua 接口，不经过 JSON-RPC；内核（`server/core/`）的接口同样如此，**场景由调用方自己组合**（例如「发牌」= 抽牌堆取顶 + 放进手牌区，内核不提供「发牌」）。
   2. 决策点走同一套「请求输入 → 挂起 → 恢复」路径，测试用「脚本化玩家 / AI」自动应答，而不是给引擎开测试专用后门。
   3. 另设一层协议契约测试：对 `proto` 里每个方法做编解码往返与错误分支验证，不必真的开 socket。
 - 回归口径：改引擎必须能只用测试二进制跑完整对局并复现。

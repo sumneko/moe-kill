@@ -14,6 +14,8 @@
 
 参考实现（LuaLS 4.0.0）的既有事实，本设计沿用：
 
+> 2026-09-19 追加：下文里 `script/` 已改名 `server/`，`script/engine/` 的规划已拆成 **`server/core`（内核，与规则无关）+ 项目根 `game/`（规则集）**；原表述保留以便对照，实际口径以 `add-core` 的设计为准。
+
 - 发布形态是「**exe + `bin/main.lua` 引导 + `script/` 脚本树**」；引导脚本负责设置 `package.path` 与整理 `arg`。
 - 主线程跑单线程事件循环，`await` 用协程实现；**阻塞 IO（stdio、文件）交给 worker 线程 + `bee.channel`**，4.0.0 全程不使用 `bee.async`。
 - 测试走 `--test` 参数，`main.lua` 里 `require 'test'` 进入测试模式。
@@ -57,7 +59,7 @@
 - 引导文件 `script/moe-kill.lua`：建立全局命名空间 `moe`，挂载工具集与 `Class` / `New` / `Delete` / `Type` / `IsValid` / `Extends`。
 - `script/master.lua`：主进程初始化（线程名、日志、定时状态上报）。
 - `script/tools/`：基础设施（照搬 4.0.0 的工具集）。
-- `script/engine/`：未来放纯规则引擎（本变更只留占位与目录约定，不写逻辑）。
+- `server/core/`（原 `script/engine/`）：内核——通用对象与容器（牌 / 牌区 / 属性 / 随机源），**与规则无关**；游戏规则集另放项目根 `game/`。
 - `main.lua`：进程入口，按参数决定进服务模式还是测试模式。
 - `test/`：测试；`make/`：构建辅助（引导脚本、模块注册）。
 
