@@ -27,7 +27,7 @@ game:on('游戏-开始', function ()
     local lord = seats[1]
     lord:setTag('身份', '主公')
 
-    local bonus = game:getValue('主公体力上限加成') or 0
+    local bonus = game:getValue('主公额外体力') or 0
     if bonus ~= 0 then
         lord:addAttr('体力上限', bonus)
         lord:addAttr('体力', bonus)
