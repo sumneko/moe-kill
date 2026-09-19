@@ -149,3 +149,29 @@ lt.test('伤害：两个时机收到同一个实例', function ()
     lt.assertEquals('前后是同一个对象', before, after)
     lt.assertEquals('就是这次伤害（点数对得上）', 1, after and after.amount)
 end)
+
+lt.test('伤害：结算期间在栈上', function ()
+    local game, players = newGame(2)
+
+    ---@type Damage?
+    local ctxSeen = nil
+    ---@type Effect?
+    local topSeen = nil
+    ---@type string?
+    local kindSeen = nil
+
+    ---@param ctx Damage
+    local function onAfter(ctx)
+        ctxSeen  = ctx
+        topSeen  = game:getCurrentEffect()
+        kindSeen = ctx.kind
+    end
+
+    game.events:on('伤害-后', onAfter)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('触发时栈顶就是这次伤害', ctxSeen, topSeen)
+    lt.assertEquals('种类标识', 'damage', kindSeen)
+    lt.assertEquals('结算完栈空', 0, #game:getEffects())
+end)

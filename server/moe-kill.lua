@@ -22,6 +22,8 @@
 ---@field desk Desk
 ---@field player Player
 ---@field game Game
+---@field effect Effect
+---@field useCard UseCard
 ---@field damage Damage
 ---@field loader Loader
 ---@field server Server

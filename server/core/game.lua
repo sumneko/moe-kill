@@ -96,21 +96,6 @@ local function copyMeta(meta)
     return copy
 end
 
----@param user Player
----@param card Card
----@return Zone? # 牌所在的牌区（找到时才有）
----@return integer? # 牌在该牌区里的位置
-local function findHeldZone(user, card)
-    for _, zone in ipairs(user:getZones()) do
-        for i, held in ipairs(zone:list()) do
-            if held == card then
-                return zone, i
-            end
-        end
-    end
-    return nil, nil
-end
-
 ---@class Game.CreateOptions
 ---@field desk Desk
 ---@field random Random
@@ -131,7 +116,10 @@ end
 ---@field private attributeSystem? AttributeSystem
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
+---@field private effects Effect[] # 结算栈（栈底在前、栈顶在后）
 local M = Class 'Game'
+
+M.MAX_EFFECT_DEPTH = 100
 
 ---@param desk Desk
 ---@param random Random
@@ -141,6 +129,7 @@ function M:__init(desk, random)
     self.events   = moe.event.create()
     self.zoneList = {}
     self.zoneMap  = {}
+    self.effects  = {}
     self.sources  = moe.loader.DEFAULT_SOURCES
     self.list     = {}
     self:resetContent()
@@ -379,33 +368,45 @@ end
 ---@param card Card # 被使用的牌
 ---@param targets Player[] # 目标（可以为空表）
 function M:play(user, card, targets)
-    local name = card:getLabel()
-    if type(name) ~= 'string' then
-        error('这张牌没有牌名，查不到内容定义', 2)
-    end
-    local def = self:getCard(name)
-    if not def then
-        error('没有叫「{}」的内容定义' % { name }, 2)
-    end
+    moe.useCard.create {
+        game    = self,
+        user    = user,
+        card    = card,
+        targets = targets,
+    }:apply()
+end
 
-    local zone, index = findHeldZone(user, card)
-    if not zone or not index then
-        error('使用者手上没有这张牌', 2)
+---@param effect Effect
+---@return function # 撤销这次压栈
+function M:pushEffect(effect)
+    if #self.effects >= M.MAX_EFFECT_DEPTH then
+        error('结算栈最多 {} 层' % { M.MAX_EFFECT_DEPTH }, 2)
     end
-
-    ---@type Game.EventCtx.卡牌
-    local ctx = { user = user, card = card, targets = targets }
-    for _, handler in ipairs(def:getHandlers('目标合法')) do
-        if handler(ctx) == false then
-            error('「{}」的目标不合法' % { def.fullName }, 2)
+    self.effects[#self.effects + 1] = effect
+    local popped = false
+    return function ()
+        if popped then
+            return
         end
+        if self.effects[#self.effects] ~= effect then
+            error('结算栈只能从栈顶退', 2)
+        end
+        popped = true
+        self.effects[#self.effects] = nil
     end
+end
 
-    zone:take(index)
-    for _, handler in ipairs(def:getHandlers('使用')) do
-        handler(ctx)
-    end
-    self:fire('卡牌-结算后', ctx)
+---@return Effect? # 正在结算的那个；空栈时是「不存在」
+function M:getCurrentEffect()
+    return self.effects[#self.effects]
+end
+
+---@return Effect[] # 快照：栈底 → 栈顶
+function M:getEffects()
+    ---@type Effect[]
+    local snapshot = {}
+    table.move(self.effects, 1, #self.effects, 1, snapshot)
+    return snapshot
 end
 
 return M

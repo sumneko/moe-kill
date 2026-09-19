@@ -70,7 +70,7 @@ Card '测试杀'
     ---@type Player?
     local settledTarget = nil
 
-    ---@param ctx Game.EventCtx.卡牌
+    ---@param ctx UseCard
     local function onSettled(ctx)
         settledCard   = ctx.card
         settledTarget = ctx.targets[1]
@@ -167,4 +167,69 @@ Card '测试杀'
     game:play(user, card, { target })
 
     lt.assertEquals('照样用出去了', target, user:getTag('用了'))
+end)
+
+lt.test('使用：结算期间这次使用在栈上', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    :on('使用', function (ctx)
+        ctx.user:setTag('栈顶是这次使用', game:getCurrentEffect() == ctx)
+        ctx.user:setTag('种类', ctx.kind)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
+
+    game:play(user, card, { target })
+
+    lt.assertEquals('结算期间栈顶就是这次使用', true, user:getTag('栈顶是这次使用'))
+    lt.assertEquals('种类标识', 'useCard', user:getTag('种类'))
+    lt.assertEquals('结算完栈空', 0, #game:getEffects())
+end)
+
+lt.test('使用：失败后栈恢复原状', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    :on('目标合法', function (ctx)
+        return ctx.targets[1] ~= ctx.user
+    end)
+]])
+
+    local game, user, _, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    lt.assertError('不能对自己用', function ()
+        game:play(user, card, { user })
+    end)
+
+    lt.assertEquals('栈上没有留下这次使用', 0, #game:getEffects())
+end)
+
+lt.test('使用：结算中抛错后栈恢复原状', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    :on('使用', function ()
+        error('故意报错')
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
+
+    lt.assertError('结算里的错误会传出来', function ()
+        game:play(user, card, { target })
+    end)
+
+    lt.assertEquals('栈上没有留下这次使用', 0, #game:getEffects())
 end)
