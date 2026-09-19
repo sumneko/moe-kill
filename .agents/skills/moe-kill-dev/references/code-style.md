@@ -78,6 +78,8 @@ return {
 - 确实改不动的**来问用户**，不要留着不管。
 - 一次性改动大量文件后，语言服务器可能延迟甚至卡住（面板迟迟不刷新）：执行命令 `lua.startServer` 重启它，再重新检查。
 - **异步回调的标注**：把闭包当异步回调用时，光有参数类型 `async fun()` 不足以让 LuaLS 认定异步上下文，必须在**调用语句前**加一行 `---@async`（上游 `ls.await.call(function () ... end)` 就是这么写的），否则会报 `await-in-sync`。
+- **错误报告统一用 `xpcall(f, log.error)`**：`log.error` 自己就会记录（`error` / `fatal` / `trace` 级别自带堆栈），并把消息作为返回值交给调用方 —— 所以业务代码里 `xpcall(f, log.error, ...)` 即可，**不要**写 `xpcall(f, debug.traceback)` 再手写一遍 `log.error(...)`（会重复记录）。上游 `tools/` 就是这个写法（`timer.lua`、`simple-event.lua`）。
+  - 例外：报告"用例/模块失败"的测试入口（`test.lua`、`test/ltest.lua`）仍用 `debug.traceback` —— 那里堆栈本身就是报告内容。
 - 访问动态键（如命令行参数表）时，用 `---@type table<string, T>` 显式标注该局部变量来表达"这里故意访问未知键"，不要用 disable 注释。
 - 跨模块传递的结构体在 `---@class` 里声明全部字段，而不是只写 usage。
 

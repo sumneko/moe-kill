@@ -100,12 +100,12 @@ function Session:start()
     self.phase = Phase.RUNNING
     ---@async
     moe.await.call(function ()
-        local ok, err = xpcall(self.handler.run, debug.traceback, self.handler, self)
+        local ok, err = xpcall(self.handler.run, log.error, self.handler, self)
         if not ok then
             if self.phase == Phase.RUNNING then
                 self:abort(err)
             end
-            error(err, 0)
+            return
         end
         if self.phase == Phase.RUNNING then
             self.phase = Phase.FINISHED

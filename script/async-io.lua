@@ -50,10 +50,7 @@ end
 local function dispatch(op, reg, status, data, errno)
     local watch = reg.watch
     if watch then
-        local ok, traceback = xpcall(watch.onReadable, debug.traceback)
-        if not ok then
-            log.error(traceback)
-        end
+        xpcall(watch.onReadable, log.error)
         local armed, armErr = arm(watch)
         if not armed then
             log.warn('重新注册外部事件源失败: {}' % { tostring(armErr) })
