@@ -46,7 +46,7 @@ lt.test('杀：对攻击范围内的目标造成 1 点伤害', function ()
     local target = run.players[2]
     local card   = takeSlash(run, user)
 
-    run.game:play(user, card, { target })
+    run.game:useCard(user, card, { target })
 
     lt.assertEquals('目标掉 1 点体力', 4, target:getAttr('体力'))
     lt.assertEquals('使用者不受影响', 5, user:getAttr('体力'))
@@ -61,7 +61,7 @@ lt.test('杀：攻击范围外的目标用不了', function ()
     local target = run.players[3]
     local card   = takeSlash(run, user)
 
-    lt.assertFailed('隔着两个人够不着', run.game:play(user, card, { target }))
+    lt.assertFailed('隔着两个人够不着', run.game:useCard(user, card, { target }))
 
     lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
@@ -73,7 +73,7 @@ lt.test('杀：不能对自己用', function ()
     local user = run.players[1]
     local card = takeSlash(run, user)
 
-    lt.assertFailed('自己的合法目标里没有自己', run.game:play(user, card, { user }))
+    lt.assertFailed('自己的合法目标里没有自己', run.game:useCard(user, card, { user }))
 
     lt.assertEquals('自己没掉血', 5, user:getAttr('体力'))
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
@@ -87,7 +87,7 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌堆', function ()
     local card   = takeSlash(run, user)
     local jink   = takeCard(run, target, '闪')
 
-    run.game:play(user, card, { target })
+    run.game:useCard(user, card, { target })
 
     lt.assertEquals('目标不掉血', 5, target:getAttr('体力'))
     lt.assertEquals('闪已经离开手牌', 0, target:getZone('手牌'):count())
@@ -104,7 +104,7 @@ lt.test('杀：多目标依次结算，一个目标的响应不影响另一个',
     local card   = takeSlash(run, user)
     takeCard(run, first, '闪')
 
-    run.game:play(user, card, { first, second })
+    run.game:useCard(user, card, { first, second })
 
     lt.assertEquals('先结算的目标打出了闪，不掉血', 5, first:getAttr('体力'))
     lt.assertEquals('后结算的目标没闪，掉 1 点', 4, second:getAttr('体力'))
@@ -116,7 +116,7 @@ lt.test('杀：答了「打闪」但手上没有，照常受伤', function ()
     local target = run.players[2]
     local card   = takeSlash(run, user)
 
-    run.game:play(user, card, { target })
+    run.game:useCard(user, card, { target })
 
     lt.assertEquals('没有牌可打 ⇒ 照常受伤', 4, target:getAttr('体力'))
 end)

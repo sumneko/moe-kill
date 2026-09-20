@@ -374,7 +374,7 @@ end
 ---@param targets Player[] # 目标（可以为空表）
 ---@async
 ---@return UseCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
-function M:play(user, card, targets)
+function M:useCard(user, card, targets)
     local effect = moe.useCard.create {
         game    = self,
         user    = user,

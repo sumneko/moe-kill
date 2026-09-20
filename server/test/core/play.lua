@@ -86,7 +86,7 @@ Card '测试杀'
     end
     game.events:on('卡牌-结算后', onSettled)
 
-    game:play(user, card, { target })
+    game:useCard(user, card, { target })
 
     lt.assertEquals('两个生效回调按声明顺序执行', '一二', user:getTag('顺序'))
     lt.assertEquals('回调拿到了目标', target, user:getTag('目标'))
@@ -109,7 +109,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertFailed('手上没有这张牌', game:play(user, card, { target }))
+    lt.assertFailed('手上没有这张牌', game:useCard(user, card, { target }))
 
     lt.assertEquals('结算没跑', nil, user:getTag('用了'))
     lt.assertEquals('手牌还是空的', 0, hand:count())
@@ -123,7 +123,7 @@ lt.test('使用：牌没有内容定义时报错', function ()
     local card = game:createCard('没有这张牌')
     hand:put(card)
 
-    lt.assertFailed('没有定义就用不了', game:play(user, card, { target }))
+    lt.assertFailed('没有定义就用不了', game:useCard(user, card, { target }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
@@ -146,7 +146,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertFailed('自己不在合法目标里', game:play(user, card, { user }))
+    lt.assertFailed('自己不在合法目标里', game:useCard(user, card, { user }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
     lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
@@ -167,7 +167,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertFailed('漏写钩子不等于谁都能打', game:play(user, card, { target }))
+    lt.assertFailed('漏写钩子不等于谁都能打', game:useCard(user, card, { target }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
     lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
@@ -186,7 +186,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertFailed('拿不到列表就谁都不给用', game:play(user, card, { target }))
+    lt.assertFailed('拿不到列表就谁都不给用', game:useCard(user, card, { target }))
 
     lt.assertEquals('钩子确实跑过', true, user:getTag('问过目标'))
     lt.assertEquals('牌还留在手上', 1, hand:count())
@@ -205,7 +205,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertFailed('没有合法目标就用不了', game:play(user, card, { target }))
+    lt.assertFailed('没有合法目标就用不了', game:useCard(user, card, { target }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
@@ -223,7 +223,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertFailed('一个目标都不给就用不了', game:play(user, card, {}))
+    lt.assertFailed('一个目标都不给就用不了', game:useCard(user, card, {}))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
@@ -247,10 +247,10 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertFailed('被前一个钩子收窄掉的目标用不了', game:play(user, card, { user }))
+    lt.assertFailed('被前一个钩子收窄掉的目标用不了', game:useCard(user, card, { user }))
     lt.assertEquals('牌还留在手上', 1, hand:count())
 
-    game:play(user, card, { target })
+    game:useCard(user, card, { target })
 
     lt.assertEquals('两个钩子都放行的目标能用', true, user:getTag('用了'))
     lt.assertEquals('牌用出去了', 0, hand:count())
@@ -276,7 +276,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    game:play(user, card, { target })
+    game:useCard(user, card, { target })
 
     lt.assertEquals('生效不是根，根是这次用牌', true, user:getTag('父是根'))
     lt.assertEquals('种类标识', 'cardEffect', user:getTag('种类'))
@@ -297,7 +297,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertFailed('不能对自己用', game:play(user, card, { user }))
+    lt.assertFailed('不能对自己用', game:useCard(user, card, { user }))
 
     lt.assertEquals('失败也记在记牌器上', 1, #game:getEffects())
 end)
@@ -320,7 +320,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    local effect = game:play(user, card, { target })
+    local effect = game:useCard(user, card, { target })
 
     lt.assertEquals('钩子报错被隔离，用牌照常完成', 0, hand:count())
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
@@ -352,7 +352,7 @@ Card '测试杀'
     end
     game.events:on('伤害-前', onBefore)
 
-    game:play(user, card, { target })
+    game:useCard(user, card, { target })
 
     local damage = assert(damageSeen, '这次结算没造成伤害')
     local effect = assert(damage.parent, '伤害没有父效果')
@@ -416,7 +416,7 @@ Card '测试杀'
     local hand = assert(user:getZone('手牌'))
     hand:put(card)
 
-    game:play(user, card, { players[4], players[2], players[3] })
+    game:useCard(user, card, { players[4], players[2], players[3] })
 
     lt.assertEquals('从使用者的下家开始绕一圈', '234', user:getTag('顺序'))
 end)
@@ -446,7 +446,7 @@ Card '测试杀'
         ctx.user:setTag('顺序', order .. '收尾')
     end)
 
-    game:play(user, card, { players[2], players[3] })
+    game:useCard(user, card, { players[2], players[3] })
 
     lt.assertEquals('两个生效之后才收尾', '生效2生效3收尾', user:getTag('顺序'))
 end)
@@ -478,7 +478,7 @@ Card '测试杀'
         end
     end)
 
-    game:play(user, card, { players[2], players[3] })
+    game:useCard(user, card, { players[2], players[3] })
 
     lt.assertEquals('被取消的那个没生效，其余的照常', '3', user:getTag('顺序'))
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())

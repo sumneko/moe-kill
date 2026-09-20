@@ -8,7 +8,7 @@
 
 ## 2. 内核：挂起期间的状态约束
 
-- [x] 2.1 `server/core/game.lua`：记录「正在等外部输入」（`game:enterWaiting()` 返回撤销，计数器挂在局上），挂起期间任何结算入口（`play` / `damage` / `ask`）MUST 明确失败（拦在 `pushEffect` 这一处）；验证：新增用例「挂起期间不能起新结算」，断言挂起的结算与结算栈都不受影响
+- [x] 2.1 `server/core/game.lua`：记录「正在等外部输入」（`game:enterWaiting()` 返回撤销，计数器挂在局上），挂起期间任何结算入口（`useCard` / `damage` / `ask`）MUST 明确失败（拦在 `pushEffect` 这一处）；验证：新增用例「挂起期间不能起新结算」，断言挂起的结算与结算栈都不受影响
 - [x] 2.2 `server/core/effect.lua`：**挂起态取消要连带收掉它下面的子结算**（沿结算栈自顶向下依次关闭）；验证：新增用例「取消挂起的结算连带收掉子结算」——栈回到这次结算之前、不留孤儿
 - [x] 2.3 `server/core/game.lua`：**用牌 / 伤害入口自动「驱动 + 等」并返回效果实例**（`moe.damage.create{...}:apply():wait()`），`settle` 与入口标 `---@async`；验证：新增用例「结完的效果再 wait 立刻返回」断言入口返回的伤害已结完，`--test core.play` / `--test core.damage` 全绿、面板 0
 
