@@ -105,7 +105,7 @@ lt.test('询问：没人应答时没有答复，也不算失败', function ()
     lt.assertEquals('没有记下错误', 0, #lt.errors)
 end)
 
-lt.test('询问：应答方重复应答被拒绝，先答的算数', function ()
+lt.test('询问：重复应答不报错，先答的算数', function ()
     local game, players = newGame(2)
     local first  = game:createCard('闪')
     local second = game:createCard('闪')
@@ -113,9 +113,12 @@ lt.test('询问：应答方重复应答被拒绝，先答的算数', function ()
         ask:answer(first)
         ask:answer(second)
     end)
-    lt.expectErrors(1)
+    lt.clearErrors()
 
-    lt.assertEquals('先答的算数', first, game:askCard(players[2], nil, { name = '闪' }).result)
+    local ask = game:askCard(players[2], nil, { name = '闪' })
+    lt.assertEquals('先答的算数', first, ask.result)
+    lt.assertEquals('不算失败', nil, ask.err)
+    lt.assertEquals('没有记下错误', 0, #lt.errors)
 end)
 
 ---@async
@@ -154,7 +157,7 @@ lt.test('询问：被取消的询问以「没有答复」结束，结算其余�
     lt.assertEquals('目标掉了血', 3, players[2]:getAttr('体力'))
 end)
 
-lt.test('答复：答复时机拿到这次询问，没人应答也照常触发', function ()
+lt.test('答复：有答复才触发答复时机，上下文是这次询问', function ()
     local game, players = newGame(2)
 
     ---@type AskCard[]
@@ -169,19 +172,16 @@ lt.test('答复：答复时机拿到这次询问，没人应答也照常触发',
         atFire[fired]   = ctx.result
     end)
 
-    local noOne = game:askCard(players[2], nil, { name = '闪' })
-    lt.assertEquals('没人应答也触发了一次', 1, #seen)
-    lt.assertEquals('上下文就是这次询问', noOne, seen[1])
-    lt.assertEquals('读到的答复是不存在', nil, seen[1].result)
-    lt.assertEquals('答复时机里结果也是不存在', nil, atFire[1])
+    game:askCard(players[2], nil, { name = '闪' })
+    lt.assertEquals('没人应答就不触发', 0, #seen)
 
     local jink = game:createCard('闪')
     answerWith(game, { jink })
     local answered = game:askCard(players[2], nil, { name = '闪' })
-    lt.assertEquals('又触发了一次', 2, #seen)
-    lt.assertEquals('这次读得到答复', jink, seen[2].result)
-    lt.assertEquals('答复时机里结果已经定下', jink, atFire[2])
-    lt.assertEquals('与询问实例是同一个', answered, seen[2])
+    lt.assertEquals('有人应答触发了一次', 1, #seen)
+    lt.assertEquals('上下文就是这次询问', answered, seen[1])
+    lt.assertEquals('读到的答复', jink, seen[1].result)
+    lt.assertEquals('答复时机里结果已经定下', jink, atFire[1])
 end)
 
 lt.test('答复：缘由是「打出」时基础规则把牌送进弃牌', function ()

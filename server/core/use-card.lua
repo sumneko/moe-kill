@@ -89,7 +89,7 @@ function M:settle()
     end
 
     zone:take(index)
-    self.game:fire('卡牌-取出后', self)
+    self.game:fire('卡牌-结算前', self)
     for _, target in ipairs(self.game.desk:sortByActionOrder(self.user, self.targets)) do
         local effect = New 'CardEffect' (self.game, def, self.user, self.card, target)
         effect:apply()

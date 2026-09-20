@@ -95,19 +95,30 @@ lt.test('局：挪牌时的几种失败记在效果上，且不改状态', funct
     local hand = game:createZone('手牌')
     local pile = game:createZone('弃牌')
     local card = game:createCard('闪')
-    local idle = game:createCard('闪')
     hand:put(card)
     lt.clearErrors()
 
     lt.assertFailed('局上没有这个牌区', game:moveCard(card, '没有这个区'))
     lt.assertFailed('路径里有一站不存在', game:moveCard(card, { '弃牌', '没有这个区' }))
-    lt.assertFailed('牌不在任何牌区里', game:moveCard(idle, '手牌'))
 
-    lt.assertEquals('失败都被收下', 3, #lt.errors)
+    lt.assertEquals('失败都被收下', 2, #lt.errors)
     lt.clearErrors()
     lt.assertEquals('失败后牌还在原处', 1, hand:count())
     lt.assertEquals('失败后归属没变', hand, card:getZone())
     lt.assertEquals('弃牌没被碰到', 0, pile:count())
+end)
+
+lt.test('局：没有归属的牌也能挪，第一站当作放进去', function ()
+    local game  = newGame()
+    local stage = game:createZone('处理')
+    local pile  = game:createZone('弃牌')
+    local card  = game:createCard('闪')
+
+    game:moveCard(card, { '处理', '弃牌' })
+
+    lt.assertEquals('进了最后一站', pile, card:getZone())
+    lt.assertEquals('中间那站不留牌', 0, stage:count())
+    lt.assertEquals('弃牌里有它', card, pile:list()[1])
 end)
 
 lt.test('局：有序牌区洗牌不用再传随机源', function ()

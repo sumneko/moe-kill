@@ -11,6 +11,7 @@ require 'core.effect'
 ---@field reason string # 这次为什么问
 ---@field question any # 要什么牌
 ---@field card? Card # 答复方给出的那张牌（与 `.result` 同值；没人答上时不存在）
+---@field package task? Task
 local M = Class 'AskCard'
 
 Extends('AskCard', 'Effect')
@@ -31,17 +32,24 @@ end
 ---@param value Card # 应答方给出的那张牌
 function M:answer(value)
     if self.result then
-        error('这次询问已经答过了', 2)
+        log.info('这次询问已经答过了，先给出的算数')
+        return
     end
-    self:resolve(value)
+    self.task:resolve(value)
 end
 
 --- 把询问交给应答方（答复一到，结果就定下了）
 ---@async
 function M:settle()
     self.game:fire('卡牌-询问', self)
+
+    if not self.result then
+        return
+    end
+
     self.card = self.result
     self.game:fire('卡牌-答复', self)
+    self.game:fire('卡牌-答复后', self)
 end
 
 ---@class AskCard.API

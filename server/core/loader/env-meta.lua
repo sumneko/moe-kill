@@ -28,8 +28,10 @@ Depends = nil
 ---@field fire fun(self: Game, name: '卡牌-询问', ctx: AskCard)
 ---@field on fun(self: Game, name: '卡牌-答复', callback: fun(ctx: AskCard)): function
 ---@field fire fun(self: Game, name: '卡牌-答复', ctx: AskCard)
----@field on fun(self: Game, name: '卡牌-取出后', callback: fun(ctx: UseCard)): function
----@field fire fun(self: Game, name: '卡牌-取出后', ctx: UseCard)
+---@field on fun(self: Game, name: '卡牌-答复后', callback: fun(ctx: AskCard)): function
+---@field fire fun(self: Game, name: '卡牌-答复后', ctx: AskCard)
+---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(ctx: UseCard)): function
+---@field fire fun(self: Game, name: '卡牌-结算前', ctx: UseCard)
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(ctx: UseCard)): function
 ---@field fire fun(self: Game, name: '卡牌-结算后', ctx: UseCard)
 ---@field on fun(self: Game, name: '伤害-前', callback: fun(ctx: Damage)): function

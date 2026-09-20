@@ -32,18 +32,19 @@ function M:settle()
         end
         stops[i] = stop
     end
-    ---@type Zone[] # 每张牌此刻所在的区，随着路径推进
+    ---@type (Zone?)[] # 每张牌此刻所在的区（本来不在任何区的牌为「不存在」）
     local holding = {}
     for i, card in ipairs(self.cards) do
-        local from = card:getZone()
-        if not from then
-            error('这张牌不在任何牌区里，挪不动：{}' % { tostring(card) }, 2)
-        end
-        holding[i] = from
+        holding[i] = card:getZone()
     end
     for _, stop in ipairs(stops) do
         for i, card in ipairs(self.cards) do
-            holding[i]:move(card, stop)
+            local from = holding[i]
+            if from then
+                from:move(card, stop)
+            else
+                stop:put(card)
+            end
             holding[i] = stop
         end
     end

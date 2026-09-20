@@ -451,7 +451,7 @@ Card '测试杀'
     lt.assertEquals('两个生效之后才收尾', '生效2生效3收尾', user:getTag('顺序'))
 end)
 
-lt.test('使用：牌取出后触发一次时机，早于第一个生效', function ()
+lt.test('使用：牌出手前触发一次时机，早于第一个生效', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
@@ -470,7 +470,7 @@ Card '测试杀'
 
     ---@type (Card?)[]
     local seen = {}
-    game.events:on('卡牌-取出后', function (ctx)
+    game.events:on('卡牌-结算前', function (ctx)
         ---@cast ctx UseCard
         seen[#seen + 1] = ctx.card
         user:setTag('顺序', (user:getTag('顺序') or '') .. '取出')

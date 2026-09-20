@@ -102,12 +102,6 @@ function M:remove()
     Delete(self)
 end
 
---- 提前定下这次结算的结果（不用等 `settle` 跑完）
----@param result? any
-function M:resolve(result)
-    self.task:resolve(result)
-end
-
 --- 结算这次效果：返回值就是这次结算的结果
 function M:settle()
     error('效果子类必须实现 settle', 2)
