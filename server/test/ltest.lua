@@ -2,6 +2,7 @@
 ---@field registry LTest.Case[]
 ---@field errorCount integer # 到目前为止记下的错误日志条数
 ---@field expectedErrors integer # 当前用例声明预期的错误日志条数
+---@field errors any[] # 收到的错误（用例自己清）
 local M = {}
 
 ---@class LTest.Case
@@ -12,6 +13,14 @@ M.registry = {}
 
 M.errorCount     = 0
 M.expectedErrors = 0
+M.errors         = {}
+
+--- 清掉攒下来的错误
+function M.clearErrors()
+    for i = #M.errors, 1, -1 do
+        M.errors[i] = nil
+    end
+end
 
 ---@param message string
 function M.onError(message)
@@ -68,6 +77,13 @@ function M.assertError(name, callback)
         error('{}: 期望抛错但没有' % { name }, 2)
     end
     return tostring(err)
+end
+
+--- 断言这次调用以「失败」结束（不抛，错误记在 `.err` 上）
+---@param name string
+---@param effect Effect
+function M.assertFailed(name, effect)
+    M.assertEquals(name, true, effect.err ~= nil)
 end
 
 ---@async

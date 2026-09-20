@@ -61,9 +61,7 @@ lt.test('杀：攻击范围外的目标用不了', function ()
     local target = run.players[3]
     local card   = takeSlash(run, user)
 
-    lt.assertError('隔着两个人够不着', function ()
-        run.game:play(user, card, { target })
-    end)
+    lt.assertFailed('隔着两个人够不着', run.game:play(user, card, { target }))
 
     lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
@@ -75,9 +73,7 @@ lt.test('杀：不能对自己用', function ()
     local user = run.players[1]
     local card = takeSlash(run, user)
 
-    lt.assertError('自己的合法目标里没有自己', function ()
-        run.game:play(user, card, { user })
-    end)
+    lt.assertFailed('自己的合法目标里没有自己', run.game:play(user, card, { user }))
 
     lt.assertEquals('自己没掉血', 5, user:getAttr('体力'))
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())

@@ -333,6 +333,7 @@ end
 ---@param to Player # 被问者
 ---@param question any # 问的是什么
 ---@return any # 答案：询问被取消时为「不存在」
+---@async
 function M:ask(to, question)
     local ask = moe.ask.create {
         game     = self,
@@ -357,25 +358,33 @@ end
 ---@param from Player # 伤害来源
 ---@param to Player # 承受者
 ---@param amount integer # 点数
+---@async
+---@return Damage # 这次伤害（已经结完：结果读 `.result`，失败读 `.err`）
 function M:damage(from, to, amount)
-    moe.damage.create {
+    local damage = moe.damage.create {
         game   = self,
         from   = from,
         to     = to,
         amount = amount,
-    }:apply()
+    }
+    damage:apply():await()
+    return damage
 end
 
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
 ---@param targets Player[] # 目标（可以为空表）
+---@async
+---@return UseCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
 function M:play(user, card, targets)
-    moe.useCard.create {
+    local effect = moe.useCard.create {
         game    = self,
         user    = user,
         card    = card,
         targets = targets,
-    }:apply()
+    }
+    effect:apply():await()
+    return effect
 end
 
 ---@param effect Effect

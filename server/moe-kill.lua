@@ -8,6 +8,7 @@
 ---@field gc table
 ---@field timer Timer
 ---@field await Await.API
+---@field task Task.API
 ---@field eventLoop EventLoop
 ---@field asyncIO AsyncIO
 ---@field sevent table
@@ -22,7 +23,6 @@
 ---@field desk Desk.API
 ---@field player Player.API
 ---@field game Game.API
----@field effect Effect.API
 ---@field ask Ask.API
 ---@field useCard UseCard.API
 ---@field damage Damage.API
@@ -112,6 +112,7 @@ moe.uri     = require 'tools.uri'
 moe.gc      = require 'tools.gc'
 moe.timer   = require 'tools.timer'
 moe.await   = require 'tools.await'
+moe.task    = require 'tools.task'
 moe.eventLoop = require 'tools.event-loop'
 moe.sevent  = require 'tools.simple-event'
 moe.asyncIO = require 'async-io'
@@ -154,9 +155,7 @@ function moe.inspect(root)
     return inspect.inspect(root, inspectOptions)
 end
 
-moe.await.setErrorHandler(function (traceback)
-    log.error(traceback)
-end)
+moe.await.setErrorHandler(log.error)
 
 moe.await.setSleepWaker(function (time, callback)
     if time <= 0 then
@@ -165,6 +164,8 @@ moe.await.setSleepWaker(function (time, callback)
         moe.timer.wait(time, callback)
     end
 end)
+
+moe.task.setErrorHandler(log.error)
 
 moe.eventLoop.addHighTask(function ()
     moe.asyncIO.poll()

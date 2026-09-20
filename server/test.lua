@@ -87,6 +87,10 @@ end
 
 local lt = require 'test.ltest'
 
+moe.task.setErrorHandler(function (err)
+    lt.errors[#lt.errors + 1] = err
+end)
+
 test.enableMemoryGuard()
 
 test.require 'test.smoke'

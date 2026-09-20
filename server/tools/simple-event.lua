@@ -1,8 +1,12 @@
 ---@class SimpleEvent
+---@field private events fun(...)[]
+---@field private onError fun(err: any): any
 local M = Class 'SimpleEvent'
 
-function M:__init()
-    self.events = {}
+---@param onError? fun(err: any): any # 回调报错怎么处理（默认记日志）
+function M:__init(onError)
+    self.events  = {}
+    self.onError = onError or log.error
 end
 
 ---@param callback fun(...)
@@ -32,12 +36,14 @@ end
 
 function M:fire(...)
     for _, callback in ipairs(self.events) do
-        xpcall(callback, log.error, ...)
+        xpcall(callback, self.onError, ...)
     end
 end
 
 return {
-    create = function ()
-        return New 'SimpleEvent' ()
-    end
+    ---@param onError? fun(err: any): any
+    ---@return SimpleEvent
+    create = function (onError)
+        return New 'SimpleEvent' (onError)
+    end,
 }

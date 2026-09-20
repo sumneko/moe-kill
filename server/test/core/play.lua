@@ -109,9 +109,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertError('手上没有这张牌', function ()
-        game:play(user, card, { target })
-    end)
+    lt.assertFailed('手上没有这张牌', game:play(user, card, { target }))
 
     lt.assertEquals('结算没跑', nil, user:getTag('用了'))
     lt.assertEquals('手牌还是空的', 0, hand:count())
@@ -125,9 +123,7 @@ lt.test('使用：牌没有内容定义时报错', function ()
     local card = game:createCard('没有这张牌')
     hand:put(card)
 
-    lt.assertError('没有定义就用不了', function ()
-        game:play(user, card, { target })
-    end)
+    lt.assertFailed('没有定义就用不了', game:play(user, card, { target }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
@@ -150,9 +146,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertError('自己不在合法目标里', function ()
-        game:play(user, card, { user })
-    end)
+    lt.assertFailed('自己不在合法目标里', game:play(user, card, { user }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
     lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
@@ -173,9 +167,7 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertError('漏写钩子不等于谁都能打', function ()
-        game:play(user, card, { target })
-    end)
+    lt.assertFailed('漏写钩子不等于谁都能打', game:play(user, card, { target }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
     lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
@@ -194,9 +186,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertError('拿不到列表就谁都不给用', function ()
-        game:play(user, card, { target })
-    end)
+    lt.assertFailed('拿不到列表就谁都不给用', game:play(user, card, { target }))
 
     lt.assertEquals('钩子确实跑过', true, user:getTag('问过目标'))
     lt.assertEquals('牌还留在手上', 1, hand:count())
@@ -215,9 +205,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertError('没有合法目标就用不了', function ()
-        game:play(user, card, { target })
-    end)
+    lt.assertFailed('没有合法目标就用不了', game:play(user, card, { target }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
@@ -235,9 +223,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertError('一个目标都不给就用不了', function ()
-        game:play(user, card, {})
-    end)
+    lt.assertFailed('一个目标都不给就用不了', game:play(user, card, {}))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
@@ -261,9 +247,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertError('被前一个钩子收窄掉的目标用不了', function ()
-        game:play(user, card, { user })
-    end)
+    lt.assertFailed('被前一个钩子收窄掉的目标用不了', game:play(user, card, { user }))
     lt.assertEquals('牌还留在手上', 1, hand:count())
 
     game:play(user, card, { target })
@@ -313,9 +297,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:put(card)
 
-    lt.assertError('不能对自己用', function ()
-        game:play(user, card, { user })
-    end)
+    lt.assertFailed('不能对自己用', game:play(user, card, { user }))
 
     lt.assertEquals('栈上没有留下这次使用', 0, #game:getEffects())
 end)
@@ -338,11 +320,11 @@ Card '测试杀'
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
-    lt.assertError('结算里的错误会传出来', function ()
-        game:play(user, card, { target })
-    end)
+    local effect = game:play(user, card, { target })
 
+    lt.assertEquals('钩子报错被隔离，用牌照常完成', 0, hand:count())
     lt.assertEquals('栈上没有留下这次使用', 0, #game:getEffects())
+    lt.assertEquals('用牌本身没失败', nil, effect.err)
 end)
 
 lt.test('使用：结算里造成的伤害认这次用牌为父', function ()

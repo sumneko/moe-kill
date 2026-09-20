@@ -62,6 +62,7 @@ local function collectLegalTargets(def, ctx)
     return legal
 end
 
+---@async
 function M:settle()
     local name = self.card:getLabel()
     if type(name) ~= 'string' then
@@ -117,6 +118,7 @@ function CardEffect:__init(game, def, user, card, target)
     self.target = target
 end
 
+---@async
 function CardEffect:settle()
     for _, handler in ipairs(self.def:getHandlers('生效')) do
         handler(self)

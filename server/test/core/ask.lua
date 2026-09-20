@@ -90,10 +90,12 @@ end)
 
 lt.test('询问：没有回答者时明确失败', function ()
     local game, players = newGame(2)
+    lt.clearErrors()
 
-    lt.assertError('问不了', function ()
-        game:ask(players[2], { name = '闪' })
-    end)
+    local answer = game:ask(players[2], { name = '闪' })
+
+    lt.assertEquals('问不了 ⇒ 没有答案', nil, answer)
+    lt.assertEquals('失败被收到', 1, #lt.errors)
 end)
 
 lt.test('询问：回答者拿不出答案时明确失败', function ()
@@ -101,10 +103,12 @@ lt.test('询问：回答者拿不出答案时明确失败', function ()
     game.answerer = function ()
         return nil
     end
+    lt.clearErrors()
 
-    lt.assertError('拿不出答案', function ()
-        game:ask(players[2], { name = '闪' })
-    end)
+    local answer = game:ask(players[2], { name = '闪' })
+
+    lt.assertEquals('拿不出答案 ⇒ 没有答案', nil, answer)
+    lt.assertEquals('失败被收到', 1, #lt.errors)
 end)
 
 lt.test('询问：被取消的询问以「没有答案」结束，结算其余部分照常', function ()

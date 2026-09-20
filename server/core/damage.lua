@@ -25,6 +25,7 @@ function M:__init(game, from, to, amount)
     self.amount = amount
 end
 
+---@async
 function M:settle()
     self.game:fire('伤害-前', self)
     self.to:addAttr('体力', -self.amount)

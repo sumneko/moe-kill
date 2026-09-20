@@ -1,5 +1,23 @@
 local lt = require 'test.ltest'
 
+---@class ProbeEffect : Effect # 测试用：结算体里直接用请求当结果
+---@field request any # 这次用什么当结果
+---@field result? any # 结算给出的结果
+local ProbeEffect = Class 'ProbeEffect'
+
+Extends('ProbeEffect', 'Effect')
+
+---@param game Game
+---@param request any
+function ProbeEffect:__init(game, request)
+    self.kind    = 'probe'
+    self.request = request
+end
+
+function ProbeEffect:settle()
+    self.result = self.request
+end
+
 ---@param count integer
 ---@return Game
 ---@return Player[] # 按座位号升序
@@ -169,14 +187,15 @@ lt.test('效果：结算中抛错也退栈', function ()
     damage.settle = function ()
         error('故意报错')
     end
+    lt.clearErrors()
 
-    local message = assert(lt.assertError('错误照常向外传播', function ()
-        damage:apply()
-    end))
+    damage:apply()
 
+    lt.assertEquals('失败记在效果上', true, damage.err ~= nil)
+    lt.assertEquals('错误被收到', 1, #lt.errors)
     lt.assertEquals('栈上没有留下这一帧', 0, #game:getEffects())
     lt.assertEquals('体力没变（错误发生在改体力之前）', 4, players[2]:getAttr('体力'))
-    lt.assertEquals('错误信息里带出错位置', true, message:find('effect.lua:', 1, true) ~= nil)
+    lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):find('effect.lua:', 1, true) ~= nil)
 end)
 
 lt.test('效果：取到的是快照', function ()
@@ -356,16 +375,81 @@ end)
 
 lt.test('效果：不在结算中或已经结束的效果不能取消', function ()
     local game, players = newGame(2)
-    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    local fresh = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    local damage = game:damage(players[1], players[2], 1)
+    lt.clearErrors()
 
-    lt.assertError('还没开始结算', function ()
-        damage:remove()
-    end)
+    fresh:remove()
+
+    lt.assertEquals('还没开始结算 ⇒ 取消是空操作', 0, #game:getEffects())
+
+    damage:remove()
+
+    lt.assertEquals('已经结束 ⇒ 取消是空操作', nil, damage.err)
+    lt.assertEquals('正常结算照常掉血', 3, players[2]:getAttr('体力'))
+    lt.assertEquals('没有产生错误', 0, #lt.errors)
+end)
+
+lt.test('效果：失败记在 err 上，不抛', function ()
+    local game = newGame(1)
+    local probe = New 'ProbeEffect' (game, {})
+    probe.settle = function ()
+        error('故意报错', 0)
+    end
+    lt.clearErrors()
+
+    lt.assertEquals('apply 不抛，返回它自己', probe, probe:apply())
+    lt.assertEquals('错误记在效果上', true, probe.err ~= nil)
+    lt.assertEquals('错误被收到', 1, #lt.errors)
+    lt.assertEquals('再等也不抛', probe, probe:await())
+    lt.assertEquals('错误不会被清掉', true, probe.err ~= nil)
+end)
+
+lt.test('效果：入口返回已经结完的效果', function ()
+    local game, players = newGame(2)
+
+    local damage = game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('入口返回这次伤害', 'damage', damage.kind)
+    lt.assertEquals('拿到的是同一个效果', damage, damage:await())
+    lt.assertEquals('已经结完（体力掉了）', 3, players[2]:getAttr('体力'))
+    lt.assertEquals('没有失败', nil, damage.err)
+end)
+
+lt.test('效果：自动失败交给任务的错误处理器，取消不交', function ()
+    local game, players = newGame(2)
+
+    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    damage.settle = function ()
+        error('故意报错', 0)
+    end
+    lt.clearErrors()
 
     damage:apply()
 
-    lt.assertError('已经结算完毕', function ()
-        damage:remove()
+    lt.assertEquals('失败记在效果上', true, damage.err ~= nil)
+    lt.assertEquals('处理器收到一次', 1, #lt.errors)
+    lt.assertEquals('收到的是这个失败', true, tostring(lt.errors[1]):find('故意报错', 1, true) ~= nil)
+
+    game.events:on('即将生效', function (ctx)
+        ---@cast ctx Effect
+        ctx:remove()
     end)
-    lt.assertEquals('正常结算照常掉血', 3, players[2]:getAttr('体力'))
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('取消不算失败，不交给处理器', 1, #lt.errors)
+    lt.assertEquals('被取消 ⇒ 没有造成伤害', 4, players[2]:getAttr('体力'))
+end)
+
+---@async
+lt.test('任务：到点没结完以超时失败', function ()
+    local task = moe.task.create()
+    task:setTimeout(0.01)
+    lt.clearErrors()
+
+    local result, err = task:await()
+
+    lt.assertEquals('没有结果', nil, result)
+    lt.assertEquals('失败原因是超时', 'timeout', err)
+    lt.assertEquals('超时不算报错，不交给处理器', 0, #lt.errors)
 end)
