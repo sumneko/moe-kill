@@ -78,7 +78,7 @@ lm:executable "moe-kill" {
 ```
 
 - `bee.lua` 以 submodule 放在 `3rd/bee.lua`；`make/modules.cpp` 只做自有 C 模块注册（无自有 C 模块时留空壳）。
-- 常用命令：`luamake`（编译 + 测试）、`luamake -notest`（只编译）、`luamake -mode debug`、`luamake test -v`。
+- 常用命令：`luamake`（编译 + 测试）、`luamake -notest`（只编译）、`luamake -mode debug`、`luamake test -v`。**只在改了 C/C++ 或构建/补丁链时才需要它们**（纯 Lua 改动直接跑 `server/bin/moe-kill.exe --test`，见第 5 节）。
 - `includes` 里 Lua 目录的写法是 `"3rd/bee.lua/3rd/lua" .. lm.lua`，**不要写成 `"lua5" .. lm.lua`**（会拼成 `lua555`，然后 `lua.hpp` 找不到）。
 - `lm.optchain = true` 那条老路**不再使用**（optchain 补丁已包含在自接补丁链里）；`lm.luadir` 指向打过补丁的副本，`source_lua`（未打补丁）不再被任何目标依赖。
 
@@ -160,6 +160,7 @@ end
 
 入口与风格照搬 LuaLS 4.0.0，**断言库不照搬**：
 
+- **纯 Lua 改动不需要构建**（用户 2026-09-20 定）：`server/bin/moe-kill.exe` 只是个壳，`make/bootstrap.lua` 把项目根的 `server/?.lua` / `server/?/init.lua` / `server/tools/**` 挂进 `package.path`、脚本从**源码树**直接加载 ⇒ 改完 Lua 直接 `server/bin/moe-kill.exe --test` 即可。**只有**动了 C/C++ 或构建/补丁链（`make.lua`、`make/lua-patch/**`、`3rd/bee.lua`、Lua 源码补丁）才需要 `luamake -notest` 重新编译。
 - 入口：`bin/moe-kill.exe --test [套件]`；`main.lua` 里 `if moe.args.TEST then dofile '<root>/test.lua' return end`。
 - `test.lua` 负责：把过滤目标转成模块路径（`smoke.await` → `test.smoke.await`，支持逐层收窄）、逐模块加载、驱动事件循环、汇总失败并以退出码表示结果（`0` = 全通过）。
 - 过滤器没匹配到任何模块/用例时明确报错并以非 0 退出，不静默"全部通过"。
@@ -201,9 +202,9 @@ end
 ## 7. 命令速查
 
 ```powershell
-luamake                          # 编译 + 跑无头测试
-luamake -notest                  # 只编译（产出 server/bin/moe-kill.exe + server/bin/main.lua）
-server/bin/moe-kill.exe --test          # 无头跑全部测试（退出码 0 = 全通过）
+server/bin/moe-kill.exe --test          # 平时（只改 Lua）：直接跑全部测试（退出码 0 = 全通过），不需要构建
+luamake -notest                  # 只编译（产出 server/bin/moe-kill.exe + server/bin/main.lua）：只在改了 C/C++ 或构建/补丁链时需要
+luamake                          # 编译 + 跑无头测试（同样会先构建一遍）
 server/bin/moe-kill.exe --test smoke.await    # 只跑一个套件
 server/bin/moe-kill.exe --test core.reload    # 热重载套件（机制 + 真改文件端到端）
 server/bin/moe-kill.exe --test rule           # 规则集加载套件（清单/依赖/定义入口/失败）

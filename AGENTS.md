@@ -72,6 +72,7 @@
 - **注释尽量不写；接口留一行中文说明**（用户 2026-09-19 定）：代码里**不写注释**（说不清就先改名 / 拆函数）；但**入口**（函数 / 方法 / 字段 / 模块门面）保留**一行极短的中文说明**，几个字即可（如「获取标题」），贴在类型注解的 `#` 后。另一处例外：`package/` 里**卡牌 / 技能**这类内容定义文件，**顶部写它的官方描述**（见 `sanguosha-rules` §9.3）。**存量注释待下次顺手清**。详见 `moe-kill-dev` 的 `references/code-style.md` 第 3 节。
 - Git 提交信息：**AI 助手编写或修改的代码，提交信息开头加 `【AI】` 前缀**（如 `【AI】feat(core): 对象与牌堆骨架`）；人工提交不加。正文用简体中文 + conventional commits。
 - **改完 Lua 代码必须检查问题面板，把 information 及以上等级的问题清到 0**（hint 级不管）；改不动的来问用户，不要留着。一次性改动大量文件后语言服务器可能延迟甚至卡住，用 `lua.startServer` 重启后再检查。
+- **平时只改 Lua，跑测试不需要构建**（用户 2026-09-20 定）：`server/bin/moe-kill.exe` 只是个壳，脚本从源码树加载 ⇒ 直接 `server/bin/moe-kill.exe --test` 就行；**只有**动了 C/C++ 或构建/补丁链（`make.lua`、`make/lua-patch/**`、`3rd/bee.lua`）才需要 `luamake -notest`。
 
 ## 环境注意（Windows / PowerShell）
 

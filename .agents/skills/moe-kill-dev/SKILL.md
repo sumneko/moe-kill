@@ -61,4 +61,5 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 - 随机数可注入 seed，保证整局可复现。
 - 跨 worker / 线程边界只传可序列化的 plain data（table / string / number / boolean）。
 - 临时调试产物统一放 `server/tmp/`，用完清理，不要留在代码目录里。
+- **平时只改 Lua，跑测试不需要构建**（用户 2026-09-20 定）：exe 只是壳、脚本从源码树加载 ⇒ 直接 `server/bin/moe-kill.exe --test`；只有动了 C/C++ 或构建/补丁链（`make.lua`、`make/lua-patch/**`、`3rd/bee.lua`）才跑 `luamake -notest`。
 - 风格与基础设施以 LuaLS `4.0.0` 分支为准（见 `references/`），不要照搬其 `master`（2022 老架构）。
