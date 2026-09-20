@@ -1,5 +1,8 @@
 ---@meta
 
+-- 本文件只声明注入环境的类型：环境对象本身、内容定义入口、以及 game 上的**事件**（按名收窄 on/fire 的上下文）。
+-- Game 上其余入口（askCard / respond / moveCard …）的声明在 `server/core/game.lua`，别往这里抄一份。
+
 ---@type Game
 game = nil
 
@@ -37,8 +40,5 @@ Depends = nil
 ---@field fire fun(self: Game, name: '伤害-后', ctx: Damage)
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(ctx: Player)): function
 ---@field fire fun(self: Game, name: '玩家-死亡', ctx: Player)
----@field askCard fun(self: Game, to: Player, question: any): AskCard # 要一张牌：询问交给应答方，给出的牌读 `.result`
----@field respond fun(self: Game, player: Player, card: Card) # 打出一张牌（与「使用」区分）
----@field moveCard fun(self: Game, cards: Card[], zoneName: string) # 把牌挪进某个牌区（待实现）
 ---@field on fun(self: Game, name: string, callback: fun(ctx: any)): function
 ---@field fire fun(self: Game, name: string, ...: any)
