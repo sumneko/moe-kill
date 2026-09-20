@@ -43,9 +43,9 @@ lt.test('询问：一次往返', function ()
     local game, players = newGame(2)
     game.answerer = scripted { '好' }
 
-    local answer = game:ask(players[2], { name = '闪' })
+    local ask = game:ask(players[2], { name = '闪' })
 
-    lt.assertEquals('拿到回答者给的答案', '好', answer)
+    lt.assertEquals('拿到回答者给的答案', '好', ask.result)
 end)
 
 lt.test('询问：答案与被问者挂在询问自己身上，父效果是发起它的那个', function ()
@@ -66,7 +66,7 @@ lt.test('询问：答案与被问者挂在询问自己身上，父效果是发�
 
     local ask = assert(asked, '回答者没被问到')
     lt.assertEquals('种类标识', 'ask', ask.kind)
-    lt.assertEquals('答案存在询问上', true, ask.answer)
+    lt.assertEquals('答案是这次询问的结果', true, ask.result)
     lt.assertEquals('被问者', players[2], ask.to)
     lt.assertEquals('问的是什么', '闪', ask.question.name)
     lt.assertEquals('父效果是发起它的那次伤害', 'damage', assert(ask.parent).kind)
@@ -79,8 +79,8 @@ lt.test('询问：同一结算里问多次互不串', function ()
     ---@type any[]
     local answers = {}
     game.events:on('伤害-前', function ()
-        answers[#answers + 1] = game:ask(players[2], '问一次')
-        answers[#answers + 1] = game:ask(players[3], '再问一次')
+        answers[#answers + 1] = game:ask(players[2], '问一次').result
+        answers[#answers + 1] = game:ask(players[3], '再问一次').result
     end)
 
     game:damage(players[1], players[2], 1)
@@ -92,23 +92,37 @@ lt.test('询问：没有回答者时明确失败', function ()
     local game, players = newGame(2)
     lt.clearErrors()
 
-    local answer = game:ask(players[2], { name = '闪' })
+    local ask = game:ask(players[2], { name = '闪' })
 
-    lt.assertEquals('问不了 ⇒ 没有答案', nil, answer)
+    lt.assertFailed('问不了', ask)
+    lt.assertEquals('没有答案', nil, ask.result)
     lt.assertEquals('失败被收到', 1, #lt.errors)
 end)
 
-lt.test('询问：回答者拿不出答案时明确失败', function ()
+lt.test('询问：回答者拿不出答案时没有答案，也不算失败', function ()
     local game, players = newGame(2)
     game.answerer = function ()
         return nil
     end
     lt.clearErrors()
 
-    local answer = game:ask(players[2], { name = '闪' })
+    local ask = game:ask(players[2], { name = '闪' })
 
-    lt.assertEquals('拿不出答案 ⇒ 没有答案', nil, answer)
-    lt.assertEquals('失败被收到', 1, #lt.errors)
+    lt.assertEquals('没有答案', nil, ask.result)
+    lt.assertEquals('不算失败', nil, ask.err)
+    lt.assertEquals('没有记下错误', 0, #lt.errors)
+end)
+
+lt.test('询问：回答者答「否」也是一个答案', function ()
+    local game, players = newGame(2)
+    game.answerer = function ()
+        return false
+    end
+
+    local ask = game:ask(players[2], { name = '闪' })
+
+    lt.assertEquals('答案是「否」', false, ask.result)
+    lt.assertEquals('不算失败', nil, ask.err)
 end)
 
 lt.test('询问：被取消的询问以「没有答案」结束，结算其余部分照常', function ()
@@ -125,7 +139,7 @@ lt.test('询问：被取消的询问以「没有答案」结束，结算其余�
     end)
     game.events:on('伤害-前', function ()
         trace[#trace + 1] = '前'
-        local answer = game:ask(players[2], { name = '闪' })
+        local answer = game:ask(players[2], { name = '闪' }).result
         trace[#trace + 1] = '答案 {}' % { tostring(answer) }
     end)
 

@@ -1,8 +1,7 @@
 local lt = require 'test.ltest'
 
----@class ProbeEffect : Effect # 测试用：结算体里直接用请求当结果
+---@class ProbeEffect : Effect # 测试用：把建实例时给的请求当作这次结算的结果交出去
 ---@field request any # 这次用什么当结果
----@field result? any # 结算给出的结果
 local ProbeEffect = Class 'ProbeEffect'
 
 Extends('ProbeEffect', 'Effect')
@@ -15,7 +14,7 @@ function ProbeEffect:__init(game, request)
 end
 
 function ProbeEffect:settle()
-    self.result = self.request
+    return self.request
 end
 
 ---@param count integer
@@ -327,6 +326,18 @@ lt.test('效果：失败记在 err 上，不抛', function ()
     lt.assertEquals('错误被收到', 1, #lt.errors)
     lt.assertEquals('再等也不抛', probe, probe:await())
     lt.assertEquals('错误不会被清掉', true, probe.err ~= nil)
+end)
+
+lt.test('效果：结算体给出的值就是这次结算的结果', function ()
+    local game, players = newGame(2)
+
+    local probe = New 'ProbeEffect' (game, '答案')
+    probe:apply()
+
+    lt.assertEquals('读 settle 的返回值', '答案', probe.result)
+
+    local damage = game:damage(players[1], players[2], 1)
+    lt.assertEquals('结算体不返回值 ⇒ 没有结果', nil, damage.result)
 end)
 
 lt.test('效果：入口返回已经结完的效果', function ()

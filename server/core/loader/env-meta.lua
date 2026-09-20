@@ -35,7 +35,8 @@ Depends = nil
 ---@field fire fun(self: Game, name: '伤害-后', ctx: Damage)
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(ctx: Player)): function
 ---@field fire fun(self: Game, name: '玩家-死亡', ctx: Player)
----@field ask fun(self: Game, to: Player, question: any): any # 当场要一个答案；被取消的询问返回「不存在」
+---@field ask fun(self: Game, to: Player, question: any): Ask # 当场要一个决策：答案读 `.result`（没答上或被取消 ⇒ 不存在）
 ---@field respond fun(self: Game, player: Player, card: Card) # 打出一张牌（与「使用」区分）
+---@field moveCard fun(self: Game, cards: Card[], zoneName: string) # 把牌挪进某个牌区（待实现）
 ---@field on fun(self: Game, name: string, callback: fun(ctx: any)): function
 ---@field fire fun(self: Game, name: string, ...: any)

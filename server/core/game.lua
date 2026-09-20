@@ -330,7 +330,7 @@ end
 
 ---@param to Player # 被问者
 ---@param question any # 问的是什么
----@return any # 答案：询问被取消时为「不存在」
+---@return Ask # 这次询问（已经结完：答案读 `.result`，失败读 `.err`）
 ---@async
 function M:ask(to, question)
     local ask = moe.ask.create {
@@ -338,8 +338,8 @@ function M:ask(to, question)
         to       = to,
         question = question,
     }
-    ask:apply()
-    return ask.answer
+    ask:apply():await()
+    return ask
 end
 
 ---@param player Player # 打出这张牌的角色
@@ -351,6 +351,14 @@ function M:respond(player, card)
     end
     zone:take(index)
     self:fire('卡牌-打出后', { player = player, card = card })
+end
+
+--- 把牌挪进某个牌区
+---@param cards Card[] # 要挪的牌
+---@param zoneName string # 目标牌区名（局上的区）
+function M:moveCard(cards, zoneName)
+    -- TODO: 先在局上的区与各个玩家的区里找到每张牌，再移进目标区（找不到就报错、不改状态）
+    error('挪牌还没实现', 2)
 end
 
 ---@param from Player # 伤害来源

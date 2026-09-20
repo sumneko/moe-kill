@@ -8,7 +8,6 @@ require 'core.effect'
 ---@class Ask : Effect
 ---@field to Player # 被问者
 ---@field question any # 问的是什么
----@field answer? any # 答案：被取消或还没问完时为「不存在」
 local M = Class 'Ask'
 
 Extends('Ask', 'Effect')
@@ -22,16 +21,15 @@ function M:__init(game, to, question)
     self.question = question
 end
 
+--- 问一次：返回值就是这次询问的答案
+---@async
+---@return any # 回答者给的答案；没答上或这次询问被取消时为「不存在」
 function M:settle()
     local answerer = self.game.answerer
     if not answerer then
         error('这一局没有回答者，问不了', 2)
     end
-    local answer = answerer(self)
-    if answer == nil then
-        error('回答者没有给出答案', 2)
-    end
-    self.answer = answer
+    return answerer(self)
 end
 
 ---@class Ask.API

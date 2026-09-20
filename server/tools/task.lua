@@ -109,8 +109,8 @@ end
 ---@type table<thread, Task>
 local taskMap = setmetatable({}, { __mode = 'k' })
 
---- 起一个协程跑这次任务；跑完自动完成，报错记成失败
----@param func fun(task: Task)
+--- 起一个协程跑这次任务；跑完自动完成（执行体的返回值就是结果），报错记成失败
+---@param func fun(task: Task): any
 ---@return Task
 function M:execute(func)
     local co
@@ -119,13 +119,15 @@ function M:execute(func)
         co = coroutine.running()
         taskMap[co] = self
         table.insert(self.threads, co)
-        xpcall(func, function (err)
+        local ok, result = xpcall(func, function (err)
             if errorHandler then
                 errorHandler(err)
             end
             self:reject(err)
         end, self)
-        self:resolve()
+        if ok then
+            self:resolve(result)
+        end
     end)
     if co and self.resolved and coroutine.status(co) == 'suspended' then
         -- 任务已经结完了，但执行体还挂着（例如它被取消）：收掉它，让退栈发生
