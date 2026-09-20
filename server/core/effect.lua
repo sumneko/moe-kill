@@ -11,8 +11,10 @@ Extends(M, 'GCHost')
 
 ---@param game Game
 function M:__init(game)
-    self.kind = 'effect'
-    self.game = game
+    self.kind  = 'effect'
+    self.game  = game
+    ---@type Effect[]
+    self.childs = {}
 end
 
 function M:__del()
@@ -39,6 +41,9 @@ function M:apply()
 
     self.task:execute(function ()
         self.parent = self.game:getCurrentEffect()
+        if self.parent then
+            self.parent:addChildEffect(self)
+        end
         local pop <close> = self.game:pushEffect(self)
         self.game:fire('即将生效', self)
         self:settle()
@@ -48,6 +53,11 @@ function M:apply()
     self:bindGC(self.task)
 
     return self
+end
+
+---@param effect Effect
+function M:addChildEffect(effect)
+    self.childs[#self.childs+1] = effect
 end
 
 ---@param self Effect
