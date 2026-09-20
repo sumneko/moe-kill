@@ -41,7 +41,10 @@ lm:source_set "source_moe_lua" {
     sources = {
         luaDir / "onelua.c",
     },
-    defines = "MAKE_LIB",
+    defines = {
+        "MAKE_LIB",
+        "LUAI_MAXCCALLS=5000",
+    },
     visibility = "default",
     windows = {
         defines = "LUA_BUILD_AS_DLL",

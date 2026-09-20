@@ -199,6 +199,25 @@ lt.test('效果：结算中抛错也退栈', function ()
     lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):find('effect.lua:', 1, true) ~= nil)
 end)
 
+lt.test('效果：嵌套过深被拒绝', function ()
+    local game, players = newGame(2)
+
+    ---@type integer
+    local depth = 0
+
+    game.events:on('伤害-前', function ()
+        depth = depth + 1
+        if depth < 200 then
+            game:damage(players[1], players[2], 0)
+        end
+    end)
+
+    game:damage(players[1], players[2], 0)
+
+    lt.assertEquals('第 101 层发动不了，就停在这一层', 100, depth)
+    lt.assertEquals('只记根，内层不单独记', 1, #game:getEffects())
+end)
+
 lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
     local game, players = newGame(2)
 

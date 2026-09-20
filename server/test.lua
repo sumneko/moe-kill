@@ -51,23 +51,28 @@ function test.require(modname)
     end
 end
 
-function test.enableMemoryGuard()
-    if not moe.args.MEM_LIMIT then
-        return
-    end
+function test.enableGuards()
     if debug.gethook() then
         return
     end
-    local memLimitKB = moe.args.MEM_LIMIT * 1024 * 1024
+    local memLimitKB = moe.args.MEM_LIMIT and moe.args.MEM_LIMIT * 1024 * 1024
+    local timeLimit  = 30
+    local startClock = os.clock()
     debug.sethook(function ()
-        local heapKB = collectgarbage('count')
-        if heapKB > memLimitKB then
-            io.write('[内存护栏] Lua 堆 {%.1f} GB 超过上限 {%.1f} GB，强制退出\n' % {
-                heapKB / 1024 / 1024,
-                memLimitKB / 1024 / 1024,
-            })
-            io.flush()
-            os.exit(1)
+        if memLimitKB then
+            local heapKB = collectgarbage('count')
+            if heapKB > memLimitKB then
+                io.write('[护栏] Lua 堆 {%.1f} GB 超过上限 {%.1f} GB，强制退出\n' % {
+                    heapKB / 1024 / 1024,
+                    memLimitKB / 1024 / 1024,
+                })
+                io.flush()
+                os.exit(1)
+            end
+        end
+        local passed = os.clock() - startClock
+        if passed > timeLimit then
+            error('测试跑了 {} 秒还没完，当成卡住处理' % { timeLimit }, 2)
         end
     end, '', 100000)
 end
@@ -90,8 +95,6 @@ local lt = require 'test.ltest'
 moe.task.setErrorHandler(function (err)
     lt.errors[#lt.errors + 1] = err
 end)
-
-test.enableMemoryGuard()
 
 test.require 'test.smoke'
 test.require 'test.session'
@@ -122,6 +125,7 @@ local stopResults = {}
 
 ---@async
 moe.await.call(function ()
+    test.enableGuards()
     local ok, first, second = xpcall(lt.runAll, debug.traceback)
     if ok then
         bodyFailures = first
