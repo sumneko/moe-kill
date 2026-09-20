@@ -125,16 +125,52 @@ lt.test('移动：位置越界或不是整数时报错', function ()
     lt.assertEquals('目标区一直为空', 0, to:count())
 end)
 
-lt.test('移动：内核不记录牌的归属', function ()
+lt.test('归属：放进牌区就记得住自己在哪里', function ()
+    local zone = moe.zone.create()
+    local card = moe.card.create('甲')
+
+    lt.assertEquals('一开始不属于任何牌区', nil, card:getZone())
+
+    zone:put(card)
+    lt.assertEquals('放进后记得住', zone, card:getZone())
+
+    zone:take(1)
+    lt.assertEquals('取出来后不再属于任何牌区', nil, card:getZone())
+end)
+
+lt.test('归属：移动后跟着到目标区', function ()
+    local from = moe.zone.create()
+    local to   = moe.zone.create()
+    local card = moe.card.create('甲')
+    from:put(card)
+
+    from:move(card, to)
+
+    lt.assertEquals('归属改成目标区', to, card:getZone())
+    lt.assertEquals('目标区拿得到它', card, to:peek(to:count()))
+end)
+
+lt.test('归属：清空后不再属于任何牌区', function ()
+    local zone  = moe.zone.create()
+    local cards = fill(zone, { '甲', '乙' })
+
+    lt.assertEquals('清掉两张', 2, zone:clear())
+    lt.assertEquals('第一张没有归属了', nil, cards[1]:getZone())
+    lt.assertEquals('第二张没有归属了', nil, cards[2]:getZone())
+end)
+
+lt.test('归属：已经在牌区里的牌不能再放一次', function ()
     local first  = moe.zone.create()
     local second = moe.zone.create()
     local card   = moe.card.create('甲')
-
     first:put(card)
-    second:put(card)
 
-    lt.assertEquals('同一个实例可以直接放进另一个区', 1, second:count())
-    lt.assertEquals('原来的区里也还在', 1, first:count())
+    lt.assertError('不能再放进别的区', function () second:put(card) end)
+    lt.assertEquals('别的区仍然是空的', 0, second:count())
+    lt.assertEquals('归属没变', first, card:getZone())
+
+    lt.assertError('在同一个区里也不能再放一次', function () first:put(card) end)
+    lt.assertEquals('同一个区里没有重复', 1, first:count())
 end)
 
 lt.test('移动：手牌放进有序牌区顶部后即可被取顶', function ()

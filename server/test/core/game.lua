@@ -67,6 +67,36 @@ lt.test('局：建牌带牌名', function ()
     end)
 end)
 
+lt.test('局：把牌挪进某个牌区', function ()
+    local game = newGame()
+    local hand = game:createZone('手牌')
+    local pile = game:createZone('弃牌堆')
+    local jink = game:createCard('闪')
+    local slash = game:createCard('杀')
+    hand:put(jink)
+    hand:put(slash)
+
+    game:moveCard({ jink, slash }, '弃牌堆')
+
+    lt.assertEquals('手牌空了', 0, hand:count())
+    lt.assertEquals('弃牌堆按给出的顺序收到', '闪,杀', labels(pile))
+    lt.assertEquals('牌自己也知道换区了', pile, jink:getZone())
+end)
+
+lt.test('局：挪牌时的两种明确失败都不改状态', function ()
+    local game = newGame()
+    local hand = game:createZone('手牌')
+    local card = game:createCard('闪')
+    local idle = game:createCard('闪')
+    hand:put(card)
+
+    lt.assertError('局上没有这个牌区', function () game:moveCard({ card }, '没有这个区') end)
+    lt.assertError('牌不在任何牌区里', function () game:moveCard({ idle }, '手牌') end)
+
+    lt.assertEquals('失败后牌还在原处', 1, hand:count())
+    lt.assertEquals('失败后归属没变', hand, card:getZone())
+end)
+
 lt.test('局：有序牌区洗牌不用再传随机源', function ()
     local first  = newGame(42)
     local second = newGame(42)

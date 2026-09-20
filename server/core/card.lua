@@ -1,6 +1,7 @@
 ---@class Card
 ---@field private id integer
 ---@field private label? any
+---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 local M = Class 'Card'
 
 ---@package
@@ -25,6 +26,18 @@ end
 ---@param label? any
 function M:setLabel(label)
     self.label = label
+end
+
+--- 这张牌现在在哪个牌区
+---@return Zone? # 不在任何牌区时为「不存在」
+function M:getZone()
+    return self.zone
+end
+
+--- 记下这张牌所在的牌区（只有牌区自己用：放进 / 取出时维护）
+---@param zone Zone?
+function M:bindZone(zone)
+    self.zone = zone
 end
 
 ---@return string

@@ -59,7 +59,11 @@ end
 ---@return Card
 function M:put(card)
     self:checkEnabled('放入牌')
+    if card:getZone() then
+        error('这张牌已经在某个牌区里了，要换区请用 move', 2)
+    end
     self.cards[#self.cards + 1] = card
+    card:bindZone(self)
     return card
 end
 
@@ -68,7 +72,9 @@ end
 function M:take(index)
     self:checkEnabled('取牌')
     self:checkIndex(index)
-    return table.remove(self.cards, index)
+    local card = table.remove(self.cards, index)
+    card:bindZone(nil)
+    return card
 end
 
 ---@private
@@ -101,6 +107,7 @@ function M:move(card, to, position)
     local target = resolvePosition(count, position)
     table.remove(self.cards, index)
     table.insert(to.cards, target, card)
+    card:bindZone(to)
     return card
 end
 
@@ -126,6 +133,9 @@ end
 function M:clear()
     self:checkEnabled('清空牌区')
     local count = #self.cards
+    for i = 1, count do
+        self.cards[i]:bindZone(nil)
+    end
     self.cards = {}
     return count
 end

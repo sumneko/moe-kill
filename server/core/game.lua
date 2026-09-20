@@ -356,8 +356,22 @@ end
 ---@param cards Card[] # 要挪的牌
 ---@param zoneName string # 目标牌区名（局上的区）
 function M:moveCard(cards, zoneName)
-    -- TODO: 先在局上的区与各个玩家的区里找到每张牌，再移进目标区（找不到就报错、不改状态）
-    error('挪牌还没实现', 2)
+    local to = self:getZone(zoneName)
+    if not to then
+        error('局上没有叫 {} 的牌区' % { zoneName }, 2)
+    end
+    ---@type Zone[]
+    local sources = {}
+    for i, card in ipairs(cards) do
+        local from = card:getZone()
+        if not from then
+            error('这张牌不在任何牌区里，挪不动：{}' % { tostring(card) }, 2)
+        end
+        sources[i] = from
+    end
+    for i, card in ipairs(cards) do
+        sources[i]:move(card, to)
+    end
 end
 
 ---@param from Player # 伤害来源
