@@ -451,6 +451,43 @@ Card '测试杀'
     lt.assertEquals('两个生效之后才收尾', '生效2生效3收尾', user:getTag('顺序'))
 end)
 
+lt.test('使用：牌取出后触发一次时机，早于第一个生效', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+    : on('生效', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. '生效')
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    ---@type (Card?)[]
+    local seen = {}
+    game.events:on('卡牌-取出后', function (ctx)
+        ---@cast ctx UseCard
+        seen[#seen + 1] = ctx.card
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '取出')
+        user:setTag('取出时还在手上吗', hand:count())
+    end)
+    game.events:on('卡牌-结算后', function ()
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '收尾')
+    end)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('时机拿到这张牌', card, seen[1])
+    lt.assertEquals('只触发一次', 1, #seen)
+    lt.assertEquals('此刻牌已经离开手牌，可以被内容侧安置', 0, user:getTag('取出时还在手上吗'))
+    lt.assertEquals('顺序：取出 → 生效 → 收尾', '取出生效收尾', user:getTag('顺序'))
+end)
+
 lt.test('使用：每个目标的生效可以被单独取消', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[

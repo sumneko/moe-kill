@@ -53,6 +53,7 @@ lt.test('杀：对攻击范围内的目标造成 1 点伤害', function ()
     lt.assertEquals('牌离开了手牌', 0, user:getZone('手牌'):count())
     lt.assertEquals('用过的牌进了弃牌', 1, run.game:getZone('弃牌'):count())
     lt.assertEquals('弃牌里的就是那张杀', card, run.game:getZone('弃牌'):list()[1])
+    lt.assertEquals('处理只是路过', 0, assert(run.game:getZone('处理')):count())
 end)
 
 lt.test('杀：攻击范围外的目标用不了', function ()
@@ -87,7 +88,7 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     local card   = takeSlash(run, user)
     local jink   = takeCard(run, target, '闪')
 
-    run.game.events:on('游戏-询问', function (ask)
+    run.game.events:on('卡牌-询问', function (ask)
         ask:answer(jink)
     end)
 
@@ -98,6 +99,7 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     local discard = assert(run.game:getZone('弃牌')):list()
     lt.assertEquals('闪进了弃牌', true, moe.util.arrayHas(discard, jink))
     lt.assertEquals('杀也进了弃牌', true, moe.util.arrayHas(discard, card))
+    lt.assertEquals('处理只是路过', 0, assert(run.game:getZone('处理')):count())
 end)
 
 lt.test('杀：多目标依次结算，一个目标的响应不影响另一个', function ()
@@ -108,7 +110,7 @@ lt.test('杀：多目标依次结算，一个目标的响应不影响另一个',
     local card   = takeSlash(run, user)
     local jink   = takeCard(run, first, '闪')
 
-    run.game.events:on('游戏-询问', function (ask)
+    run.game.events:on('卡牌-询问', function (ask)
         if ask.to == first then
             ask:answer(jink)
         end
@@ -126,7 +128,7 @@ lt.test('杀：应答方不给牌时照常结算，不会挂住', function ()
     local target = run.players[2]
     local card   = takeSlash(run, user)
 
-    run.game.events:on('游戏-询问', function ()
+    run.game.events:on('卡牌-询问', function ()
         -- 不调 ask:answer ⇒ 没答上
     end)
 

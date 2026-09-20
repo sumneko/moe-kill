@@ -1,7 +1,7 @@
 ---@meta
 
 -- 本文件只声明注入环境的类型：环境对象本身、内容定义入口、以及 game 上的**事件**（按名收窄 on/fire 的上下文）。
--- Game 上其余入口（askCard / respond / moveCard …）的声明在 `server/core/game.lua`，别往这里抄一份。
+-- Game 上其余入口（askCard / moveCard …）的声明在 `server/core/game.lua`，别往这里抄一份。
 
 ---@type Game
 game = nil
@@ -21,19 +21,17 @@ Depends = nil
 
 ---@class Game.EventCtx.游戏开始 # 目前没有事件参数：触发时给空表，环境对象从 game 取
 
----@class Game.EventCtx.卡牌打出后
----@field player Player # 打出这张牌的角色
----@field card Card # 打出的牌
-
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(ctx: Game.EventCtx.游戏开始)): function
 ---@field fire fun(self: Game, name: '游戏-开始', ctx: Game.EventCtx.游戏开始)
----@field on fun(self: Game, name: '游戏-询问', callback: fun(ctx: AskCard)): function
----@field fire fun(self: Game, name: '游戏-询问', ctx: AskCard)
+---@field on fun(self: Game, name: '卡牌-询问', callback: fun(ctx: AskCard)): function
+---@field fire fun(self: Game, name: '卡牌-询问', ctx: AskCard)
+---@field on fun(self: Game, name: '卡牌-答复', callback: fun(ctx: AskCard)): function
+---@field fire fun(self: Game, name: '卡牌-答复', ctx: AskCard)
+---@field on fun(self: Game, name: '卡牌-取出后', callback: fun(ctx: UseCard)): function
+---@field fire fun(self: Game, name: '卡牌-取出后', ctx: UseCard)
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(ctx: UseCard)): function
 ---@field fire fun(self: Game, name: '卡牌-结算后', ctx: UseCard)
----@field on fun(self: Game, name: '卡牌-打出后', callback: fun(ctx: Game.EventCtx.卡牌打出后)): function
----@field fire fun(self: Game, name: '卡牌-打出后', ctx: Game.EventCtx.卡牌打出后)
 ---@field on fun(self: Game, name: '伤害-前', callback: fun(ctx: Damage)): function
 ---@field fire fun(self: Game, name: '伤害-前', ctx: Damage)
 ---@field on fun(self: Game, name: '伤害-后', callback: fun(ctx: Damage)): function

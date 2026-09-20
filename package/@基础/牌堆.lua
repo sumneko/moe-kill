@@ -19,10 +19,16 @@ game:on('游戏-开始', function ()
     end
 end)
 
-game:on('卡牌-结算后', function (ctx)
-    game:getZone('弃牌'):put(ctx.card)
+game:on('卡牌-答复', function (ctx)
+    if ctx.reason == '打出' and ctx.card then
+        game:moveCard(ctx.card, { '处理', '弃牌' })
+    end
 end)
 
-game:on('卡牌-打出后', function (ctx)
-    game:getZone('弃牌'):put(ctx.card)
+game:on('卡牌-取出后', function (ctx)
+    game:getZone('处理'):put(ctx.card)
+end)
+
+game:on('卡牌-结算后', function (ctx)
+    game:moveCard(ctx.card, '弃牌')
 end)

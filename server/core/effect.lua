@@ -2,7 +2,7 @@
 ---@field kind string # 种类标识（基类给默认值，子类在自己的构造里覆盖）
 ---@field game Game # 这次效果所属的局
 ---@field parent? Effect # 外层效果：这个效果是在哪个效果的结算里被结算的（栈空时结算则为「不存在」）
----@field result? any # 结果：子类在 `settle` 里返回的那个值（被取消等没有结果时为「不存在」）
+---@field result? any # 结果：这次结算给出的那个值（子类可在结算中途就定下）
 ---@field err? any # 失败：出错时记在这儿（等它的人也会收到这个错误）
 ---@field package task? Task # 这次结算的任务：驱动、完成、叫醒等待者都归它
 local M = Class 'Effect'
@@ -100,6 +100,12 @@ end
 --- 取消这次生效。如果移除的是当前效果，那么之后的代码再也不会被执行。
 function M:remove()
     Delete(self)
+end
+
+--- 提前定下这次结算的结果（不用等 `settle` 跑完）
+---@param result? any
+function M:resolve(result)
+    self.task:resolve(result)
 end
 
 --- 结算这次效果：返回值就是这次结算的结果

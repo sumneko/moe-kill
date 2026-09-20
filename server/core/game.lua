@@ -328,62 +328,38 @@ function M:createCard(name)
 end
 
 ---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
 ---@param question any # 要什么牌（内容由发起方定，应答方自己解释）
 ---@return AskCard # 这次询问（已经结完：给出的牌读 `.result`，失败读 `.err`）
 ---@async
-function M:askCard(to, question)
+function M:askCard(to, reason, question)
     local ask = moe.askCard.create {
         game     = self,
         to       = to,
+        reason   = reason,
         question = question,
     }
     ask:apply():await()
     return ask
 end
 
----@param player Player # 打出这张牌的角色
----@param card Card # 打出的牌
-function M:respond(player, card)
-    local zone, index = player:findCard(card)
-    if not zone or not index then
-        error('这个角色的牌区里没有这张牌', 2)
-    end
-    zone:take(index)
-    self:fire('卡牌-打出后', { player = player, card = card })
-end
-
 --- 把牌挪到某个牌区（给一串区名就依次经过，停在最后一站）
 ---@param card Card|Card[] # 要挪的牌（单张或一批）
 ---@param zone string|string[] # 目标牌区名（局上的区）
+---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
+---@async
 function M:moveCard(card, zone)
     ---@type Card[]
-    local cards   = card[1] ~= nil and card or { card }
+    local cards  = card[1] ~= nil and card or { card }
     ---@type string[]
-    local route   = type(zone) == 'table' and zone or { zone }
-    ---@type Zone[]
-    local stops   = {}
-    for i, name in ipairs(route) do
-        local stop = self:getZone(name)
-        if not stop then
-            error('局上没有叫 {} 的牌区' % { name }, 2)
-        end
-        stops[i] = stop
-    end
-    ---@type Zone[] # 每张牌此刻所在的区，随着路径推进
-    local holding = {}
-    for i, one in ipairs(cards) do
-        local from = one:getZone()
-        if not from then
-            error('这张牌不在任何牌区里，挪不动：{}' % { tostring(one) }, 2)
-        end
-        holding[i] = from
-    end
-    for _, stop in ipairs(stops) do
-        for i, one in ipairs(cards) do
-            holding[i]:move(one, stop)
-            holding[i] = stop
-        end
-    end
+    local zones  = type(zone) == 'table' and zone or { zone }
+    local effect = moe.moveCard.create {
+        game  = self,
+        cards = cards,
+        zones = zones,
+    }
+    effect:apply():await()
+    return effect
 end
 
 ---@param from Player # 伤害来源

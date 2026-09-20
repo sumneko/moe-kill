@@ -10,6 +10,7 @@ moe.player      = include 'core.player'
 moe.game        = include 'core.game'
 moe.effect      = include 'core.effect'
 moe.askCard     = include 'core.ask-card'
+moe.moveCard    = include 'core.move-card'
 moe.useCard     = include 'core.use-card'
 moe.damage      = include 'core.damage'
 

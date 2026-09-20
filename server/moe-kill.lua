@@ -24,6 +24,7 @@
 ---@field player Player.API
 ---@field game Game.API
 ---@field askCard AskCard.API
+---@field moveCard MoveCard.API
 ---@field useCard UseCard.API
 ---@field damage Damage.API
 ---@field loader Loader
