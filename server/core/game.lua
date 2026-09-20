@@ -289,7 +289,7 @@ end
 
 ---@overload fun(self: Game, name: string, ordered: true): OrderedZone
 ---@param name string
----@param ordered? boolean # 需要有顺序能力（抽牌堆 / 弃牌堆之类）时传 true
+---@param ordered? boolean # 需要有顺序能力（抽牌 / 弃牌之类）时传 true
 ---@return Zone
 function M:createZone(name, ordered)
     if type(name) ~= 'string' or name == '' then
@@ -352,25 +352,37 @@ function M:respond(player, card)
     self:fire('卡牌-打出后', { player = player, card = card })
 end
 
---- 把牌挪进某个牌区
----@param cards Card[] # 要挪的牌
----@param zoneName string # 目标牌区名（局上的区）
-function M:moveCard(cards, zoneName)
-    local to = self:getZone(zoneName)
-    if not to then
-        error('局上没有叫 {} 的牌区' % { zoneName }, 2)
-    end
+--- 把牌挪到某个牌区（给一串区名就依次经过，停在最后一站）
+---@param card Card|Card[] # 要挪的牌（单张或一批）
+---@param zone string|string[] # 目标牌区名（局上的区）
+function M:moveCard(card, zone)
+    ---@type Card[]
+    local cards   = card[1] ~= nil and card or { card }
+    ---@type string[]
+    local route   = type(zone) == 'table' and zone or { zone }
     ---@type Zone[]
-    local sources = {}
-    for i, card in ipairs(cards) do
-        local from = card:getZone()
-        if not from then
-            error('这张牌不在任何牌区里，挪不动：{}' % { tostring(card) }, 2)
+    local stops   = {}
+    for i, name in ipairs(route) do
+        local stop = self:getZone(name)
+        if not stop then
+            error('局上没有叫 {} 的牌区' % { name }, 2)
         end
-        sources[i] = from
+        stops[i] = stop
     end
-    for i, card in ipairs(cards) do
-        sources[i]:move(card, to)
+    ---@type Zone[] # 每张牌此刻所在的区，随着路径推进
+    local holding = {}
+    for i, one in ipairs(cards) do
+        local from = one:getZone()
+        if not from then
+            error('这张牌不在任何牌区里，挪不动：{}' % { tostring(one) }, 2)
+        end
+        holding[i] = from
+    end
+    for _, stop in ipairs(stops) do
+        for i, one in ipairs(cards) do
+            holding[i]:move(one, stop)
+            holding[i] = stop
+        end
     end
 end
 

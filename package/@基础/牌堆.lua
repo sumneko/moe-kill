@@ -4,7 +4,7 @@ game:on('游戏-开始', function ()
         error('没有牌表：需要一个内容包提供牌表（例如 标准）')
     end
 
-    local deck = game:createZone('抽牌堆', true)
+    local deck = game:createZone('抽牌', true)
     for _, entry in ipairs(cardTable) do
         for _ = 1, entry.count do
             deck:put(game:createCard(entry.name))
@@ -12,16 +12,17 @@ game:on('游戏-开始', function ()
     end
     deck:shuffle()
 
-    game:createZone('弃牌堆')
+    game:createZone('弃牌')
+    game:createZone('处理')
     for _, player in ipairs(game.desk.players) do
         player:addZone('手牌')
     end
 end)
 
 game:on('卡牌-结算后', function (ctx)
-    game:getZone('弃牌堆'):put(ctx.card)
+    game:getZone('弃牌'):put(ctx.card)
 end)
 
 game:on('卡牌-打出后', function (ctx)
-    game:getZone('弃牌堆'):put(ctx.card)
+    game:getZone('弃牌'):put(ctx.card)
 end)

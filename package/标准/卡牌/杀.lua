@@ -14,7 +14,7 @@ Card '杀'
         local target = ctx.target
         local card   = game:askCard(target, { name = '闪' }).result
         if card then
-            game:moveCard({ card }, '弃牌堆')
+            game:moveCard(card, {'处理', '弃牌'})
             return
         end
         game:damage(ctx.user, target, 1)

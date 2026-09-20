@@ -115,16 +115,18 @@ end)
 lt.test('基础：按牌表建出牌堆', function ()
     local run = support.start { packages = { '身份场', '标准' }, count = 4 }
 
-    local deck = assert(run.game:getZone('抽牌堆'), '没有建出抽牌堆')
+    local deck = assert(run.game:getZone('抽牌'), '没有建出抽牌')
     lt.assertEquals('张数等于牌表总数', totalCards(run.game), deck:count())
     lt.assertEquals('每张牌都带牌名标签', '杀', deck:list()[1]:getLabel())
+    lt.assertEquals('弃牌也建好了', true, run.game:getZone('弃牌') ~= nil)
+    lt.assertEquals('处理也建好了', true, run.game:getZone('处理') ~= nil)
 end)
 
 lt.test('基础：洗牌可复现', function ()
     ---@param run Test.RuleSupport
-    ---@return string[] # 抽牌堆上的牌名序列
+    ---@return string[] # 抽牌上的牌名序列
     local function deckLabels(run)
-        local deck = assert(run.game:getZone('抽牌堆'), '没有抽牌堆')
+        local deck = assert(run.game:getZone('抽牌'), '没有抽牌')
         ---@type string[]
         local result = {}
         for i, card in ipairs(deck:list()) do
@@ -145,7 +147,7 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
 
     ---@type table<string, integer>
     local counts = {}
-    for _, card in ipairs(assert(run.game:getZone('抽牌堆')):list()) do
+    for _, card in ipairs(assert(run.game:getZone('抽牌')):list()) do
         local label = card:getLabel()
         counts[label] = (counts[label] or 0) + 1
     end
@@ -162,7 +164,7 @@ lt.test('基础：没有牌表时不建牌堆', function ()
     lt.expectErrors(1)
     local run = support.start { count = 4 }
 
-    lt.assertEquals('没有牌表就不建出抽牌堆（回调报错被时机机制记录）', nil, run.game:getZone('抽牌堆'))
+    lt.assertEquals('没有牌表就不建出抽牌（回调报错被时机机制记录）', nil, run.game:getZone('抽牌'))
 end)
 
 lt.test('基础：体力可以降到负数，写值会被钳到上限', function ()

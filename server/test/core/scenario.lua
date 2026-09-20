@@ -27,7 +27,7 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
         hand:put(card)
     end
 
-    lt.assertEquals('抽牌堆少三张', 7, pile:count())
+    lt.assertEquals('抽牌少三张', 7, pile:count())
     lt.assertEquals('手牌三张', 3, hand:count())
     lt.assertEquals('发到手里的就是取顶的那三张', table.concat(top3, ','), zoneLabels(hand))
 end)
@@ -44,7 +44,7 @@ lt.test('场景：用移动一次把牌送进牌区', function ()
 
     pile:move(cards[3], hand, 1)
 
-    lt.assertEquals('抽牌堆少一张', 4, pile:count())
+    lt.assertEquals('抽牌少一张', 4, pile:count())
     lt.assertEquals('手牌区多一张且在顶部', '第3张', zoneLabels(hand))
 end)
 

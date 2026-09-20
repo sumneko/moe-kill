@@ -221,7 +221,7 @@ server/bin/moe-kill.exe --test core.game      # 局套件（建局 / 按名字�
 server/bin/moe-kill.exe --test core.effect    # 效果与结算栈套件（压退 / 嵌套 / 抛错也退 / 撤销函数 / 深度上限）
 server/bin/moe-kill.exe --test core.damage    # 伤害套件（改体力 / 体力可为负 / 伤害前·后时机的先后）
 server/bin/moe-kill.exe --test core.play      # 使用牌套件（校验 / 取牌 / 结算回调 / 收尾时机）
-server/bin/moe-kill.exe --test rule.slash     # 「杀」套件（攻击范围校验 / 造成 1 点伤害 / 进弃牌堆）
+server/bin/moe-kill.exe --test rule.slash     # 「杀」套件（攻击范围校验 / 造成 1 点伤害 / 进弃牌）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 

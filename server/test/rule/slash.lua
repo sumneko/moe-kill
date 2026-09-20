@@ -6,13 +6,13 @@ local support = require 'test.rule.support'
 ---@return Card # 牌堆里第一张叫这个名字的牌
 ---@return Zone # 它所在的牌区
 local function findCard(game, name)
-    local deck = assert(game:getZone('抽牌堆'), '没有抽牌堆')
+    local deck = assert(game:getZone('抽牌'), '没有抽牌')
     for _, card in ipairs(deck:list()) do
         if card:getLabel() == name then
             return card, deck
         end
     end
-    error('抽牌堆里没有「{}」' % { name })
+    error('抽牌里没有「{}」' % { name })
 end
 
 ---@param run Test.RuleSupport
@@ -51,8 +51,8 @@ lt.test('杀：对攻击范围内的目标造成 1 点伤害', function ()
     lt.assertEquals('目标掉 1 点体力', 4, target:getAttr('体力'))
     lt.assertEquals('使用者不受影响', 5, user:getAttr('体力'))
     lt.assertEquals('牌离开了手牌', 0, user:getZone('手牌'):count())
-    lt.assertEquals('用过的牌进了弃牌堆', 1, run.game:getZone('弃牌堆'):count())
-    lt.assertEquals('弃牌堆里的就是那张杀', card, run.game:getZone('弃牌堆'):list()[1])
+    lt.assertEquals('用过的牌进了弃牌', 1, run.game:getZone('弃牌'):count())
+    lt.assertEquals('弃牌里的就是那张杀', card, run.game:getZone('弃牌'):list()[1])
 end)
 
 lt.test('杀：攻击范围外的目标用不了', function ()
@@ -65,7 +65,7 @@ lt.test('杀：攻击范围外的目标用不了', function ()
 
     lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
-    lt.assertEquals('弃牌堆还是空的', 0, run.game:getZone('弃牌堆'):count())
+    lt.assertEquals('弃牌还是空的', 0, run.game:getZone('弃牌'):count())
 end)
 
 lt.test('杀：不能对自己用', function ()
@@ -77,10 +77,10 @@ lt.test('杀：不能对自己用', function ()
 
     lt.assertEquals('自己没掉血', 5, user:getAttr('体力'))
     lt.assertEquals('牌还留在手上', 1, user:getZone('手牌'):count())
-    lt.assertEquals('弃牌堆还是空的', 0, run.game:getZone('弃牌堆'):count())
+    lt.assertEquals('弃牌还是空的', 0, run.game:getZone('弃牌'):count())
 end)
 
-lt.test('杀：目标打出闪就不受伤，闪进弃牌堆', function ()
+lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
@@ -95,9 +95,9 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌堆', function ()
 
     lt.assertEquals('目标不掉血', 5, target:getAttr('体力'))
     lt.assertEquals('闪已经离开手牌', 0, target:getZone('手牌'):count())
-    local discard = assert(run.game:getZone('弃牌堆')):list()
-    lt.assertEquals('闪进了弃牌堆', true, moe.util.arrayHas(discard, jink))
-    lt.assertEquals('杀也进了弃牌堆', true, moe.util.arrayHas(discard, card))
+    local discard = assert(run.game:getZone('弃牌')):list()
+    lt.assertEquals('闪进了弃牌', true, moe.util.arrayHas(discard, jink))
+    lt.assertEquals('杀也进了弃牌', true, moe.util.arrayHas(discard, card))
 end)
 
 lt.test('杀：多目标依次结算，一个目标的响应不影响另一个', function ()
