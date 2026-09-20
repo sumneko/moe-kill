@@ -3,6 +3,7 @@
 ---@field errorCount integer # 到目前为止记下的错误日志条数
 ---@field expectedErrors integer # 当前用例声明预期的错误日志条数
 ---@field errors any[] # 收到的错误（用例自己清）
+---@field currentName? string # 正在跑的用例名（看门狗报告卡住时用）
 local M = {}
 
 ---@class LTest.Case
@@ -95,6 +96,7 @@ function M.runAll()
         local case   = M.registry[i]
         local before = M.errorCount
         M.expectedErrors = 0
+        M.currentName = case.name
         local ok, err = xpcall(case.callback, debug.traceback)
         local logged = M.errorCount - before
         if ok and logged ~= M.expectedErrors then

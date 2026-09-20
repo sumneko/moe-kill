@@ -10,21 +10,21 @@ local M = {}
 ---@field count integer # 座位数
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field seed? integer
----@field answers? any[] # 脚本化的答案（按顺序作答；省略时一律答 false = 不响应）
+---@field answers? Card[] # 脚本化的答复（按顺序给出牌；省略时一律不响应）
 
----@param answers any[]?
----@return fun(ask: Ask): any
+---@param answers Card[]?
+---@return fun(ask: AskCard)
 local function scripted(answers)
     local index = 0
-    return function ()
-        index = index + 1
+    return function (ask)
         if not answers then
-            return false
+            return
         end
+        index = index + 1
         if index > #answers then
-            error('脚本里没有更多答案了', 2)
+            error('脚本里没有更多牌了', 2)
         end
-        return answers[index]
+        ask:answer(answers[index])
     end
 end
 
@@ -39,7 +39,7 @@ function M.start(options)
         sources  = options.sources,
         packages = options.packages,
     }
-    game.answerer = scripted(options.answers)
+    game.events:on('游戏-询问', scripted(options.answers))
     local attributeSystem = game:getAttributeSystem()
     ---@type Player[]
     local players = {}

@@ -108,6 +108,7 @@ function M.wait(seconds)
 end
 
 -- 请求唤醒：投递一次通知，阻塞中的等待立即返回
+--（**瞬时**信号：循环没在阻塞等待时会被它自己的 poll 消费掉 —— 需要持久条件的场合用状态，别指望它）
 function M.wake()
     wakeChannel:push(true)
 end

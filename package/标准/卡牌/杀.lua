@@ -12,9 +12,9 @@ Card '杀'
     end)
     : on('生效', function (ctx)
         local target = ctx.target
-        local ask = game:ask(target, { name = '闪' })
-        if ask.result then
-            game:moveCard({ ask.result.card }, '弃牌堆')
+        local card   = game:askCard(target, { name = '闪' }).result
+        if card then
+            game:moveCard({ card }, '弃牌堆')
             return
         end
         game:damage(ctx.user, target, 1)

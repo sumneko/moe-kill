@@ -167,7 +167,8 @@ end
 - 断言用 `test/ltest.lua`：`lt.test(name, fn)` 注册用例，`lt.assertEquals` / `lt.assertNotEquals` / `lt.assertError`；`lt.runAll()` 逐个 `xpcall` 并打印失败堆栈。
   - **不要 vendor 4.0.0 的 `test/ltest.lua`** —— 那是 36KB 压缩单文件（含 luac 反汇编与覆盖率机制），本工程用不到；4.0.0 的测试实际只用到 `assertEquals` / `assertNotEquals`。
 - **事件循环归入口所有**：`test.lua` 启动并停止它；套件内的用例只注册任务/定时器或 `await`，不要自己调 `eventLoop.start`（会与入口冲突）。
-- 内存护栏只在显式传 `--mem-limit` 时启用。
+- **停止时机（踩过坑）**：用例跑完要**当场** `eventLoop.stop()`（用例体可能是在「延迟队列」里跑完的 —— `moe.await.sleep(0)` 的恢复就走那条路，而循环下一轮才跑任务里的检查，中间会白等一个 deadline，最长可等到 `master.lua` 的 60 秒内存日志定时器）⇒ `test.lua` 的 body 跑完就停，任务里的检查只当过同步用例的兜底。
+- **两个护栏**（共用 `test.lua` 里的 `timeLimit` = **5 秒**，用户 2026-09-20 定：「所有测试加起来都不会超过 100 毫秒」）：① **CPU 时间**（`enableGuards()` 里 `debug.sethook` 每 10 万条指令查一次 `os.clock()`）防死循环；② **墙钟看门狗**（`moe.timer.wait(timeLimit, ...)`，同时充当「事件循环等待时长上限」—— 循环只会等到「下一个定时任务」）防卡在等待里，到点就报告**卡在哪个用例**（`lt.currentName`）并停循环。内存护栏只在显式传 `--mem-limit` 时启用。
 - 临时产物统一写 `tmp/`（已 gitignore）。
 
 **实测（2026-09-19）**：全量 207 个用例约 1 秒；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。

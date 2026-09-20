@@ -25,6 +25,8 @@ Depends = nil
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(ctx: Game.EventCtx.游戏开始)): function
 ---@field fire fun(self: Game, name: '游戏-开始', ctx: Game.EventCtx.游戏开始)
+---@field on fun(self: Game, name: '游戏-询问', callback: fun(ctx: AskCard)): function
+---@field fire fun(self: Game, name: '游戏-询问', ctx: AskCard)
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(ctx: UseCard)): function
 ---@field fire fun(self: Game, name: '卡牌-结算后', ctx: UseCard)
 ---@field on fun(self: Game, name: '卡牌-打出后', callback: fun(ctx: Game.EventCtx.卡牌打出后)): function
@@ -35,7 +37,7 @@ Depends = nil
 ---@field fire fun(self: Game, name: '伤害-后', ctx: Damage)
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(ctx: Player)): function
 ---@field fire fun(self: Game, name: '玩家-死亡', ctx: Player)
----@field ask fun(self: Game, to: Player, question: any): Ask # 当场要一个决策：答案读 `.result`（没答上或被取消 ⇒ 不存在）
+---@field askCard fun(self: Game, to: Player, question: any): AskCard # 要一张牌：询问交给应答方，给出的牌读 `.result`
 ---@field respond fun(self: Game, player: Player, card: Card) # 打出一张牌（与「使用」区分）
 ---@field moveCard fun(self: Game, cards: Card[], zoneName: string) # 把牌挪进某个牌区（待实现）
 ---@field on fun(self: Game, name: string, callback: fun(ctx: any)): function

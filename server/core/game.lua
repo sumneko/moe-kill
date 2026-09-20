@@ -111,7 +111,6 @@ end
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
 ---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
 ---@field events Event # 时机注册
----@field answerer? fun(ask: Ask): any # 回答者：收到询问后当场给出答案，返回 nil 表示拿不出答案
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
 ---@field private attributeSystem? AttributeSystem
@@ -329,11 +328,11 @@ function M:createCard(name)
 end
 
 ---@param to Player # 被问者
----@param question any # 问的是什么
----@return Ask # 这次询问（已经结完：答案读 `.result`，失败读 `.err`）
+---@param question any # 要什么牌（内容由发起方定，应答方自己解释）
+---@return AskCard # 这次询问（已经结完：给出的牌读 `.result`，失败读 `.err`）
 ---@async
-function M:ask(to, question)
-    local ask = moe.ask.create {
+function M:askCard(to, question)
+    local ask = moe.askCard.create {
         game     = self,
         to       = to,
         question = question,

@@ -51,12 +51,14 @@ function test.require(modname)
     end
 end
 
+-- 两个护栏共用同一个上限：CPU 时间（防死循环）与墙钟（防卡在等待里）
+local timeLimit = 5
+
 function test.enableGuards()
     if debug.gethook() then
         return
     end
     local memLimitKB = moe.args.MEM_LIMIT and moe.args.MEM_LIMIT * 1024 * 1024
-    local timeLimit  = 30
     local startClock = os.clock()
     debug.sethook(function ()
         if memLimitKB then
@@ -106,7 +108,7 @@ test.require 'test.core.player'
 test.require 'test.core.game'
 test.require 'test.core.damage'
 test.require 'test.core.effect'
-test.require 'test.core.ask'
+test.require 'test.core.ask-card'
 test.require 'test.core.play'
 test.require 'test.rule'
 test.require 'test.rule.vfs'
@@ -122,6 +124,13 @@ local bodyDone = false
 local bodyFailures = 0
 local caseTotal = 0
 local stopResults = {}
+local stuckAt
+
+-- 墙钟看门狗：它同时是事件循环等待时长的上限（循环只会等到「下一个定时任务」）
+local watchdog = moe.timer.wait(timeLimit, function ()
+    stuckAt = lt.currentName or '（还没有用例在跑）'
+    moe.eventLoop.stop()
+end)
 
 ---@async
 moe.await.call(function ()
@@ -137,6 +146,11 @@ moe.await.call(function ()
         }
     end
     bodyDone = true
+    -- 用例可能是在延迟队列里跑完的（await.sleep 的恢复在那儿）：这时循环正等着下一个定时任务，得当场停掉
+    stopResults[1] = moe.eventLoop.stop()
+    if stopResults[1] then
+        stopResults[2] = moe.eventLoop.stop()
+    end
 end)
 
 moe.eventLoop.addTask(function ()
@@ -149,21 +163,30 @@ end)
 
 moe.eventLoop.start(moe.eventLoopOptions(), log.error)
 
-if not bodyDone then
+if stuckAt then
+    test.failures[#test.failures + 1] = {
+        name    = '看门狗',
+        message = '{} 秒还没跑完，卡在「{}」' % { timeLimit, stuckAt },
+    }
+else
+    watchdog:remove()
+end
+
+if not stuckAt and not bodyDone then
     test.failures[#test.failures + 1] = {
         name    = '事件循环',
         message = '事件循环未返回控制权（协程未执行完）',
     }
 end
 
-if test.loopTicks == 0 then
+if not stuckAt and test.loopTicks == 0 then
     test.failures[#test.failures + 1] = {
         name    = '事件循环',
         message = '注册的任务没有被执行',
     }
 end
 
-if stopResults[1] ~= true or stopResults[2] ~= false then
+if not stuckAt and (stopResults[1] ~= true or stopResults[2] ~= false) then
     test.failures[#test.failures + 1] = {
         name    = '事件循环',
         message = '停止语义异常：首次 {}，重复 {}' % {
@@ -173,7 +196,7 @@ if stopResults[1] ~= true or stopResults[2] ~= false then
     }
 end
 
-if test.filter and caseTotal == 0 then
+if not stuckAt and test.filter and caseTotal == 0 then
     test.failures[#test.failures + 1] = {
         name    = '过滤器',
         message = '过滤器 "{}" 没有匹配到任何测试用例' % { test.filter },

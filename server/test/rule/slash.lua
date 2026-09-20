@@ -81,11 +81,15 @@ lt.test('杀：不能对自己用', function ()
 end)
 
 lt.test('杀：目标打出闪就不受伤，闪进弃牌堆', function ()
-    local run    = support.start { count = 2, packages = { '标准' }, answers = { true } }
+    local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
     local card   = takeSlash(run, user)
     local jink   = takeCard(run, target, '闪')
+
+    run.game.events:on('游戏-询问', function (ask)
+        ask:answer(jink)
+    end)
 
     run.game:useCard(user, card, { target })
 
@@ -97,12 +101,18 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌堆', function ()
 end)
 
 lt.test('杀：多目标依次结算，一个目标的响应不影响另一个', function ()
-    local run    = support.start { count = 3, packages = { '标准' }, answers = { true, false } }
+    local run    = support.start { count = 3, packages = { '标准' } }
     local user   = run.players[1]
     local first  = run.players[2]
     local second = run.players[3]
     local card   = takeSlash(run, user)
-    takeCard(run, first, '闪')
+    local jink   = takeCard(run, first, '闪')
+
+    run.game.events:on('游戏-询问', function (ask)
+        if ask.to == first then
+            ask:answer(jink)
+        end
+    end)
 
     run.game:useCard(user, card, { first, second })
 
@@ -110,13 +120,17 @@ lt.test('杀：多目标依次结算，一个目标的响应不影响另一个',
     lt.assertEquals('后结算的目标没闪，掉 1 点', 4, second:getAttr('体力'))
 end)
 
-lt.test('杀：答了「打闪」但手上没有，照常受伤', function ()
-    local run    = support.start { count = 2, packages = { '标准' }, answers = { true } }
+lt.test('杀：应答方不给牌时照常结算，不会挂住', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
     local card   = takeSlash(run, user)
 
+    run.game.events:on('游戏-询问', function ()
+        -- 不调 ask:answer ⇒ 没答上
+    end)
+
     run.game:useCard(user, card, { target })
 
-    lt.assertEquals('没有牌可打 ⇒ 照常受伤', 4, target:getAttr('体力'))
+    lt.assertEquals('没答上 ⇒ 照常受伤', 4, target:getAttr('体力'))
 end)
