@@ -9,6 +9,8 @@ local M = Class 'Effect'
 
 Extends(M, 'GCHost')
 
+M.deep = 1
+
 ---@param game Game
 function M:__init(game)
     self.kind  = 'effect'
@@ -37,14 +39,19 @@ function M:apply()
     if self.task then
         return self
     end
+    local parent = moe.task.getCurrentTask()?.context.effect
+    self.parent = parent
     self.task = moe.task.create { effect = self }
 
     self.task:execute(function ()
-        self.parent = self.game:getCurrentEffect()
-        if self.parent then
-            self.parent:addChildEffect(self)
+        if parent then
+            parent:addChildEffect(self)
+            if self.deep > 100 then
+                error('效果嵌套过深', 2)
+            end
+        else
+            self.game:addEffect(self)
         end
-        local pop <close> = self.game:pushEffect(self)
         self.game:fire('即将生效', self)
         self:settle()
     end)
@@ -58,6 +65,7 @@ end
 ---@param effect Effect
 function M:addChildEffect(effect)
     self.childs[#self.childs+1] = effect
+    effect.deep = self.deep + 1
 end
 
 ---@param self Effect

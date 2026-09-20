@@ -42,31 +42,30 @@ local function newGame(count)
     return game, players
 end
 
-lt.test('效果：空栈时查不到当前效果', function ()
+lt.test('效果：没有结算时没有根', function ()
     local game = newGame(1)
 
-    lt.assertEquals('没有正在结算的', nil, game:getCurrentEffect())
-    lt.assertEquals('栈是空的', 0, #game:getEffects())
+    lt.assertEquals('没有正在结算的', nil, game:getEffect())
+    lt.assertEquals('还没有发起过结算', 0, #game:getEffects())
 end)
 
-lt.test('效果：结算期间在栈上，结束就退栈', function ()
+lt.test('效果：结算期间是根，结束就清掉', function ()
     local game, players = newGame(2)
 
     ---@type string[]
     local trace = {}
 
-    game.events:on('伤害-前', function ()
-        trace[#trace + 1] = '前 {} {}' % { assert(game:getCurrentEffect()).kind, #game:getEffects() }
+    game.events:on('伤害-前', function (ctx)
+        trace[#trace + 1] = '前 {}' % { tostring(game:getEffect() == ctx) }
     end)
-    game.events:on('伤害-后', function ()
-        trace[#trace + 1] = '后 {} {}' % { assert(game:getCurrentEffect()).kind, #game:getEffects() }
+    game.events:on('伤害-后', function (ctx)
+        trace[#trace + 1] = '后 {}' % { tostring(game:getEffect() == ctx) }
     end)
 
     game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('两个时机都在栈上看到这次伤害', '前 damage 1,后 damage 1', table.concat(trace, ','))
-    lt.assertEquals('结算完栈空', 0, #game:getEffects())
-    lt.assertEquals('查不到当前效果', nil, game:getCurrentEffect())
+    lt.assertEquals('两个时机都看到这次伤害是根', '前 true,后 true', table.concat(trace, ','))
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
 lt.test('效果：嵌套结算会压深，结束后回到外层', function ()
@@ -77,10 +76,9 @@ lt.test('效果：嵌套结算会压深，结束后回到外层', function ()
     ---@type boolean
     local nested = false
 
-    game.events:on('伤害-前', function ()
-        local current = assert(game:getCurrentEffect())
-        ---@cast current Damage
-        trace[#trace + 1] = '进入 {} 层 {}' % { #game:getEffects(), current.to == players[2] and '外层' or '内层' }
+    game.events:on('伤害-前', function (ctx)
+        ---@cast ctx Damage
+        trace[#trace + 1] = '进入 {} 层 {}' % { ctx.deep, ctx.to == players[2] and '外层' or '内层' }
         if not nested then
             nested = true
             game:damage(players[2], players[3], 1)
@@ -92,7 +90,7 @@ lt.test('效果：嵌套结算会压深，结束后回到外层', function ()
     lt.assertEquals('外层先进、内层后进', '进入 1 层 外层,进入 2 层 内层', table.concat(trace, ','))
     lt.assertEquals('外层目标掉血', 3, players[2]:getAttr('体力'))
     lt.assertEquals('内层目标掉血', 3, players[3]:getAttr('体力'))
-    lt.assertEquals('结算完栈空', 0, #game:getEffects())
+    lt.assertEquals('只记根，内层不单独记', 1, #game:getEffects())
 end)
 
 lt.test('效果：内层的父是外层，根效果没有父', function ()
@@ -107,15 +105,15 @@ lt.test('效果：内层的父是外层，根效果没有父', function ()
     ---@type boolean
     local nested = false
 
-    game.events:on('伤害-前', function ()
-        local current = assert(game:getCurrentEffect())
+    game.events:on('伤害-前', function (ctx)
+        ---@cast ctx Effect
         if not nested then
             nested    = true
-            outerSeen = current
+            outerSeen = ctx
             game:damage(players[2], players[3], 1)
         else
-            innerSeen  = current
-            parentSeen = current.parent
+            innerSeen  = ctx
+            parentSeen = ctx.parent
         end
     end)
 
@@ -127,7 +125,7 @@ lt.test('效果：内层的父是外层，根效果没有父', function ()
     lt.assertEquals('内层自己认的是外层', true, inner.parent == outer)
     lt.assertEquals('两者不是同一个', true, inner ~= outer)
     lt.assertEquals('外层的父不存在', nil, outer.parent)
-    lt.assertEquals('结算完栈空', 0, #game:getEffects())
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
 lt.test('效果：根效果的父不存在，也不报错', function ()
@@ -136,13 +134,15 @@ lt.test('效果：根效果的父不存在，也不报错', function ()
     ---@type Effect?
     local topSeen = nil
 
-    game.events:on('伤害-前', function ()
-        topSeen = game:getCurrentEffect()
+    game.events:on('伤害-前', function (ctx)
+        ---@cast ctx Effect
+        topSeen = ctx
     end)
 
     game:damage(players[1], players[2], 1)
 
     lt.assertEquals('父效果是不存在', nil, assert(topSeen).parent)
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
 lt.test('效果：沿父效果能还原整条结算链', function ()
@@ -151,8 +151,9 @@ lt.test('效果：沿父效果能还原整条结算链', function ()
     ---@type Effect[] # 按进入顺序
     local entered = {}
 
-    game.events:on('伤害-前', function ()
-        entered[#entered + 1] = assert(game:getCurrentEffect())
+    game.events:on('伤害-前', function (ctx)
+        ---@cast ctx Effect
+        entered[#entered + 1] = ctx
         if #entered < 3 then
             game:damage(players[1], players[#entered + 2], 1)
         end
@@ -193,107 +194,9 @@ lt.test('效果：结算中抛错也退栈', function ()
 
     lt.assertEquals('失败记在效果上', true, damage.err ~= nil)
     lt.assertEquals('错误被收到', 1, #lt.errors)
-    lt.assertEquals('栈上没有留下这一帧', 0, #game:getEffects())
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
     lt.assertEquals('体力没变（错误发生在改体力之前）', 4, players[2]:getAttr('体力'))
     lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):find('effect.lua:', 1, true) ~= nil)
-end)
-
-lt.test('效果：取到的是快照', function ()
-    local game, players = newGame(2)
-
-    ---@type Effect[]?
-    local snapshot = nil
-
-    game.events:on('伤害-前', function ()
-        snapshot = game:getEffects()
-    end)
-
-    game:damage(players[1], players[2], 1)
-
-    lt.assertEquals('当时栈深 1', 1, snapshot and #snapshot)
-    lt.assertEquals('之后栈空了', 0, #game:getEffects())
-    lt.assertEquals('快照还是当时的样子', 1, snapshot and #snapshot)
-end)
-
-lt.test('效果：顺序是栈底到栈顶', function ()
-    local game, players = newGame(3)
-
-    ---@type Effect[]?
-    local snapshot = nil
-    ---@type Effect?
-    local topSeen = nil
-    ---@type Effect?
-    local currentSeen = nil
-    ---@type boolean
-    local nested = false
-
-    game.events:on('伤害-前', function ()
-        currentSeen = game:getCurrentEffect()
-        if not nested then
-            nested = true
-            game:damage(players[2], players[3], 1)
-        else
-            snapshot = game:getEffects()
-            topSeen = game:getCurrentEffect()
-        end
-    end)
-
-    game:damage(players[1], players[2], 1)
-
-    ---@type Effect[]
-    local list = assert(snapshot)
-    lt.assertEquals('内外都在栈上', 2, #list)
-    lt.assertEquals('最后一个就是当前正在结算的', true, topSeen == list[2])
-    lt.assertEquals('最前面那个是最外层', true, list[1] ~= currentSeen)
-    lt.assertEquals('结算完栈空', 0, #game:getEffects())
-end)
-
-lt.test('效果：压栈返回的撤销函数精确且幂等', function ()
-    local game, players = newGame(2)
-    local outer = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
-    local inner = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
-
-    local popOuter = game:pushEffect(outer)
-    local popInner = game:pushEffect(inner)
-
-    lt.assertEquals('栈深 2', 2, #game:getEffects())
-    lt.assertEquals('栈顶是内层', inner, game:getCurrentEffect())
-
-    lt.assertError('乱序退栈被拒绝', popOuter)
-    lt.assertEquals('栈没被弄乱', inner, game:getCurrentEffect())
-
-    popInner()
-    lt.assertEquals('弹出内层后栈顶是外层', outer, game:getCurrentEffect())
-
-    popInner()
-    lt.assertEquals('重复撤销安全（栈没变）', outer, game:getCurrentEffect())
-
-    popOuter()
-    lt.assertEquals('栈空', 0, #game:getEffects())
-
-    popOuter()
-    lt.assertEquals('再撤销一次也安全', 0, #game:getEffects())
-end)
-
-lt.test('效果：压栈有深度上限', function ()
-    local game, players = newGame(2)
-    local effect = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
-
-    ---@type function[]
-    local disposers = {}
-    for _ = 1, 100 do
-        disposers[#disposers + 1] = game:pushEffect(effect)
-    end
-
-    lt.assertError('第 101 层被拒绝', function ()
-        game:pushEffect(effect)
-    end)
-    lt.assertEquals('已有的 100 层不受影响', 100, #game:getEffects())
-
-    for i = #disposers, 1, -1 do
-        disposers[i]()
-    end
-    lt.assertEquals('退干净', 0, #game:getEffects())
 end)
 
 lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
@@ -303,7 +206,7 @@ lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
     local trace = {}
 
     game.events:on('即将生效', function (ctx)
-        trace[#trace + 1] = '{} {}' % { ctx.kind, game:getCurrentEffect() == ctx }
+        trace[#trace + 1] = '{} {}' % { ctx.kind, game:getEffect() == ctx }
         ---@cast ctx Effect
         ctx:remove()
         trace[#trace + 1] = '取消之后这一行不该执行'
@@ -314,9 +217,9 @@ lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
 
     game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('订阅者拿到的是这个效果，且此刻它在栈顶', 'damage true', table.concat(trace, ','))
+    lt.assertEquals('订阅者拿到的是这个效果，且此刻它是根', 'damage true', table.concat(trace, ','))
     lt.assertEquals('被取消 ⇒ 没有造成伤害', 4, players[2]:getAttr('体力'))
-    lt.assertEquals('栈恢复原状', 0, #game:getEffects())
+    lt.assertEquals('被取消也记在记牌器上', 1, #game:getEffects())
 end)
 
 lt.test('效果：取消只作用于这一个效果，外层照常结算完', function ()
@@ -346,7 +249,7 @@ lt.test('效果：取消只作用于这一个效果，外层照常结算完', fu
     lt.assertEquals('内层被取消 ⇒ 内层目标没掉血', 4, players[3]:getAttr('体力'))
     lt.assertEquals('外层照常走完', true, outerDone)
     lt.assertEquals('外层目标照常掉血', 3, players[2]:getAttr('体力'))
-    lt.assertEquals('栈恢复原状', 0, #game:getEffects())
+    lt.assertEquals('被取消也记在记牌器上', 1, #game:getEffects())
 end)
 
 lt.test('效果：被取消后它自己的结算不再执行', function ()
@@ -379,9 +282,11 @@ lt.test('效果：不在结算中或已经结束的效果不能取消', function
     local damage = game:damage(players[1], players[2], 1)
     lt.clearErrors()
 
+    local before = #game:getEffects()
+
     fresh:remove()
 
-    lt.assertEquals('还没开始结算 ⇒ 取消是空操作', 0, #game:getEffects())
+    lt.assertEquals('还没开始结算 ⇒ 取消是空操作', before, #game:getEffects())
 
     damage:remove()
 

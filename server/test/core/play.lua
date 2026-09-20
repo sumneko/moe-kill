@@ -264,7 +264,7 @@ Card '测试杀'
         return { game.desk:getPlayer(2) }
     end)
     : on('生效', function (ctx)
-        ctx.user:setTag('栈顶是这次生效', game:getCurrentEffect() == ctx)
+        ctx.user:setTag('父是根', game:getEffect() == ctx.parent)
         ctx.user:setTag('种类', ctx.kind)
         ctx.user:setTag('父是用牌', ctx.parent and ctx.parent.kind)
     end)
@@ -278,10 +278,10 @@ Card '测试杀'
 
     game:play(user, card, { target })
 
-    lt.assertEquals('结算期间栈顶就是这次生效', true, user:getTag('栈顶是这次生效'))
+    lt.assertEquals('生效不是根，根是这次用牌', true, user:getTag('父是根'))
     lt.assertEquals('种类标识', 'cardEffect', user:getTag('种类'))
     lt.assertEquals('生效的父是这次用牌', 'useCard', user:getTag('父是用牌'))
-    lt.assertEquals('结算完栈空', 0, #game:getEffects())
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
 lt.test('使用：失败后栈恢复原状', function ()
@@ -299,7 +299,7 @@ Card '测试杀'
 
     lt.assertFailed('不能对自己用', game:play(user, card, { user }))
 
-    lt.assertEquals('栈上没有留下这次使用', 0, #game:getEffects())
+    lt.assertEquals('失败也记在记牌器上', 1, #game:getEffects())
 end)
 
 lt.test('使用：结算中抛错后栈恢复原状', function ()
@@ -323,7 +323,7 @@ Card '测试杀'
     local effect = game:play(user, card, { target })
 
     lt.assertEquals('钩子报错被隔离，用牌照常完成', 0, hand:count())
-    lt.assertEquals('栈上没有留下这次使用', 0, #game:getEffects())
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
     lt.assertEquals('用牌本身没失败', nil, effect.err)
 end)
 
@@ -481,5 +481,5 @@ Card '测试杀'
     game:play(user, card, { players[2], players[3] })
 
     lt.assertEquals('被取消的那个没生效，其余的照常', '3', user:getTag('顺序'))
-    lt.assertEquals('栈恢复原状', 0, #game:getEffects())
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)

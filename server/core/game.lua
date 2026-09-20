@@ -117,10 +117,8 @@ end
 ---@field private attributeSystem? AttributeSystem
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
----@field private effects Effect[] # 结算栈（栈底在前、栈顶在后）
+---@field private effects Effect[] # 记牌器：发起过的根效果（只增）
 local M = Class 'Game'
-
-M.MAX_EFFECT_DEPTH = 100
 
 ---@param desk Desk
 ---@param random Random
@@ -388,31 +386,16 @@ function M:play(user, card, targets)
 end
 
 ---@param effect Effect
----@return function # 撤销这次压栈
-function M:pushEffect(effect)
-    if #self.effects >= M.MAX_EFFECT_DEPTH then
-        error('结算栈最多 {} 层' % { M.MAX_EFFECT_DEPTH }, 2)
-    end
+function M:addEffect(effect)
     self.effects[#self.effects + 1] = effect
-    local popped = false
-    return function ()
-        if popped then
-            return
-        end
-        if self.effects[#self.effects] ~= effect then
-            error('结算栈只能从栈顶退', 2)
-        end
-        popped = true
-        self.effects[#self.effects] = nil
-    end
 end
 
----@return Effect? # 正在结算的那个；空栈时是「不存在」
-function M:getCurrentEffect()
+---@return Effect? # 最近发起过的那个根效果
+function M:getEffect()
     return self.effects[#self.effects]
 end
 
----@return Effect[] # 快照：栈底 → 栈顶
+---@return Effect[] # 记牌器快照：发起过的根效果（按发起顺序）
 function M:getEffects()
     ---@type Effect[]
     local snapshot = {}

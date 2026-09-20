@@ -163,7 +163,7 @@ lt.test('伤害：结算期间在栈上', function ()
     ---@param ctx Damage
     local function onAfter(ctx)
         ctxSeen  = ctx
-        topSeen  = game:getCurrentEffect()
+        topSeen  = game:getEffect()
         kindSeen = ctx.kind
     end
 
@@ -173,5 +173,5 @@ lt.test('伤害：结算期间在栈上', function ()
 
     lt.assertEquals('触发时栈顶就是这次伤害', ctxSeen, topSeen)
     lt.assertEquals('种类标识', 'damage', kindSeen)
-    lt.assertEquals('结算完栈空', 0, #game:getEffects())
+    lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
