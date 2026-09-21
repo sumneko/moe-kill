@@ -234,6 +234,10 @@ server/bin/moe-kill.exe --test rule.game-over        # 身份场胜负套件（�
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 
+# 跑一次性脚本（Lua 风格的 -e）：引号里先 require 'moe-kill' 再 dofile；给了 -e 就不会再进服务模式，跑完即退
+# -e 之后必须显式给 --root（此时 arg[0] 不是 main.lua，ROOT_PATH 会从 exe 路径推出来）
+server/bin/moe-kill.exe -e "require 'moe-kill' dofile('server/tmp/bench-rebuild.lua')" --root "D:\Github\moe-kill\server"
+
 openspec list                     # 进行中的变更
 openspec status --change <name>   # 工件完成度
 openspec validate --all           # 校验（探索期规格已冻结：变更走 skip_specs、不写 specs 增量）
