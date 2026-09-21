@@ -23,7 +23,7 @@
 | `openspec/changes/archive/` | 已归档变更（保留历史） |
 | `openspec/config.yaml` | OpenSpec 项目配置（语言、工件规则、操作指引） |
 | `.agents/skills/openspec-*/` | 厂商中立技能（通用 Agent Skills 格式，任何客户端可加载；由 OpenSpec 生成，勿手改） |
-| `.agents/skills/moe-kill-dev/` | **项目技能：工程约定**（架构、协议分层、代码风格、构建与调试），开发前先读 |
+| `.agents/skills/moe-kill-dev/` | **项目技能：工程约定**（架构、协议分层、代码风格、构建与调试），开发前先读；接手进度看它的 `references/progress.md` |
 | `.agents/skills/sanguosha-rules/` | **项目技能：三国杀规则口径**（身份场、阶段、结算时序、时机系统） |
 | `.agents/skills/powershell-safe-invocation/`、`.agents/sync-manifest.json` | 来自通用能力库，见「通用能力」章节 |
 | `.github/` | GitHub 平台目录（当前为空，预留 CI 工作流 / issue 模板等） |

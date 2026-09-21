@@ -6,6 +6,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 # moe-kill 开发约定
 
 先读本文件，再按需读 `references/`。架构与风格决策的细节在 references 里，本文件只给索引与硬约束。
+**接手已有工程 / 换机器继续做**：先读 `references/progress.md`（做到哪了、下一步做什么、什么还没定）。
 
 ## 0. 强制流程
 
@@ -51,6 +52,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 
 | 文件 | 内容 |
 | --- | --- |
+| `references/progress.md` | **当前进度与下一步** —— 换机器接手先读这份：已跑通的链、内容包 / 内核现状、下一步功能点与*待拍板口径*、用户已表态但未做的方向 |
 | `references/architecture.md` | 分层、数据流、边界、协议设计原则、无头可测要求、热重载（8）、规则集加载（9：来源合并 / 名字路由 / 规则数值）、时机与事件（10：命名风格与事件参数 meta）、预解析与包元信息（11） |
 | `references/code-style.md` | 代码风格（照搬 LuaLS 4.0.0） |
 | `references/infrastructure.md` | 参考仓库位置、bee.lua 构建与引导、lua-debug 调试、测试与命令速查 |
