@@ -58,7 +58,8 @@ function test.enableGuards()
     if debug.gethook() then
         return
     end
-    local memLimitKB = moe.args.MEM_LIMIT and moe.args.MEM_LIMIT * 1024 * 1024
+    -- 内存上限默认也给一个：死循环里调用方的 CPU 护栏要等到下一个指令计数点才叫，堆却可能几秒就涨到几十 GB
+    local memLimitKB = (moe.args.MEM_LIMIT or 2048) * 1024 * 1024
     local startClock = os.clock()
     debug.sethook(function ()
         if memLimitKB then
@@ -108,6 +109,7 @@ test.require 'test.core.player'
 test.require 'test.core.game'
 test.require 'test.core.damage'
 test.require 'test.core.effect'
+test.require 'test.core.ask'
 test.require 'test.core.ask-card'
 test.require 'test.core.play'
 test.require 'test.rule'
@@ -115,10 +117,12 @@ test.require 'test.rule.vfs'
 test.require 'test.rule.routing'
 test.require 'test.rule.event'
 test.require 'test.rule.meta'
+test.require 'test.rule.flow'
 test.require 'test.rule.base'
 test.require 'test.rule.identity'
 test.require 'test.rule.setup'
 test.require 'test.rule.slash'
+test.require 'test.rule.turn'
 
 local bodyDone = false
 local bodyFailures = 0

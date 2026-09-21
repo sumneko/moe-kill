@@ -21,6 +21,13 @@ Depends = nil
 
 ---@class Game.EventCtx.游戏开始 # 目前没有事件参数：触发时给空表，环境对象从 game 取
 
+---@class Game.EventCtx.回合 # 回合级时机：谁是回合角色
+---@field player Player # 回合角色
+
+---@class Game.EventCtx.阶段 # 阶段级时机：谁是回合角色、哪个阶段
+---@field player Player # 回合角色
+---@field phase string # 阶段名（准备 / 判定 / 摸牌 / 出牌 / 弃牌 / 结束）
+
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(ctx: Game.EventCtx.游戏开始)): function
 ---@field fire fun(self: Game, name: '游戏-开始', ctx: Game.EventCtx.游戏开始)
@@ -40,5 +47,17 @@ Depends = nil
 ---@field fire fun(self: Game, name: '伤害-后', ctx: Damage)
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(ctx: Player)): function
 ---@field fire fun(self: Game, name: '玩家-死亡', ctx: Player)
+---@field on fun(self: Game, name: '回合-开始', callback: fun(ctx: Game.EventCtx.回合)): function
+---@field fire fun(self: Game, name: '回合-开始', ctx: Game.EventCtx.回合)
+---@field on fun(self: Game, name: '回合-结束', callback: fun(ctx: Game.EventCtx.回合)): function
+---@field fire fun(self: Game, name: '回合-结束', ctx: Game.EventCtx.回合)
+---@field on fun(self: Game, name: '阶段-开始', callback: fun(ctx: Game.EventCtx.阶段)): function
+---@field fire fun(self: Game, name: '阶段-开始', ctx: Game.EventCtx.阶段)
+---@field on fun(self: Game, name: '阶段-结束', callback: fun(ctx: Game.EventCtx.阶段)): function
+---@field fire fun(self: Game, name: '阶段-结束', ctx: Game.EventCtx.阶段)
+---@field on fun(self: Game, name: '决策-询问', callback: fun(ctx: Ask)): function
+---@field fire fun(self: Game, name: '决策-询问', ctx: Ask)
+---@field on fun(self: Game, name: '决策-答复', callback: fun(ctx: Ask)): function
+---@field fire fun(self: Game, name: '决策-答复', ctx: Ask)
 ---@field on fun(self: Game, name: string, callback: fun(ctx: any)): function
 ---@field fire fun(self: Game, name: string, ...: any)

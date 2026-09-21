@@ -121,6 +121,47 @@ lt.test('局：没有归属的牌也能挪，第一站当作放进去', function
     lt.assertEquals('弃牌里有它', card, pile:list()[1])
 end)
 
+lt.test('局：挪牌可以直接给牌区对象', function ()
+    local game = newGame()
+    local hand = game:createZone('手牌')
+    local pile = game:createZone('弃牌')
+    local card = game:createCard('闪')
+    hand:put(card)
+
+    game:moveCard(card, pile)
+
+    lt.assertEquals('进了给的那个牌区', pile, card:getZone())
+    lt.assertEquals('源区空了', 0, hand:count())
+end)
+
+lt.test('局：牌区名先找当前回合角色，再找局上的牌区', function ()
+    local game = newGame()
+    local gameHand = game:createZone('手牌')
+    local lord = moe.player.create { attributes = game:getAttributeSystem():createInstance() }
+    game.desk:sit(1, lord)
+    lord:addZone('手牌')
+    lord:addZone('装备')
+    local lordHand = assert(lord:getZone('手牌'), '没建出手牌区')
+    local card = game:createCard('闪')
+    gameHand:put(card)
+
+    game.turnPlayer = lord
+    game:moveCard(card, '手牌')
+    lt.assertEquals('优先落进当前回合角色的同名区', lordHand, card:getZone())
+    lt.assertEquals('局上的同名区没被碰到', 0, gameHand:count())
+
+    game:moveCard(card, '装备')
+    lt.assertEquals('只有玩家身上有的区名也能落', lord:getZone('装备'), card:getZone())
+
+    game.turnPlayer = nil
+    game:moveCard(card, '手牌')
+    lt.assertEquals('没有回合角色时落回局上的区', gameHand, card:getZone())
+
+    lt.assertFailed('两边都没有的区名照样失败', game:moveCard(card, '没有这个区'))
+    lt.assertEquals('失败后牌还在原处', gameHand, card:getZone())
+    lt.clearErrors()
+end)
+
 lt.test('局：有序牌区洗牌不用再传随机源', function ()
     local first  = newGame(42)
     local second = newGame(42)

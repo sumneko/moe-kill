@@ -109,6 +109,7 @@ end
 ---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
+---@field turnPlayer? Player # 当前回合角色（由流程维护；挪牌按名字找牌区时先找它身上）
 ---@field private attributeSystem? AttributeSystem
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
@@ -136,6 +137,8 @@ function M:resetContent()
     self.meta        = {}
     self.values      = {}
     self.loadedFiles = {}
+    self.flow        = nil
+    self.turnPlayer  = nil
     self.attributeSystem = nil
     self.events:clear()
 end
@@ -339,16 +342,42 @@ function M:askCard(to, reason, question)
     return ask
 end
 
---- 把牌挪到某个牌区（给一串区名就依次经过，停在最后一站）
+--- 要一个决策（问什么、答什么都由发起方解释）
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
+---@param question any # 问什么（内容由发起方定，应答方自己解释）
+---@return Ask # 这次询问（已经结完：答复读 `.reply`，失败读 `.err`）
+---@async
+function M:ask(to, reason, question)
+    local ask = moe.ask.create {
+        game     = self,
+        to       = to,
+        reason   = reason,
+        question = question,
+    }
+    ask:apply():await()
+    return ask
+end
+
+--- 把牌挪到某个牌区（给一串就依次经过，停在最后一站）
 ---@param card Card|Card[] # 要挪的牌（单张或一批）
----@param zone string|string[] # 目标牌区名（局上的区）
+---@param zone string|string[]|Zone|Zone[] # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找）
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
 ---@async
 function M:moveCard(card, zone)
     ---@type Card[]
-    local cards  = card[1] ~= nil and card or { card }
-    ---@type string[]
-    local zones  = type(zone) == 'table' and zone or { zone }
+    local cards = card[1] ~= nil and card or { card }
+    ---@type (string|Zone)[]
+    local zones = {}
+    if type(zone) == 'table' and Type(zone) == nil then
+        ---@cast zone (string|Zone)[]
+        for i, item in ipairs(zone) do
+            zones[i] = item
+        end
+    else
+        ---@cast zone string|Zone
+        zones[1] = zone
+    end
     local effect = moe.moveCard.create {
         game  = self,
         cards = cards,
@@ -406,6 +435,35 @@ function M:getEffects()
     local snapshot = {}
     table.move(self.effects, 1, #self.effects, 1, snapshot)
     return snapshot
+end
+
+--- 登记这一局的流程（加载期由内容登记，每局只能一个）
+---@param handler fun(): any # 流程本体
+function M:registerFlow(handler)
+    if not self.loading then
+        error('流程登记只能在加载规则集时声明', 2)
+    end
+    if type(handler) ~= 'function' then
+        error('流程必须是一个函数', 2)
+    end
+    if self.flow then
+        error('这一局已经登记过流程了', 2)
+    end
+    self.flow = handler
+end
+
+--- 跑这一局的流程：返回效果（等它跑完用 `.await()`，要停它用 `:remove()`）
+---@return Flow
+function M:runFlow()
+    if not self.flow then
+        error('这一局没有登记流程', 2)
+    end
+    local effect = moe.flow.create {
+        game    = self,
+        handler = self.flow,
+    }
+    effect:apply()
+    return effect
 end
 
 ---@class Game.API
