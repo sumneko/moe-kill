@@ -4,6 +4,8 @@ context: |
   Language: Simplified Chinese
   All artifacts must be written in Simplified Chinese.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  探索期（2026-09-21 起）：变更只做决策记录（proposal / design / tasks），并在 .openspec.yaml 设 skip_specs: true，
+  不写 specs 增量；openspec/specs/ 是已冻结的历史快照，不随实现更新（除非变更明确针对对外契约）。
 githubCopilot:
   cloudAgent: false
 
@@ -19,7 +21,14 @@ githubCopilot:
 
 # Per-operation guidance (optional)
 # Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
+# It is separate from artifact rules above.
+operations:
+  apply:
+    guidance:
+      - 探索期以用例为契约：改完跑 server/bin/moe-kill.exe --test，全量用例 0 失败即可，不必回头改 openspec/specs/。
+  archive:
+    guidance:
+      - 探索期变更没有 spec 增量（specs 是 skipped），归档时不会同步主规格：勾完 tasks 直接 archive 即可。
 # Example:
 #   operations:
 #     apply:

@@ -18,8 +18,8 @@
 
 | 路径 | 说明 |
 | ---- | ---- |
-| `openspec/specs/` | 规格真相源（系统当前行为；归档变更时同步更新） |
-| `openspec/changes/` | 进行中的变更（proposal / specs / design / tasks） |
+| `openspec/specs/` | 探索期写下的规格快照（**已冻结，不随实现更新**；见「工作流」） |
+| `openspec/changes/` | 进行中的变更（`proposal` / `design` / `tasks`；探索期不写 specs） |
 | `openspec/changes/archive/` | 已归档变更（保留历史） |
 | `openspec/config.yaml` | OpenSpec 项目配置（语言、工件规则、操作指引） |
 | `.agents/skills/openspec-*/` | 厂商中立技能（通用 Agent Skills 格式，任何客户端可加载；由 OpenSpec 生成，勿手改） |
@@ -40,13 +40,19 @@
 
 先规划、后实现。遵循"规划边界"：除非用户明确进入实施阶段，否则只创建规划工件，不直接改业务代码。
 
+**探索期的用法：只留决策记录，不写规格**（用户 2026-09-21 定）。理由：此时设计会反复推翻（效果模型三天里换了三轮），而规格（requirements / scenarios）是**最贵、最不抗变**的一层 —— 每次都要人工对账，产出却是对刚写完的代码的复述。**可执行契约由用例承担**（`server/bin/moe-kill.exe --test`）。
+
+- 变更工件 = **`proposal.md` + `design.md` + `tasks.md`**；**不写 `specs/`**：建完变更后在它的 `.openspec.yaml` 里加一行 `skip_specs: true`。实测（2026-09-21）：加了它以后 `openspec status` 把 `specs` 记成 `skipped`、`tasks` 照常可写，`openspec validate --strict` 接受零增量（只给一条 INFO）。
+- **`openspec/specs/` 已冻结**：那是探索期留下的历史快照，**不再随实现更新**，也不再当真相源（要读现状看代码 + 用例 + 技能的 `references/`）。等规则口径稳定（武将 / 牌表 / 流程定稿）后再做**一次性回顾性对齐**，而不是每个功能点都追。
+- **只有真要长期稳定的对外契约才写规格**：JSON-RPC 协议、时机 / 事件清单、包与装载器的对外约定 —— 这些有外部消费者、改动昂贵。写这类变更时**不设** `skip_specs`，照常写 `specs/` 增量。
+
 | 场景 | 通用调用（技能名，任意客户端） |
 | ---- | ---- |
-| 提出新变更（一步生成 proposal / specs / design / tasks） | `/openspec-propose` |
+| 提出新变更（proposal / design / tasks；探索期无 specs） | `/openspec-propose` |
 | 探索与讨论（无副作用的思考伙伴） | `/openspec-explore` |
 | 按 `tasks.md` 实施变更 | `/openspec-apply-change` |
 | 更新已有变更的工件 | `/openspec-update-change` |
-| 将变更的 spec 增量同步进主规格 | `/openspec-sync-specs` |
+| （冻结期不用）把 spec 增量同步进 `openspec/specs/` | `/openspec-sync-specs` |
 | 归档已完成变更 | `/openspec-archive-change` |
 
 - 技能文件位于 `.agents/skills/openspec-*/SKILL.md`，为通用 Agent Skills 格式；客户端可自动激活，不支持斜杠调用时直接提及技能名即可。
@@ -66,6 +72,8 @@
 - 归档前先运行 `openspec validate <name>` 校验；实现完成后勾选 `tasks.md` 全部条目，再执行 `openspec archive <name> --yes`。
 - `.agents/skills/` 下由 OpenSpec 生成的文件不要手动修改；升级 CLI 后运行 `openspec update` 刷新。
 - 重大需求/架构调整先建变更提案，经确认后再写代码。
+- **探索期不写规格**（用户 2026-09-21 定）：变更只做**决策记录**（`proposal` / `design` / `tasks`，并在 `.openspec.yaml` 里设 `skip_specs: true`），`openspec/specs/` **冻结、不维护**；理由与细节见「工作流」，契约以用例为准。
+
 - **可叠加的操作必须返回撤销函数**：凡“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个 **disposer 函数**，调用它即精确撤销这次添加；不要只提供“移除”，也不要让调用方自己回滚。
 - **模块不得持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的状态**挂到门面表 `moe` 上**（在 `moe-kill.lua` 里建立、不参与重载），写成「有则复用」（如 `moe._nextCardId = moe._nextCardId or moe.util.counter()`），并用 **`_` 前缀**标明「内核内部状态、不是对外接口」。**不要挂类表**：类表上的字段会被 `Extends` 复制给子类、并在重载时被 `reset` 清掉。重载边界是**加载方式**（`include` 可重载 / `require` 不参与），详见 `moe-kill-dev` 技能的 `references/architecture.md` 第 8 节。
 - **命名：代码用英文，中文只留给难翻译的内容名**（用户 2026-09-19 定）：运行时虽然允许中文标识符（构建期补丁），但**字段名 / 局部变量 / 函数名 / 参数名一律英文**；中文只用于技能名、卡牌名、身份名这类内容词，以及作为**数据取值 / 配置键**出现的名字（`'杀'`、`'主公'`、`'游戏-开始'`、`rule:setValue('体力上限', 4)`、`attrs:get('体力')`）；包名与包内文件名也用中文。详见 `moe-kill-dev` 的 `references/code-style.md` 第 8 节。
