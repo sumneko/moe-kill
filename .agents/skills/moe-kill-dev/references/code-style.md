@@ -162,6 +162,7 @@ end
 - PowerShell 写文件务必指定 `-Encoding UTF8`，否则 UTF-8 源码会乱码（项目源码统一 UTF-8 无 BOM）。
 - 包目录名可以带一个 `@` 前缀（表示该包默认加载，见 `architecture.md` 第 9 节），包内文件名不带。
 - **注入环境给的「函数」用 PascalCase，给的「对象 / 命名空间」小写**（用户 2026-09-19 定）：`Card` / `Depends` 是框架入口（与既有的 `Class` / `New` / `Extends` 同类），`game`（与 `moe` 同类）是环境给的对象。理由：包文件里 `local card = game:createCard('杀')` 这类局部变量很自然，小写入口一遮就没了；大写既躲开遮蔽，又能一眼区分「加载期 DSL」与「普通 API」。
+  - **给标准库加助手就用库名本身**（用户 2026-09-21 定）：`table.filter` / 将来的 `string.trim`，**不要**另起 `Table` / `util` 这类全局 —— 名字自己说明了「这是对标准库的扩充」（做法与边界见 `architecture.md` 9.6）。
 
 ## 9. 防御性检查的边界
 
