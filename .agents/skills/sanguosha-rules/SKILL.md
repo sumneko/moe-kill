@@ -166,6 +166,7 @@ local slash = Card '杀'
 - **规则数值**：`game:setValue(名字, 值)` / `game:setValues { ... }` 落默认值，读用 `game:getValue(名字)`（没设置得到 `nil`，自己写 `or 默认`）；**挂在局上一张表、按加载顺序后者覆盖前者**（这就是后续包改默认值的正道），与规则表同生命周期。**不要往里存函数**：行为写时机注册。
 - **注入面是 `game`（这一局）与 `Card` / `Depends`（加载期环境函数，大写）、`util`（收窄的纯函数工具集，小写）**：内核门面 `moe`（含 `moe.core` 这类写法）、`require` / `io` / `os` 都拿不到。包需要的内核资源全从 `game` 取：**属性系统**用 `game:getAttributeSystem()`，**这一局的牌 / 牌区 / 桌子 / 随机源**用 `game:createCard(name)` / `game:createZone(名字, 有序?)` / `game.desk` / `game.random`（**只认字段，没有 getter**）。
 - **工具集只给纯函数**：`util.filter(列表, 判定)` / `util.map(列表, 变换)` / `util.contains(列表, 值)` —— 它是 `server/core/loader/env-util.lua` 里**收窄**的一份，不是内核工具库本体（`moe.util` 里还有 `saveFile` / `defer` 这类副作用，拿不到）；清单与签名以那个文件为准。
+- **包之间共享函数：直接写全局函数**（用户 2026-09-21 定）—— 整轮装载**共用一份书写环境**，所以 `function 是否受伤(player) ... end` 写在哪个文件里，后面的文件（含别的包）就能直接调。注意三点：**顺序敏感**（要用别人的函数就要求它先加载，可以用 `Depends` 定序）、**注入的 `game` / `Card` / `Depends` / `util` 每个文件加载前会刷回**（别拿它们当全局变量用）、**重装换新环境**（上一轮的全局自然消失）。沙箱没变：仍然看不到 `moe` / `require` / `io` / `os`。
 - **接口面在哪（包作者视角）**：`server/core/loader/env-meta.lua` 是内核的纯类型文件，声明了注入的 `game` / `Card` / `Depends` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条；**包自己的概念**（身份、规则数值、自有标签）写在**包目录下的 `meta.lua`**（纯 LuaDoc，固定叫 `meta`）：
 
 ```lua

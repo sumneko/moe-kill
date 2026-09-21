@@ -41,6 +41,15 @@ local function write(rel, content)
     assert(ok, err)
 end
 
+---@param rel string # 相对探测目录（可以写别的包名）
+---@param content string
+local function writeIn(rel, content)
+    local file = probeDir / rel
+    fs.create_directories(file:parent_path())
+    local ok, err = moe.util.saveFile(file:string(), content)
+    assert(ok, err)
+end
+
 ---@param ... string
 ---@return string[]
 local function list(...)
@@ -459,4 +468,39 @@ lt.test('规则集：两个局互不影响', function ()
     lt.assertEquals('第一份清空重载后拿到乙', true, first:getCard('乙') ~= nil)
     lt.assertEquals('第二份照旧', true, second:getCard('乙') ~= nil)
     lt.assertEquals('第二份的规则数值也没被动过', 1, second:getValue('数值'))
+end)
+
+lt.test('环境：整轮装载共用一份环境，包之间可以共享全局函数', function ()
+    local guard <close> = prepare()
+    writeIn('甲/工具.lua', 'function 打招呼() return "你好" end')
+    writeIn('乙/用.lua', 'game:setValue("结果", 打招呼())')
+
+    load({ '甲', '乙' })
+
+    lt.assertEquals('后加载的包用得到先加载的包写的全局函数', '你好', game:getValue('结果'))
+end)
+
+lt.test('环境：注入的 game / Card / 之类每个文件都会刷回', function ()
+    local guard <close> = prepare()
+    writeIn('甲/坏.lua', 'game = nil\nCard = nil\nutil = nil')
+    writeIn('乙/用.lua', 'Card("乙牌")\ngame:setValue("写进去了", true)')
+
+    load({ '甲', '乙' })
+
+    lt.assertEquals('下一个文件照常拿得到 game', true, game:getValue('写进去了') == true)
+    lt.assertEquals('也照常声明得了条目', true, game:getCard('乙牌') ~= nil)
+end)
+
+lt.test('环境：重装换一份新环境，上一轮写的全局不再可见', function ()
+    local guard <close> = prepare()
+    writeIn('甲/工具.lua', 'function 打招呼() return "你好" end')
+    writeIn('乙/看.lua', 'game:setValue("看得见", type(打招呼) == "function")')
+
+    load({ '甲', '乙' })
+    lt.assertEquals('第一轮看得见', true, game:getValue('看得见'))
+
+    game:setValue('看得见', nil)
+    load({ '乙' })
+
+    lt.assertEquals('重装之后看不见了', false, game:getValue('看得见'))
 end)

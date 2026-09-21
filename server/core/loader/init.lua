@@ -14,6 +14,8 @@ local envUtil  = require 'core.loader.env-util'
 ---@field current? string # 正在执行的文件（逻辑路径）
 ---@field public package? string # 正在执行的文件的所属包
 ---@field excludes table<string, string> # 互斥项 → 声明者
+---@field env table # **整轮装载共用**的书写环境（包定义的全局函数就落在这里 ⇒ 包之间可以共享）
+---@field injected table<string, any> # 注入项（game / Card / Depends / util）：每个文件加载前都会刷回 env
 
 ---@class Loader.MetaFile
 ---@field logical string
@@ -108,12 +110,10 @@ local function loadFile(game, ctx, logical)
     if not source then
         error('规则集文件读取失败：{}（{}）' % { logical, err }, 0)
     end
-    local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', makeEnv {
-        game    = game,
-        Card    = function (name) return game:declareCard(name) end,
-        Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
-        util    = envUtil,
-    })
+    for name, value in pairs(ctx.injected) do
+        ctx.env[name] = value
+    end
+    local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', ctx.env)
     if not chunk then
         error('规则集文件解析失败：{}（{}）' % { logical, loadErr }, 0)
     end
@@ -252,6 +252,9 @@ local function prepare(instance, list)
         expandItem(item)
     end
 
+    ---@type table<string, any> # 试跑那一趟也共用一份书写环境（与真跑语义一致）
+    local probeEnv = makeEnv {}
+
     local index = 1
     while index <= #queue do
         local logical = queue[index]
@@ -318,7 +321,11 @@ local function prepare(instance, list)
             util = envUtil,
         }
 
-        local ok, err = preparse.run(source, '@' .. file.source, makeEnv(probe))
+        for name, value in pairs(probe) do
+            probeEnv[name] = value
+        end
+
+        local ok, err = preparse.run(source, '@' .. file.source, probeEnv)
         if not ok then
             file.ok  = false
             file.err = err
@@ -406,7 +413,16 @@ function moe.loader.install(game, options)
         loaded   = {},
         order    = {},
         excludes = {},
+        env      = {},
+        injected = {},
     }
+    ctx.injected = {
+        game    = game,
+        Card    = function (name) return game:declareCard(name) end,
+        Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
+        util    = envUtil,
+    }
+    ctx.env = makeEnv(ctx.injected)
     game.loading = ctx
     local guard <close> = moe.util.defer(function ()
         game.loading = nil
