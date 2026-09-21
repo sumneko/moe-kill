@@ -114,6 +114,7 @@ end
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
 ---@field private effects Effect[] # 记牌器：发起过的根效果（只增）
+---@field private dyingPending table<Player, boolean> # 待结的濒死（记账；结算收尾时才起 Dying）
 local M = Class 'Game'
 
 ---@param desk Desk
@@ -125,6 +126,7 @@ function M:__init(desk, random)
     self.zoneList = {}
     self.zoneMap  = {}
     self.effects  = {}
+    self.dyingPending = {}
     self.sources  = moe.loader.DEFAULT_SOURCES
     self.list     = {}
     desk:bindGame(self)
@@ -403,6 +405,20 @@ function M:damage(from, to, amount)
     return damage
 end
 
+---@param to Player # 谁回复体力
+---@param amount integer # 点数
+---@async
+---@return Heal # 这次回复（已经结完：失败读 `.err`）
+function M:heal(to, amount)
+    local heal = moe.heal.create {
+        game   = self,
+        to     = to,
+        amount = amount,
+    }
+    heal:apply():await()
+    return heal
+end
+
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
 ---@param targets Player[] # 目标（可以为空表）
@@ -435,6 +451,44 @@ function M:getEffects()
     local snapshot = {}
     table.move(self.effects, 1, #self.effects, 1, snapshot)
     return snapshot
+end
+
+--- 记下这个玩家该进濒死：真正的结算等当前这次效果结算收尾时开始（返回撤销）
+---@param player Player
+---@return function # 撤销这次记账（例如体力又回正了）
+---@async
+function M:enterDying(player)
+    self.dyingPending[player] = true
+    local removed = false
+    if not (moe.task.getCurrentTask()?.context.effect) then
+        self:flushDying()
+    end
+    return function ()
+        if removed then
+            return
+        end
+        removed = true
+        self.dyingPending[player] = nil
+    end
+end
+
+--- 把记下的濒死结掉（结算收尾时由内核调）
+---@async
+function M:flushDying()
+    if not coroutine.isyieldable() then
+        return
+    end
+    while true do
+        local player = next(self.dyingPending)
+        if not player then
+            return
+        end
+        self.dyingPending[player] = nil
+        if player:isAlive() then
+            local dying = moe.dying.create { game = self, player = player }
+            dying:apply():await()
+        end
+    end
 end
 
 --- 登记这一局的流程（加载期由内容登记，每局只能一个）

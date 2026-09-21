@@ -219,9 +219,12 @@ server/bin/moe-kill.exe --test core.desk      # 桌子套件（座位 / 行动�
 server/bin/moe-kill.exe --test core.player    # 玩家套件（属性实例 / 牌区增删 / 标签 / 存活与参与行动）
 server/bin/moe-kill.exe --test core.game      # 局套件（建局 / 按名字建取牌区 / 建牌 / 绑定随机源洗牌）
 server/bin/moe-kill.exe --test core.effect    # 效果套件（任务驱动 / 记牌器 / 嵌套与父链 / 取消 / 失败记 err / 深度上限）
-server/bin/moe-kill.exe --test core.damage    # 伤害套件（改体力 / 体力可为负 / 伤害前·后时机的先后）
+server/bin/moe-kill.exe --test core.damage    # 伤害套件（三个时机 / 点数 / 便利入口 / 改体力属规则侧）
+server/bin/moe-kill.exe --test core.heal      # 回复套件（三个时机 / 点数 / 建实例先不结算）
+server/bin/moe-kill.exe --test core.dying     # 濒死套件（当场起 / 结算收尾才起 / 撤销 / 阵亡的不再起 / 内核不判死）
 server/bin/moe-kill.exe --test core.play      # 使用牌套件（校验 / 取牌 / 结算回调 / 收尾时机）
 server/bin/moe-kill.exe --test rule.slash     # 「杀」套件（攻击范围校验 / 造成 1 点伤害 / 进弃牌）
+server/bin/moe-kill.exe --test rule.dying     # 濒死与【桃】套件（按行动顺序求桃 / 没人给就死 / 桃的两种用法）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 

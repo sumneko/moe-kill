@@ -25,7 +25,7 @@ end
 ---@async
 function M:settle()
     self.game:fire('伤害-前', self)
-    self.to:addAttr('体力', -self.amount)
+    self.game:fire('伤害-生效', self)
     self.game:fire('伤害-后', self)
 end
 

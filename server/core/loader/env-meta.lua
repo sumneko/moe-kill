@@ -43,8 +43,18 @@ Depends = nil
 ---@field fire fun(self: Game, name: '卡牌-结算后', ctx: UseCard)
 ---@field on fun(self: Game, name: '伤害-前', callback: fun(ctx: Damage)): function
 ---@field fire fun(self: Game, name: '伤害-前', ctx: Damage)
+---@field on fun(self: Game, name: '伤害-生效', callback: fun(ctx: Damage)): function
+---@field fire fun(self: Game, name: '伤害-生效', ctx: Damage)
 ---@field on fun(self: Game, name: '伤害-后', callback: fun(ctx: Damage)): function
 ---@field fire fun(self: Game, name: '伤害-后', ctx: Damage)
+---@field on fun(self: Game, name: '回复-前', callback: fun(ctx: Heal)): function
+---@field fire fun(self: Game, name: '回复-前', ctx: Heal)
+---@field on fun(self: Game, name: '回复-生效', callback: fun(ctx: Heal)): function
+---@field fire fun(self: Game, name: '回复-生效', ctx: Heal)
+---@field on fun(self: Game, name: '回复-后', callback: fun(ctx: Heal)): function
+---@field fire fun(self: Game, name: '回复-后', ctx: Heal)
+---@field on fun(self: Game, name: '濒死', callback: fun(ctx: Dying)): function
+---@field fire fun(self: Game, name: '濒死', ctx: Dying)
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(ctx: Player)): function
 ---@field fire fun(self: Game, name: '玩家-死亡', ctx: Player)
 ---@field on fun(self: Game, name: '回合-开始', callback: fun(ctx: Game.EventCtx.回合)): function
