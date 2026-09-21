@@ -2,7 +2,7 @@ require 'core.effect'
 
 ---@class AskCard.Answer # 一次答复：给出哪张牌；要打给谁的话再带上目标
 ---@field card Card
----@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表
+---@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）
 
 ---@class AskCard.CreateOptions
 ---@field game Game
@@ -15,7 +15,7 @@ require 'core.effect'
 ---@field reason string # 这次为什么问
 ---@field condition any # 匹配条件：要什么样的牌
 ---@field card? Card # 答复给出的那张牌（= `.result.card`）
----@field targets? Player|Player[] # 答复指定的目标（= `.result.targets`）
+---@field targets? Player[] # 答复指定的目标（= `.result.targets`；恒为一张列表）
 ---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskCard'
 
@@ -33,6 +33,21 @@ function M:__init(game, to, reason, condition)
     self.condition = condition
 end
 
+--- 目标统一成一张列表
+---@param targets? Player|Player[]
+---@return Player[]?
+local function toTargetList(targets)
+    if targets == nil then
+        return nil
+    end
+    if Type(targets) ~= nil then
+        ---@cast targets Player
+        return { targets }
+    end
+    ---@cast targets Player[]
+    return targets
+end
+
 --- 应答这次询问：给出的答复当场成为这次询问的结果（读 `.result`）
 ---@param value AskCard.Answer? # 答不上就给 nil（等同没答）
 function M:answer(value)
@@ -43,7 +58,10 @@ function M:answer(value)
         log.info('这次询问已经答过了，先给出的算数')
         return
     end
-    self.task:resolve(value)
+    self.task:resolve {
+        card    = value.card,
+        targets = toTargetList(value.targets),
+    }
 end
 
 --- 答复给出的那张牌
@@ -53,9 +71,9 @@ M.__getter.card = function (self)
     return self.result?.card
 end
 
---- 答复指定的目标
+--- 答复指定的目标（恒为一张列表）
 ---@param self AskCard
----@return Player|Player[]?
+---@return Player[]?
 M.__getter.targets = function (self)
     return self.result?.targets
 end

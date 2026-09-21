@@ -65,12 +65,12 @@ lt.test('询问：答复带上目标（单个或一张列表）', function ()
 
     local single = game:askCard(players[1], '测试', {})
     lt.assertEquals('牌读得到', jink, single.card)
-    lt.assertEquals('目标读得到（单个）', players[2], single.targets)
+    local one = assert(single.targets)
+    lt.assertEquals('单个目标也归一成列表', 1, #one)
+    lt.assertEquals('列表里就是那个目标', players[2], one[1])
 
     local many = game:askCard(players[1], '测试', {})
-    local list = many.targets
-    ---@cast list Player[]
-    lt.assertEquals('目标读得到（一张列表）', 2, #list)
+    lt.assertEquals('目标读得到（一张列表）', 2, #assert(many.targets))
 end)
 
 lt.test('询问：被问者与答复挂在询问上，父效果是发起它的那个', function ()

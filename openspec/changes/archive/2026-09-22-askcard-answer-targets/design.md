@@ -16,9 +16,24 @@
 
 **否掉的读法 B**（答复仍只有一张牌、目标另开一个询问）：多一趟往返与多一个类，而这次询问本身就是"使用一张牌"这一个决策。
 
-## D2 归一放在 `game:useCard`，不放在内容侧
+## D2 归一发生在哪两个边界
 
-`UseCard.targets` 内部仍然只认 `Player[]`（`#targets` / `ipairs` 都靠它），**归一化放在 `game:useCard` 入口**：
+**（后续追加，用户 2026-09-22 定）**：`targets` 的归一放在 **`AskCard:answer` 入库前** —— "答复的数据形状"要规范，否则每个读 `ask.targets` 的人都要自己判一次单个还是列表：
+
+```lua
+--- 目标统一成一张列表
+local function toTargetList(targets)
+    if targets == nil then return nil end
+    if Type(targets) ~= nil then return { targets } end   -- 单个 Player
+    return targets                                          -- 已经是一张列表
+end
+
+self.task:resolve { card = value.card, targets = toTargetList(value.targets) }
+```
+
+于是 `AskCard.Answer.targets` **可以**是 `Player|Player[]`（应答方怎么写都行），而 **`.result.targets` 与 `.targets` 恒为 `Player[]`**。顺带：答复表会被换成一张规范形状的新表（只带 `card` / `targets`），应答方自己的表不被改动。
+
+**（本批原定，仍然保留）** `game:useCard` 的入口也接受联合类型：
 
 ```lua
 local list = {}
@@ -29,7 +44,7 @@ else                              -- 一张列表（空表 = 没指定目标，�
 end
 ```
 
-理由：将来每个"要用牌"的内容（锦囊、技能、借刀杀人…）都会从询问拿到这个联合类型，归一只写一处；而且 `moveCard` 已经确立了"入口接受联合类型"的先例。判据用 `Type(...)` 而不是 `x[1] ~= nil`：**空列表也得被认成列表**（`{}` 落到 `x[1] == nil` 那一支会被包成 `{ {} }`，那是错的）。
+两处不是重复：`answer` 那份管"答复的数据形状"，`useCard` 那份管"入口的输入灵活性" —— 内容侧直接写 `game:useCard(user, card, 那个玩家)` 也能跑（`moveCard` 接受联合类型是同一个先例）。判据都用 `Type(...)` 而不是 `x[1] ~= nil`：**空列表也得被认成列表**（`{}` 落到 `x[1] == nil` 那一支会被包成 `{ {} }`，那是错的）。
 
 ## D3 `card` / `targets` 用 getter 转存，不在 `settle` 里赋值
 

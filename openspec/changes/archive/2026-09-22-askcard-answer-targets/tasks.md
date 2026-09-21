@@ -2,6 +2,7 @@
 - [x] 1.1 AskCard.Answer = { card Card, targets? Player|Player[] }（server/core/effect/ask-card.lua）
 - [x] 1.2 M:answer(value) 收答复表；nil = 没答上；重复应答改判 self.task.resolved（照旧只记一条 info）
 - [x] 1.3 card / targets 改成 getter 转存（self.result?.card / ?.targets），删掉 settle 里的赋值
+- [x] 1.3b （追加）answer 入库前把 targets 归一成 Player[]（单个 Player 也包成列表）⇒ .result.targets / .targets 恒为列表
 - [x] 1.4 第三个参数 question -> condition（匹配条件；内核不解释），CreateOptions 与 __init 同步
 - [x] 1.5 server/core/game.lua 的 M:askCard(to, reason, condition)：参数名、注解与返回说明
 
