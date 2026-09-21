@@ -57,6 +57,18 @@ lt.test('互斥：没被加载时不报错', function ()
     lt.assertEquals('条目照常登记', true, game:getCard('甲牌') ~= nil)
 end)
 
+lt.test('包里的 meta 文件（纯类型）照常参与装载，不进规则表', function ()
+    local guard <close> = prepare()
+    write('甲/meta.lua', '---@meta\n\n---@class 甲.占位\n---@field 值 integer\n')
+    write('甲/开始.lua', 'Card("甲牌")')
+
+    local loaded = load(list('甲'))
+
+    lt.assertEquals('它就是普通文件，照常被执行', true, moe.util.arrayHas(loaded, '甲/meta.lua'))
+    lt.assertEquals('里面的类型声明不变成条目', nil, game:getCard('甲.占位'))
+    lt.assertEquals('同包的正常文件照常登记', true, game:getCard('甲牌') ~= nil)
+end)
+
 lt.test('互斥：被加载时报错并指出两方', function ()
     local guard <close> = prepare()
     write('甲/开始.lua', 'Depends { "!乙" }')

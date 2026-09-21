@@ -166,7 +166,18 @@ local slash = Card '杀'
 - **规则数值**：`game:setValue(名字, 值)` / `game:setValues { ... }` 落默认值，读用 `game:getValue(名字)`（没设置得到 `nil`，自己写 `or 默认`）；**挂在局上一张表、按加载顺序后者覆盖前者**（这就是后续包改默认值的正道），与规则表同生命周期。**不要往里存函数**：行为写时机注册。
 - **注入面是 `game`（这一局）与 `Card` / `Depends`（加载期环境函数，大写）、`util`（收窄的纯函数工具集，小写）**：内核门面 `moe`（含 `moe.core` 这类写法）、`require` / `io` / `os` 都拿不到。包需要的内核资源全从 `game` 取：**属性系统**用 `game:getAttributeSystem()`，**这一局的牌 / 牌区 / 桌子 / 随机源**用 `game:createCard(name)` / `game:createZone(名字, 有序?)` / `game.desk` / `game.random`（**只认字段，没有 getter**）。
 - **工具集只给纯函数**：`util.filter(列表, 判定)` / `util.map(列表, 变换)` / `util.contains(列表, 值)` —— 它是 `server/core/loader/env-util.lua` 里**收窄**的一份，不是内核工具库本体（`moe.util` 里还有 `saveFile` / `defer` 这类副作用，拿不到）；清单与签名以那个文件为准。
-- **接口面在哪（包作者视角）**：`server/core/loader/env-meta.lua` 是纯类型文件，声明了注入的 `game` / `Card` / `Depends` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条。**不提供可单独分发的 meta**（引用链横跨 `Game` / `Moe` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
+- **接口面在哪（包作者视角）**：`server/core/loader/env-meta.lua` 是内核的纯类型文件，声明了注入的 `game` / `Card` / `Depends` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条；**包自己的概念**（身份、规则数值、自有标签）写在**包目录下的 `meta.lua`**（纯 LuaDoc，固定叫 `meta`）：
+
+```lua
+-- package/身份场/meta.lua：纯类型声明（不是规则内容，装载器照常当普通文件执行，里面只有注释）
+---@meta
+---@alias 身份场.身份 '主公'|'忠臣'|'反贼'|'内奸'
+---@class Player: Class.Base                     -- 基类要写全
+---@field getTag fun(self: Player, key: '身份'): 身份场.身份
+---@field getTag fun(self: Player, key: string): any   -- 兜底必须自己再写一遍（否则会把内核签名吃掉）
+```
+
+  于是 `player:getTag('身份')` 收窄成四种身份的联合类型（拼错取值编辑期就报），`game:getValue('身份配置')` 也有了结构。**不提供可单独分发的 meta**（引用链横跨 `Game` / `Moe` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
 - **不要为空值防御**：注入的 `game` 按约定一定在（它就是这一局）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
 - **属性定义只能在加载期写**：属性系统由**这一局**持有（一局一份，清空重装时重置），属性库把定义编译成生成函数、**编译后不允许再 `define`**（会在运行期报 `Cannot define new attributes after compilation`）⇒ `define` 写在包文件顶层，别写进「游戏-开始」回调。玩家侧读写用 `player:setAttr / getAttr / addAttr`（等价于 `player:getAttributes():set/get/add`）。
 - **公共牌区与玩家牌区的分工**：抽牌 / 弃牌 / 处理这类**公共区域**用 `game:createZone(名字, 有序?)`（按名字登记，之后 `game:getZone(名字)` 取回）；手牌 / 装备 / 判定这类**属于某个玩家**的牌区用 `player:addZone(名字)`。

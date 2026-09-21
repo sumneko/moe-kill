@@ -42,7 +42,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `server/core/loader/` | 规则**装载器**（无状态机制，`moe.loader` = `Loader` 模块）：`init.lua`（`install` / `declareDepends` / 名字路由 / 按预解析结果执行）+ `vfs.lua`（包来源合并成虚拟文件系统）+ `preparse.lua`（试跑与包元信息）+ `env-meta.lua`（**纯类型文件**：注入的 `game` / `Card` / `Depends` 与各时机上下文的签名 —— **包作者（含第三方）可见的类型契约**，改时机 / 改签名要同步改它）；`moe.game.create { desk, random, sources?, packages? }` 建局并顺手把规则装好（清单省略就只装默认加载的包），重装走 `moe.loader.install(game, { packages = 清单 })`，改规则只影响这一局（详见 `references/architecture.md` 第 9 节） |
 | `server/test/` | 无头测试（套件名如 `test.smoke` / `test.session` / `test.core`） |
 | `server/bin/` `server/log/` `server/tmp/` | 构建产物与运行时产物（均 git 忽略） |
-| `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（现有 `@基础` / `身份场` / `标准`，将来 `军争`…）；包 = 一级目录（根下**不许有散落文件**），目录名以 `@` 开头表示**默认加载**（`@基础` ⇒ 逻辑包名 `基础`，清单不用写它，引用也不写 `@`）；跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.loader` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参与热重载；只拿注入的 `game` 与 `Card` / `Depends`（内核能力经局收口），不反向 |
+| `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（现有 `@基础` / `身份场` / `标准`，将来 `军争`…）；包 = 一级目录（根下**不许有散落文件**），目录名以 `@` 开头表示**默认加载**（`@基础` ⇒ 逻辑包名 `基础`，清单不用写它，引用也不写 `@`）；跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.loader` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参与热重载；只拿注入的 `game` 与 `Card` / `Depends`（内核能力经局收口），不反向；包目录下可以放一份 **`meta.lua`（纯类型声明，固定叫 `meta`）**给编辑器收窄自己的概念（身份、规则数值…），装载器把它当普通文件执行（里面只有注释）—— 配方见 `references/architecture.md` 9.6 |
 | `server/proto/` | 协议定义（方法名、参数与返回结构），前后端共用的事实来源 |
 | `server/transport/` | JSON-RPC 帧与连接层 |
 | `client/`（将来） | 前端（TypeScript / Web）；与 `server/` 平级 |

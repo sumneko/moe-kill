@@ -120,6 +120,7 @@ end
   - 与上一条不冲突：上一条说的是 `XXX.CreateOptions` 这类**没有赋值过程**的入参结构体。
 - **可选标记写在「名字」上，不写在类型后面**（用户 2026-09-19 定）：`---@field key? number`、`---@param key? number`、`fun(x: number, y?: number)`。不要写 `---@field key number?` / `---@param key number?` / `fun(x: number, y: number?)`。
   - `server/tools/` 里照搬来的文件保持上游原样，**不按这条改**（也不为了统一去动上游文件）。
+  - **跨文件给同一个字段名追加签名必须带兜底**（2026-09-21 实测）：在别的文件里重声明 `---@class X` 并写 `---@field f ...`，**会接管 `f` 这个名字的签名表**（不是叠加）—— 内核那份来自方法定义的签名会被报错掉。所以包里写 `---@field getTag fun(self: Player, key: '身份'): 身份场.身份` 时，**必须再补一条 `key: string` 的兜底**（详见 `architecture.md` 9.6 的「包自带 `meta.lua`」）；重声明类时基类也要写全（`---@class Player: Class.Base`）。
 - **字段名撞 LuaDoc 访问修饰符时要显式写修饰符**：`private` / `protected` / `package` / `public` 是 **LuaDoc 的访问修饰符**，字段真叫 `package` 时直接写 `---@field package string` 会被解析成「修饰符 + 名字」而报 `luadoc-miss-type-name`（去掉 `#` 后又报 `undefined-doc-name`）；正确写法是 **`---@field public package string # 所属包名`**。
   - 同理：`---@field` 的描述必须带 `#` 引导（`类型 # 描述`），直接跟中文会被当成第二个类型。
 
