@@ -53,7 +53,7 @@ lt.test('濒死：自己给一张桃就能活下来', function ()
 
     run.game:on('卡牌-询问', function (ask)
         if ask.to == target then
-            ask:answer(peach)
+            ask:answer { card = peach }
         end
     end)
 
@@ -78,7 +78,7 @@ lt.test('濒死：从濒死者开始按行动顺序问，下家的桃也能救�
     run.game:on('卡牌-询问', function (ask)
         asked[#asked + 1] = assert(ask.to)
         if ask.to == helper then
-            ask:answer(peach)
+            ask:answer { card = peach }
         end
     end)
 
@@ -99,7 +99,7 @@ lt.test('濒死：差 2 点时同一个人可以连给两张', function ()
     local remaining = { takeCard(run, target, '桃'), takeCard(run, target, '桃') }
     run.game:on('卡牌-询问', function (ask)
         if ask.to == target and #remaining > 0 then
-            ask:answer(table.remove(remaining, 1))
+            ask:answer { card = table.remove(remaining, 1) }
         end
     end)
 

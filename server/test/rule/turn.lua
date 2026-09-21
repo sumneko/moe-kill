@@ -10,7 +10,8 @@ local support = require 'test.rule.support'
 ---@field count? integer
 ---@field seed? integer
 ---@field answers? Card[] # 「卡牌-询问」的脚本（【闪】之类）
----@field answer fun(ask: Ask, run: Test.RuleSupport): any # 「决策-询问」的答复
+---@field answer fun(ask: AskCard, run: Test.RuleSupport): AskCard.Answer? # 出牌阶段的答复（不给牌就结束出牌阶段）
+---@field discard? fun(ask: Ask, run: Test.RuleSupport): any # 弃牌阶段的答复（省略 = 一律不答）
 ---@field stopAfter? integer # 跑够几个回合就停掉流程
 ---@field setup? fun(run: Test.RuleSupport) # 流程跑起来之前的准备
 
@@ -38,9 +39,19 @@ local function startTurn(options)
             state.task:cancel()
         end
     end)
-    run.game:on('决策-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason ~= '出牌' then
+            return
+        end
         moe.await.sleep(0)
         ask:answer(options.answer(ask, run))
+    end)
+    run.game:on('决策-询问', function (ask)
+        if not options.discard then
+            return
+        end
+        moe.await.sleep(0)
+        ask:answer(options.discard(ask, run))
     end)
 
     state.task = run.game:runFlow()
@@ -70,7 +81,7 @@ local function totalCards(game)
 end
 
 --- 一律「结束出牌阶段」的答复
----@return fun(ask: Ask, run: Test.RuleSupport): any
+---@return fun(ask: AskCard, run: Test.RuleSupport): AskCard.Answer?
 local function endPhase()
     return function ()
         return nil
@@ -192,10 +203,8 @@ lt.test('回合：弃牌阶段弃到体力值', function ()
                 hand:put(run.game:createCard('闪'))
             end
         end,
-        answer = function (ask)
-            if ask.reason ~= '弃牌' then
-                return nil
-            end
+        answer  = endPhase(),
+        discard = function (ask)
             local hand = assert(ask.to:getZone('手牌'), '被问者没有手牌区'):list()
             ---@type Card[]
             local cards = {}
@@ -205,8 +214,7 @@ lt.test('回合：弃牌阶段弃到体力值', function ()
             return { cards = cards }
         end,
         stopAfter = 1,
-    }
-    local run  = state.run
+    }    local run  = state.run
     local game = run.game
     local lord = run.players[1]
     local hand = assert(lord:getZone('手牌'), '没有手牌区')

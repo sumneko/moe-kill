@@ -3,17 +3,13 @@ local DRAW_COUNT = 2
 
 ---@param player Player
 local function playPhase(player)
-    local hand = assert(player:getZone('手牌'), '这个玩家没有手牌区')
     while true do
-        local ask   = game:ask(player, '出牌', { cards = hand:list() })
-        local reply = ask.reply
-        if reply == nil then
+        local ask  = game:askCard(player, '出牌', {})
+        local card = ask.card
+        if not card then
             return
         end
-        if not reply.card then
-            error('出牌答复里没有牌', 2)
-        end
-        game:useCard(player, reply.card, reply.targets or {})
+        game:useCard(player, card, ask.targets or {})
     end
 end
 

@@ -95,6 +95,27 @@ Card '测试杀'
     lt.assertEquals('收尾时机也拿得到目标', target, settledTarget)
 end)
 
+lt.test('使用：目标给单个或一张列表都行', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+    : on('生效', function (ctx)
+        ctx.user:setTag('目标', ctx.target)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    game:useCard(user, card, target)
+
+    lt.assertEquals('单个目标照样结算', target, user:getTag('目标'))
+end)
+
 lt.test('使用：牌不在使用者手上时报错', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[

@@ -89,7 +89,7 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     local jink   = takeCard(run, target, '闪')
 
     run.game:on('卡牌-询问', function (ask)
-        ask:answer(jink)
+        ask:answer { card = jink }
     end)
 
     run.game:useCard(user, card, { target })
@@ -112,7 +112,7 @@ lt.test('杀：多目标依次结算，一个目标的响应不影响另一个',
 
     run.game:on('卡牌-询问', function (ask)
         if ask.to == first then
-            ask:answer(jink)
+            ask:answer { card = jink }
         end
     end)
 

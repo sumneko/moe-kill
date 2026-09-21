@@ -334,15 +334,15 @@ end
 
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
----@param question any # 要什么牌（内容由发起方定，应答方自己解释）
----@return AskCard # 这次询问（已经结完：给出的牌读 `.result`，失败读 `.err`）
+---@param condition any # 匹配条件：要什么样的牌（空表 = 任意牌；内核不解释）
+---@return AskCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
 ---@async
-function M:askCard(to, reason, question)
+function M:askCard(to, reason, condition)
     local ask = moe.askCard.create {
-        game     = self,
-        to       = to,
-        reason   = reason,
-        question = question,
+        game      = self,
+        to        = to,
+        reason    = reason,
+        condition = condition,
     }
     ask:apply():await()
     return ask
@@ -439,15 +439,24 @@ end
 
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
----@param targets Player[] # 目标（可以为空表）
+---@param targets Player|Player[] # 目标：单个或列表（空表 = 没指定目标）
 ---@async
 ---@return UseCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
 function M:useCard(user, card, targets)
+    ---@type Player[]
+    local list = {}
+    if Type(targets) ~= nil then
+        ---@cast targets Player
+        list[1] = targets
+    else
+        ---@cast targets Player[]
+        list = targets
+    end
     local effect = moe.useCard.create {
         game    = self,
         user    = user,
         card    = card,
-        targets = targets,
+        targets = list,
     }
     effect:apply():await()
     return effect

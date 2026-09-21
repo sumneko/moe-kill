@@ -18,7 +18,7 @@ game:on('濒死', function (dying)
     local player  = dying.player
     local current = player
     while player:getAttr('体力') < 1 do
-        local card = game:askCard(current, '使用', { name = '桃' }).result
+        local card = game:askCard(current, '使用', { name = '桃' }).card
         if card then
             game:useCard(current, card, { player })
         else

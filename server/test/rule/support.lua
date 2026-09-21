@@ -24,7 +24,7 @@ local function scripted(answers)
         if index > #answers then
             error('脚本里没有更多牌了', 2)
         end
-        ask:answer(answers[index])
+        ask:answer { card = answers[index] }
     end
 end
 

@@ -12,7 +12,7 @@ Card '杀'
     end)
     : on('生效', function (ctx)
         local target = ctx.target
-        local card   = game:askCard(target, '打出', { name = '闪' }).result
+        local card   = game:askCard(target, '打出', { name = '闪' }).card
         if card then
             return
         end
