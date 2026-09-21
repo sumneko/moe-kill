@@ -133,6 +133,7 @@ lt.test('时机：未注册的时机名触发是空操作', function ()
 
     load(list('甲'))
 
+    ---@diagnostic disable-next-line: invisible
     lt.assertEquals('没有注册过任何时机', 0, #game.events:getNames())
     game:fire('没有这个时机')
 end)

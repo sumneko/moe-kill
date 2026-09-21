@@ -103,10 +103,10 @@ end
 ---@field packages? string[] # 加载清单（省略时只装默认加载的包）
 ---@class Game
 ---@field list string[] # 上一次用的加载清单
----@field cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
----@field packages string[] # 包的加载顺序（首次出现的顺序）
+---@field private cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
+---@field private packages string[] # 包的加载顺序（首次出现的顺序）
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
----@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
+---@field private values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
 ---@field turnPlayer? Player # 当前回合角色（由流程维护；挪牌按名字找牌区时先找它身上）
@@ -115,7 +115,8 @@ end
 ---@field private zoneMap table<string, Zone>
 ---@field private effects Effect[] # 记牌器：发起过的根效果（只增）
 ---@field private dyingPending table<Player, boolean> # 待结的濒死（记账；结算收尾时才起 Dying）
----@field events Event # 时机表（内核内部；内容侧用 game:on / game:fire；每次装载会清空）
+---@field private events Event # 时机表（内容侧用 game:on / game:fire；每次装载会清空）
+---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
 local M = Class 'Game'
 
 ---@param desk Desk
@@ -521,10 +522,10 @@ end
 --- 跑这一局的流程：返回任务（等它跑完用 `:await()`，要停它用 `:cancel()`）
 ---@return Task
 function M:runFlow()
-    if not self.flow then
+    local handler = self.flow
+    if not handler then
         error('这一局没有登记流程', 2)
     end
-    local handler = self.flow
     local task    = moe.task.create { game = self }
     task:execute(function ()
         return handler()
