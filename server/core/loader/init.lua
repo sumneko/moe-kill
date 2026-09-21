@@ -1,6 +1,5 @@
 local vfs      = require 'core.loader.vfs'
 local preparse = require 'core.loader.preparse'
-local envUtil  = require 'core.loader.env-util'
 
 ---@class Loader.InstallOptions
 ---@field sources? string[] # 包来源（省略时用局上记的来源，再退到默认来源）
@@ -15,7 +14,7 @@ local envUtil  = require 'core.loader.env-util'
 ---@field public package? string # 正在执行的文件的所属包
 ---@field excludes table<string, string> # 互斥项 → 声明者
 ---@field env table # **整轮装载共用**的书写环境（包定义的全局函数就落在这里 ⇒ 包之间可以共享）
----@field injected table<string, any> # 注入项（game / Card / Depends / util）：每个文件加载前都会刷回 env
+---@field injected table<string, any> # 注入项（game / Card / Depends）：每个文件加载前都会刷回 env
 
 ---@class Loader.MetaFile
 ---@field logical string
@@ -50,7 +49,7 @@ local ALLOWED_GLOBALS = {
     'string', 'table', 'tonumber', 'tostring', 'type', 'utf8', 'xpcall',
 }
 
----@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends / util）
+---@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends）
 ---@return table
 local function makeEnv(extra)
     ---@type table<string, any>
@@ -318,7 +317,6 @@ local function prepare(instance, list)
                     packageMeta.entries[#packageMeta.entries+1] = name
                 end
             end,
-            util = envUtil,
         }
 
         for name, value in pairs(probe) do
@@ -420,7 +418,6 @@ function moe.loader.install(game, options)
         game    = game,
         Card    = function (name) return game:declareCard(name) end,
         Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
-        util    = envUtil,
     }
     ctx.env = makeEnv(ctx.injected)
     game.loading = ctx

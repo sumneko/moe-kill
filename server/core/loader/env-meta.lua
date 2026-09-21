@@ -6,9 +6,6 @@
 ---@type Game
 game = nil
 
----@type Loader.EnvUtil # 收窄的纯函数工具集（清单见 `server/core/loader/env-util.lua`），不是 `moe.util` 本体
-util = nil
-
 ---@type fun(name: string): CardDef
 Card = nil
 

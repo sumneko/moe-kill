@@ -84,7 +84,7 @@ end
   - 好处：`server/core/init.lua` 只剩一串 `include`（不再 `moe.X = include 'core.X'`），门面由**可重载的模块自己**重建；`---@class X.API` 就标在这次赋值上，`moe.X` 的类型当场定下来 —— **`server/moe-kill.lua` 的 `MoeKill` 上不用再写这些字段**（实测跨文件也认：`moe.card` 显示为 `Card.API`）。
   - 类型名写成「类名.API」（`Player.API` / `Desk.API`）；类上其余的静态成员（如 `Effect.deep`）仍留在类上、不进 API 表。
   - 没有工厂的模块（`Effect`）**不建门面** —— `moe.effect` 干脆不存在；基类靠 `Extends` 声明继承，类名仍在类注册表里可用。
-  - `server/core/loader/init.lua` 同样写 `moe.loader = {}`；它内部 `require` 的 `vfs` / `preparse` / `env-util` 是内部子模块，照旧 `local M` + `return M`。
+  - `server/core/loader/init.lua` 同样写 `moe.loader = {}`；它内部 `require` 的 `vfs` / `preparse` 是内部子模块，照旧 `local M` + `return M`。
   - `server/session/init.lua` 也走这条：`---@class Server` + `moe.server = {}`，`server/moe-kill.lua` 里只 `require 'session'`（不再 `moe.server = require 'session'`）。
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
   - **但不必每次注册都去撤销它**：热重载下，可重载模块里“跟着模块走”的注册会**自动注销**，此时不要写 disposer；disposer 只用于两类情况——注册发生在不可重载的模块里，或资源必须重建/显式释放（详见 `references/architecture.md` 第 8.5 节）。

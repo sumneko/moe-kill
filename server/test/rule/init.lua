@@ -298,7 +298,16 @@ lt.test('规则集：拿不到内核门面，但能从 game 上建属性系统',
     lt.assertEquals('属性系统可用', 3, card('测'):getHandlers('跑')[1]())
 end)
 
-lt.test('规则集：能用注入的工具集筛列表', function ()
+---@param items string[] # 工具包（`@tools`）在项目自己的 package 目录里，所以这两个用例要把它也当来源
+---@return string[] # 这一次实际执行过的文件
+local function loadWithContent(items)
+    return moe.loader.install(game, {
+        sources  = { probeDir:string() .. '/*', './package/*' },
+        packages = items,
+    })
+end
+
+lt.test('规则集：能用工具包（@tools）的纯函数筛列表', function ()
     local guard <close> = prepare()
     write('a.lua', 'Card("甲"):on("跑", function ()\n'
         .. '    local list = { 1, 2, 3, 4 }\n'
@@ -307,7 +316,7 @@ lt.test('规则集：能用注入的工具集筛列表', function ()
         .. '    return table.concat(util.map(picked, tostring), ",")\n'
         .. 'end)')
 
-    load(list('a'))
+    loadWithContent(list('a'))
 
     lt.assertEquals('筛出偶数再变换', '2,4', card('甲'):getHandlers('跑')[1]())
 end)
@@ -320,7 +329,7 @@ lt.test('规则集：工具集里只有纯函数', function ()
         .. '    return ready and clean\n'
         .. 'end)')
 
-    load(list('a'))
+    loadWithContent(list('a'))
 
     lt.assertEquals('滤波 / 变换 / 包含可用，IO 与定时类的拿不到', true, card('甲'):getHandlers('跑')[1]())
 end)
