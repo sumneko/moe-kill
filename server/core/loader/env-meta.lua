@@ -71,5 +71,7 @@ Depends = nil
 ---@field fire fun(self: Game, name: '决策-询问', ctx: Ask)
 ---@field on fun(self: Game, name: '决策-答复', callback: fun(ctx: Ask)): function
 ---@field fire fun(self: Game, name: '决策-答复', ctx: Ask)
+---@field on fun(self: Game, name: '游戏-结束', callback: fun(ctx: Game.Result)): function
+---@field fire fun(self: Game, name: '游戏-结束', ctx: Game.Result)
 ---@field on fun(self: Game, name: string, callback: fun(ctx: any)): function
 ---@field fire fun(self: Game, name: string, ...: any)

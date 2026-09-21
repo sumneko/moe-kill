@@ -107,6 +107,7 @@ test.require 'test.core.event'
 test.require 'test.core.desk'
 test.require 'test.core.player'
 test.require 'test.core.game'
+test.require 'test.core.game-over'
 test.require 'test.core.effect'
 test.require 'test.core.effect.damage'
 test.require 'test.core.effect.heal'
@@ -128,6 +129,7 @@ test.require 'test.rule.slash'
 test.require 'test.rule.turn'
 test.require 'test.rule.dying'
 test.require 'test.rule.draw'
+test.require 'test.rule.game-over'
 
 local bodyDone = false
 local bodyFailures = 0

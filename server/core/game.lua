@@ -101,6 +101,9 @@ end
 ---@field random Random
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field packages? string[] # 加载清单（省略时只装默认加载的包）
+---@class Game.Result # 一局的结果
+---@field side string # 胜方阵营：主公方 / 反贼 / 内奸
+---@field reason string # 胜负依据（中文短句，给人看 / 前端可直接显示）
 ---@class Game
 ---@field list string[] # 上一次用的加载清单
 ---@field private cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
@@ -117,6 +120,8 @@ end
 ---@field private dyingPending table<Player, boolean> # 待结的濒死（记账；结算收尾时才起 Dying）
 ---@field private events Event # 时机表（内容侧用 game:on / game:fire；每次装载会清空）
 ---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
+---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
+---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
 local M = Class 'Game'
 
 ---@param desk Desk
@@ -527,10 +532,28 @@ function M:runFlow()
         error('这一局没有登记流程', 2)
     end
     local task    = moe.task.create { game = self }
+    self.flowTask = task
     task:execute(function ()
         return handler()
     end)
     return task
+end
+
+-- 这一局的结果（还没结束就是「不存在」）
+---@return Game.Result?
+function M:getResult()
+    return self.result
+end
+
+--- 结束这一局：记下结果、触发「游戏-结束」、把流程就地收掉（只认第一次）
+---@param result Game.Result
+function M:endGame(result)
+    if self.result then
+        return
+    end
+    self.result = result
+    self:fire('游戏-结束', result)
+    self.flowTask?:cancel()
 end
 
 ---@class Game.API

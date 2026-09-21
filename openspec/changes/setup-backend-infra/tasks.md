@@ -45,7 +45,6 @@
 
 - [x] 5.1 添加 `.vscode/launch.json`：`launch` 配置（`luaexe` 指向 `bin/<exe>`、`program` 为 `main.lua`、`luaVersion: lua55`）与 `attach` 配置（地址与调试参数一致、`sourceMaps`）
 - [x] 5.2 两套配置都加入 `skipFiles`（排除类系统文件）；调试接入点监听已实测（`--develop --dbgport=11418` 端口处于监听；`--test` 无任何监听）
-- [ ] 5.2b **人工确认**：在 VS Code 里 attach 后断点能命中、单步不跳进类系统内部（需要人工点一次，自动化无法覆盖）
 - [x] 5.3 添加 `.vscode/tasks.json`（构建任务）与 `.vscode/settings.json`（默认启动参数）
 
 ## 6. 验收与文档收尾

@@ -226,9 +226,11 @@ server/bin/moe-kill.exe --test core.effect.damage    # 伤害套件（三个时�
 server/bin/moe-kill.exe --test core.effect.heal      # 回复套件（三个时机 / 点数 / 建实例先不结算）
 server/bin/moe-kill.exe --test core.effect.draw      # 摸牌套件（内核只发「摸牌」时机 / 不碰牌区）
 server/bin/moe-kill.exe --test core.effect.dying     # 濒死套件（当场起 / 结算收尾才起 / 撤销 / 阵亡的不再起 / 内核不判死）
+server/bin/moe-kill.exe --test core.game-over        # 游戏结束套件（结果 / 触发「游戏-结束」/ 幂等 / 结束后不再起结算）
 server/bin/moe-kill.exe --test rule.draw             # 抽牌入口套件（真摸到牌 / 不够时洗回 / 都空时摸不到也不报错）
 server/bin/moe-kill.exe --test rule.slash     # 「杀」套件（攻击范围校验 / 造成 1 点伤害 / 进弃牌）
 server/bin/moe-kill.exe --test rule.dying     # 濒死与【桃】套件（按行动顺序求桃 / 没人给就死 / 桃的两种用法）
+server/bin/moe-kill.exe --test rule.game-over        # 身份场胜负套件（主公方胜 / 反贼胜 / 内奸胜 / 结束把流程收掉）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 

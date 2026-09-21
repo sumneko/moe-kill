@@ -32,6 +32,11 @@ function M:apply()
     if self.task then
         return self
     end
+    if self.game:getResult() then
+        self.task = moe.task.create { effect = self }
+        self.task:cancel()
+        return self
+    end
     local parent = moe.task.getCurrentTask()?.context.effect
     self.parent = parent
     self.task = moe.task.create { effect = self }
