@@ -3,7 +3,7 @@ local support = require 'test.rule.support'
 
 ---@class Test.TurnRun
 ---@field run Test.RuleSupport
----@field flow? Flow # 启动后才有（登记与启动之间有个空档）
+---@field task? Task # 启动后才有（登记与启动之间有个空档）
 ---@field turns integer
 
 ---@class Test.TurnOptions
@@ -34,8 +34,8 @@ local function startTurn(options)
 
     run.game.events:on('回合-结束', function ()
         state.turns = state.turns + 1
-        if options.stopAfter and state.flow and state.turns >= options.stopAfter then
-            state.flow:remove()
+        if options.stopAfter and state.task and state.turns >= options.stopAfter then
+            state.task:cancel()
         end
     end)
     run.game.events:on('决策-询问', function (ask)
@@ -43,7 +43,7 @@ local function startTurn(options)
         ask:answer(options.answer(ask, run))
     end)
 
-    state.flow = run.game:runFlow()
+    state.task = run.game:runFlow()
     return state
 end
 
@@ -56,7 +56,7 @@ local function advance(state, turns)
         end
         moe.await.sleep(0)
     end
-    error('流程没跑到 {} 个回合（err={}）' % { turns, tostring(state.flow and state.flow.err) }, 2)
+    error('流程没跑到 {} 个回合（err={}）' % { turns, tostring(state.task and state.task.err) }, 2)
 end
 
 ---@param game Game

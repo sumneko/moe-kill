@@ -41,11 +41,11 @@ end)
 ]])
 
     local game = newGame { '流程包' }
-    local flow = game:runFlow()
-    flow:await()
+    local task = game:runFlow()
+    task:await()
 
-    lt.assertEquals('种类标识', 'flow', flow.kind)
-    lt.assertEquals('流程的返回值就是这次流程的结果', '跑完了', flow.result)
+    lt.assertEquals('流程的返回值就是这次任务的结果', '跑完了', task.result)
+    lt.assertEquals('流程不进记牌器（它是驱动，不是结算）', 0, #game:getEffects())
 end)
 
 lt.test('流程：挂起中可以从外面停掉', function ()
@@ -71,13 +71,13 @@ end)
         ask:answer('继续')
     end)
 
-    local flow = game:runFlow()
+    local task = game:runFlow()
 
     lt.assertEquals('流程挂在询问上，还没走完第一轮', nil, game:getValue('问过几次'))
 
-    flow:remove()
+    task:cancel()
 
-    lt.assertFailed('停掉后以取消结束', flow)
+    lt.assertFailed('停掉后以取消结束', task)
     lt.assertEquals('流程没有继续跑', nil, game:getValue('问过几次'))
 end)
 
@@ -107,9 +107,9 @@ lt.test('流程：清空重装后不再有流程', function ()
     write('空包/空文件.lua', 'game:setValue("占位", true)')
 
     local game = newGame { '流程包' }
-    local flow = game:runFlow()
-    flow:await()
-    lt.assertEquals('第一次装载的流程能跑', '第一次', flow.result)
+    local task = game:runFlow()
+    task:await()
+    lt.assertEquals('第一次装载的流程能跑', '第一次', task.result)
 
     moe.loader.install(game, { sources = { probeDir:string() .. '/*' }, packages = { '空包' } })
 

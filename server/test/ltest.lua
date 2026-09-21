@@ -82,7 +82,7 @@ end
 
 --- 断言这次调用以「失败」结束（不抛，错误记在 `.err` 上）
 ---@param name string
----@param effect Effect
+---@param effect Effect|Task # 任何记着 `.err` 的东西（效果 / 任务）
 function M.assertFailed(name, effect)
     M.assertEquals(name, true, effect.err ~= nil)
 end

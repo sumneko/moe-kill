@@ -506,18 +506,18 @@ function M:registerFlow(handler)
     self.flow = handler
 end
 
---- 跑这一局的流程：返回效果（等它跑完用 `.await()`，要停它用 `:remove()`）
----@return Flow
+--- 跑这一局的流程：返回任务（等它跑完用 `:await()`，要停它用 `:cancel()`）
+---@return Task
 function M:runFlow()
     if not self.flow then
         error('这一局没有登记流程', 2)
     end
-    local effect = moe.flow.create {
-        game    = self,
-        handler = self.flow,
-    }
-    effect:apply()
-    return effect
+    local handler = self.flow
+    local task    = moe.task.create { game = self }
+    task:execute(function ()
+        return handler()
+    end)
+    return task
 end
 
 ---@class Game.API

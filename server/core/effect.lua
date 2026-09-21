@@ -20,14 +20,7 @@ function M:__init(game)
 end
 
 function M:__del()
-    local task = self.task
-    if not task then
-        return
-    end
-    task:reject(moe.task.CANCELED)
-    if moe.task.getCurrentTask() == task then
-        coroutine.yield()
-    end
+    self.task?:cancel()
 end
 
 --- 驱动这次结算（要等外部输入时它会挂在那儿，回来时不一定结完）

@@ -91,6 +91,14 @@ function M:reject(err)
     Delete(self)
 end
 
+--- 停掉这次任务：以「取消」收尾（结果为空、`err` = `canceled`）；若正跑在这个任务的协程里，就地停住
+function M:cancel()
+    self:reject(API.CANCELED)
+    if moe.task.getCurrentTask() == self then
+        coroutine.yield()
+    end
+end
+
 --- 到点还没结完就以「超时」失败
 ---@param timeout number
 function M:setTimeout(timeout)
