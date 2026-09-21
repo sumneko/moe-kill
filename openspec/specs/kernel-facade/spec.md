@@ -44,4 +44,3 @@
 
 - **WHEN** 看 `moe.effect`
 - **THEN** 它不存在（`Effect` 是基类、没有工厂，就没有门面）；用牌与伤害仍然通过 `Extends` 继承 `Effect`
-
