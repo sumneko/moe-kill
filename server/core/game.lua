@@ -349,11 +349,11 @@ function M:askCard(to, reason, condition)
 end
 
 --- 要一个决策（问什么、答什么都由发起方解释）
+---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
 ---@param question any # 问什么（内容由发起方定，应答方自己解释）
 ---@return Ask # 这次询问（已经结完：答复读 `.reply`，失败读 `.err`）
----@async
 function M:ask(to, reason, question)
     local ask = moe.ask.create {
         game     = self,
@@ -366,10 +366,10 @@ function M:ask(to, reason, question)
 end
 
 --- 把牌挪到某个牌区（给一串就依次经过，停在最后一站）
+---@async
 ---@param card Card|Card[] # 要挪的牌（单张或一批）
 ---@param zone string|string[]|Zone|Zone[] # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找）
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
----@async
 function M:moveCard(card, zone)
     ---@type Card[]
     local cards = card[1] ~= nil and card or { card }
@@ -393,10 +393,10 @@ function M:moveCard(card, zone)
     return effect
 end
 
+---@async
 ---@param from Player # 伤害来源
 ---@param to Player # 承受者
 ---@param amount integer # 点数
----@async
 ---@return Damage # 这次伤害（已经结完：结果读 `.result`，失败读 `.err`）
 function M:damage(from, to, amount)
     local damage = moe.damage.create {
@@ -409,9 +409,9 @@ function M:damage(from, to, amount)
     return damage
 end
 
+---@async
 ---@param to Player # 谁回复体力
 ---@param amount integer # 点数
----@async
 ---@return Heal # 这次回复（已经结完：失败读 `.err`）
 function M:heal(to, amount)
     local heal = moe.heal.create {
@@ -423,9 +423,9 @@ function M:heal(to, amount)
     return heal
 end
 
+---@async
 ---@param player Player # 谁摸牌
 ---@param count integer # 摸几张
----@async
 ---@return Draw # 这次摸牌（已经结完：失败读 `.err`）
 function M:draw(player, count)
     local draw = moe.draw.create {
@@ -437,10 +437,10 @@ function M:draw(player, count)
     return draw
 end
 
+---@async
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
 ---@param targets Player|Player[] # 目标：单个或列表（空表 = 没指定目标）
----@async
 ---@return UseCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
 function M:useCard(user, card, targets)
     ---@type Player[]
