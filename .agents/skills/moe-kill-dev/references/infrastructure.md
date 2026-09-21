@@ -218,13 +218,15 @@ server/bin/moe-kill.exe --test rule.setup     # 开局装配套件（8 人完整
 server/bin/moe-kill.exe --test core.desk      # 桌子套件（座位 / 行动顺序 / 距离求值）
 server/bin/moe-kill.exe --test core.player    # 玩家套件（属性实例 / 牌区增删 / 标签 / 存活与参与行动）
 server/bin/moe-kill.exe --test core.game      # 局套件（建局 / 按名字建取牌区 / 建牌 / 绑定随机源洗牌）
-server/bin/moe-kill.exe --test core.effect    # 效果套件（任务驱动 / 记牌器 / 嵌套与父链 / 取消 / 失败记 err / 深度上限）
-server/bin/moe-kill.exe --test core.damage    # 伤害套件（三个时机 / 点数 / 便利入口 / 改体力属规则侧）
-server/bin/moe-kill.exe --test core.heal      # 回复套件（三个时机 / 点数 / 建实例先不结算）
-server/bin/moe-kill.exe --test core.dying     # 濒死套件（当场起 / 结算收尾才起 / 撤销 / 阵亡的不再起 / 内核不判死）
-server/bin/moe-kill.exe --test core.draw      # 摸牌套件（内核只发「摸牌」时机 / 不碰牌区）
-server/bin/moe-kill.exe --test rule.draw      # 抽牌入口套件（真摸到牌 / 不够时洗回 / 都空时摸不到也不报错）
-server/bin/moe-kill.exe --test core.play      # 使用牌套件（校验 / 取牌 / 结算回调 / 收尾时机）
+server/bin/moe-kill.exe --test core.effect           # 效果族**全部**（基类 + 下面全部子类；套件名就是模块名、按**前缀**过滤，所以这一条一次跑完）
+server/bin/moe-kill.exe --test core.effect.ask       # 询问套件（答复往返 / 先答的算数 / 没人应答）
+server/bin/moe-kill.exe --test core.effect.ask-card  # 要牌套件（缘由 / 答复与答复后时机 / 被取消的询问）
+server/bin/moe-kill.exe --test core.effect.play      # 使用牌套件（校验 / 取牌 / 结算回调 / 收尾时机）
+server/bin/moe-kill.exe --test core.effect.damage    # 伤害套件（三个时机 / 点数 / 便利入口 / 改体力属规则侧）
+server/bin/moe-kill.exe --test core.effect.heal      # 回复套件（三个时机 / 点数 / 建实例先不结算）
+server/bin/moe-kill.exe --test core.effect.draw      # 摸牌套件（内核只发「摸牌」时机 / 不碰牌区）
+server/bin/moe-kill.exe --test core.effect.dying     # 濒死套件（当场起 / 结算收尾才起 / 撤销 / 阵亡的不再起 / 内核不判死）
+server/bin/moe-kill.exe --test rule.draw             # 抽牌入口套件（真摸到牌 / 不够时洗回 / 都空时摸不到也不报错）
 server/bin/moe-kill.exe --test rule.slash     # 「杀」套件（攻击范围校验 / 造成 1 点伤害 / 进弃牌）
 server/bin/moe-kill.exe --test rule.dying     # 濒死与【桃】套件（按行动顺序求桃 / 没人给就死 / 桃的两种用法）
 server/bin/moe-kill.exe --develop --dbgport=11418   # 开启调试监听，供 VS Code attach

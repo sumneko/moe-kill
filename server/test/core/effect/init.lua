@@ -195,7 +195,7 @@ lt.test('效果：结算中抛错也退栈', function ()
     lt.assertEquals('错误被收到', 1, #lt.errors)
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
     lt.assertEquals('体力没变（错误发生在改体力之前）', 4, players[2]:getAttr('体力'))
-    lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):find('effect.lua:', 1, true) ~= nil)
+    lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):match(':%d+:') ~= nil)
 end)
 
 lt.test('效果：嵌套过深被拒绝', function ()
