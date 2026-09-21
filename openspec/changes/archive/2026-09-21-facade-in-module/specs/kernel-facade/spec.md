@@ -1,9 +1,6 @@
-# kernel-facade Specification
+# Spec Delta
 
-## Purpose
-约定内核模块组的**门面落点与命名**：每个内核模块各自**直接挂在全局 `moe` 上**（`moe.card` / `moe.desk` / `moe.game` / `moe.loader` …），不设 `moe.core` 这类中间层；**门面由模块自己建**（`moe.card = {}`，模块不 `return` API 表）；类名与类型注解直接用类名本身，不带命名空间前缀。于是装配方只有一个命名层级，装载器与其它内核模块平级，规则包只拿注入的 `game` 与 `Card` / `Depends`。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 内核门面的落点与命名
 
@@ -44,4 +41,3 @@
 
 - **WHEN** 看 `moe.effect`
 - **THEN** 它不存在（`Effect` 是基类、没有工厂，就没有门面）；用牌与伤害仍然通过 `Extends` 继承 `Effect`
-

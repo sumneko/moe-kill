@@ -30,12 +30,10 @@ function M:shuffle(random)
 end
 
 ---@class OrderedZone.API
-local API = {}
+moe.orderedZone = {}
 
 ---@param random? Random
 ---@return OrderedZone
-function API.create(random)
+function moe.orderedZone.create(random)
     return New 'OrderedZone' (random)
 end
-
-return API

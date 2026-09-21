@@ -1,36 +1,5 @@
 ---@class MoeKill
----@field args Args
----@field env MoeKill.Env
----@field util Utility
----@field fsu fsu
----@field json table
----@field uri table
----@field gc table
----@field timer Timer
----@field await Await.API
----@field task Task.API
----@field eventLoop EventLoop
----@field asyncIO AsyncIO
----@field sevent table
----@field tools MoeKill.Tools
----@field reload Reload
----@field card Card.API
----@field zone Zone.API
----@field orderedZone OrderedZone.API
----@field random Random.API
----@field attribute AttributeSystem.API
----@field event Event.API
----@field desk Desk.API
----@field player Player.API
----@field game Game.API
----@field askCard AskCard.API
----@field moveCard MoveCard.API
----@field useCard UseCard.API
----@field damage Damage.API
----@field loader Loader
----@field server Server
 ---@field inspect fun(root: any): string
----@field _nextCardId fun():integer # 牌的标识计数器：跨重载存活的私有状态，不是对外接口（见 architecture.md 第 8.4 节）
 moe = {}
 
 local class = require 'tools.class'
@@ -133,7 +102,7 @@ include    = moe.reload.include
 
 require 'core'
 
-moe.server = require 'session'
+require 'session'
 
 local inspect = require 'tools.inspect'
 

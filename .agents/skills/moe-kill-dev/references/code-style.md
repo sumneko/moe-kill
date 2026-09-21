@@ -70,25 +70,25 @@ function M:doSomething(value)
 end
 
 ---@class Foo.Bar.API
-local API = {}
+moe.fooBar = {}
 
 ---@param name string
 ---@return Foo.Bar
-function API.create(name)
+function moe.fooBar.create(name)
     return New 'Foo.Bar' (name)
 end
-
-return API
 ```
 
-- 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`，另起的 API 表写 `local API = {}`；纯函数模块同样写 `local M = {}` + `return M`。**不要**写 `local m`。
-- **内核对象模块返回「API 表」，只放工厂**（用户 2026-09-19 定）：`local M = Class 'Random'` 里只写类与实例方法（**类上不放 `create`**），末尾另起一张表 —— `---@class Random.API` + `local API = {}` + `function API.create(种子) return New 'Random' (种子) end` + `return API`。于是 `moe.random.create(种子)` 与 `New 'Random' (种子)` 两种写法都可用，而**类的方法不会从全局可达**（`moe.random:nextInt(...)` 这样的写法根本不存在，拼错/误用会当场 nil）。
-  - 类型名写成「类名.API」（`Player.API` / `Desk.API`），`server/moe-kill.lua` 里 `moe` 的字段就写这个类型；类上其余的静态成员（如 `Game.MAX_EFFECT_DEPTH`）仍留在类上、不进 API 表。
-  - 没有工厂的模块（`Effect`）API 表是空的（`{}`）；基类靠 `Extends` 声明继承，类名仍在类注册表里可用。
-  - `server/core/loader/` 是**纯模块**（`local M = {}` + `return M`），它的公开入口就是模块自己的字段（`install` / `DEFAULT_SOURCES`），不适用这条。
+- 模块的表变量**统一用大写 `M`**：声明了类的模块写 `---@class X` + `local M = Class 'X'`；`tools/` 与 `core/loader/` 的**内部子模块**（别人 `require` 它、要拿返回值那种）写 `local M = {}` + `return M`。**不要**写 `local m`。
+- **内核对象模块的门面直接建在 `moe` 上，只放工厂**（用户 2026-09-21 定，取代原来的「`local API = {}` + `return API`」）：`local M = Class 'Random'` 里只写类与实例方法（**类上不放 `create`**），末尾 —— `---@class Random.API` + `moe.random = {}` + `function moe.random.create(种子) return New 'Random' (种子) end`，**不 `return`**。于是 `moe.random.create(种子)` 与 `New 'Random' (种子)` 两种写法都可用，而**类的方法不会从全局可达**（`moe.random:nextInt(...)` 这样的写法根本不存在，拼错/误用会当场 nil）。
+  - 好处：`server/core/init.lua` 只剩一串 `include`（不再 `moe.X = include 'core.X'`），门面由**可重载的模块自己**重建；`---@class X.API` 就标在这次赋值上，`moe.X` 的类型当场定下来 —— **`server/moe-kill.lua` 的 `MoeKill` 上不用再写这些字段**（实测跨文件也认：`moe.card` 显示为 `Card.API`）。
+  - 类型名写成「类名.API」（`Player.API` / `Desk.API`）；类上其余的静态成员（如 `Effect.deep`）仍留在类上、不进 API 表。
+  - 没有工厂的模块（`Effect`）**不建门面** —— `moe.effect` 干脆不存在；基类靠 `Extends` 声明继承，类名仍在类注册表里可用。
+  - `server/core/loader/init.lua` 同样写 `moe.loader = {}`；它内部 `require` 的 `vfs` / `preparse` / `env-util` 是内部子模块，照旧 `local M` + `return M`。
+  - `server/session/init.lua` 也走这条：`---@class Server` + `moe.server = {}`，`server/moe-kill.lua` 里只 `require 'session'`（不再 `moe.server = require 'session'`）。
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
   - **但不必每次注册都去撤销它**：热重载下，可重载模块里“跟着模块走”的注册会**自动注销**，此时不要写 disposer；disposer 只用于两类情况——注册发生在不可重载的模块里，或资源必须重建/显式释放（详见 `references/architecture.md` 第 8.5 节）。
-- **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的状态挂到**门面表 `moe`**（在 `moe-kill.lua` 里建立）上，写成「有则复用」（`moe._nextCardId = moe._nextCardId or moe.util.counter()`），用 **`_` 前缀**标明是内核内部状态，并在赋值处标 **`---@package`**（LuaLS 据此强制「只有这个文件能访问」，见 `references/architecture.md` 第 8.4 节）。**不要挂类表**（`Extends` 会把父类字段复制给子类、重载 `reset` 又会清掉），也不要挂 `include` 出来的模块门面（每次重载都是新表）。重载语义与边界见 `references/architecture.md` 第 8 节。
+- **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的状态挂到**门面表 `moe`**（在 `moe-kill.lua` 里建立）上，写成「有则复用」（`moe._nextCardId = moe._nextCardId or moe.util.counter()`），用 **`_` 前缀**标明是内核内部状态，并在赋值处标 **`---@package`**（LuaLS 据此强制「只有这个文件能访问」，见 `references/architecture.md` 第 8.4 节）。**不要挂类表**（`Extends` 会把父类字段复制给子类、重载 `reset` 又会清掉），也不要挂模块门面（`moe.card` 由模块自己建，重载重跑模块就换成新表）。重载语义与边界见 `references/architecture.md` 第 8 节。
 - **让出要原样转发；`await.*` 只能在最外层用**（挂起模型的约定，见 `references/architecture.md` 的 §2 与 §12）：效果的执行体（`apply()` 的驱动循环）MUST 把子执行体让出的理由与载荷**原样**上抛、把恢复时拿到的值**原样**下传（只拦下属于自己的取消），MUST NOT 吞掉或改写让出；`moe.await.call` / `await.sleep` / `await.yield` 这类**把恢复绑在当前协程**的原语**只能给最外层的驱动者（或它的服务函数）用** —— 在嵌套的效果协程里用，恢复会打在内层协程上，外层永远停在转发那一行（**搁浅**，整条链回不来）。
 - **运行时不做类型判定**（用户 2026-09-19 定，先试过 `kind` 断言后修正）：
   - “是牌还是牌区”这类**同一家族内部**的区分由**类型注解**保证（`---@param card Card`），不要写 `Type` / `isInstanceOf`，也不要为了断言再加一道 `kind` 判定。
@@ -111,6 +111,11 @@ return API
   - **内核契约违反**（校验不通过 / 结算栈乱序 / 子类未实现 `settle`）：**记日志后原样上抛**（`error(debug.traceback(co, err), 0)`），不要吞成日志 —— 协程里的抛错不会自己跑到主线程，必须由驱动点手动转回去。
 - 访问动态键（如命令行参数表）时，用 `---@type table<string, T>` 显式标注该局部变量来表达"这里故意访问未知键"，不要用 disable 注释。
 - 跨模块传递的结构体在 `---@class` 里声明全部字段，而不是只写 usage。
+- **字段已经有明确赋值时，不再在 `---@class` 下加 `---@field`**（用户 2026-09-21 定）：`self.x = ...` 本身就是声明，LuaLS 会据此推出字段与类型，再补一条 `---@field x T` 只是重复。**只在赋值表达不出来的时候才写**，常见的三类：
+  - **可选与可见性**：`---@field x? T`、`private` / `package` 赋值表达不出来。且 LuaLS 的 `package` 可见性**按文件算** —— 父类标了 `---@package` 的字段，子类要在自己的文件里用就得**再声明一次**（`AskCard` 的 `task` 就是为此保留；删了会报 `invisible`）。
+  - **赋值给的是 `any` / `unknown`**：`moe.inspect` 的 `fun(root: any): string` 是**收窄** —— `tools/inspect.lua` 没注解，赋值只能推出 `unknown`，所以这条 `---@field` 留着。反过来，`moe.card = {}` 这类赋值带了 `---@class Card.API`，字段类型当场就定下来了（跨文件也认），**不用**再在 `MoeKill` 上写字段。
+  - **要放宽或要元素类型**：`Zone` / `Effect` 的 `kind` 声明成 `string`，是为了让子类（含规则层与测试）能换成自己的名字；`game.lua` 的 `self.cards = {}` 空表赋值说不出 `table<string, table<string, CardDef>>` 这种元素类型。
+  - 与上一条不冲突：上一条说的是 `XXX.CreateOptions` 这类**没有赋值过程**的入参结构体。
 - **可选标记写在「名字」上，不写在类型后面**（用户 2026-09-19 定）：`---@field key? number`、`---@param key? number`、`fun(x: number, y?: number)`。不要写 `---@field key number?` / `---@param key number?` / `fun(x: number, y: number?)`。
   - `server/tools/` 里照搬来的文件保持上游原样，**不按这条改**（也不为了统一去动上游文件）。
 - **字段名撞 LuaDoc 访问修饰符时要显式写修饰符**：`private` / `protected` / `package` / `public` 是 **LuaDoc 的访问修饰符**，字段真叫 `package` 时直接写 `---@field package string` 会被解析成「修饰符 + 名字」而报 `luadoc-miss-type-name`（去掉 `#` 后又报 `undefined-doc-name`）；正确写法是 **`---@field public package string # 所属包名`**。

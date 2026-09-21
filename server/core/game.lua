@@ -102,15 +102,11 @@ end
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field packages? string[] # 加载清单（省略时只装默认加载的包）
 ---@class Game
----@field desk Desk # 桌子
----@field random Random # 随机源
----@field sources string[] # 包来源（顺序即优先级）
 ---@field list string[] # 上一次用的加载清单
 ---@field cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
 ---@field packages string[] # 包的加载顺序（首次出现的顺序）
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
 ---@field values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
----@field events Event # 时机注册
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
 ---@field private attributeSystem? AttributeSystem
@@ -413,11 +409,11 @@ function M:getEffects()
 end
 
 ---@class Game.API
-local API = {}
+moe.game = {}
 
 ---@param options Game.CreateOptions
 ---@return Game
-function API.create(options)
+function moe.game.create(options)
     if not options or not options.desk or not options.random then
         error('建局需要一张桌子与一个随机源', 2)
     end
@@ -428,5 +424,3 @@ function API.create(options)
     })
     return game
 end
-
-return API

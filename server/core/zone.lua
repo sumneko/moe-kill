@@ -199,12 +199,10 @@ function M:shuffle(random)
 end
 
 ---@class Zone.API
-local API = {}
+moe.zone = {}
 
 ---@param params? table<string, any>
 ---@return Zone
-function API.create(params)
+function moe.zone.create(params)
     return New 'Zone' (params)
 end
-
-return API

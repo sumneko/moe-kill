@@ -50,11 +50,9 @@ function M:clear()
 end
 
 ---@class Event.API
-local API = {}
+moe.event = {}
 
 ---@return Event
-function API.create()
+function moe.event.create()
     return New 'Event' ()
 end
-
-return API

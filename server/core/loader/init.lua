@@ -35,13 +35,10 @@ local envUtil  = require 'core.loader.env-util'
 ---@field excludes table<string, string>
 
 ---@class Loader # 装载器模块（无状态）：把规则装进某个局
----@field DEFAULT_SOURCES string[]
----@field install fun(game: Game, options?: Loader.InstallOptions): string[]
----@field declareDepends fun(game: Game, ctx: Loader.Context, items: string[])
-local M = {}
+moe.loader = {}
 
 ---@type string[] # 默认来源：仓库根下项目自己的包容器
-M.DEFAULT_SOURCES = { './package/*' }
+moe.loader.DEFAULT_SOURCES = { './package/*' }
 
 ---@type string[]
 local ALLOWED_GLOBALS = {
@@ -114,7 +111,7 @@ local function loadFile(game, ctx, logical)
     local chunk, loadErr = load(source, '@' .. (ctx.vfs:resolve(logical) or logical), 't', makeEnv {
         game    = game,
         Card    = function (name) return game:declareCard(name) end,
-        Depends = function (items) return M.declareDepends(game, ctx, items) end,
+        Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
         util    = envUtil,
     })
     if not chunk then
@@ -344,7 +341,7 @@ end
 ---@param game Game
 ---@param ctx Loader.Context
 ---@param items string[]
-function M.declareDepends(game, ctx, items)
+function moe.loader.declareDepends(game, ctx, items)
     if type(items) ~= 'table' then
         error('Depends 需要一个字符串列表', 2)
     end
@@ -371,7 +368,7 @@ end
 ---@param game Game
 ---@param options? Loader.InstallOptions
 ---@return string[] # 实际执行过的文件（逻辑路径），按执行完成顺序
-function M.install(game, options)
+function moe.loader.install(game, options)
     options = options or {}
     if options.sources ~= nil and type(options.sources) ~= 'table' then
         error('规则集来源必须是字符串列表', 2)
@@ -379,7 +376,7 @@ function M.install(game, options)
     if options.packages ~= nil and type(options.packages) ~= 'table' then
         error('加载清单必须是字符串列表', 2)
     end
-    local sources = options.sources or game.sources or M.DEFAULT_SOURCES
+    local sources = options.sources or game.sources or moe.loader.DEFAULT_SOURCES
     local list    = options.packages or game.list or {}
     game.sources  = sources
     game.list     = list
@@ -425,5 +422,3 @@ function M.install(game, options)
 
     return ctx.order
 end
-
-return M

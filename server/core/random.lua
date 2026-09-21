@@ -92,12 +92,10 @@ function M:shuffle(list)
 end
 
 ---@class Random.API
-local API = {}
+moe.random = {}
 
 ---@param seed integer
 ---@return Random
-function API.create(seed)
+function moe.random.create(seed)
     return New 'Random' (seed)
 end
-
-return API

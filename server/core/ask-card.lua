@@ -7,11 +7,8 @@ require 'core.effect'
 ---@field question any # 要什么牌（内容由发起方定，应答方自己解释）
 
 ---@class AskCard : Effect
----@field to Player # 被问者
----@field reason string # 这次为什么问
----@field question any # 要什么牌
 ---@field card? Card # 答复方给出的那张牌（与 `.result` 同值；没人答上时不存在）
----@field package task? Task
+---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskCard'
 
 Extends('AskCard', 'Effect')
@@ -53,12 +50,10 @@ function M:settle()
 end
 
 ---@class AskCard.API
-local API = {}
+moe.askCard = {}
 
 ---@param options AskCard.CreateOptions
 ---@return AskCard
-function API.create(options)
+function moe.askCard.create(options)
     return New 'AskCard' (options.game, options.to, options.reason, options.question)
 end
-
-return API

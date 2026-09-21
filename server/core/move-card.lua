@@ -6,8 +6,6 @@ require 'core.effect'
 ---@field zones string[] # 依次经过的牌区名（停在最后一站）
 
 ---@class MoveCard : Effect
----@field cards Card[] # 要挪的牌
----@field zones string[] # 依次经过的牌区名
 local M = Class 'MoveCard'
 
 Extends('MoveCard', 'Effect')
@@ -51,12 +49,10 @@ function M:settle()
 end
 
 ---@class MoveCard.API
-local API = {}
+moe.moveCard = {}
 
 ---@param options MoveCard.CreateOptions
 ---@return MoveCard
-function API.create(options)
+function moe.moveCard.create(options)
     return New 'MoveCard' (options.game, options.cards, options.zones)
 end
-
-return API

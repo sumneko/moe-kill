@@ -46,12 +46,10 @@ function M:__tostring()
 end
 
 ---@class Card.API
-local API = {}
+moe.card = {}
 
 ---@param label? any
 ---@return Card
-function API.create(label)
+function moe.card.create(label)
     return New 'Card' (label)
 end
-
-return API

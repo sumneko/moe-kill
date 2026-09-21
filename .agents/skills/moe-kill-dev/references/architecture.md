@@ -13,7 +13,7 @@
 [tools]      基础设施：event-loop / await / timer / log / json / inspect / uri / reload …
 ```
 
-依赖方向只能自上而下，且门面全部**直接挂在 `moe` 上**（`moe.desk` / `moe.game` / `moe.loader` …，没有 `moe.core` 中间层；类名与类型注解**直接用类名本身**，不带命名空间前缀）；**门面（API 表）里只放工厂**（`moe.player.create { … }`），类的方法只能从实例上访问（API 表的类型写成「类名.API」）。**`core` 不得依赖任何具体规则集内容、会话、协议、网络与任何 IO** —— 它只提供「装载规则」的机制（加载器本身在内核模块组里）；这样内核可以脱离协议与网络被直接驱动。协议方法到规则操作的翻译层属会话/协议批次，目录名待定。
+依赖方向只能自上而下，且门面全部**直接挂在 `moe` 上**（`moe.desk` / `moe.game` / `moe.loader` …，没有 `moe.core` 中间层；类名与类型注解**直接用类名本身**，不带命名空间前缀）；**门面（API 表）里只放工厂**（`moe.player.create { … }`），类的方法只能从实例上访问（API 表的类型写成「类名.API」；门面由**模块自己建**：`moe.player = {}`，不再 `local API = {}` + `return API`）。**`core` 不得依赖任何具体规则集内容、会话、协议、网络与任何 IO** —— 它只提供「装载规则」的机制（加载器本身在内核模块组里）；这样内核可以脱离协议与网络被直接驱动。协议方法到规则操作的翻译层属会话/协议批次，目录名待定。
 
 ## 2. 启动与运行模型
 
@@ -152,8 +152,8 @@ moe._nextCardId = moe._nextCardId or moe.util.counter()
 - **载体选门面表 `moe`**：它在 `server/moe-kill.lua`（入口文件）里建立，而入口只执行一次、dev 重载只重跑 `include` 登记过的模块，所以这张表**永不重建**。
 - **命名用 `_` 前缀 + 赋值处标 `---@package`**：`_` 只表示「内核内部状态，不是对外接口」（`moe` 是普通表，框架不会碰它，`_` 本身没有语言含义）；真正能拦住跨文件用的是 **`---@package`** —— LuaLS 会把它当「只有这个文件可见」（实测：别的文件访问报「字段 `X` 只能在相同的文件 … 中才能访问」）。本工程没定义过「包」的边界，`package` 退化成按文件判定，与 `---@private` 同效。
 - **不要挂类表**：`Class` 的 `Extends` 会把父类**非 `__` 开头**的字段复制给子类（并记入 `extendsKeys`），重载时 `Config:reset` 又把这份拷贝清掉 —— 挂在那种名字上会串到子类、还会在重载时被清掉。`__` 开头能躲开这两件事（框架自己就是这么用的：`__config` / `__getter` / `__keyMap`…），但那是**借框架的私有前缀**，不如压根不挂。
-- **也不要挂模块门面**（`moe.card` 这类 `include` 出来的表）：`include` 就是 `require` + 登记，重载时会重新执行文件，模块 `return` 的那张 API 表是**新表**（`core/card.lua` 的 `return API`）—— 状态挂上去每次都被换掉。实例之所以跨重载照常可用，是因为它们持有的是**类表**（`M._classes` 复用同一张），与 API 表无关。
-- 模块门面写成 `moe.card = include 'core.card'`：`include` 失败会**抛错**（同时已记日志），所以这里不需要再包一层失败处理。
+- **也不要挂模块门面**（`moe.card` 这类表）：门面由模块自己建（`core/card.lua` 里 `moe.card = {}`），而 `include` 就是 `require` + 登记、重载时会重新执行模块文件 ⇒ 门面每次都是**新表**，状态挂上去每次都被换掉。实例之所以跨重载照常可用，是因为它们持有的是**类表**（`M._classes` 复用同一张），与 API 表无关。
+- `server/core/init.lua` 只写一串 `include 'core.card'`：登记 + 执行模块文件（门面由模块自己建）；`include` 失败会**抛错**（同时已记日志），所以这里不需要再包一层失败处理。
 
 ### 8.5 撤销与自动注销的分工
 
@@ -179,7 +179,7 @@ moe._nextCardId = moe._nextCardId or moe.util.counter()
 ### 9.1 落点与外观
 
 - 装载器在 `server/core/loader/`：`init.lua`（`Loader` 模块：`install` / `declareDepends` / 名字路由 / 按预解析结果的执行）、`vfs.lua`（包来源合并成的虚拟文件系统）、`preparse.lua`（试跑）、`env-meta.lua`（纯类型文件：注入的 `game` / `Card` / `Depends` 与各时机上下文）。**局**在 `server/core/game.lua`（`Game` 类）。
-- `server/core/init.lua` 里与其它内核模块一样 `include 'core.game'` / `include 'core.loader'` ⇒ `moe.game` / `moe.loader`（两份都可热重载）。
+- `server/core/init.lua` 里与其它内核模块一样 `include 'core.game'` / `include 'core.loader'`（门面 `moe.game` / `moe.loader` 由模块自己建；两份都可热重载）。
 - `moe.game.create { desk, random, sources?, packages? }` 建**一局**并**立刻装好规则**：除桌子与随机源外，规则表、包顺序、包元信息、规则数值、时机注册、属性系统、来源全挂在局上，**局之间互不影响**；`packages` 省略视同空清单 ⇒ 只装默认加载的包（见 9.3）—— 即 `create { desk, random }` 与 `create { desk, random, packages = {} }` 行为一致。要换规则走 `moe.loader.install(game, { packages = 清单 })`（省略参数就复用局上记的来源与清单）。
 - **包手里的 `game` 就是那一局**：规则包要这一局的牌区 / 桌子 / 随机源就直接用注入的 `game`（`game:createZone` / `game.desk` / `game.random`）—— 不再有「规则实例」这一层，也不存在「实例与场地互指」（见 9.6）。
 - 测试套件：`server/test/rule/init.lua`（加载/依赖/重装，`--test rule`）与 `server/test/rule/vfs.lua`（来源与合并，`--test rule.vfs`）；局本身在 `server/test/core/game.lua`（`--test core.game`）。

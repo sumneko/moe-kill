@@ -84,11 +84,9 @@ function Attributes:onChange(name, callback)
 end
 
 ---@class AttributeSystem.API
-local API = {}
+moe.attribute = {}
 
 ---@return AttributeSystem
-function API.create()
+function moe.attribute.create()
     return New 'AttributeSystem' ()
 end
-
-return API

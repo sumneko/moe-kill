@@ -16,8 +16,6 @@
 ---@field timer? Timer
 
 ---@class Server.Session
----@field handler Server.Handler
----@field phase Server.Phase
 ---@field private reason? string
 ---@field private events Server.Event[]
 ---@field private pendingRequest? Server.Request
@@ -225,50 +223,50 @@ function Session:getEvents()
 end
 
 ---@class Server
-local M = {}
+moe.server = {}
 
-M.Phase = Phase
+moe.server.Phase = Phase
 
-M.started = false
+moe.server.started = false
 
 ---@return boolean
-function M.start()
-    if M.started then
+function moe.server.start()
+    if moe.server.started then
         return false
     end
-    M.started = true
+    moe.server.started = true
     log.info('服务器已启动')
     return true
 end
 
 ---@return boolean
-function M.stop()
-    if not M.started then
+function moe.server.stop()
+    if not moe.server.started then
         return false
     end
-    M.started = false
+    moe.server.started = false
     log.info('服务器已停止')
     return true
 end
 
 ---@return boolean
-function M.isStarted()
-    return M.started
+function moe.server.isStarted()
+    return moe.server.started
 end
 
 ---@return Server.Session?
-function M.getSession()
+function moe.server.getSession()
     return currentSession
 end
 
 ---@return boolean
-function M.hasSession()
+function moe.server.hasSession()
     return currentSession ~= nil
 end
 
 ---@param handler Server.Handler
 ---@return Server.Session
-function M.createSession(handler)
+function moe.server.createSession(handler)
     if type(handler) ~= 'table' then
         error('逻辑处理器必须是 table', 2)
     end
@@ -285,7 +283,7 @@ end
 
 ---@param session Server.Session
 ---@return boolean
-function M.destroySession(session)
+function moe.server.destroySession(session)
     if Type(session) ~= 'Server.Session' then
         error('参数不是会话对象', 2)
     end
@@ -297,5 +295,3 @@ function M.destroySession(session)
     end
     return session:destroy()
 end
-
-return M

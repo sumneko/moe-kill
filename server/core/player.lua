@@ -160,15 +160,13 @@ function M:setAlive(value)
 end
 
 ---@class Player.API
-local API = {}
+moe.player = {}
 
 ---@param options Player.CreateOptions
 ---@return Player
-function API.create(options)
+function moe.player.create(options)
     if not options or not options.attributes then
         error('玩家需要一个属性实例', 2)
     end
     return New 'Player' (options.attributes, options.name)
 end
-
-return API

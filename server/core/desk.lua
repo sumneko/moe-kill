@@ -153,15 +153,13 @@ function M:getDistance(from, to)
 end
 
 ---@class Desk.API
-local API = {}
+moe.desk = {}
 
 ---@param count integer
 ---@return Desk
-function API.create(count)
+function moe.desk.create(count)
     if type(count) ~= 'number' or math.type(count) ~= 'integer' or count < 1 then
         error('桌子需要正整数个座位：{}' % { tostring(count) }, 2)
     end
     return New 'Desk' (count)
 end
-
-return API

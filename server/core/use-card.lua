@@ -7,9 +7,6 @@ require 'core.effect'
 ---@field targets Player[] # 目标（可以为空表）
 
 ---@class UseCard : Effect
----@field user Player # 使用者
----@field card Card # 被使用的牌
----@field targets Player[] # 目标（可以为空表）
 local M = Class 'UseCard'
 
 Extends('UseCard', 'Effect')
@@ -98,10 +95,6 @@ function M:settle()
 end
 
 ---@class CardEffect : Effect # 这张牌对某个目标的一次生效
----@field def CardDef # 这张牌的内容定义
----@field user Player # 使用者
----@field card Card # 被使用的牌
----@field target Player # 这次生效的目标
 local CardEffect = Class 'CardEffect'
 
 Extends('CardEffect', 'Effect')
@@ -127,12 +120,10 @@ function CardEffect:settle()
 end
 
 ---@class UseCard.API
-local API = {}
+moe.useCard = {}
 
 ---@param options UseCard.CreateOptions
 ---@return UseCard
-function API.create(options)
+function moe.useCard.create(options)
     return New 'UseCard' (options.game, options.user, options.card, options.targets)
 end
-
-return API
