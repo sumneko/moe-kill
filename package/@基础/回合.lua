@@ -1,36 +1,6 @@
 local PHASES = { '准备', '判定', '摸牌', '出牌', '弃牌', '结束' }
 local DRAW_COUNT = 2
 
----@return boolean # 洗回了没有（弃牌也空就没得洗）
-local function recycleDiscard()
-    local deck    = assert(game:getZone('抽牌'), '局上没有抽牌区')
-    local discard = assert(game:getZone('弃牌'), '局上没有弃牌区')
-    if discard:count() == 0 then
-        return false
-    end
-    game:moveCard(discard:list(), '抽牌')
-    deck:shuffle()
-    return true
-end
-
----@param player Player
----@param count integer
-local function draw(player, count)
-    local deck = assert(game:getZone('抽牌'), '局上没有抽牌区')
-    local hand = assert(player:getZone('手牌'), '这个玩家没有手牌区')
-    ---@type Card[]
-    local cards = {}
-    for _ = 1, count do
-        if deck:count() == 0 and not recycleDiscard() then
-            break
-        end
-        cards[#cards + 1] = deck:takeTop()
-    end
-    if #cards > 0 then
-        game:moveCard(cards, hand)
-    end
-end
-
 ---@param player Player
 local function playPhase(player)
     local hand = assert(player:getZone('手牌'), '这个玩家没有手牌区')
@@ -71,7 +41,7 @@ local function runTurn(player)
     for _, phase in ipairs(PHASES) do
         game:fire('阶段-开始', { player = player, phase = phase })
         if phase == '摸牌' then
-            draw(player, DRAW_COUNT)
+            game:draw(player, DRAW_COUNT)
         elseif phase == '出牌' then
             playPhase(player)
         elseif phase == '弃牌' then

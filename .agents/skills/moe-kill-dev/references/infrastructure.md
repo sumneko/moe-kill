@@ -222,6 +222,8 @@ server/bin/moe-kill.exe --test core.effect    # 效果套件（任务驱动 / �
 server/bin/moe-kill.exe --test core.damage    # 伤害套件（三个时机 / 点数 / 便利入口 / 改体力属规则侧）
 server/bin/moe-kill.exe --test core.heal      # 回复套件（三个时机 / 点数 / 建实例先不结算）
 server/bin/moe-kill.exe --test core.dying     # 濒死套件（当场起 / 结算收尾才起 / 撤销 / 阵亡的不再起 / 内核不判死）
+server/bin/moe-kill.exe --test core.draw      # 摸牌套件（内核只发「摸牌」时机 / 不碰牌区）
+server/bin/moe-kill.exe --test rule.draw      # 抽牌入口套件（真摸到牌 / 不够时洗回 / 都空时摸不到也不报错）
 server/bin/moe-kill.exe --test core.play      # 使用牌套件（校验 / 取牌 / 结算回调 / 收尾时机）
 server/bin/moe-kill.exe --test rule.slash     # 「杀」套件（攻击范围校验 / 造成 1 点伤害 / 进弃牌）
 server/bin/moe-kill.exe --test rule.dying     # 濒死与【桃】套件（按行动顺序求桃 / 没人给就死 / 桃的两种用法）

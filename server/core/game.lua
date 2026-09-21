@@ -419,6 +419,20 @@ function M:heal(to, amount)
     return heal
 end
 
+---@param player Player # 谁摸牌
+---@param count integer # 摸几张
+---@async
+---@return Draw # 这次摸牌（已经结完：失败读 `.err`）
+function M:draw(player, count)
+    local draw = moe.draw.create {
+        game   = self,
+        player = player,
+        count  = count,
+    }
+    draw:apply():await()
+    return draw
+end
+
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
 ---@param targets Player[] # 目标（可以为空表）

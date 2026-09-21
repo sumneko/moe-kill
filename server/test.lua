@@ -109,6 +109,7 @@ test.require 'test.core.player'
 test.require 'test.core.game'
 test.require 'test.core.damage'
 test.require 'test.core.heal'
+test.require 'test.core.draw'
 test.require 'test.core.dying'
 test.require 'test.core.effect'
 test.require 'test.core.ask'
@@ -126,6 +127,7 @@ test.require 'test.rule.setup'
 test.require 'test.rule.slash'
 test.require 'test.rule.turn'
 test.require 'test.rule.dying'
+test.require 'test.rule.draw'
 
 local bodyDone = false
 local bodyFailures = 0
