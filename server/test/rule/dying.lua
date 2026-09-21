@@ -51,7 +51,7 @@ lt.test('濒死：自己给一张桃就能活下来', function ()
     local target = run.players[2]
     local peach  = takeCard(run, target, '桃')
 
-    run.game.events:on('卡牌-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
         if ask.to == target then
             ask:answer(peach)
         end
@@ -75,7 +75,7 @@ lt.test('濒死：从濒死者开始按行动顺序问，下家的桃也能救�
 
     ---@type Player[] # 被问过的人（按被问顺序）
     local asked = {}
-    run.game.events:on('卡牌-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
         asked[#asked + 1] = assert(ask.to)
         if ask.to == helper then
             ask:answer(peach)
@@ -97,7 +97,7 @@ lt.test('濒死：差 2 点时同一个人可以连给两张', function ()
 
     ---@type Card[]
     local remaining = { takeCard(run, target, '桃'), takeCard(run, target, '桃') }
-    run.game.events:on('卡牌-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
         if ask.to == target and #remaining > 0 then
             ask:answer(table.remove(remaining, 1))
         end
@@ -116,7 +116,7 @@ lt.test('濒死：一圈都没人给桃时就真死，并且触发玩家-死亡'
 
     ---@type Player?
     local dead = nil
-    run.game.events:on('玩家-死亡', function (player)
+    run.game:on('玩家-死亡', function (player)
         dead = player
     end)
 

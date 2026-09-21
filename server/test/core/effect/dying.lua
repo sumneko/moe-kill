@@ -29,7 +29,7 @@ lt.test('濒死：不在结算里就当场起', function ()
 
     ---@type Dying?
     local seen = nil
-    game.events:on('濒死', function (dying)
+    game:on('濒死', function (dying)
         seen = dying
     end)
 
@@ -46,14 +46,14 @@ lt.test('濒死：在结算里记账，要等这次结算收尾才起', function
     ---@type string[]
     local trace = {}
 
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         trace[#trace + 1] = '伤害-前'
         game:enterDying(players[2])
     end)
-    game.events:on('伤害-后', function ()
+    game:on('伤害-后', function ()
         trace[#trace + 1] = '伤害-后'
     end)
-    game.events:on('濒死', function ()
+    game:on('濒死', function ()
         trace[#trace + 1] = '濒死'
     end)
 
@@ -68,11 +68,11 @@ lt.test('濒死：记账可以被撤销', function ()
     ---@type boolean
     local fired = false
 
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         local cancel = game:enterDying(players[2])
         cancel()
     end)
-    game.events:on('濒死', function ()
+    game:on('濒死', function ()
         fired = true
     end)
 
@@ -87,11 +87,11 @@ lt.test('濒死：已经阵亡的不再进濒死', function ()
     ---@type boolean
     local fired = false
 
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         players[2]:setAlive(false)
         game:enterDying(players[2])
     end)
-    game.events:on('濒死', function ()
+    game:on('濒死', function ()
         fired = true
     end)
 
@@ -108,7 +108,7 @@ lt.test('濒死：濒死里再记账会再起一次（自然嵌套）', function
     ---@type boolean
     local reentered = false
 
-    game.events:on('濒死', function (dying)
+    game:on('濒死', function (dying)
         count = count + 1
         if not reentered then
             reentered = true

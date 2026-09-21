@@ -90,10 +90,22 @@ lt.test('时机：注册返回的 disposer 能撤销', function ()
     lt.assertEquals('撤销后不再触发', nil, ctx.record)
 end)
 
-lt.test('时机：加载之外不能注册', function ()
-    lt.assertError('加载之外注册报错', function ()
-        game:on('游戏-开始', function () end)
+lt.test('时机：加载之外也能注册（订阅随下一次装载清空）', function ()
+    local guard <close> = prepare()
+    ---@type table<string, any>
+    local ctx = {}
+    local undo = game:on('游戏-开始', function (seen)
+        ---@cast seen table<string, any>
+        seen.record = '加载之外'
     end)
+
+    game:fire('游戏-开始', ctx)
+    lt.assertEquals('加载之外注册照常生效', '加载之外', ctx.record)
+
+    undo()
+    ctx.record = nil
+    game:fire('游戏-开始', ctx)
+    lt.assertEquals('撤销后不再触发', nil, ctx.record)
 end)
 
 lt.test('时机：清空重载后旧注册不再触发', function ()

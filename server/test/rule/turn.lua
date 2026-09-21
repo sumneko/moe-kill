@@ -32,13 +32,13 @@ local function startTurn(options)
     ---@type Test.TurnRun
     local state = { run = run, turns = 0 }
 
-    run.game.events:on('回合-结束', function ()
+    run.game:on('回合-结束', function ()
         state.turns = state.turns + 1
         if options.stopAfter and state.task and state.turns >= options.stopAfter then
             state.task:cancel()
         end
     end)
-    run.game.events:on('决策-询问', function (ask)
+    run.game:on('决策-询问', function (ask)
         moe.await.sleep(0)
         ask:answer(options.answer(ask, run))
     end)
@@ -84,13 +84,13 @@ lt.test('回合：首回合从主公开始，六个阶段依次走完', function
 
     local state = startTurn {
         setup = function (run)
-            run.game.events:on('回合-开始', function (ctx)
+            run.game:on('回合-开始', function (ctx)
                 firstPlayer = firstPlayer or ctx.player
             end)
-            run.game.events:on('阶段-开始', function (ctx)
+            run.game:on('阶段-开始', function (ctx)
                 marks[#marks+1] = '开始:' .. ctx.phase
             end)
-            run.game.events:on('阶段-结束', function (ctx)
+            run.game:on('阶段-结束', function (ctx)
                 marks[#marks+1] = '结束:' .. ctx.phase
             end)
         end,
@@ -222,7 +222,7 @@ lt.test('回合：阵亡的角色不再得到回合', function ()
     local state = startTurn {
         setup = function (run)
             run.players[2]:setAlive(false)
-            run.game.events:on('回合-开始', function (ctx)
+            run.game:on('回合-开始', function (ctx)
                 started[#started+1] = ctx.player
             end)
         end,

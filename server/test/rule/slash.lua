@@ -88,7 +88,7 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     local card   = takeSlash(run, user)
     local jink   = takeCard(run, target, '闪')
 
-    run.game.events:on('卡牌-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
         ask:answer(jink)
     end)
 
@@ -110,7 +110,7 @@ lt.test('杀：多目标依次结算，一个目标的响应不影响另一个',
     local card   = takeSlash(run, user)
     local jink   = takeCard(run, first, '闪')
 
-    run.game.events:on('卡牌-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
         if ask.to == first then
             ask:answer(jink)
         end
@@ -128,7 +128,7 @@ lt.test('杀：应答方不给牌时照常结算，不会挂住', function ()
     local target = run.players[2]
     local card   = takeSlash(run, user)
 
-    run.game.events:on('卡牌-询问', function ()
+    run.game:on('卡牌-询问', function ()
         -- 不调 ask:answer ⇒ 没答上
     end)
 

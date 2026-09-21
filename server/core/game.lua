@@ -115,6 +115,7 @@ end
 ---@field private zoneMap table<string, Zone>
 ---@field private effects Effect[] # 记牌器：发起过的根效果（只增）
 ---@field private dyingPending table<Player, boolean> # 待结的濒死（记账；结算收尾时才起 Dying）
+---@field events Event # 时机表（内核内部；内容侧用 game:on / game:fire；每次装载会清空）
 local M = Class 'Game'
 
 ---@param desk Desk
@@ -193,9 +194,6 @@ end
 ---@param callback fun(context: table)
 ---@return function # 撤销这次注册
 function M:on(name, callback)
-    if not self.loading then
-        error('时机注册只能在加载规则集时声明', 2)
-    end
     if type(name) ~= 'string' or name == '' then
         error('时机名必须是非空字符串', 2)
     end

@@ -39,7 +39,7 @@ function M.start(options)
         sources  = options.sources,
         packages = options.packages,
     }
-    game.events:on('卡牌-询问', scripted(options.answers))
+    game:on('卡牌-询问', scripted(options.answers))
     local attributeSystem = game:getAttributeSystem()
     ---@type Player[]
     local players = {}

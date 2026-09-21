@@ -71,8 +71,8 @@ lt.test('伤害：伤害前与伤害后时机的先后与上下文', function ()
         seenTo = ctx.to
     end
 
-    game.events:on('伤害-前', onBefore)
-    game.events:on('伤害-后', onAfter)
+    game:on('伤害-前', onBefore)
+    game:on('伤害-后', onAfter)
 
     game:damage(source, target, 2)
 
@@ -141,8 +141,8 @@ lt.test('伤害：两个时机收到同一个实例', function ()
         after = ctx
     end
 
-    game.events:on('伤害-前', onBefore)
-    game.events:on('伤害-后', onAfter)
+    game:on('伤害-前', onBefore)
+    game:on('伤害-后', onAfter)
 
     game:damage(players[1], players[2], 1)
 
@@ -167,7 +167,7 @@ lt.test('伤害：结算期间在栈上', function ()
         kindSeen = ctx.kind
     end
 
-    game.events:on('伤害-后', onAfter)
+    game:on('伤害-后', onAfter)
 
     game:damage(players[1], players[2], 1)
 

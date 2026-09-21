@@ -84,7 +84,7 @@ Card '测试杀'
         settledCard   = ctx.card
         settledTarget = ctx.targets[1]
     end
-    game.events:on('卡牌-结算后', onSettled)
+    game:on('卡牌-结算后', onSettled)
 
     game:useCard(user, card, { target })
 
@@ -350,7 +350,7 @@ Card '测试杀'
     local function onBefore(ctx)
         damageSeen = ctx
     end
-    game.events:on('伤害-前', onBefore)
+    game:on('伤害-前', onBefore)
 
     game:useCard(user, card, { target })
 
@@ -440,7 +440,7 @@ Card '测试杀'
     local hand = assert(user:getZone('手牌'))
     hand:put(card)
 
-    game.events:on('卡牌-结算后', function (ctx)
+    game:on('卡牌-结算后', function (ctx)
         ---@cast ctx UseCard
         local order = ctx.user:getTag('顺序') or ''
         ctx.user:setTag('顺序', order .. '收尾')
@@ -470,13 +470,13 @@ Card '测试杀'
 
     ---@type (Card?)[]
     local seen = {}
-    game.events:on('卡牌-结算前', function (ctx)
+    game:on('卡牌-结算前', function (ctx)
         ---@cast ctx UseCard
         seen[#seen + 1] = ctx.card
         user:setTag('顺序', (user:getTag('顺序') or '') .. '取出')
         user:setTag('取出时还在手上吗', hand:count())
     end)
-    game.events:on('卡牌-结算后', function ()
+    game:on('卡牌-结算后', function ()
         user:setTag('顺序', (user:getTag('顺序') or '') .. '收尾')
     end)
 
@@ -508,7 +508,7 @@ Card '测试杀'
     hand:put(card)
 
     local blocked = players[2]
-    game.events:on('即将生效', function (ctx)
+    game:on('即将生效', function (ctx)
         ---@cast ctx CardEffect
         if ctx.kind == 'cardEffect' and ctx.target == blocked then
             ctx:remove()

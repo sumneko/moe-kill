@@ -66,7 +66,7 @@ end)
 ]])
 
     local game = newGame { '流程包' }
-    game.events:on('决策-询问', function (ask)
+    game:on('决策-询问', function (ask)
         moe.await.sleep(0) -- 让出一次：流程此刻正挂在这条询问上
         ask:answer('继续')
     end)

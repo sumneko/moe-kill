@@ -49,7 +49,7 @@ lt.test('摸牌：内核不碰牌区，只触发「摸牌」时机', function ()
 
     ---@type Draw?
     local seen = nil
-    game.events:on('摸牌', function (draw)
+    game:on('摸牌', function (draw)
         seen = draw
     end)
 

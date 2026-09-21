@@ -31,7 +31,7 @@ end
 ---@param answers Card[] # 按顺序给出的牌
 local function answerWith(game, answers)
     local index = 0
-    game.events:on('卡牌-询问', function (ask)
+    game:on('卡牌-询问', function (ask)
         index = index + 1
         if index > #answers then
             error('脚本里没有更多牌了', 2)
@@ -55,12 +55,12 @@ lt.test('询问：被问者与答复挂在询问上，父效果是发起它的�
 
     ---@type AskCard?
     local asked = nil
-    game.events:on('卡牌-询问', function (ask)
+    game:on('卡牌-询问', function (ask)
         asked = ask
         ask:answer(game:createCard('闪'))
     end)
 
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         game:askCard(players[2], '测试', { name = '闪' })
     end)
 
@@ -83,7 +83,7 @@ lt.test('询问：同一结算里问多次互不串', function ()
 
     ---@type table<integer, Card>
     local answers = {}
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         answers[#answers + 1] = game:askCard(players[2], nil, { name = '闪' }).result
         answers[#answers + 1] = game:askCard(players[3], nil, { name = '闪' }).result
     end)
@@ -109,7 +109,7 @@ lt.test('询问：重复应答不报错，先答的算数', function ()
     local game, players = newGame(2)
     local first  = game:createCard('闪')
     local second = game:createCard('闪')
-    game.events:on('卡牌-询问', function (ask)
+    game:on('卡牌-询问', function (ask)
         ask:answer(first)
         ask:answer(second)
     end)
@@ -125,7 +125,7 @@ end)
 lt.test('询问：应答方可以让出，稍后再答复', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
-    game.events:on('卡牌-询问', function (ask)
+    game:on('卡牌-询问', function (ask)
         moe.await.sleep(0)
         ask:answer(jink)
     end)
@@ -139,13 +139,13 @@ lt.test('询问：被取消的询问以「没有答复」结束，结算其余�
 
     ---@type string[]
     local trace = {}
-    game.events:on('即将生效', function (ctx)
+    game:on('即将生效', function (ctx)
         ---@cast ctx AskCard
         if ctx.kind == 'askCard' then
             ctx:remove()
         end
     end)
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         trace[#trace + 1] = '前'
         local card = game:askCard(players[2], nil, { name = '闪' }).result
         trace[#trace + 1] = '答复 {}' % { tostring(card) }
@@ -165,7 +165,7 @@ lt.test('答复：有答复才触发答复时机，上下文是这次询问', fu
     ---@type (Card?)[]
     local atFire = {}
     local fired  = 0
-    game.events:on('卡牌-答复', function (ctx)
+    game:on('卡牌-答复', function (ctx)
         ---@cast ctx AskCard
         seen[#seen + 1] = ctx
         fired           = fired + 1

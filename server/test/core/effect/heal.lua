@@ -44,14 +44,14 @@ lt.test('回复：三个时机的先后与上下文，改体力发生在「生�
     ---@type Heal?
     local seen   = nil
 
-    game.events:on('回复-前', function (ctx)
+    game:on('回复-前', function (ctx)
         trace[#trace + 1] = '前 {}' % { target:getAttr('体力') }
     end)
-    game.events:on('回复-生效', function (ctx)
+    game:on('回复-生效', function (ctx)
         trace[#trace + 1] = '生效 {}' % { target:getAttr('体力') }
         seen = ctx
     end)
-    game.events:on('回复-后', function (ctx)
+    game:on('回复-后', function (ctx)
         trace[#trace + 1] = '后 {}' % { target:getAttr('体力') }
     end)
 

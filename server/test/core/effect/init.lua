@@ -54,10 +54,10 @@ lt.test('效果：结算期间是根，结束就清掉', function ()
     ---@type string[]
     local trace = {}
 
-    game.events:on('伤害-前', function (ctx)
+    game:on('伤害-前', function (ctx)
         trace[#trace + 1] = '前 {}' % { tostring(game:getEffect() == ctx) }
     end)
-    game.events:on('伤害-后', function (ctx)
+    game:on('伤害-后', function (ctx)
         trace[#trace + 1] = '后 {}' % { tostring(game:getEffect() == ctx) }
     end)
 
@@ -75,7 +75,7 @@ lt.test('效果：嵌套结算会压深，结束后回到外层', function ()
     ---@type boolean
     local nested = false
 
-    game.events:on('伤害-前', function (ctx)
+    game:on('伤害-前', function (ctx)
         ---@cast ctx Damage
         trace[#trace + 1] = '进入 {} 层 {}' % { ctx.deep, ctx.to == players[2] and '外层' or '内层' }
         if not nested then
@@ -104,7 +104,7 @@ lt.test('效果：内层的父是外层，根效果没有父', function ()
     ---@type boolean
     local nested = false
 
-    game.events:on('伤害-前', function (ctx)
+    game:on('伤害-前', function (ctx)
         ---@cast ctx Effect
         if not nested then
             nested    = true
@@ -133,7 +133,7 @@ lt.test('效果：根效果的父不存在，也不报错', function ()
     ---@type Effect?
     local topSeen = nil
 
-    game.events:on('伤害-前', function (ctx)
+    game:on('伤害-前', function (ctx)
         ---@cast ctx Effect
         topSeen = ctx
     end)
@@ -150,7 +150,7 @@ lt.test('效果：沿父效果能还原整条结算链', function ()
     ---@type Effect[] # 按进入顺序
     local entered = {}
 
-    game.events:on('伤害-前', function (ctx)
+    game:on('伤害-前', function (ctx)
         ---@cast ctx Effect
         entered[#entered + 1] = ctx
         if #entered < 3 then
@@ -204,7 +204,7 @@ lt.test('效果：嵌套过深被拒绝', function ()
     ---@type integer
     local depth = 0
 
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         depth = depth + 1
         if depth < 200 then
             game:damage(players[1], players[2], 0)
@@ -223,13 +223,13 @@ lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
     ---@type string[]
     local trace = {}
 
-    game.events:on('即将生效', function (ctx)
+    game:on('即将生效', function (ctx)
         trace[#trace + 1] = '{} {}' % { ctx.kind, game:getEffect() == ctx }
         ---@cast ctx Effect
         ctx:remove()
         trace[#trace + 1] = '取消之后这一行不该执行'
     end)
-    game.events:on('即将生效', function ()
+    game:on('即将生效', function ()
         trace[#trace + 1] = '后面的订阅者也不该执行'
     end)
 
@@ -248,14 +248,14 @@ lt.test('效果：取消只作用于这一个效果，外层照常结算完', fu
     ---@type boolean
     local nested = false
 
-    game.events:on('伤害-前', function ()
+    game:on('伤害-前', function ()
         if not nested then
             nested = true
             game:damage(players[2], players[3], 2)
             outerDone = true
         end
     end)
-    game.events:on('即将生效', function (ctx)
+    game:on('即将生效', function (ctx)
         ---@cast ctx Damage
         if ctx.amount == 2 then
             ctx:remove()
@@ -276,7 +276,7 @@ lt.test('效果：被取消后它自己的结算不再执行', function ()
     ---@type string[]
     local trace = {}
 
-    game.events:on('即将生效', function (ctx)
+    game:on('即将生效', function (ctx)
         ---@cast ctx Effect
         ctx:remove()
     end)
@@ -366,7 +366,7 @@ lt.test('效果：自动失败交给任务的错误处理器，取消不交', fu
     lt.assertEquals('处理器收到一次', 1, #lt.errors)
     lt.assertEquals('收到的是这个失败', true, tostring(lt.errors[1]):find('故意报错', 1, true) ~= nil)
 
-    game.events:on('即将生效', function (ctx)
+    game:on('即将生效', function (ctx)
         ---@cast ctx Effect
         ctx:remove()
     end)

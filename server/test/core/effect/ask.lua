@@ -31,7 +31,7 @@ lt.test('决策询问：一次往返', function ()
 
     ---@type Ask?
     local asked = nil
-    game.events:on('决策-询问', function (ask)
+    game:on('决策-询问', function (ask)
         asked = ask
         ask:answer { card = card, targets = {} }
     end)
@@ -60,7 +60,7 @@ lt.test('决策询问：有答复才触发「决策-答复」', function ()
     local game, players = newGame(2)
     local fired = 0
 
-    game.events:on('决策-答复', function (ctx)
+    game:on('决策-答复', function (ctx)
         fired = fired + 1
         lt.assertEquals('时机里读得到答复', true, ctx.reply ~= nil)
     end)
@@ -68,7 +68,7 @@ lt.test('决策询问：有答复才触发「决策-答复」', function ()
     game:ask(players[1], '出牌', {})
     lt.assertEquals('没答上时不触发', 0, fired)
 
-    game.events:on('决策-询问', function (ask)
+    game:on('决策-询问', function (ask)
         ask:answer('出牌')
     end)
     local ask = game:ask(players[1], '出牌', {})
@@ -79,7 +79,7 @@ end)
 lt.test('决策询问：重复应答先给出的算数', function ()
     local game, players = newGame(2)
 
-    game.events:on('决策-询问', function (ask)
+    game:on('决策-询问', function (ask)
         ask:answer('第一次')
         ask:answer('第二次')
     end)
@@ -94,7 +94,7 @@ lt.test('决策询问：自己不动任何状态', function ()
     local card = game:createCard('杀')
     hand:put(card)
 
-    game.events:on('决策-询问', function (ask)
+    game:on('决策-询问', function (ask)
         ask:answer { cards = { card } }
     end)
 
@@ -107,10 +107,10 @@ lt.test('决策询问：被取消 ⇒ 没有答复', function ()
     local game, players = newGame(2)
     local fired = 0
 
-    game.events:on('决策-答复', function ()
+    game:on('决策-答复', function ()
         fired = fired + 1
     end)
-    game.events:on('决策-询问', function (ask)
+    game:on('决策-询问', function (ask)
         ask:remove()
     end)
 

@@ -124,7 +124,7 @@ lt.test('桌子：先有局再入座，玩家也拿得到局', function ()
 
     ---@type Player?
     local seen = nil
-    game.events:on('玩家-死亡', function (ctx)
+    game:on('玩家-死亡', function (ctx)
         seen = ctx
     end)
 
