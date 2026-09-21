@@ -307,31 +307,29 @@ local function loadWithContent(items)
     })
 end
 
-lt.test('规则集：能用工具包（@tools）的纯函数筛列表', function ()
+lt.test('规则集：@tools 给内容侧的 table 加了三个助手', function ()
     local guard <close> = prepare()
     write('a.lua', 'Card("甲"):on("跑", function ()\n'
         .. '    local list = { 1, 2, 3, 4 }\n'
-        .. '    local picked = util.filter(list, function (value) return value % 2 == 0 end)\n'
-        .. '    assert(util.contains(picked, 4))\n'
-        .. '    return table.concat(util.map(picked, tostring), ",")\n'
+        .. '    local picked = table.filter(list, function (value) return value % 2 == 0 end)\n'
+        .. '    assert(table.contains(picked, 4))\n'
+        .. '    return table.concat(table.map(picked, tostring), ",")\n'
         .. 'end)')
 
     loadWithContent(list('a'))
 
-    lt.assertEquals('筛出偶数再变换', '2,4', card('甲'):getHandlers('跑')[1]())
+    lt.assertEquals('内容侧直接用 table.filter / map / contains', '2,4', card('甲'):getHandlers('跑')[1]())
 end)
 
-lt.test('规则集：工具集里只有纯函数', function ()
+lt.test('规则集：内容侧的标准库是副本，改了不影响内核', function ()
     local guard <close> = prepare()
-    write('a.lua', 'Card("甲"):on("跑", function ()\n'
-        .. '    local ready = util.filter ~= nil and util.map ~= nil and util.contains ~= nil\n'
-        .. '    local clean = util.loadFile == nil and util.saveFile == nil and util.defer == nil\n'
-        .. '    return ready and clean\n'
-        .. 'end)')
+    write('a.lua', 'table.乱来 = function () return "内容侧的" end\n'
+        .. 'Card("甲"):on("跑", function () return table.乱来() end)')
 
     loadWithContent(list('a'))
 
-    lt.assertEquals('滤波 / 变换 / 包含可用，IO 与定时类的拿不到', true, card('甲'):getHandlers('跑')[1]())
+    lt.assertEquals('内容侧加得上', '内容侧的', card('甲'):getHandlers('跑')[1]())
+    lt.assertEquals('内核的标准库没被改', nil, rawget(table, '乱来'))
 end)
 
 lt.test('规则集：文件可以用中文标识符书写', function ()

@@ -55,7 +55,17 @@ local function makeEnv(extra)
     ---@type table<string, any>
     local env = {}
     for _, name in ipairs(ALLOWED_GLOBALS) do
-        env[name] = _G[name]
+        local value = _G[name]
+        if type(value) == 'table' then
+            ---@cast value table<string, any>
+            local copy = {}
+            for key, item in pairs(value) do
+                copy[key] = item
+            end
+            env[name] = copy
+        else
+            env[name] = value
+        end
     end
     for name, value in pairs(extra) do
         env[name] = value

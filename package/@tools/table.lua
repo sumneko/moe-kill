@@ -1,7 +1,8 @@
--- 内容侧的纯函数工具集：写在共享环境里（全局 util），所有规则包都能用
--- 只放纯函数 —— 有副作用的能力（读文件 / 定时器…）一律不给
-
-local function filter(list, predicate)
+---@generic T
+---@param list T[]
+---@param predicate fun(value: T): boolean
+---@return T[]
+function table.filter(list, predicate)
     local result = {}
     for i = 1, #list do
         local value = list[i]
@@ -12,7 +13,11 @@ local function filter(list, predicate)
     return result
 end
 
-local function map(list, transform)
+---@generic T, U
+---@param list T[]
+---@param transform fun(value: T, index: integer): U
+---@return U[]
+function table.map(list, transform)
     local result = {}
     for i = 1, #list do
         result[i] = transform(list[i], i)
@@ -20,7 +25,11 @@ local function map(list, transform)
     return result
 end
 
-local function contains(list, value)
+---@generic T
+---@param list T[]
+---@param value T
+---@return boolean
+function table.contains(list, value)
     for i = 1, #list do
         if list[i] == value then
             return true
@@ -28,9 +37,3 @@ local function contains(list, value)
     end
     return false
 end
-
-util = {
-    filter   = filter,
-    map      = map,
-    contains = contains,
-}

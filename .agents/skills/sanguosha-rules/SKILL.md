@@ -165,9 +165,9 @@ local slash = Card '杀'
 - **挂时机**：`game:on('游戏-开始', function (ctx) ... end)` —— 注册顺序即执行顺序（后注册的后执行，写下的状态覆盖先前的，所以“覆盖别人的默认值”也靠它——例：身份场把主公体力上限抬 1）；订阅随每次装载清空（`game:on` 不限于加载期，但内核 / 装配的长期簿记别挂它上面）；**内容包不要主动 `game:fire`**（触发是装配 / 流程代码的事）。
 - **规则数值**：`game:setValue(名字, 值)` / `game:setValues { ... }` 落默认值，读用 `game:getValue(名字)`（没设置得到 `nil`，自己写 `or 默认`）；**挂在局上一张表、按加载顺序后者覆盖前者**（这就是后续包改默认值的正道），与规则表同生命周期。**不要往里存函数**：行为写时机注册。
 - **注入面是 `game`（这一局）与 `Card` / `Depends`（加载期环境函数，大写）**：内核门面 `moe`（含 `moe.core` 这类写法）、`require` / `io` / `os` 都拿不到。包需要的内核资源全从 `game` 取：**属性系统**用 `game:getAttributeSystem()`，**这一局的牌 / 牌区 / 桌子 / 随机源**用 `game:createCard(name)` / `game:createZone(名字, 有序?)` / `game.desk` / `game.random`（**只认字段，没有 getter**）。
-- **`util` 由默认包 `@tools` 提供**（不是内核注入的，用户 2026-09-21 定 —— 工具集与游戏规则无关）：`util.filter(列表, 判定)` / `util.map(列表, 变换)` / `util.contains(列表, 值)`，清单以 `package/@tools/工具.lua` 为准；里面**只有纯函数**（内核 `moe.util` 的 `saveFile` / `defer` 这类副作用能力拿不到）。
-- **工具集只给纯函数**：`util.filter(列表, 判定)` / `util.map(列表, 变换)` / `util.contains(列表, 值)` —— 它在默认包 `@tools` 里（`package/@tools/工具.lua` + 类型声明 `package/@tools/meta.lua`），**不是内核注入的**；要加新函数先过一遍「纯函数」这条线。
-- **包之间共享函数：直接写全局函数**（用户 2026-09-21 定）—— 整轮装载**共用一份书写环境**，所以 `function 是否受伤(player) ... end` 写在哪个文件里，后面的文件（含别的包）就能直接调。注意三点：**顺序敏感**（要用别人的函数就要求它先加载，可以用 `Depends` 定序）、**注入的 `game` / `Card` / `Depends` / `util` 每个文件加载前会刷回**（别拿它们当全局变量用）、**重装换新环境**（上一轮的全局自然消失）。沙箱没变：仍然看不到 `moe` / `require` / `io` / `os`。
+- **工具集是对（内容侧）标准库的扩充**（用户 2026-09-21 定，不是内核注入的 —— 工具集与游戏规则无关）：默认包 `@tools` 往内容侧的 `table` 上加三个纯函数 —— `table.filter(列表, 判定)` / `table.map(列表, 变换)`（回调收 `(值, 下标)`）/ `table.contains(列表, 值)`，清单以 `package/@tools/table.lua` 为准；里面**只有纯函数**（内核 `moe.util` 的 `saveFile` / `defer` 这类副作用能力拿不到）。**没装 `@tools` 的局仍然有 `table`，只是没有这三个函数**。
+- **内容侧的标准库是副本**（用户 2026-09-21 定）：`table` / `string` / `math` / `utf8` 在每轮装载时各浅拷贝一份 ⇒ 内容侧给它们加函数 / 改函数**只影响内容侧**、内核不受影响，重装换新副本。**泛型要标在实体函数上**（`---@generic T` + `function table.filter(…)`）—— LuaLS 不支持 `---@field f fun<T>(…)`，写进 `meta.lua` 反而会把泛型压平。要加新函数先过一遍「纯函数」这条线。
+- **包之间共享函数：直接写全局函数**（用户 2026-09-21 定）—— 整轮装载**共用一份书写环境**，所以 `function 是否受伤(player) ... end` 写在哪个文件里，后面的文件（含别的包）就能直接调。注意三点：**顺序敏感**（要用别人的函数就要求它先加载，可以用 `Depends` 定序）、**注入的 `game` / `Card` / `Depends` 每个文件加载前会刷回**（别拿它们当全局变量用；`table` 是内容侧的副本、没有这层保护）、**重装换新环境**（上一轮的全局与扩充自然消失）。沙箱没变：仍然看不到 `moe` / `require` / `io` / `os`。
 - **接口面在哪（包作者视角）**：`server/core/loader/env-meta.lua` 是内核的纯类型文件，声明了注入的 `game` / `Card` / `Depends` 与每个时机的 `ctx` 类型 —— 新增时机要顺手补一条；**包自己的概念**（身份、规则数值、自有标签）写在**包目录下的 `meta.lua`**（纯 LuaDoc，固定叫 `meta`）：
 
 ```lua
@@ -183,7 +183,7 @@ local slash = Card '杀'
 - **不要为空值防御**：注入的 `game` 按约定一定在（它就是这一局）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
 - **属性定义只能在加载期写**：属性系统由**这一局**持有（一局一份，清空重装时重置），属性库把定义编译成生成函数、**编译后不允许再 `define`**（会在运行期报 `Cannot define new attributes after compilation`）⇒ `define` 写在包文件顶层，别写进「游戏-开始」回调。玩家侧读写用 `player:setAttr / getAttr / addAttr`（等价于 `player:getAttributes():set/get/add`）。
 - **公共牌区与玩家牌区的分工**：抽牌 / 弃牌 / 处理这类**公共区域**用 `game:createZone(名字, 有序?)`（按名字登记，之后 `game:getZone(名字)` 取回）；手牌 / 装备 / 判定这类**属于某个玩家**的牌区用 `player:addZone(名字)`。
-- 文件里**不需要 `require`**：装载器注入 `game` / `Card` / `Depends` + 一份标准库白名单（`require` / `io` / `os` 一律没有）；`util` 是默认包 `@tools` 写的全局。
+- 文件里**不需要 `require`**：装载器注入 `game` / `Card` / `Depends` + 一份标准库白名单（`require` / `io` / `os` 一律没有；`table` / `string` / `math` / `utf8` 是内容侧的**副本**）；工具函数是默认包 `@tools` 给那份 `table` 加的。
 - **中文标识符只留给难翻译的内容名**（技能名 / 卡牌名 / 身份名，以及规则数值的键与属性名），**字段名 / 局部变量 / 函数名一律英文**（如 `local slash = Card '杀'`）；中文标识符本身是构建期给 Lua 打的补丁（见 `moe-kill-dev` 的 `references/infrastructure.md`），关键字与 ASCII 标识符行为不变。
 - 重装 = **清空局上的内容 + 重新加载**（不做按名单卸载，桌子 / 随机源 / 牌区不被清掉）；同一份清单重复加载会**重新执行**所有文件。加载、依赖、定义入口的细节见 `moe-kill-dev` 的 `references/architecture.md` 第 9 节，契约见 `server/test/rule/` 下的规则侧套件（规格快照已冻结）。
 
@@ -198,7 +198,7 @@ Card '杀'
     : on('获取目标', function (ctx)              -- 合法目标由牌自己声明：内核不作任何具体判定
         local desk  = game.desk
         local range = ctx.user:getAttr('攻击范围')
-        return util.filter(desk.alivePlayers, function (player)
+        return table.filter(desk.alivePlayers, function (player)
             return player ~= ctx.user
                and desk:getDistance(ctx.user, player) <= range
         end)                                 -- 空列表 = 现在用不了
