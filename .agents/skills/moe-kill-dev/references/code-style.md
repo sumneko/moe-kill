@@ -89,7 +89,7 @@ end
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
   - **但不必每次注册都去撤销它**：热重载下，可重载模块里“跟着模块走”的注册会**自动注销**，此时不要写 disposer；disposer 只用于两类情况——注册发生在不可重载的模块里，或资源必须重建/显式释放（详见 `references/architecture.md` 第 8.5 节）。
 - **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的状态挂到**门面表 `moe`**（在 `moe-kill.lua` 里建立）上，写成「有则复用」（`moe._nextCardId = moe._nextCardId or moe.util.counter()`），用 **`_` 前缀**标明是内核内部状态，并在赋值处标 **`---@package`**（LuaLS 据此强制「只有这个文件能访问」，见 `references/architecture.md` 第 8.4 节）。**不要挂类表**（`Extends` 会把父类字段复制给子类、重载 `reset` 又会清掉），也不要挂模块门面（`moe.card` 由模块自己建，重载重跑模块就换成新表）。重载语义与边界见 `references/architecture.md` 第 8 节。
-- **让出要原样转发；`await.*` 只能在最外层用**（挂起模型的约定，见 `references/architecture.md` 的 §2 与 §12）：效果的执行体（`apply()` 的驱动循环）MUST 把子执行体让出的理由与载荷**原样**上抛、把恢复时拿到的值**原样**下传（只拦下属于自己的取消），MUST NOT 吞掉或改写让出；`moe.await.call` / `await.sleep` / `await.yield` 这类**把恢复绑在当前协程**的原语**只能给最外层的驱动者（或它的服务函数）用** —— 在嵌套的效果协程里用，恢复会打在内层协程上，外层永远停在转发那一行（**搁浅**，整条链回不来）。
+- **等待由任务承担**（`Effect:suspend` 与「让出理由分派 / 逐层原样转发」已删除，用户 2026-09-20 定）：每个效果跑在自己任务的协程里（`Task:execute`），所以**结算体与时机回调里可以直接 `await`**（`moe.await.sleep` / `moe.await.yield`，应答方就是这么让出的）；要等别的东西结完用 `效果:await()`。注意 `moe.await.*` 的恢复绑在**调用它的那个协程**上 —— 用它们的地方必须真的跑在协程里（整个游戏都在协程里跑，见 `references/architecture.md` §12 的「前提」）。
 - **运行时不做类型判定**（用户 2026-09-19 定，先试过 `kind` 断言后修正）：
   - “是牌还是牌区”这类**同一家族内部**的区分由**类型注解**保证（`---@param card Card`），不要写 `Type` / `isInstanceOf`，也不要为了断言再加一道 `kind` 判定。
   - `kind` **只用来区分子类**：基类在自己的 `__init` 里给个默认值（`Zone` → `'zone'`），子类在自己的 `__init` 里覆盖成自己的名字（`OrderedZone` → `'orderedZone'`；规则层子类可设 `'手牌'` 之类），调用方按需读它判断（`zone.kind == '手牌'`）。因为许可值开放，字段类型声明写 `string`，内核不维护 kinds 清单。
@@ -179,6 +179,6 @@ end
 **`error` 只有一个语义：报错；禁止用 `error` 做跳出**（用户 2026-09-20 定）。
 
 - 不要用 `error` 做控制流（「取消这次生效」「提前结束这次结算」这类）：错误处理器（`moe.task.setErrorHandler` 接的日志）与测试的错误日志计数都会把它当故障，调用方也分不清"失败"与"正常结束"。
-- 需要**中断**当前执行体时：让出（`coroutine.yield()`）暂停自己，由持有者（`Task`）收尾并关闭执行体 —— `Effect:remove()` 取消一次生效就是这么做的（`task:reject(CANCELED)` + 让出；`Task:execute` 发现「任务已结完但执行体还挂着」就 `coroutine.close` 收掉它，于是退栈自然发生）。
+- 需要**中断**当前执行体时：让出（`coroutine.yield()`）暂停自己，由持有者（`Task`）收尾并关闭执行体 —— `Effect:remove()` 取消一次生效就是这么做的（`task:reject(CANCELED)` + 让出；`Task:execute` 发现「任务已结完但执行体还挂着」就 `coroutine.close` 收掉它 —— 于是它再也跑不下去）。
 - 需要表达"这次任务因为什么结束"时用 `task:reject(原因)`（如 `Task.TIMEOUT`、内核的取消信号），不要抛错让上层去猜。
 - 于是**只有真故障**才会走到 `Task` 的错误处理器。

@@ -227,6 +227,6 @@ server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 
 openspec list                     # 进行中的变更
 openspec status --change <name>   # 工件完成度
-openspec validate --all           # 校验
+openspec validate --all           # 校验（探索期规格已冻结：变更走 skip_specs、不写 specs 增量）
 git show origin/4.0.0:<path>      # 读 LuaLS 4.0.0 的任意文件
 ```

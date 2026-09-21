@@ -29,6 +29,7 @@ operations:
   archive:
     guidance:
       - 探索期变更没有 spec 增量（specs 是 skipped），归档时不会同步主规格：勾完 tasks 直接 archive 即可。
+
 # Example:
 #   operations:
 #     apply:
