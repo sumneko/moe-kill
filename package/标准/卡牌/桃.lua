@@ -2,6 +2,7 @@
 -- 出牌阶段，对自己使用：回复 1 点体力；或令一名处于濒死状态的角色回复 1 点体力。
 
 Card '桃'
+    : extends '基本牌'
     : on('获取目标', function (ctx)
         local user = ctx.user
         ---@type Player[]

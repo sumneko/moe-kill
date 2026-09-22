@@ -222,6 +222,8 @@ lt.test('定义：阶段限额随定义走，没声明就是 1000', function ()
     lt.assertEquals('别的牌没声明就是 1000', 1000, game:getCard('闪'):getLimit('出牌'))
     lt.assertEquals('【杀】从基本牌模板继承来了分类', true, game:getCard('杀'):isKind('基本'))
     lt.assertEquals('【杀】从基本牌模板继承来了牌区', '手牌', game:getCard('杀'):getZone())
+    lt.assertEquals('【闪】也继承来了分类', true, game:getCard('闪'):isKind('基本'))
+    lt.assertEquals('【桃】也继承来了分类与牌区', '手牌', game:getCard('桃'):getZone())
 
     game:getCard('杀'):limit('出牌', 2)
 
