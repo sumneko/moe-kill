@@ -126,6 +126,56 @@ lt.test('濒死：一圈都没人给桃时就真死，并且触发玩家-死亡'
     lt.assertEquals('「玩家-死亡」的上下文是这个玩家', target, dead)
 end)
 
+lt.test('濒死：判死发生在「伤害-后」之前', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local target = run.players[2]
+
+    ---@type boolean?
+    local aliveAtAfter = nil
+    run.game:on('伤害-后', function ()
+        aliveAtAfter = target:isAlive()
+    end)
+
+    run.game:damage(run.players[1], target, 5)
+
+    lt.assertEquals('伤害收尾时人已经死了（濒死排在它之前）', false, aliveAtAfter)
+    lt.assertEquals('阵亡', false, target:isAlive())
+end)
+
+lt.test('濒死：上下文带着那次伤害，救活后凶手标签清掉', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local target = run.players[2]
+    local peach  = takeCard(run, target, '桃')
+
+    ---@type Dying?
+    local seen = nil
+    run.game:on('濒死-进入', function (dying)
+        seen = dying
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.to == target then
+            ask:answer { card = peach, targets = { target } }
+        end
+    end)
+
+    local damage = run.game:damage(run.players[1], target, 5)
+    local dying  = assert(seen, '没进濒死')
+
+    lt.assertEquals('带着那次伤害', damage, dying.damage)
+    lt.assertEquals('活下来了', true, target:isAlive())
+    lt.assertEquals('救活后凶手标签清掉', nil, target:getTag('凶手'))
+end)
+
+lt.test('濒死：阵亡时凶手标签留着', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local target = run.players[2]
+
+    run.game:damage(run.players[1], target, 5)
+
+    lt.assertEquals('阵亡', false, target:isAlive())
+    lt.assertEquals('凶手是打他的那个', run.players[1], target:getTag('凶手'))
+end)
+
 lt.test('桃：出牌阶段对自己使用，回复 1 点', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]

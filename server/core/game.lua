@@ -214,7 +214,6 @@ end
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
 ---@field private effects Effect[] # 记牌器：发起过的根效果（只增）
----@field private dyingPending table<Player, boolean> # 待结的濒死（记账；结算收尾时才起 Dying）
 ---@field private events Event # 时机表（内容侧用 game:on / game:fire；每次装载会清空）
 ---@field private idCounter integer # 发号器（牌与将来的技能共用；重装内容也不重置）
 ---@field phase? Phase # 当前阶段（没进阶段就是空）
@@ -233,7 +232,6 @@ function M:__init(desk, random)
     self.zoneList = {}
     self.zoneMap  = {}
     self.effects  = {}
-    self.dyingPending = {}
     self.sources  = moe.loader.DEFAULT_SOURCES
     self.list     = {}
     self.idCounter = 0
@@ -571,7 +569,7 @@ function M:heal(to, amount)
 end
 
 ---@async
----@param player Player # 谁摸牌
+---@param player Player # 谁摸牌（已阵亡的不摸）
 ---@param count integer # 摸几张
 ---@return Draw # 这次摸牌（已经结完：失败读 `.err`）
 function M:draw(player, count)
@@ -730,42 +728,19 @@ function M:getEffects()
     return snapshot
 end
 
---- 记下这个玩家该进濒死：真正的结算等当前这次效果结算收尾时开始（返回撤销）
+--- 让某人进入濒死：当场结算（规则侧在 `'濒死-进入'` 里求桃与判死）
 ---@param player Player
----@return function # 撤销这次记账（例如体力又回正了）
+---@param damage? Damage # 把它打到濒死的这次伤害（内核只搬运，不解释）
+---@return Dying # 已经结完：`.damage` 就是那次伤害
 ---@async
-function M:enterDying(player)
-    self.dyingPending[player] = true
-    local removed = false
-    if not (moe.task.getCurrentTask()?.context.effect) then
-        self:flushDying()
-    end
-    return function ()
-        if removed then
-            return
-        end
-        removed = true
-        self.dyingPending[player] = nil
-    end
-end
-
---- 把记下的濒死结掉（结算收尾时由内核调）
----@async
-function M:flushDying()
-    if not coroutine.isyieldable() then
-        return
-    end
-    while true do
-        local player = next(self.dyingPending)
-        if not player then
-            return
-        end
-        self.dyingPending[player] = nil
-        if player:isAlive() then
-            local dying = moe.dying.create { game = self, player = player }
-            dying:apply():await()
-        end
-    end
+function M:enterDying(player, damage)
+    local dying = moe.dying.create {
+        game   = self,
+        player = player,
+        damage = damage,
+    }
+    dying:apply():await()
+    return dying
 end
 
 --- 登记这一局的流程（加载期由内容登记，每局只能一个）

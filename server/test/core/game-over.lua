@@ -78,15 +78,15 @@ lt.test('游戏结束：结束后起的结算以取消收尾', function ()
     lt.assertEquals('不进记牌器', 0, #game:getEffects())
 end)
 
-lt.test('游戏结束：已经记账的濒死不再起', function ()
+lt.test('游戏结束：结束后不再起新的濒死', function ()
     local game, players = newGame(2)
 
     ---@type integer
     local dyingFired = 0
-    game:on('濒死', function () dyingFired = dyingFired + 1 end)
+    game:on('濒死-进入', function () dyingFired = dyingFired + 1 end)
     game:on('伤害-前', function ()
-        game:enterDying(players[2])
         game:endGame { side = '反贼', reason = '测试' }
+        game:enterDying(players[2])
     end)
 
     game:damage(players[1], players[2], 1)

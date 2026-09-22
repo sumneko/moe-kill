@@ -1,3 +1,5 @@
+Depends { './奖惩' }
+
 game:on('玩家-死亡', function ()
     if game:getResult() then
         return

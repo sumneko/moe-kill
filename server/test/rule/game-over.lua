@@ -128,3 +128,62 @@ end)
     lt.assertFailed('流程以取消收尾', task)
     lt.assertEquals('流程没有继续跑', nil, game:getValue('问过几次'))
 end)
+
+lt.test('奖惩：杀死反贼的凶手摸 3 张', function ()
+    local run    = startGame()
+    local killer = run.players[1]
+    local hand   = assert(killer:getZone('手牌'))
+    local before = hand:count()
+
+    kill(run, run.players[3])
+
+    lt.assertEquals('凶手摸了 3 张', before + 3, hand:count())
+end)
+
+lt.test('奖惩：主公杀死忠臣 ⇒ 主公弃掉所有手牌', function ()
+    local run  = startGame()
+    local hand = assert(run.players[1]:getZone('手牌'))
+    local pile = assert(run.game:getZone('弃牌'))
+    local before = hand:count()
+
+    kill(run, run.players[2])
+
+    lt.assertEquals('主公手牌清空', 0, hand:count())
+    lt.assertEquals('牌都进了弃牌', before, pile:count())
+end)
+
+lt.test('奖惩：凶手已阵亡时照发，但一张也摸不到', function ()
+    local run    = startGame()
+    local killer = run.players[4]         -- 内奸
+    local hand   = assert(killer:getZone('手牌'))
+    local before = hand:count()
+
+    killer:setAlive(false)
+    run.game:damage(killer, run.players[3], 10)   -- 反贼死，凶手已阵亡
+
+    lt.assertEquals('奖励照发但摸牌被拦', before, hand:count())
+end)
+
+lt.test('奖惩：自杀不奖惩', function ()
+    local run    = startGame()
+    local victim = run.players[3]         -- 反贼
+    local hand   = assert(victim:getZone('手牌'))
+    local before = hand:count()
+
+    run.game:damage(victim, victim, 10)
+
+    lt.assertEquals('自己打自己不摸牌', before, hand:count())
+end)
+
+lt.test('奖惩：排在胜负判定之前（反贼是最后一个死的）', function ()
+    local run    = startGame()
+    local killer = run.players[1]
+    local hand   = assert(killer:getZone('手牌'))
+    local before = hand:count()
+
+    kill(run, run.players[4])              -- 内奸：无奖励
+    kill(run, run.players[3])              -- 反贼：有奖励，且这一下让主公方胜
+
+    lt.assertEquals('游戏已结束', '主公方', assert(run.game:getResult()).side)
+    lt.assertEquals('结束前那 3 张照摸到了', before + 3, hand:count())
+end)

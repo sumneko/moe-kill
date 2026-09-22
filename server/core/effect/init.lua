@@ -45,7 +45,6 @@ function M:apply()
     self.task = moe.task.create { effect = self }
 
     self.task:execute(function ()
-        local flush <close> = moe.util.defer(function () self.game:flushDying() end)
         if parent then
             parent:addChildEffect(self)
             if self.deep > M.MAX_DEPTH then

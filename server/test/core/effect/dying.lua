@@ -24,95 +24,65 @@ local function newGame(count)
     return game, players
 end
 
-lt.test('濒死：不在结算里就当场起', function ()
+lt.test('濒死：当场结算，上下文里是濒死者与这次伤害', function ()
     local game, players = newGame(2)
 
     ---@type Dying?
     local seen = nil
-    game:on('濒死', function (dying)
+    game:on('濒死-进入', function (dying)
         seen = dying
     end)
 
     game:enterDying(players[2])
 
-    local dying = assert(seen, '「濒死」没有触发')
+    local dying = assert(seen, '「濒死-进入」没有触发')
     lt.assertEquals('种类标识', 'dying', dying.kind)
     lt.assertEquals('上下文里是那个濒死的人', players[2], dying.player)
+    lt.assertEquals('没传伤害就是空', nil, dying.damage)
+
+    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    game:enterDying(players[2], damage)
+
+    lt.assertEquals('传了伤害就带上了', damage, assert(seen).damage)
 end)
 
-lt.test('濒死：在结算里记账，要等这次结算收尾才起', function ()
+lt.test('濒死：结完还活着就触发「濒死-离开」，判死就不触发', function ()
     local game, players = newGame(2)
 
     ---@type string[]
     local trace = {}
-
-    game:on('伤害-前', function ()
-        trace[#trace + 1] = '伤害-前'
-        game:enterDying(players[2])
+    game:on('濒死-进入', function (dying)
+        trace[#trace + 1] = '进入:' .. tostring(dying.player:isAlive())
     end)
-    game:on('伤害-后', function ()
-        trace[#trace + 1] = '伤害-后'
-    end)
-    game:on('濒死', function ()
-        trace[#trace + 1] = '濒死'
+    game:on('濒死-离开', function ()
+        trace[#trace + 1] = '离开'
     end)
 
-    game:damage(players[1], players[2], 1)
+    game:enterDying(players[1])
 
-    lt.assertEquals('濒死排在这次结算的最后', '伤害-前,伤害-后,濒死', table.concat(trace, ','))
+    lt.assertEquals('没人判死 ⇒ 进出各一次', '进入:true,离开', table.concat(trace, ','))
+
+    game:on('濒死-进入', function (dying)
+        dying.player:setAlive(false)
+    end)
+    game:enterDying(players[2])
+
+    lt.assertEquals('判死 ⇒ 只有进入', '进入:true,离开,进入:true', table.concat(trace, ','))
 end)
 
-lt.test('濒死：记账可以被撤销', function ()
-    local game, players = newGame(2)
-
-    ---@type boolean
-    local fired = false
-
-    game:on('伤害-前', function ()
-        local cancel = game:enterDying(players[2])
-        cancel()
-    end)
-    game:on('濒死', function ()
-        fired = true
-    end)
-
-    game:damage(players[1], players[2], 1)
-
-    lt.assertEquals('撤销之后不再进濒死', false, fired)
-end)
-
-lt.test('濒死：已经阵亡的不再进濒死', function ()
-    local game, players = newGame(2)
-
-    ---@type boolean
-    local fired = false
-
-    game:on('伤害-前', function ()
-        players[2]:setAlive(false)
-        game:enterDying(players[2])
-    end)
-    game:on('濒死', function ()
-        fired = true
-    end)
-
-    game:damage(players[1], players[2], 1)
-
-    lt.assertEquals('阵亡的不再起濒死', false, fired)
-end)
-
-lt.test('濒死：濒死里再记账会再起一次（自然嵌套）', function ()
+lt.test('濒死：濒死里再进濒死会自然嵌套', function ()
     local game, players = newGame(2)
 
     ---@type integer
-    local count    = 0
+    local count = 0
     ---@type boolean
     local reentered = false
 
-    game:on('濒死', function (dying)
+    game:on('濒死-进入', function (dying)
         count = count + 1
         if not reentered then
             reentered = true
-            game:enterDying(dying.player)
+            game:enterDying(dying.player, dying.damage)
         end
     end)
 

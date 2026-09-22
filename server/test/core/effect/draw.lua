@@ -74,3 +74,23 @@ lt.test('摸牌：没有订阅者时照常结完', function ()
     lt.assertEquals('没有结果', nil, draw.result)
     lt.assertEquals('也没有失败', nil, draw.err)
 end)
+
+lt.test('摸牌：已阵亡的不摸、不触发时机', function ()
+    local bare <close> = useBareSources()
+    local game, players = newBareGame()
+    local deck = game:createZone('抽牌', true)
+    players[1]:addZone('手牌')
+    deck:put(game:createCard('杀'))
+
+    ---@type integer
+    local fired = 0
+    game:on('摸牌', function () fired = fired + 1 end)
+
+    players[1]:setAlive(false)
+    local draw = game:draw(players[1], 1)
+
+    lt.assertEquals('没触发时机', 0, fired)
+    lt.assertEquals('牌还在抽牌里', 1, deck:count())
+    lt.assertEquals('手牌还是空的', 0, assert(players[1]:getZone('手牌')):count())
+    lt.assertEquals('不算失败', nil, draw.err)
+end)

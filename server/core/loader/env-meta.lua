@@ -67,8 +67,10 @@ Depends = nil
 ---@field fire fun(self: Game, name: '回复-后', ctx: Heal): any
 ---@field on fun(self: Game, name: '摸牌', callback: fun(ctx: Draw): any): function
 ---@field fire fun(self: Game, name: '摸牌', ctx: Draw): any
----@field on fun(self: Game, name: '濒死', callback: fun(ctx: Dying): any): function
----@field fire fun(self: Game, name: '濒死', ctx: Dying): any
+---@field on fun(self: Game, name: '濒死-进入', callback: fun(ctx: Dying): any): function
+---@field fire fun(self: Game, name: '濒死-进入', ctx: Dying): any
+---@field on fun(self: Game, name: '濒死-离开', callback: fun(ctx: Dying): any): function
+---@field fire fun(self: Game, name: '濒死-离开', ctx: Dying): any
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(ctx: Player): any): function
 ---@field fire fun(self: Game, name: '玩家-死亡', ctx: Player): any
 ---@field on fun(self: Game, name: '回合-开始', callback: fun(ctx: Game.EventCtx.回合): any): function
