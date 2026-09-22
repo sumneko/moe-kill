@@ -53,6 +53,6 @@
 - [x] 8.4 `moe-kill-dev/references/progress.md`：验收改成 383、链条与内核现状补 `canUse` / 快速返回 / 询问选项，§2 换成「下一批待你挑」的候选表，§3 只留细节备忘
 
 ## 9 归档
-- [ ] 9.1 `openspec validate add-usability-check --strict`
-- [ ] 9.2 勾完 tasks 后提交（`【AI】` 前缀）
-- [ ] 9.3 `openspec archive add-usability-check --yes`
+- [x] 9.1 `openspec validate add-usability-check --strict`
+- [x] 9.2 勾完 tasks 后提交（`【AI】` 前缀）
+- [x] 9.3 `openspec archive add-usability-check --yes`
