@@ -8,7 +8,7 @@ local DECK = { '甲', '乙', '丙', '丁', '戊', '己', '庚', '辛' }
 local function fill(zone, source)
     local cards = {}
     for i = 1, #source do
-        cards[i] = moe.card.create(source[i])
+        cards[i] = lt.card(source[i])
         zone:put(cards[i])
     end
     return cards
@@ -116,7 +116,7 @@ lt.test('牌区：禁用后不可放入取出，启用后恢复', function ()
     lt.assertEquals('禁用生效', true, zone:disable())
     lt.assertEquals('重复禁用无副作用', false, zone:disable())
 
-    lt.assertError('禁用后放入失败', function () zone:put(moe.card.create('乙')) end)
+    lt.assertError('禁用后放入失败', function () zone:put(lt.card('乙')) end)
     lt.assertError('禁用后取出失败', function () zone:take(1) end)
     lt.assertError('禁用后清空失败', function () zone:clear() end)
     lt.assertEquals('禁用期间内容仍可读', '甲', zoneLabels(zone))
@@ -124,7 +124,7 @@ lt.test('牌区：禁用后不可放入取出，启用后恢复', function ()
     lt.assertEquals('启用生效', true, zone:enable())
     lt.assertEquals('重复启用无副作用', false, zone:enable())
 
-    zone:put(moe.card.create('乙'))
+    zone:put(lt.card('乙'))
     lt.assertEquals('启用后恢复放入', '甲,乙', zoneLabels(zone))
 end)
 

@@ -1,34 +1,28 @@
 local lt = require 'test.ltest'
 
-lt.test('牌：每个实例有唯一标识', function ()
-    local first  = moe.card.create('杀')
-    local second = moe.card.create('杀')
-    local marks  = {}
+lt.test('牌：标识与标签都由调用方给出', function ()
+    local card = moe.card.create('杀', 7)
 
-    for i = 1, 100 do
-        local card = moe.card.create()
-        lt.assertNotEquals('标识不与既有的重复', first:getId(), card:getId())
-        lt.assertEquals('标识未被用过', nil, marks[card:getId()])
-        marks[card:getId()] = true
-    end
+    lt.assertEquals('标识就是给进来的号', 7, card:getId())
+    lt.assertEquals('标签就是给进来的名', '杀', card:getLabel())
 
-    lt.assertNotEquals('标签相同的两张牌可区分', first:getId(), second:getId())
+    local plain = moe.card.create(nil, 8)
+    lt.assertEquals('可以不要标签', nil, plain:getLabel())
+    lt.assertEquals('两张牌各自用各自的号', false, card:getId() == plain:getId())
 end)
 
-lt.test('牌：标签由调用方给出且可修改', function ()
-    local plain = moe.card.create()
-    lt.assertEquals('默认没有标签', nil, plain:getLabel())
-
-    local card = moe.card.create('杀')
-    lt.assertEquals('创建时给出标签', '杀', card:getLabel())
+lt.test('牌：改标签不动标识', function ()
+    local card = lt.card('杀')
+    local id   = card:getId()
 
     card:setLabel('闪')
+
     lt.assertEquals('标签可修改', '闪', card:getLabel())
-    lt.assertEquals('标识不随标签变化', card:getId(), card:getId())
+    lt.assertEquals('标识不变', id, card:getId())
 end)
 
 lt.test('牌：内核不预设任何牌的定义', function ()
-    local card = moe.card.create('杀')
+    local card = lt.card('杀')
     local keys = {}
 
     for key in pairs(card) do

@@ -1,5 +1,6 @@
 ---@class LTest
 ---@field registry LTest.Case[]
+---@field cardId integer # 用例造牌时自己发的号（只管别撞上）
 ---@field errorCount integer # 到目前为止记下的错误日志条数
 ---@field expectedErrors integer # 当前用例声明预期的错误日志条数
 ---@field errors any[] # 收到的错误（用例自己清）
@@ -15,6 +16,15 @@ M.registry = {}
 M.errorCount     = 0
 M.expectedErrors = 0
 M.errors         = {}
+M.cardId         = 0
+
+--- 造一张只给用例用的牌（号是测试自己发的，用例不关心具体值）
+---@param label? any
+---@return Card
+function M.card(label)
+    M.cardId = M.cardId + 1
+    return moe.card.create(label, M.cardId)
+end
 
 --- 清掉攒下来的错误
 function M.clearErrors()

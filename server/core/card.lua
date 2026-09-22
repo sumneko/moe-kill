@@ -4,12 +4,10 @@
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 local M = Class 'Card'
 
----@package
-moe._nextCardId = moe._nextCardId or moe.util.counter()
-
 ---@param label? any
-function M:__init(label)
-    self.id    = moe._nextCardId()
+---@param id integer # 号由局发（`game:nextId`）
+function M:__init(label, id)
+    self.id    = id
     self.label = label
 end
 
@@ -49,7 +47,8 @@ end
 moe.card = {}
 
 ---@param label? any
+---@param id integer # 号由局发（`game:nextId`）
 ---@return Card
-function moe.card.create(label)
-    return New 'Card' (label)
+function moe.card.create(label, id)
+    return New 'Card' (label, id)
 end

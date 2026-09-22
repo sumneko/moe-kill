@@ -16,7 +16,7 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
     local hand = moe.zone.create()
 
     for i = 1, 10 do
-        pile:put(moe.card.create('第{}张' % { i }))
+        pile:put(lt.card('第{}张' % { i }))
     end
     pile:shuffle(moe.random.create(20260919))
 
@@ -38,7 +38,7 @@ lt.test('场景：用移动一次把牌送进牌区', function ()
     local cards = {}
 
     for i = 1, 5 do
-        cards[i] = moe.card.create('第{}张' % { i })
+        cards[i] = lt.card('第{}张' % { i })
         pile:put(cards[i])
     end
 

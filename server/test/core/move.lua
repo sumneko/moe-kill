@@ -6,7 +6,7 @@ local lt = require 'test.ltest'
 local function fill(zone, source)
     local cards = {}
     for i = 1, #source do
-        cards[i] = moe.card.create(source[i])
+        cards[i] = lt.card(source[i])
         zone:put(cards[i])
     end
     return cards
@@ -82,7 +82,7 @@ end)
 lt.test('移动：牌不在源区时报错且两边不变', function ()
     local from    = moe.zone.create()
     local to      = moe.zone.create()
-    local stranger = moe.card.create('丙')
+    local stranger = lt.card('丙')
     fill(from, { '甲', '乙' })
     fill(to, { '一' })
 
@@ -127,7 +127,7 @@ end)
 
 lt.test('归属：放进牌区就记得住自己在哪里', function ()
     local zone = moe.zone.create()
-    local card = moe.card.create('甲')
+    local card = lt.card('甲')
 
     lt.assertEquals('一开始不属于任何牌区', nil, card:getZone())
 
@@ -141,7 +141,7 @@ end)
 lt.test('归属：移动后跟着到目标区', function ()
     local from = moe.zone.create()
     local to   = moe.zone.create()
-    local card = moe.card.create('甲')
+    local card = lt.card('甲')
     from:put(card)
 
     from:move(card, to)
@@ -162,7 +162,7 @@ end)
 lt.test('归属：已经在牌区里的牌不能再放一次', function ()
     local first  = moe.zone.create()
     local second = moe.zone.create()
-    local card   = moe.card.create('甲')
+    local card   = lt.card('甲')
     first:put(card)
 
     lt.assertError('不能再放进别的区', function () second:put(card) end)

@@ -119,6 +119,7 @@ end
 ---@field private effects Effect[] # 记牌器：发起过的根效果（只增）
 ---@field private dyingPending table<Player, boolean> # 待结的濒死（记账；结算收尾时才起 Dying）
 ---@field private events Event # 时机表（内容侧用 game:on / game:fire；每次装载会清空）
+---@field private idCounter integer # 发号器（牌与将来的技能共用；重装内容也不重置）
 ---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
 ---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
@@ -136,6 +137,7 @@ function M:__init(desk, random)
     self.dyingPending = {}
     self.sources  = moe.loader.DEFAULT_SOURCES
     self.list     = {}
+    self.idCounter = 0
     desk:bindGame(self)
     self:resetContent()
 end
@@ -324,13 +326,21 @@ function M:getZones()
     return snapshot
 end
 
+--- 发一个新 ID（这一局内不重复；牌与将来的技能共用同一串号）
+---@return integer
+function M:nextId()
+    self.idCounter = self.idCounter + 1
+    return self.idCounter
+end
+
+--- 按牌名建一张牌（号由这一局发）
 ---@param name string
 ---@return Card
 function M:createCard(name)
     if type(name) ~= 'string' or name == '' then
         error('牌名必须是非空字符串', 2)
     end
-    return moe.card.create(name)
+    return moe.card.create(name, self:nextId())
 end
 
 ---@param to Player # 被问者

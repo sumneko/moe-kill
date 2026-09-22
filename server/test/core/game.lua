@@ -67,6 +67,24 @@ lt.test('局：建牌带牌名', function ()
     end)
 end)
 
+lt.test('局：发号给牌，将来也给技能', function ()
+    local game = newGame()
+
+    lt.assertEquals('号从 1 开始', 1, game:createCard('杀'):getId())
+    lt.assertEquals('建牌依次取号', 2, game:createCard('闪'):getId())
+
+    local first  = game:nextId()
+    local second = game:nextId()
+    lt.assertEquals('技能自己取的号接着牌的号往下走', 3, first)
+    lt.assertEquals('取的号不重复', 4, second)
+    lt.assertEquals('取号也推着建牌往下走', 5, game:createCard('桃'):getId())
+
+    game:resetContent()
+    lt.assertEquals('重装规则内容不重置号源', 6, game:createCard('桃'):getId())
+
+    lt.assertEquals('另一局从头开始', 1, newGame():createCard('桃'):getId())
+end)
+
 lt.test('局：把牌挪进某个牌区', function ()
     local game  = newGame()
     local hand  = game:createZone('手牌')
@@ -182,7 +200,7 @@ end)
 
 lt.test('牌区：没绑定随机源的有序牌区洗牌要传随机源', function ()
     local zone = moe.orderedZone.create()
-    zone:put(moe.card.create('甲'))
+    zone:put(lt.card('甲'))
 
     lt.assertError('省略随机源报错', function ()
         zone:shuffle()

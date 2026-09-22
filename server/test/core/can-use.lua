@@ -97,7 +97,7 @@ end)
 lt.test('校验：牌没牌名 ⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
-    local card = moe.card.create()   -- 局上造的牌必须给牌名，这里直接造一张没牌名的
+    local card = lt.card()   -- 局上造的牌必须给牌名，这里直接造一张没牌名的
     run.hand:put(card)
 
     local ok, reason = run.game:canUse(run.user, card)

@@ -258,14 +258,15 @@ lt.test('重载：已存在的实例立即使用新代码', function ()
     lt.assertEquals('实例仍然有效', true, IsValid(instance))
 end)
 
-lt.test('重载：牌的唯一标识跨重载不重复', function ()
-    local before = moe.card.create()
+lt.test('重载：局上的号源跨重载接着走', function ()
+    local game   = moe.game.create { desk = moe.desk.create(4), random = moe.random.create(1) }
+    local before = game:nextId()
     local reloaded = moe.reload.reload()
-    local after = moe.card.create()
+    local after  = game:nextId()
 
     lt.assertEquals('内核模块在重载名单里', true, moe.util.arrayHas(reloaded, 'core.card'))
-    lt.assertEquals('标识继续增长', true, after:getId() > before:getId())
-    lt.assertNotEquals('标识不与重载前重复', before:getId(), after:getId())
+    lt.assertEquals('号继续增长', true, after > before)
+    lt.assertNotEquals('号不与重载前重复', before, after)
 end)
 
 lt.test('重载：recycle 立即执行、重载后重跑并回收旧对象', function ()
@@ -275,7 +276,7 @@ lt.test('重载：recycle 立即执行、重载后重跑并回收旧对象', fun
 
     local function rebuild(trashFn)
         runs = runs + 1
-        trash[#trash + 1] = trashFn(moe.card.create())
+        trash[#trash + 1] = trashFn(lt.card())
         return runs
     end
 
