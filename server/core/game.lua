@@ -4,7 +4,11 @@
 ---@field fullName string # 完整名（包名.名字）
 ---@field source string # 声明它的文件（逻辑路径）
 ---@field private handlers table<string, function[]>
+---@field private limits table<string, integer> # 每个阶段最多用几次
 local CardDef = Class 'CardDef'
+
+---@type integer # 没声明限额时的兜底：事实上的「不限次数」
+local DEFAULT_LIMIT = 1000
 
 ---@param name string
 ---@param owner string
@@ -15,6 +19,7 @@ function CardDef:__init(name, owner, source)
     self.fullName = owner .. '.' .. name
     self.source   = source
     self.handlers = {}
+    self.limits   = {}
 end
 
 ---@param event string
@@ -41,7 +46,21 @@ function CardDef:getHandlers(event)
     end
     return snapshot
 end
+--- 声明这个阶段里最多用几次（可以多次调；同一个阶段重复写，后写的为准）
+---@param phase string # 阶段名（内核不解释取值）
+---@param count integer
+---@return CardDef
+function CardDef:limit(phase, count)
+    self.limits[phase] = count
+    return self
+end
 
+--- 这个阶段里最多用几次
+---@param phase string
+---@return integer # 没声明过就是 1000（事实上不限次数）
+function CardDef:getLimit(phase)
+    return self.limits[phase] or DEFAULT_LIMIT
+end
 ---@param name string
 ---@param level integer
 local function checkSimpleName(name, level)
@@ -120,6 +139,8 @@ end
 ---@field private dyingPending table<Player, boolean> # 待结的濒死（记账；结算收尾时才起 Dying）
 ---@field private events Event # 时机表（内容侧用 game:on / game:fire；每次装载会清空）
 ---@field private idCounter integer # 发号器（牌与将来的技能共用；重装内容也不重置）
+---@field phase? Phase # 当前阶段（没进阶段就是空）
+---@field private phaseStack Phase[] # 阶段栈（阶段可以嵌套：将来的「额外的一个出牌阶段」）
 ---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
 ---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
@@ -138,6 +159,7 @@ function M:__init(desk, random)
     self.sources  = moe.loader.DEFAULT_SOURCES
     self.list     = {}
     self.idCounter = 0
+    self.phaseStack = {}
     desk:bindGame(self)
     self:resetContent()
 end
@@ -219,6 +241,42 @@ function M:fire(name, ...)
         error('时机名必须是非空字符串', 2)
     end
     return self.events:fire(name, ...)
+end
+
+--- 进入一个回合阶段（返回的阶段可以当 `<close>` 用：作用域结束就离开）
+---@param player Player # 这个阶段属于谁
+---@param name string # 阶段名（内核当成不透明字符串）
+---@return Phase
+function M:enterPhase(player, name)
+    if type(name) ~= 'string' or name == '' then
+        error('阶段名必须是非空字符串', 2)
+    end
+    local phase = New 'Phase' (self, player, name)
+    self.phaseStack[#self.phaseStack + 1] = phase
+    self.phase = phase
+    self:fire('阶段-开始', phase)
+    return phase
+end
+
+--- 离开这个阶段（阶段自己用：`<close>` 或 `Delete(阶段)`）
+---@param phase Phase
+function M:leavePhase(phase)
+    if self.phase ~= phase then
+        error('阶段只能按嵌套顺序离开', 2)
+    end
+    self:fire('阶段-结束', phase)
+    self.phaseStack[#self.phaseStack] = nil
+    self.phase = self.phaseStack[#self.phaseStack]
+end
+
+--- 这次使用要记在哪个阶段上（只在自己的阶段里记，别人的阶段里不记）
+---@param user Player
+---@return Phase? # 要记账的阶段（不记就是空）
+function M:getUsePhase(user)
+    local phase = self.phase
+    if phase and phase.player == user then
+        return phase
+    end
 end
 
 ---@param name string
@@ -534,6 +592,14 @@ function M:canUse(user, card, targets)
             if not moe.util.arrayHas(legal, target) then
                 return false, '「{}」不能以这个角色为目标' % { def.fullName }
             end
+        end
+    end
+
+    local phase = self:getUsePhase(user)
+    if phase then
+        local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
+        if phase:getUseCount(name) >= limit then
+            return false, '本阶段已经用过「{}」了' % { name }
         end
     end
 

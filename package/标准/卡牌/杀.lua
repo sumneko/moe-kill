@@ -2,6 +2,7 @@
 -- 出牌阶段，对你攻击范围内的一名其他角色使用：该角色需打出一张【闪】来抵消，否则受到你造成的 1 点伤害。
 
 Card '杀'
+    : limit('出牌', 1)
     : on('获取目标', function (ctx)
         local desk  = game.desk
         local range = ctx.user:getAttr('攻击范围')

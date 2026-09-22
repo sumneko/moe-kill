@@ -69,6 +69,14 @@ Card '测试杀'
     end)
 ]]
 
+local LIMITED = [[
+Card '测试杀'
+    : limit('测试阶段', 1)
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]]
+
 lt.test('校验：能用的牌给出合法目标', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
@@ -139,6 +147,57 @@ lt.test('校验：没声明「获取目标」⇒ 用不了', function ()
 
     lt.assertEquals('用不了', false, ok)
     lt.assertEquals('原因是「没声明获取目标」', '「探针.测试杀」没有声明「获取目标」，现在用不了', reason)
+end)
+
+lt.test('校验：本阶段用满额度 ⇒ 用不了，且不问内容侧', function ()
+    local guard <close> = useProbe()
+    local run = newGame(LIMITED)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local asked = 0
+    run.game:on('卡牌-能否使用', function ()
+        asked = asked + 1
+    end)
+
+    local phase <close> = run.game:enterPhase(run.user, '测试阶段')
+
+    lt.assertEquals('第一次能用', true, (run.game:canUse(run.user, card, run.target)))
+    lt.assertEquals('内建通过后问了内容侧一次', 1, asked)
+
+    phase:addUseCount('测试杀', 1)
+
+    local ok, reason = run.game:canUse(run.user, card, run.target)
+    lt.assertEquals('用满了就用不了', false, ok)
+    lt.assertEquals('原因是「本阶段已经用过」', '本阶段已经用过「测试杀」了', reason)
+    lt.assertEquals('内建不过就不问内容侧', 1, asked)
+
+    phase:addLimit('测试杀', 1)
+    lt.assertEquals('加了上限就又能用了', true, (run.game:canUse(run.user, card, run.target)))
+    lt.assertEquals('又能用之后照样会问内容侧', 2, asked)
+end)
+
+lt.test('校验：阶段不属于使用者 ⇒ 不按次数拦', function ()
+    local guard <close> = useProbe()
+    local run = newGame(LIMITED)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local phase <close> = run.game:enterPhase(run.target, '测试阶段')   -- 阶段是别人的
+    phase:addUseCount('测试杀', 5)
+
+    lt.assertEquals('别人的阶段里用多少都不拦', true, (run.game:canUse(run.user, card, run.target)))
+    lt.assertEquals('也不记在别人的阶段上', 5, phase:getUseCount('测试杀'))
+end)
+
+lt.test('校验：不在任何阶段里 ⇒ 不按次数拦', function ()
+    local guard <close> = useProbe()
+    local run = newGame(LIMITED)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    lt.assertEquals('当前没有阶段', nil, run.game.phase)
+    lt.assertEquals('阶段外不受次数限制', true, (run.game:canUse(run.user, card, run.target)))
 end)
 
 lt.test('校验：「获取目标」没返回列表 ⇒ 用不了', function ()

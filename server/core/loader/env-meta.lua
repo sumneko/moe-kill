@@ -15,6 +15,8 @@ Depends = nil
 ---@class CardDef # 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(ctx: CardDef.TargetCtx): Player[]): CardDef
 ---@field on fun(self: CardDef, event: '生效', handler: fun(ctx: CardEffect)): CardDef
+---@field limit fun(self: CardDef, phase: string, count: integer): CardDef # 声明这个阶段里最多用几次（没声明 = 1000）
+---@field getLimit fun(self: CardDef, phase: string): integer
 
 ---@class CardDef.TargetCtx # 「获取目标」的上下文：这次想用哪张牌（还没定目标）
 ---@field user Player # 使用者
@@ -24,10 +26,6 @@ Depends = nil
 
 ---@class Game.EventCtx.回合 # 回合级时机：谁是回合角色
 ---@field player Player # 回合角色
-
----@class Game.EventCtx.阶段 # 阶段级时机：谁是回合角色、哪个阶段
----@field player Player # 回合角色
----@field phase string # 阶段名（准备 / 判定 / 摸牌 / 出牌 / 弃牌 / 结束）
 
 ---@class Game.EventCtx.卡牌能否使用 # 这张牌此刻能不能用：返回非 nil 值即否决（返回值就是原因）
 ---@field user Player # 使用者
@@ -71,10 +69,10 @@ Depends = nil
 ---@field fire fun(self: Game, name: '回合-开始', ctx: Game.EventCtx.回合): any
 ---@field on fun(self: Game, name: '回合-结束', callback: fun(ctx: Game.EventCtx.回合): any): function
 ---@field fire fun(self: Game, name: '回合-结束', ctx: Game.EventCtx.回合): any
----@field on fun(self: Game, name: '阶段-开始', callback: fun(ctx: Game.EventCtx.阶段): any): function
----@field fire fun(self: Game, name: '阶段-开始', ctx: Game.EventCtx.阶段): any
----@field on fun(self: Game, name: '阶段-结束', callback: fun(ctx: Game.EventCtx.阶段): any): function
----@field fire fun(self: Game, name: '阶段-结束', ctx: Game.EventCtx.阶段): any
+---@field on fun(self: Game, name: '阶段-开始', callback: fun(ctx: Phase): any): function
+---@field fire fun(self: Game, name: '阶段-开始', ctx: Phase): any
+---@field on fun(self: Game, name: '阶段-结束', callback: fun(ctx: Phase): any): function
+---@field fire fun(self: Game, name: '阶段-结束', ctx: Phase): any
 ---@field on fun(self: Game, name: '决策-询问', callback: fun(ctx: Ask): any): function
 ---@field fire fun(self: Game, name: '决策-询问', ctx: Ask): any
 ---@field on fun(self: Game, name: '决策-答复', callback: fun(ctx: Ask): any): function

@@ -40,16 +40,15 @@ end
 local function runTurn(player)
     game.turnPlayer = player
     game:fire('回合-开始', { player = player })
-    for _, phase in ipairs(PHASES) do
-        game:fire('阶段-开始', { player = player, phase = phase })
-        if phase == '摸牌' then
+    for _, name in ipairs(PHASES) do
+        local _ <close> = game:enterPhase(player, name)
+        if name == '摸牌' then
             game:draw(player, DRAW_COUNT)
-        elseif phase == '出牌' then
+        elseif name == '出牌' then
             playPhase(player)
-        elseif phase == '弃牌' then
+        elseif name == '弃牌' then
             discardPhase(player)
         end
-        game:fire('阶段-结束', { player = player, phase = phase })
     end
     game:fire('回合-结束', { player = player })
     game.turnPlayer = nil

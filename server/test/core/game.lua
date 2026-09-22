@@ -210,6 +210,22 @@ lt.test('牌区：没绑定随机源的有序牌区洗牌要传随机源', funct
     lt.assertEquals('传了随机源就能洗', 1, zone:count())
 end)
 
+lt.test('定义：阶段限额随定义走，没声明就是 1000', function ()
+    local game = moe.game.create {
+        desk     = moe.desk.create(4),
+        random   = moe.random.create(1),
+        packages = { '标准' },
+    }
+
+    lt.assertEquals('标准包的【杀】声明了出牌阶段限一次', 1, game:getCard('杀'):getLimit('出牌'))
+    lt.assertEquals('没声明过的阶段是 1000', 1000, game:getCard('杀'):getLimit('摸牌'))
+    lt.assertEquals('别的牌没声明就是 1000', 1000, game:getCard('闪'):getLimit('出牌'))
+
+    game:getCard('杀'):limit('出牌', 2)
+
+    lt.assertEquals('后写的覆盖先写的', 2, game:getCard('杀'):getLimit('出牌'))
+end)
+
 lt.test('局：建局时装好规则', function ()
     local game = moe.game.create {
         desk     = moe.desk.create(4),

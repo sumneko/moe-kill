@@ -95,6 +95,73 @@ Card '测试杀'
     lt.assertEquals('收尾时机也拿得到目标', target, settledTarget)
 end)
 
+lt.test('使用：自己的阶段里用一次就记一次账', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    local phase <close> = game:enterPhase(user, '出牌')
+
+    lt.assertEquals('用之前是 0', 0, phase:getUseCount('测试杀'))
+
+    lt.assertFailed('不能对自己用', game:useCard(user, card, { user }))
+    lt.assertEquals('失败的使用不记账', 0, phase:getUseCount('测试杀'))
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('用一次记一次', 1, phase:getUseCount('测试杀'))
+    lt.assertEquals('别的牌名不受影响', 0, phase:getUseCount('闪'))
+end)
+
+lt.test('使用：阶段不是使用者的就不记账', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    local phase <close> = game:enterPhase(target, '出牌')   -- 阶段是 2 号位的
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('不记在别人的阶段上', 0, phase:getUseCount('测试杀'))
+end)
+
+lt.test('使用：离开阶段之后用牌不记账', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    local phase = game:enterPhase(user, '出牌')
+    Delete(phase)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('阶段已经离开，账还是 0', 0, phase:getUseCount('测试杀'))
+end)
+
 lt.test('使用：目标给单个或一张列表都行', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[

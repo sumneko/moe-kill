@@ -29,7 +29,14 @@ function M:settle()
         self:reject(reason)
     end
 
-    local def = self.game:getCard(self.card:getLabel())
+    local name = self.card:getLabel()
+    ---@cast name string
+    local phase = self.game:getUsePhase(self.user)
+    if phase then
+        phase:addUseCount(name, 1)
+    end
+
+    local def = self.game:getCard(name)
     ---@cast def CardDef
     local zone, index = self.user:findCard(self.card)
     ---@cast zone Zone

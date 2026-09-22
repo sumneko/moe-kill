@@ -100,10 +100,10 @@ lt.test('回合：首回合从主公开始，六个阶段依次走完', function
                 firstPlayer = firstPlayer or ctx.player
             end)
             run.game:on('阶段-开始', function (ctx)
-                marks[#marks+1] = '开始:' .. ctx.phase
+                marks[#marks+1] = '开始:' .. ctx.name
             end)
             run.game:on('阶段-结束', function (ctx)
-                marks[#marks+1] = '结束:' .. ctx.phase
+                marks[#marks+1] = '结束:' .. ctx.name
             end)
         end,
         answer    = endPhase(),
@@ -320,15 +320,68 @@ lt.test('回合：【杀】每出牌阶段限一次，阶段外不受限', funct
     hand:put(first)
     hand:put(second)
 
-    run.game:fire('阶段-开始', { player = user, phase = '出牌' })
+    do
+        local _ <close> = run.game:enterPhase(user, '出牌')
 
-    lt.assertEquals('阶段里第一张能用', true, (run.game:canUse(user, first, target)))
-    run.game:useCard(user, first, { target })
+        lt.assertEquals('阶段里第一张能用', true, (run.game:canUse(user, first, target)))
+        run.game:useCard(user, first, { target })
 
-    local ok, reason = run.game:canUse(user, second, target)
-    lt.assertEquals('用过一张之后第二张就用不了了', false, ok)
-    lt.assertEquals('原因是「本阶段已经用过」', '本阶段已经用过「杀」了', reason)
+        local ok, reason = run.game:canUse(user, second, target)
+        lt.assertEquals('用过一张之后第二张就用不了了', false, ok)
+        lt.assertEquals('原因是「本阶段已经用过」', '本阶段已经用过「杀」了', reason)
+        lt.assertEquals('用过的那张记在阶段上', 1, assert(run.game.phase):getUseCount('杀'))
+    end
 
-    run.game:fire('阶段-结束', { player = user, phase = '出牌' })
     lt.assertEquals('阶段结束就不受限了', true, (run.game:canUse(user, second, target)))
+end)
+
+lt.test('回合：【杀】的两种放宽度各走阶段实例的接口', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local hand   = assert(user:getZone('手牌'), '没有手牌区')
+    ---@type Card[]
+    local cards = {}
+    for i = 1, 4 do
+        cards[i] = run.game:createCard('杀')
+        hand:put(cards[i])
+    end
+
+    local phase <close> = run.game:enterPhase(user, '出牌')
+
+    run.game:useCard(user, cards[1], { target })
+    lt.assertEquals('用满一张就用不了了', false, (run.game:canUse(user, cards[2], target)))
+
+    phase:addUseCount('杀', -1)
+    lt.assertEquals('退回一次就又能用了（此杀不计入次数）', true, (run.game:canUse(user, cards[2], target)))
+
+    run.game:useCard(user, cards[2], { target })
+    lt.assertEquals('再满额又用不了了', false, (run.game:canUse(user, cards[3], target)))
+
+    phase:addLimit('杀', 1)
+    lt.assertEquals('上限加 1 就又能用了（可以多用一次）', true, (run.game:canUse(user, cards[3], target)))
+
+    run.game:useCard(user, cards[3], { target })
+    lt.assertEquals('加过的额度也会用光', false, (run.game:canUse(user, cards[4], target)))
+
+    phase:addLimit('杀', 1000)
+    lt.assertEquals('加 1000 就是事实上不限次数', true, (run.game:canUse(user, cards[4], target)))
+end)
+
+lt.test('回合：别人的回合里用【杀】不计数也不受限', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local hand   = assert(user:getZone('手牌'), '没有手牌区')
+    local card   = run.game:createCard('杀')
+    hand:put(card)
+
+    local phase <close> = run.game:enterPhase(target, '出牌')   -- 阶段是 2 号位的
+    phase:addUseCount('杀', 5)
+
+    lt.assertEquals('别人的阶段里不受次数限制', true, (run.game:canUse(user, card, target)))
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('也不记在别人的阶段上', 5, phase:getUseCount('杀'))
 end)
