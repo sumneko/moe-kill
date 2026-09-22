@@ -220,6 +220,8 @@ lt.test('定义：阶段限额随定义走，没声明就是 1000', function ()
     lt.assertEquals('标准包的【杀】声明了出牌阶段限一次', 1, game:getCard('杀'):getLimit('出牌'))
     lt.assertEquals('没声明过的阶段是 1000', 1000, game:getCard('杀'):getLimit('摸牌'))
     lt.assertEquals('别的牌没声明就是 1000', 1000, game:getCard('闪'):getLimit('出牌'))
+    lt.assertEquals('【杀】从基本牌模板继承来了分类', true, game:getCard('杀'):isKind('基本'))
+    lt.assertEquals('【杀】从基本牌模板继承来了牌区', '手牌', game:getCard('杀'):getZone())
 
     game:getCard('杀'):limit('出牌', 2)
 

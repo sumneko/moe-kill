@@ -17,6 +17,12 @@ Depends = nil
 ---@field on fun(self: CardDef, event: '生效', handler: fun(ctx: CardEffect)): CardDef
 ---@field limit fun(self: CardDef, phase: string, count: integer): CardDef # 声明这个阶段里最多用几次（没声明 = 1000）
 ---@field getLimit fun(self: CardDef, phase: string): integer
+---@field kind fun(self: CardDef, name: string): CardDef # 加一个分类（可多次调；取值省略「牌」字：基本 / 锦囊 / 装备）
+---@field isKind fun(self: CardDef, name: string): boolean
+---@field getKinds fun(self: CardDef): string[]
+---@field zone fun(self: CardDef, zone: string): CardDef # 必须从哪个牌区用（不声明 = 使用者任一牌区都行）
+---@field getZone fun(self: CardDef): string?
+---@field extends fun(self: CardDef, name: string): CardDef # 把基类定义的钩子与字段抖过来（基类的钩子跑在前面）
 
 ---@class CardDef.TargetCtx # 「获取目标」的上下文：这次想用哪张牌（还没定目标）
 ---@field user Player # 使用者

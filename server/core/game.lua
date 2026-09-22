@@ -3,23 +3,31 @@
 ---@field public package string # 所属包名（显式写 public：否则 package 会被当成访问修饰符）
 ---@field fullName string # 完整名（包名.名字）
 ---@field source string # 声明它的文件（逻辑路径）
+---@field private game Game # 所属的局（`extends` 按名字取基类时要用）
 ---@field private handlers table<string, function[]>
 ---@field private limits table<string, integer> # 每个阶段最多用几次
+---@field private kinds string[] # 分类（可多条，按声明顺序）
+---@field private kindSet table<string, true> # 分类去重用
+---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 local CardDef = Class 'CardDef'
 
 ---@type integer # 没声明限额时的兜底：事实上的「不限次数」
 local DEFAULT_LIMIT = 1000
 
+---@param game Game
 ---@param name string
 ---@param owner string
 ---@param source string
-function CardDef:__init(name, owner, source)
+function CardDef:__init(game, name, owner, source)
+    self.game     = game
     self.name     = name
     self.package  = owner
     self.fullName = owner .. '.' .. name
     self.source   = source
     self.handlers = {}
     self.limits   = {}
+    self.kinds    = {}
+    self.kindSet  = {}
 end
 
 ---@param event string
@@ -60,6 +68,76 @@ end
 ---@return integer # 没声明过就是 1000（事实上不限次数）
 function CardDef:getLimit(phase)
     return self.limits[phase] or DEFAULT_LIMIT
+end
+
+--- 给这张牌加一个分类（可以多次调；同一个名字重复写只算一次）
+---@param name string # 分类名（内核不解释取值）
+---@return CardDef
+function CardDef:kind(name)
+    if not self.kindSet[name] then
+        self.kindSet[name] = true
+        self.kinds[#self.kinds + 1] = name
+    end
+    return self
+end
+
+--- 这张牌是不是这个分类
+---@param name string
+---@return boolean
+function CardDef:isKind(name)
+    return self.kindSet[name] == true
+end
+
+---@return string[] # 分类列表（快照，按声明顺序）
+function CardDef:getKinds()
+    ---@type string[]
+    local snapshot = {}
+    table.move(self.kinds, 1, #self.kinds, 1, snapshot)
+    return snapshot
+end
+
+--- 声明这张牌必须从哪个牌区用（重复调以后写的为准）
+---@param zone string # 牌区名（内容侧约定，内核不解释）
+---@return CardDef
+function CardDef:zone(zone)
+    self.useZone = zone
+    return self
+end
+
+--- 这张牌必须从哪个牌区用
+---@return string? # 没声明就是空（使用者的任一牌区都行）
+function CardDef:getZone()
+    return self.useZone
+end
+
+--- 把另一个定义的钩子与字段抖过来（基类的钩子跑在前面；抖完就与基类脱钩）
+---@param name string # 基类定义的名字（支持限定名）
+---@return CardDef
+function CardDef:extends(name)
+    local base = self.game:getCard(name)
+    if not base then
+        error('找不到要继承的定义「{}」' % { name }, 2)
+    end
+    for event, list in pairs(base.handlers) do
+        ---@type function[]
+        local merged = {}
+        table.move(list, 1, #list, 1, merged)
+        local own = self.handlers[event]
+        if own then
+            table.move(own, 1, #own, #merged + 1, merged)
+        end
+        self.handlers[event] = merged
+    end
+    for _, kind in ipairs(base.kinds) do
+        self:kind(kind)
+    end
+    if base.useZone then
+        self.useZone = base.useZone
+    end
+    for phase, count in pairs(base.limits) do
+        self.limits[phase] = count
+    end
+    return self
 end
 ---@param name string
 ---@param level integer
@@ -301,7 +379,7 @@ function M:declareCard(name)
     if existing then
         error('同一个包里重复声明了 {}：{} 与 {}' % { name, existing.source, ctx.current }, 2)
     end
-    local def = New 'CardDef' (name, owner, ctx.current)
+    local def = New 'CardDef' (self, name, owner, ctx.current)
     cards[name] = def
     return def
 end
@@ -573,8 +651,13 @@ function M:canUse(user, card, targets)
     if not def then
         return false, '没有叫「{}」的内容定义' % { name }
     end
-    if not user:findCard(card) then
+    local zone = user:findCard(card)
+    if not zone then
         return false, '使用者手上没有这张牌'
+    end
+    local useZone = def:getZone()
+    if useZone and zone ~= user:getZone(useZone) then
+        return false, '「{}」只能从「{}」里用' % { def.fullName, useZone }
     end
     local legal, reason = collectLegalTargets(def, user, card)
     if not legal then

@@ -77,6 +77,22 @@ Card '测试杀'
     end)
 ]]
 
+local FROM_HAND = [[
+Card '测试杀'
+    : zone '手牌'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]]
+
+local NO_SUCH_ZONE = [[
+Card '测试杀'
+    : zone '没有这个区'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]]
+
 lt.test('校验：能用的牌给出合法目标', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
@@ -198,6 +214,46 @@ lt.test('校验：不在任何阶段里 ⇒ 不按次数拦', function ()
 
     lt.assertEquals('当前没有阶段', nil, run.game.phase)
     lt.assertEquals('阶段外不受次数限制', true, (run.game:canUse(run.user, card, run.target)))
+end)
+
+lt.test('校验：声明了牌区 ⇒ 必须从那个区里用', function ()
+    local guard <close> = useProbe()
+    local run = newGame(FROM_HAND)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    lt.assertEquals('在声明的手牌区里就能用', true, (run.game:canUse(run.user, card, run.target)))
+
+    local other = moe.zone.create()
+    run.user:addZone('装备', other)
+    other:put(run.hand:take(1))
+
+    local ok, reason = run.game:canUse(run.user, card, run.target)
+    lt.assertEquals('挪到别的区就用不了', false, ok)
+    lt.assertEquals('原因是「只能从那里用」', '「探针.测试杀」只能从「手牌」里用', reason)
+end)
+
+lt.test('校验：使用者没有声明里那个牌区 ⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame(NO_SUCH_ZONE)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local ok, reason = run.game:canUse(run.user, card, run.target)
+
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('原因点名那个区', '「探针.测试杀」只能从「没有这个区」里用', reason)
+end)
+
+lt.test('校验：没声明牌区 ⇒ 在使用者任一牌区里都能用', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+    local other = moe.zone.create()
+    run.user:addZone('装备', other)
+    other:put(card)
+
+    lt.assertEquals('别的区里照样能用', true, (run.game:canUse(run.user, card, run.target)))
 end)
 
 lt.test('校验：「获取目标」没返回列表 ⇒ 用不了', function ()
