@@ -8,16 +8,21 @@ require 'core.effect'
 ---@field card Card
 ---@field targets? Player[] # 这张牌的可用目标（省略 = 那就不该给目标，如「打出」）
 
+---@class AskCard.Condition # 要什么样的牌（内核据此在被问者的牌区里算出合法选项）
+---@field name? string # 牌名（省略 = 不限）
+---@field targets? Player[] # 目标窗口：只收「能用在这组人身上」的牌（空表 = 只要求「至少有一个合法目标」）；省略 = 不要求目标
+
 ---@class AskCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内核不解释，原样带给规则层）
----@field options? AskCard.Option[] # 合法选项（不给 = 不做限制）
+---@field condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
 
 ---@class AskCard : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
----@field options? AskCard.Option[] # 合法选项（答复必须落在里面）
+---@field condition? AskCard.Condition # 要什么样的牌
+---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
 ---@field card? Card # 答复给出的那张牌（= `.result.card`）
 ---@field targets? Player[] # 答复指定的目标（= `.result.targets`；恒为一张列表）
 ---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
@@ -28,13 +33,13 @@ Extends('AskCard', 'Effect')
 ---@param game Game
 ---@param to Player
 ---@param reason string
----@param options AskCard.Option[]?
-function M:__init(game, to, reason, options)
-    self.game    = game
-    self.kind    = 'askCard'
-    self.to      = to
-    self.reason  = reason
-    self.options = options
+---@param condition AskCard.Condition?
+function M:__init(game, to, reason, condition)
+    self.game      = game
+    self.kind      = 'askCard'
+    self.to        = to
+    self.reason    = reason
+    self.condition = condition
 end
 
 --- 目标统一成一张列表
@@ -50,6 +55,56 @@ local function toTargetList(targets)
     end
     ---@cast targets Player[]
     return targets
+end
+
+--- 按条件看这张牌算不算一个合法选项
+---@param game Game
+---@param to Player
+---@param card Card
+---@param condition AskCard.Condition
+---@return AskCard.Option? # 不算就返回空
+local function optionOf(game, to, card, condition)
+    local name = condition.name
+    if name and card:getLabel() ~= name then
+        return nil
+    end
+    local window = condition.targets
+    if not window then
+        return { card = card }
+    end
+    if #window == 0 then
+        local ok, _, legal = game:canUse(to, card)
+        if not ok then
+            return nil
+        end
+        return { card = card, targets = legal }
+    end
+    if not game:canUse(to, card, window) then
+        return nil
+    end
+    return { card = card, targets = window }
+end
+
+--- 按条件在被问者名下每个牌区里算出合法选项
+---@param game Game
+---@param to Player
+---@param condition AskCard.Condition?
+---@return AskCard.Option[]? # 没给条件就是空 = 不做限制
+local function collectOptions(game, to, condition)
+    if not condition then
+        return nil
+    end
+    ---@type AskCard.Option[]
+    local options = {}
+    for _, zone in ipairs(to:getZones()) do
+        for _, card in ipairs(zone:list()) do
+            local option = optionOf(game, to, card, condition)
+            if option then
+                options[#options + 1] = option
+            end
+        end
+    end
+    return options
 end
 
 --- 答复是否落在合法选项里
@@ -118,9 +173,10 @@ M.__getter.targets = function (self)
     return self.result?.targets
 end
 
---- 把询问交给应答方（答复一到，结果就定下了）
+--- 把询问交给应答方（选项先摆好；答复一到，结果就定下了）
 ---@async
 function M:settle()
+    self.options = collectOptions(self.game, self.to, self.condition)
     self.game:fire('卡牌-询问', self)
 
     if not self.result then
@@ -137,5 +193,5 @@ moe.askCard = {}
 ---@param options AskCard.CreateOptions
 ---@return AskCard
 function moe.askCard.create(options)
-    return New 'AskCard' (options.game, options.to, options.reason, options.options)
+    return New 'AskCard' (options.game, options.to, options.reason, options.condition)
 end

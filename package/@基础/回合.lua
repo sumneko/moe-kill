@@ -4,37 +4,18 @@ local DRAW_COUNT = 2
 ---@type integer # 一个出牌阶段最多出这么多次（规则上可能有能无限用牌的技能，这里是终止条件）
 local MAX_PLAY_COUNT = 1000
 
----@param player Player
----@return AskCard.Option[] # 此刻能用的牌与各自的可用目标
-local function usableOptions(player)
-    local hand = assert(player:getZone('手牌'), '这个玩家没有手牌区')
-    ---@type AskCard.Option[]
-    local options = {}
-    for _, card in ipairs(hand:list()) do
-        local ok, _, legalTargets = game:canUse(player, card)
-        if ok then
-            options[#options + 1] = { card = card, targets = legalTargets }
-        end
-    end
-    return options
-end
+---@type AskCard.Condition # 只要能用的牌（空表 = 只要求「至少有一个合法目标」，选项带各自的可用目标）
+local PLAY_PHASE_CONDITION = { targets = {} }
 
 ---@param player Player
 local function playPhase(player)
     for _ = 1, MAX_PLAY_COUNT do
-        local options = usableOptions(player)
-        if #options == 0 then
-            return
-        end
-        local ask  = game:askCard(player, '出牌', options)
+        local ask  = game:askCard(player, '出牌', PLAY_PHASE_CONDITION)
         local card = ask.card
         if not card then
             return
         end
-        local used = game:useCard(player, card, ask.targets or {})
-        if used.err then
-            return
-        end
+        game:useCard(player, card, ask.targets or {})
     end
 end
 

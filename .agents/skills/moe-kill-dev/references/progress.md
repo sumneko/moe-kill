@@ -1,14 +1,14 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-22 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **383 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **385 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
 ```
 moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属性 / 分身份）
   → game:runFlow()（回合流程：准备→判定→摸牌→出牌→弃牌→结束）
-  → 出牌阶段：game:canUse 筛出「能用的牌 + 各自可用目标」→ game:askCard(player, '出牌', 选项)
+  → 出牌阶段：game:askCard(player, '出牌', { targets = {} })（内核按条件筛出手牌里能用的牌 + 各自可用目标）
   → game:useCard（canUse 二次校验 → 取出牌 → 逐目标 CardEffect 生效）
   → 伤害 / 回复（内核只发时机，扣血 / 回血写在 @基础）
   → 濒死求桃 → 死亡 → 身份场胜负判定 → game:endGame 收掉流程
@@ -29,7 +29,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ `ask` / `ask-card` / `move-card` / `damage` / `heal` / `draw` / `dying`；**嵌套上限 `Effect.MAX_DEPTH = 150`**（安全阀：超了那一层以「取消」收尾 + `warn`，不算失败；实测再深进程会直接没）
 - 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目）/ `useCard` / `askCard` / `ask` / `moveCard` / `damage` / `heal` / `draw` / `enterDying` / `endGame` / `runFlow` / `registerFlow`
 - **事件的快速返回**（2026-09-22）：时机回调**明确返回非 nil 值就停下、跳过之后的事件**，`game:fire` 把它交回调用方（落在 `tools/simple-event.lua`，记账在 `infrastructure.md`）；规则侧因此约定**疑问式事件名（能否…）= 期望返回值的事件**
-- **询问带合法选项**（2026-09-22）：`game:askCard(被问者, 缘由, 选项?)` —— 选项（`{ card, targets? }[]`）由发起方算好，内核只持有并**校验「答复 ∈ 选项」**（不在就拒收：`.err` = 原因、`.card` 不存在）；不绐选项 = 不做限制
+- **询问带合法选项**（2026-09-22）：`game:askCard(被问者, 缘由, 条件?)` —— 条件是 `AskCard.Condition`（`name?` 牌名 + `targets?` 目标窗口）；**内核在询问前遍历被问者的牌区、按条件算出 `ask.options`**（条件里给了 `targets` 就跑 `canUse`，于是内容侧的 `'卡牌-能否使用'` 条目一并生效；`targets = {}` 空表 = 只要求「至少有一个合法目标」；省略 `targets` = 不要求目标、不跑 `canUse`）；**答复必须落在选项里**（不在就拒收：`.err` = 原因、`.card` 不存在）；不给条件 = 不做限制。业务层三处调用点都是一行（`'出牌'` / `'打出'` / 求桃）
 - 时机 21 个 —— 清单见 `references/architecture.md` 第 10 节与 `server/core/loader/env-meta.lua`
 
 ## 2 下一步：待用户挑（**尚未开工**）

@@ -335,15 +335,15 @@ end
 
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
----@param options? AskCard.Option[] # 合法选项（答复必须落在里面；不给 = 不做限制）
+---@param condition? AskCard.Condition # 要什么样的牌（内核据此在被问者的牌区里算出 `ask.options`；省略 = 不做限制）
 ---@return AskCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
 ---@async
-function M:askCard(to, reason, options)
+function M:askCard(to, reason, condition)
     local ask = moe.askCard.create {
-        game    = self,
-        to      = to,
-        reason  = reason,
-        options = options,
+        game      = self,
+        to        = to,
+        reason    = reason,
+        condition = condition,
     }
     ask:apply():await()
     return ask

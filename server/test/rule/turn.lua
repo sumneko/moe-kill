@@ -273,9 +273,10 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
 
     state.task:await()
 
-    lt.assertEquals('只问了一次（用完一张【杀】之后选项就空了）', 1, #offered)
-    lt.assertEquals('选项里没有用不了的【闪】', false, offered[1]:find('闪', 1, true) ~= nil)
-    lt.assertEquals('选项里是【杀】', true, offered[1]:find('^杀', 1) ~= nil)
+    lt.assertEquals('问了两次（第二次选项已空，答复方就此收手）', 2, #offered)
+    lt.assertEquals('第一次的选项里没有用不了的【闪】', false, offered[1]:find('闪', 1, true) ~= nil)
+    lt.assertEquals('第一次的选项里是【杀】', true, offered[1]:find('^杀', 1) ~= nil)
+    lt.assertEquals('用完一张【杀】之后第二次的选项空了', '', offered[2])
 
     local lost = 0
     for _, player in ipairs(state.run.desk.alivePlayers) do
