@@ -1,7 +1,7 @@
 local PHASES = { '准备', '判定', '摸牌', '出牌', '弃牌', '结束' }
 local DRAW_COUNT = 2
 
----@type integer # 一个出牌阶段最多问这么多次（兜住应答方一直给用不了的牌）
+---@type integer # 一个出牌阶段最多出这么多次（规则上可能有能无限用牌的技能，这里是终止条件）
 local MAX_PLAY_COUNT = 1000
 
 ---@param player Player

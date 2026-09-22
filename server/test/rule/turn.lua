@@ -244,7 +244,7 @@ lt.test('回合：阵亡的角色不再得到回合', function ()
     lt.assertEquals('2 号位阵亡者被跳过，轮到 3 号位', state.run.players[3], started[2])
 end)
 
-lt.test('回合：出牌阶段一直答用不了的牌也不会卡死', function ()
+lt.test('回合：出牌阶段问满上限就结束，不会一直问下去', function ()
     ---@type Zone?
     local hand = nil
     local state = startTurn {
