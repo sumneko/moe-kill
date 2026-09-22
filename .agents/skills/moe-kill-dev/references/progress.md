@@ -26,7 +26,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 **内核现状**（`server/core/`）
 
 - 对象：`Card` / `Zone` / `OrderedZone` / `Attributes` / `Random` / `Desk` / `Player` / `Game` / `Event`
-- 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ `ask` / `ask-card` / `move-card` / `damage` / `heal` / `draw` / `dying`
+- 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ `ask` / `ask-card` / `move-card` / `damage` / `heal` / `draw` / `dying`；**嵌套上限 `Effect.MAX_DEPTH = 150`**（安全阀：超了那一层以「取消」收尾 + `warn`，不算失败；实测再深进程会直接没）
 - 局上的入口：`game:useCard` / `askCard` / `ask` / `moveCard` / `damage` / `heal` / `draw` / `enterDying` / `endGame` / `runFlow` / `registerFlow`
 - 时机 20 个 —— 清单见 `references/architecture.md` 第 12 节与 `server/core/loader/env-meta.lua`
 

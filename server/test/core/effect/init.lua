@@ -48,6 +48,31 @@ lt.test('效果：没有结算时没有根', function ()
     lt.assertEquals('还没有发起过结算', 0, #game:getEffects())
 end)
 
+lt.test('效果：嵌套太深的那一层以「取消」收尾，不算失败也不报错', function ()
+    local game = newGame(1)
+    lt.clearErrors()
+
+    ---@type Effect? # 撞上限的那一层
+    local over = nil
+
+    -- 手工把外层「垫」得很深：它里起的那一层就超限了（不跟具体上限绑死，也不必真造几百层）
+    local outer = New 'ProbeEffect' (game, '外层')
+    outer.deep = 100000
+    outer.settle = function (self)
+        over = New 'ProbeEffect' (self.game, '太深了')
+        over:apply():await()
+        return '外层照常结完'
+    end
+    outer:apply():await()
+
+    local deep = assert(over, '没有起出更深的层')
+    lt.assertEquals('以「取消」收尾', moe.task.CANCELED, deep.err)
+    lt.assertEquals('没有结果', nil, deep.result)
+    lt.assertEquals('不算失败（没进错误处理器）', 0, #lt.errors)
+    lt.assertEquals('外层照常结完', '外层照常结完', outer.result)
+    lt.assertEquals('只记根，内层不单独记', 1, #game:getEffects())
+end)
+
 lt.test('效果：结算期间是根，结束就清掉', function ()
     local game, players = newGame(2)
 
@@ -196,25 +221,6 @@ lt.test('效果：结算中抛错也退栈', function ()
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
     lt.assertEquals('体力没变（错误发生在改体力之前）', 4, players[2]:getAttr('体力'))
     lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):match(':%d+:') ~= nil)
-end)
-
-lt.test('效果：嵌套过深被拒绝', function ()
-    local game, players = newGame(2)
-
-    ---@type integer
-    local depth = 0
-
-    game:on('伤害-前', function ()
-        depth = depth + 1
-        if depth < 200 then
-            game:damage(players[1], players[2], 0)
-        end
-    end)
-
-    game:damage(players[1], players[2], 0)
-
-    lt.assertEquals('第 101 层发动不了，就停在这一层', 100, depth)
-    lt.assertEquals('只记根，内层不单独记', 1, #game:getEffects())
 end)
 
 lt.test('效果：即将生效的订阅者能取消这一次生效', function ()

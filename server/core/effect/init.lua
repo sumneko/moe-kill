@@ -11,6 +11,9 @@ Extends(M, 'GCHost')
 
 M.deep = 1
 
+---@type integer # 效果最多嵌套多少层（安全阀：实测再深一点进程会直接没，见 references/architecture.md 第 12 节）
+M.MAX_DEPTH = 150
+
 ---@param game Game
 function M:__init(game)
     self.kind  = 'effect'
@@ -45,8 +48,9 @@ function M:apply()
         local flush <close> = moe.util.defer(function () self.game:flushDying() end)
         if parent then
             parent:addChildEffect(self)
-            if self.deep > 100 then
-                error('效果嵌套过深', 2)
+            if self.deep > M.MAX_DEPTH then
+                log.warn('效果嵌套超过 {} 层，这次生效没有结算' % { M.MAX_DEPTH })
+                self.task:cancel()
             end
         else
             self.game:addEffect(self)
