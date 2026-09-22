@@ -211,11 +211,12 @@ end
 
 ---@param name string
 ---@param ... any
+---@return any # 第一个回调明确给出的返回值（快速返回）；没人给就是空
 function M:fire(name, ...)
     if type(name) ~= 'string' or name == '' then
         error('时机名必须是非空字符串', 2)
     end
-    self.events:fire(name, ...)
+    return self.events:fire(name, ...)
 end
 
 ---@param name string
@@ -334,15 +335,15 @@ end
 
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
----@param condition any # 匹配条件：要什么样的牌（空表 = 任意牌；内核不解释）
+---@param options? AskCard.Option[] # 合法选项（答复必须落在里面；不给 = 不做限制）
 ---@return AskCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
 ---@async
-function M:askCard(to, reason, condition)
+function M:askCard(to, reason, options)
     local ask = moe.askCard.create {
-        game      = self,
-        to        = to,
-        reason    = reason,
-        condition = condition,
+        game    = self,
+        to      = to,
+        reason  = reason,
+        options = options,
     }
     ask:apply():await()
     return ask
@@ -437,26 +438,116 @@ function M:draw(player, count)
     return draw
 end
 
+---@param targets Player|Player[]
+---@return Player[] # 目标列表（单个也包成表）
+local function toPlayerList(targets)
+    if Type(targets) ~= nil then
+        ---@cast targets Player
+        return { targets }
+    end
+    ---@cast targets Player[]
+    return targets
+end
+
+---@param def CardDef
+---@param user Player
+---@param card Card
+---@return Player[]? # 各声明取交集后的合法目标
+---@return any # 不成立的原因
+local function collectLegalTargets(def, user, card)
+    local handlers = def:getHandlers('获取目标')
+    if #handlers == 0 then
+        return nil, '「{}」没有声明「获取目标」，现在用不了' % { def.fullName }
+    end
+    local ctx = { user = user, card = card }
+    ---@type Player[]?
+    local legal = nil
+    for _, handler in ipairs(handlers) do
+        local list = handler(ctx)
+        if type(list) ~= 'table' then
+            return nil, '「{}」的「获取目标」必须返回合法目标列表' % { def.fullName }
+        end
+        if legal then
+            ---@type Player[]
+            local narrowed = {}
+            for _, player in ipairs(legal) do
+                if moe.util.arrayHas(list, player) then
+                    narrowed[#narrowed + 1] = player
+                end
+            end
+            legal = narrowed
+        else
+            ---@type Player[]
+            local copied = {}
+            table.move(list, 1, #list, 1, copied)
+            legal = copied
+        end
+    end
+    if not legal or #legal == 0 then
+        return nil, '「{}」现在没有合法目标' % { def.fullName }
+    end
+    return legal
+end
+
+--- 这张牌此刻能不能用；能用就给合法目标
+---@param user Player # 使用者
+---@param card Card # 要用的牌
+---@param targets? Player|Player[] # 要校验的目标（省略 = 只判「此刻能不能用」）
+---@return boolean # 能用吗
+---@return any # 不能用的原因
+---@return Player[]? # 能用时的合法目标
+function M:canUse(user, card, targets)
+    local name = card:getLabel()
+    if type(name) ~= 'string' then
+        return false, '这张牌没有牌名，查不到内容定义'
+    end
+    local def = self:getCard(name)
+    if not def then
+        return false, '没有叫「{}」的内容定义' % { name }
+    end
+    if not user:findCard(card) then
+        return false, '使用者手上没有这张牌'
+    end
+    local legal, reason = collectLegalTargets(def, user, card)
+    if not legal then
+        return false, reason
+    end
+
+    ---@type Player[]?
+    local list = nil
+    if targets ~= nil then
+        list = toPlayerList(targets)
+        if #list == 0 then
+            return false, '「{}」至少要指定一个目标' % { def.fullName }
+        end
+        for _, target in ipairs(list) do
+            if not moe.util.arrayHas(legal, target) then
+                return false, '「{}」不能以这个角色为目标' % { def.fullName }
+            end
+        end
+    end
+
+    local refusal = self:fire('卡牌-能否使用', { user = user, card = card, targets = list })
+    if refusal ~= nil then
+        if refusal == false then
+            refusal = '这张牌现在不能使用'
+        end
+        return false, refusal
+    end
+    return true, nil, legal
+end
+
 ---@async
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
 ---@param targets Player|Player[] # 目标：单个或列表（空表 = 没指定目标）
 ---@return UseCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
 function M:useCard(user, card, targets)
-    ---@type Player[]
-    local list = {}
-    if Type(targets) ~= nil then
-        ---@cast targets Player
-        list[1] = targets
-    else
-        ---@cast targets Player[]
-        list = targets
-    end
     local effect = moe.useCard.create {
         game    = self,
         user    = user,
         card    = card,
-        targets = list,
+        targets = toPlayerList(targets),
     }
     effect:apply():await()
     return effect

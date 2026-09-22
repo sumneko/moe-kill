@@ -18,7 +18,16 @@ game:on('濒死', function (dying)
     local player  = dying.player
     local current = player
     while player:getAttr('体力') < 1 do
-        local card = game:askCard(current, '使用', { name = '桃' }).card
+        local hand = assert(current:getZone('手牌'), '这个玩家没有手牌区')
+        ---@type AskCard.Option[]
+        local options = {}
+        for _, card in ipairs(hand:list()) do
+            if card:getLabel() == '桃' and game:canUse(current, card, { player }) then
+                options[#options + 1] = { card = card, targets = { player } }
+            end
+        end
+        ---@type Card?
+        local card = game:askCard(current, '使用', options).card
         if card then
             game:useCard(current, card, { player })
         else

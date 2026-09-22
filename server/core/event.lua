@@ -20,12 +20,15 @@ end
 
 ---@param name string
 ---@param ... any
+---@return any # 第一个回调明确给出的返回值（快速返回）；没人给就是空
 function M:fire(name, ...)
     local instance = self.events[name]
     if not instance then
         return
     end
-    instance:fire(...)
+    ---@type any
+    local result = instance:fire(...)
+    return result
 end
 
 ---@param name string

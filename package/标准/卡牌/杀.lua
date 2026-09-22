@@ -12,8 +12,15 @@ Card '杀'
     end)
     : on('生效', function (ctx)
         local target = ctx.target
-        local card   = game:askCard(target, '打出', { name = '闪' }).card
-        if card then
+        local hand   = assert(target:getZone('手牌'), '这个目标没有手牌区')
+        ---@type AskCard.Option[]
+        local options = {}
+        for _, card in ipairs(hand:list()) do
+            if card:getLabel() == '闪' then
+                options[#options + 1] = { card = card }
+            end
+        end
+        if game:askCard(target, '打出', options).card then
             return
         end
         game:damage(ctx.user, target, 1)

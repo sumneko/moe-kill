@@ -28,6 +28,24 @@ local function scripted(answers)
     end
 end
 
+--- 从这次询问的合法选项里挑第一个，目标只取第一个（客户端会这么答）
+---@param ask AskCard
+---@return AskCard.Answer?
+function M.pickFirst(ask)
+    local options = ask.options
+    if not options then
+        return nil
+    end
+    local option = options[1]
+    if not option then
+        return nil
+    end
+    if option.targets then
+        return { card = option.card, targets = { assert(option.targets[1]) } }
+    end
+    return { card = option.card }
+end
+
 ---@param options Test.RuleSupport.StartOptions
 ---@return Test.RuleSupport
 function M.start(options)

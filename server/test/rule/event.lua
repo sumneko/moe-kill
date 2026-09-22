@@ -151,3 +151,90 @@ lt.test('时机：同一个时机在多个文件里注册也按加载顺序执�
 
     lt.assertEquals('按文件加载顺序注册', '一二', ctx.order)
 end)
+
+lt.test('快速返回：回调明确返回了返回值就跳过之后的事件，并以它为准', function ()
+    local guard <close> = prepare()
+    write('甲/空.lua', 'Card("占位")')
+    load(list('甲'))
+
+    ---@type string[]
+    local ran = {}
+    game:on('游戏-开始', function ()
+        ran[#ran + 1] = '第一个'
+        return false
+    end)
+    game:on('游戏-开始', function ()
+        ran[#ran + 1] = '第二个'
+    end)
+
+    local result = game:fire('游戏-开始', {})
+
+    lt.assertEquals('后面的回调没跑', '第一个', table.concat(ran, ','))
+    lt.assertEquals('返回值就是那次返回', false, result)
+end)
+
+lt.test('快速返回：没人返回值时照常全部触发', function ()
+    local guard <close> = prepare()
+    write('甲/空.lua', 'Card("占位")')
+    load(list('甲'))
+
+    ---@type string[]
+    local ran = {}
+    game:on('游戏-开始', function ()
+        ran[#ran + 1] = '第一个'
+    end)
+    game:on('游戏-开始', function ()
+        ran[#ran + 1] = '第二个'
+    end)
+
+    local result = game:fire('游戏-开始', {})
+
+    lt.assertEquals('两个都跑了', '第一个,第二个', table.concat(ran, ','))
+    lt.assertEquals('没人返回值 ⇒ 结果是空', nil, result)
+end)
+
+lt.test('快速返回：回调报错不算「明确返回」，也不打断其余回调', function ()
+    local guard <close> = prepare()
+    write('甲/空.lua', 'Card("占位")')
+    load(list('甲'))
+    lt.expectErrors(1)
+
+    ---@type string[]
+    local ran = {}
+    game:on('游戏-开始', function ()
+        ran[#ran + 1] = '报错的'
+        error('故意报错')
+    end)
+    game:on('游戏-开始', function ()
+        ran[#ran + 1] = '后面的'
+        return '后面的结论'
+    end)
+
+    local result = game:fire('游戏-开始', {})
+
+    lt.assertEquals('报错的那条被隔离，后面的照常跑', '报错的,后面的', table.concat(ran, ','))
+    lt.assertEquals('结果来自没报错的那条', '后面的结论', result)
+end)
+
+lt.test('快速返回：嵌套触发互不串', function ()
+    local guard <close> = prepare()
+    write('甲/空.lua', 'Card("占位")')
+    load(list('甲'))
+
+    ---@type any
+    local inner = nil
+    local depth = 0
+    game:on('游戏-开始', function ()
+        if depth > 0 then
+            return '内层'
+        end
+        depth = depth + 1
+        inner = game:fire('游戏-开始', {})
+        return '外层'
+    end)
+
+    local outer = game:fire('游戏-开始', {})
+
+    lt.assertEquals('内层拿到自己的结果', '内层', inner)
+    lt.assertEquals('外层拿到自己的结果', '外层', outer)
+end)

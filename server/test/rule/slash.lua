@@ -136,3 +136,20 @@ lt.test('杀：应答方不给牌时照常结算，不会挂住', function ()
 
     lt.assertEquals('没答上 ⇒ 照常受伤', 4, target:getAttr('体力'))
 end)
+
+lt.test('杀：目标答一张不是【闪】的牌会被拒收，等于没打出', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeSlash(run, user)
+    local other  = takeCard(run, target, '杀')      -- 手上真有张【杀】，但它不是这次的选项
+
+    run.game:on('卡牌-询问', function (ask)
+        ask:answer { card = other }
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('没答上【闪】⇒ 照常受伤', 4, target:getAttr('体力'))
+    lt.assertEquals('那张【杀】还留在手上', 1, target:getZone('手牌'):count())
+end)

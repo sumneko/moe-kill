@@ -36,7 +36,10 @@ end
 
 function M:fire(...)
     for _, callback in ipairs(self.events) do
-        xpcall(callback, self.onError, ...)
+        local results = table.pack(xpcall(callback, self.onError, ...))
+        if results[1] and results[2] ~= nil then
+            return table.unpack(results, 2, results.n)
+        end
     end
 end
 

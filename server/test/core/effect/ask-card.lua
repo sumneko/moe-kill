@@ -40,12 +40,23 @@ local function answerWith(game, answers)
     end)
 end
 
+---@param cards Card[] # 把这些牌做成合法选项（不带目标）
+---@return AskCard.Option[]
+local function optionsOf(cards)
+    ---@type AskCard.Option[]
+    local options = {}
+    for i, card in ipairs(cards) do
+        options[i] = { card = card }
+    end
+    return options
+end
+
 lt.test('询问：一次往返', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     answerWith(game, { jink })
 
-    local ask = game:askCard(players[2], nil, { name = '闪' })
+    local ask = game:askCard(players[2], nil, optionsOf { jink })
 
     lt.assertEquals('拿到应答方给出的牌', jink, ask.card)
 end)
@@ -63,28 +74,32 @@ lt.test('询问：答复带上目标（单个或一张列表）', function ()
         end
     end)
 
-    local single = game:askCard(players[1], '测试', {})
+    ---@type AskCard.Option[] # 两个目标都可以打
+    local options = { { card = jink, targets = { players[2], players[3] } } }
+
+    local single = game:askCard(players[1], '测试', options)
     lt.assertEquals('牌读得到', jink, single.card)
     local one = assert(single.targets)
     lt.assertEquals('单个目标也归一成列表', 1, #one)
     lt.assertEquals('列表里就是那个目标', players[2], one[1])
 
-    local many = game:askCard(players[1], '测试', {})
+    local many = game:askCard(players[1], '测试', options)
     lt.assertEquals('目标读得到（一张列表）', 2, #assert(many.targets))
 end)
 
-lt.test('询问：被问者与答复挂在询问上，父效果是发起它的那个', function ()
+lt.test('询问：被问者与选项挂在询问上，父效果是发起它的那个', function ()
     local game, players = newGame(2)
+    local jink = game:createCard('闪')
 
     ---@type AskCard?
     local asked = nil
     game:on('卡牌-询问', function (ask)
         asked = ask
-        ask:answer { card = game:createCard('闪') }
+        ask:answer { card = jink }
     end)
 
     game:on('伤害-前', function ()
-        game:askCard(players[2], '测试', { name = '闪' })
+        game:askCard(players[2], '测试', optionsOf { jink })
     end)
 
     game:damage(players[1], players[2], 1)
@@ -92,7 +107,7 @@ lt.test('询问：被问者与答复挂在询问上，父效果是发起它的�
     local ask = assert(asked, '应答方没被问到')
     lt.assertEquals('种类标识', 'askCard', ask.kind)
     lt.assertEquals('被问者', players[2], ask.to)
-    lt.assertEquals('要什么牌', '闪', ask.condition.name)
+    lt.assertEquals('合法选项挂在询问上', jink, assert(ask.options)[1].card)
     lt.assertEquals('缘由也挂在询问上', '测试', ask.reason)
     lt.assertEquals('答复里有牌', true, ask.card ~= nil)
     lt.assertEquals('父效果是发起它的那次伤害', 'damage', assert(ask.parent).kind)
@@ -107,8 +122,8 @@ lt.test('询问：同一结算里问多次互不串', function ()
     ---@type table<integer, Card>
     local answers = {}
     game:on('伤害-前', function ()
-        answers[#answers + 1] = game:askCard(players[2], nil, { name = '闪' }).card
-        answers[#answers + 1] = game:askCard(players[3], nil, { name = '闪' }).card
+        answers[#answers + 1] = game:askCard(players[2], nil, optionsOf { first }).card
+        answers[#answers + 1] = game:askCard(players[3], nil, optionsOf { second }).card
     end)
 
     game:damage(players[1], players[2], 1)
@@ -119,9 +134,10 @@ end)
 
 lt.test('询问：没人应答时没有答复，也不算失败', function ()
     local game, players = newGame(2)
+    local jink = game:createCard('闪')
     lt.clearErrors()
 
-    local ask = game:askCard(players[2], nil, { name = '闪' })
+    local ask = game:askCard(players[2], nil, optionsOf { jink })
 
     lt.assertEquals('没有答复', nil, ask.card)
     lt.assertEquals('不算失败', nil, ask.err)
@@ -138,7 +154,7 @@ lt.test('询问：重复应答不报错，先答的算数', function ()
     end)
     lt.clearErrors()
 
-    local ask = game:askCard(players[2], nil, { name = '闪' })
+    local ask = game:askCard(players[2], nil, optionsOf { first, second })
     lt.assertEquals('先答的算数', first, ask.card)
     lt.assertEquals('不算失败', nil, ask.err)
     lt.assertEquals('没有记下错误', 0, #lt.errors)
@@ -153,12 +169,13 @@ lt.test('询问：应答方可以让出，稍后再答复', function ()
         ask:answer { card = jink }
     end)
 
-    lt.assertEquals('答复照旧拿到', jink, game:askCard(players[2], nil, { name = '闪' }).card)
+    lt.assertEquals('答复照旧拿到', jink, game:askCard(players[2], nil, optionsOf { jink }).card)
 end)
 
 lt.test('询问：被取消的询问以「没有答复」结束，结算其余部分照常', function ()
     local game, players = newGame(2)
-    answerWith(game, { game:createCard('闪') })
+    local jink = game:createCard('闪')
+    answerWith(game, { jink })
 
     ---@type string[]
     local trace = {}
@@ -170,7 +187,7 @@ lt.test('询问：被取消的询问以「没有答复」结束，结算其余�
     end)
     game:on('伤害-前', function ()
         trace[#trace + 1] = '前'
-        local card = game:askCard(players[2], nil, { name = '闪' }).card
+        local card = game:askCard(players[2], nil, optionsOf { jink }).card
         trace[#trace + 1] = '答复 {}' % { tostring(card) }
     end)
 
@@ -195,12 +212,13 @@ lt.test('答复：有答复才触发答复时机，上下文是这次询问', fu
         atFire[fired]   = ctx.card
     end)
 
-    game:askCard(players[2], nil, { name = '闪' })
+    local jink = game:createCard('闪')
+
+    game:askCard(players[2], nil, optionsOf { jink })
     lt.assertEquals('没人应答就不触发', 0, #seen)
 
-    local jink = game:createCard('闪')
     answerWith(game, { jink })
-    local answered = game:askCard(players[2], nil, { name = '闪' })
+    local answered = game:askCard(players[2], nil, optionsOf { jink })
     lt.assertEquals('有人应答触发了一次', 1, #seen)
     lt.assertEquals('上下文就是这次询问', answered, seen[1])
     lt.assertEquals('读到的答复', jink, seen[1].card)
@@ -214,7 +232,7 @@ lt.test('答复：缘由是「打出」时基础规则把牌送进弃牌', funct
     hand:put(jink)
     answerWith(game, { jink })
 
-    local ask = game:askCard(players[2], '打出', { name = '闪' })
+    local ask = game:askCard(players[2], '打出', optionsOf { jink })
 
     lt.assertEquals('答复拿到了', jink, ask.card)
     lt.assertEquals('答复的牌也挂在询问上', jink, ask.card)
@@ -230,8 +248,66 @@ lt.test('答复：缘由不是「打出」时基础规则不接管', function ()
     hand:put(jink)
     answerWith(game, { jink })
 
-    game:askCard(players[2], '交出', { name = '闪' })
+    game:askCard(players[2], '交出', optionsOf { jink })
 
     lt.assertEquals('牌还在手上', 1, hand:count())
     lt.assertEquals('弃牌还是空的', 0, assert(game:getZone('弃牌')):count())
+end)
+
+lt.test('询问：答复不在可选项里时拒收，原因记在 `.err`', function ()
+    local game, players = newGame(2)
+    local jink  = game:createCard('闪')
+    local other = game:createCard('闪')
+    answerWith(game, { other })
+
+    local ask = game:askCard(players[2], nil, optionsOf { jink })
+
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
+end)
+
+lt.test('询问：答复要与选项一致（目标该给、不该给、不能给外的）', function ()
+    local game, players = newGame(3)
+    local jink  = game:createCard('闪')
+    local plain = game:createCard('闪')
+
+    ---@type AskCard.Option[] # 这张牌只能打给 2 号位
+    local withTarget = { { card = jink, targets = { players[2] } } }
+    ---@type AskCard.Option[] # 这张牌不看目标
+    local withoutTarget = { { card = plain } }
+
+    ---@type table<integer, AskCard.Answer>
+    local replies = {
+        [1] = { card = jink },                            -- 选项要目标，却没给
+        [2] = { card = jink, targets = { players[3] } },  -- 给了选项外的目标
+        [3] = { card = plain, targets = { players[2] } }, -- 选项不要目标，却给了
+    }
+    local index = 0
+    game:on('卡牌-询问', function (ask)
+        index = index + 1
+        ask:answer(replies[index])
+    end)
+
+    local missing = game:askCard(players[1], '测试', withTarget)
+    lt.assertEquals('没给目标 ⇒ 没答复', nil, missing.card)
+    lt.assertEquals('原因是「要给出目标」', '这次答复要给出目标', missing.err)
+
+    local outside = game:askCard(players[1], '测试', withTarget)
+    lt.assertEquals('目标不在选项里 ⇒ 没答复', nil, outside.card)
+    lt.assertEquals('原因是「目标不在可选项里」', '答复的目标不在可选项里', outside.err)
+
+    local extra = game:askCard(players[1], '测试', withoutTarget)
+    lt.assertEquals('多给目标 ⇒ 没答复', nil, extra.card)
+    lt.assertEquals('原因是「不该给目标」', '这次答复不该给目标', extra.err)
+end)
+
+lt.test('询问：不给选项就不做限制', function ()
+    local game, players = newGame(2)
+    local anything = game:createCard('随便')
+    answerWith(game, { anything })
+
+    local ask = game:askCard(players[2], nil, nil)
+
+    lt.assertEquals('照样收下答复', anything, ask.card)
+    lt.assertEquals('不算失败', nil, ask.err)
 end)

@@ -1,0 +1,249 @@
+local fs = require 'bee.filesystem'
+local lt = require 'test.ltest'
+
+local probeDir = moe.env.ROOT_PATH / 'tmp' / 'can-use-probe'
+
+---@param rel string
+---@param content string
+local function write(rel, content)
+    local file = probeDir / rel
+    fs.create_directories(file:parent_path())
+    local ok, err = moe.util.saveFile(file:string(), content)
+    assert(ok, err)
+end
+
+---@return unknown # 配 <close> 用
+local function useProbe()
+    fs.remove_all(probeDir)
+    fs.create_directories(probeDir)
+    return moe.util.defer(function ()
+        fs.remove_all(probeDir)
+    end)
+end
+
+---@class Test.CanUse
+---@field game Game
+---@field user Player # 1 号位（使用者）
+---@field target Player # 2 号位（目标）
+---@field hand Zone # 使用者的手牌区
+
+---@param cardSource string # 探针包里的牌定义
+---@return Test.CanUse
+local function newGame(cardSource)
+    write('探针/牌.lua', cardSource)
+    local desk = moe.desk.create(2)
+    local game = moe.game.create {
+        desk     = desk,
+        random   = moe.random.create(1),
+        sources  = { probeDir:string() .. '/*' },
+        packages = { '探针' },
+    }
+    local attributeSystem = game:getAttributeSystem()
+    attributeSystem:define('体力', {
+        min    = -999999,
+        max    = 999999,
+        simple = true,
+    })
+    ---@type Player[]
+    local players = {}
+    for i = 1, 2 do
+        local player = moe.player.create { attributes = attributeSystem:createInstance() }
+        desk:sit(i, player)
+        player:setAttr('体力', 4)
+        players[i] = player
+    end
+    local hand = moe.zone.create()
+    players[1]:addZone('手牌', hand)
+    return {
+        game   = game,
+        user   = players[1],
+        target = players[2],
+        hand   = hand,
+    }
+end
+
+local SIMPLE = [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]]
+
+lt.test('校验：能用的牌给出合法目标', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local ok, reason, legal = run.game:canUse(run.user, card)
+
+    lt.assertEquals('能用', true, ok)
+    lt.assertEquals('没有原因', nil, reason)
+    lt.assertEquals('给出合法目标', run.target, assert(legal)[1])
+end)
+
+lt.test('校验：没给目标时只判「能不能用」，给了目标就连目标一起判', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    lt.assertEquals('目标给单个也行', true, (run.game:canUse(run.user, card, run.target)))
+    lt.assertEquals('目标给列表也行', true, (run.game:canUse(run.user, card, { run.target })))
+    lt.assertEquals('目标为空 ⇒ 用不了', false, (run.game:canUse(run.user, card, {})))
+    lt.assertEquals('目标不合法 ⇒ 用不了', false, (run.game:canUse(run.user, card, { run.user })))
+end)
+
+lt.test('校验：牌没牌名 ⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = moe.card.create()   -- 局上造的牌必须给牌名，这里直接造一张没牌名的
+    run.hand:put(card)
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('原因是「没有牌名」', '这张牌没有牌名，查不到内容定义', reason)
+end)
+
+lt.test('校验：没有内容定义 ⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('没有这张牌')
+    run.hand:put(card)
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('原因里有牌名', '没有叫「没有这张牌」的内容定义', reason)
+end)
+
+lt.test('校验：牌不在使用者手上 ⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('原因是「手上没有」', '使用者手上没有这张牌', reason)
+end)
+
+lt.test('校验：没声明「获取目标」⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame("Card '测试杀'")
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('原因是「没声明获取目标」', '「探针.测试杀」没有声明「获取目标」，现在用不了', reason)
+end)
+
+lt.test('校验：「获取目标」没返回列表 ⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame([[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        ctx.user:setTag('问过', true)
+    end)
+]])
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('原因是「必须返回列表」', '「探针.测试杀」的「获取目标」必须返回合法目标列表', reason)
+    lt.assertEquals('钩子确实跑过', true, run.user:getTag('问过'))
+end)
+
+lt.test('校验：合法目标为空 ⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame([[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return {}
+    end)
+]])
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('原因是「没有合法目标」', '「探针.测试杀」现在没有合法目标', reason)
+end)
+
+lt.test('校验：多个「获取目标」取交集', function ()
+    local guard <close> = useProbe()
+    local run = newGame([[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return game.desk.players
+    end)
+    : on('获取目标', function (ctx)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local ok, _, legal = run.game:canUse(run.user, card)
+    local list = assert(legal)
+
+    lt.assertEquals('能用', true, ok)
+    lt.assertEquals('只剩交集里的那个', 1, #list)
+    lt.assertEquals('交集里是 2 号位', run.target, list[1])
+end)
+
+lt.test('校验：内容侧条目可以否决（返回值就是原因）', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    ---@type Card[] # 条目看到的那些牌
+    local seen = {}
+    run.game:on('卡牌-能否使用', function (ctx)
+        seen[#seen + 1] = ctx.card
+        if ctx.card == card then
+            return '这张现在不许用'
+        end
+    end)
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('被否决', false, ok)
+    lt.assertEquals('返回值就是原因', '这张现在不许用', reason)
+    lt.assertEquals('条目看到了要用的牌', card, seen[1])
+end)
+
+lt.test('校验：条目只返回 false 时给一句通用原因', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+    run.game:on('卡牌-能否使用', function ()
+        return false
+    end)
+
+    local ok, reason = run.game:canUse(run.user, card)
+
+    lt.assertEquals('被否决', false, ok)
+    lt.assertEquals('原因是通用的一句', '这张牌现在不能使用', reason)
+end)
+
+lt.test('校验：跑校验不进记牌器、也不改状态', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+    run.hand:put(card)
+
+    local ok = run.game:canUse(run.user, card, { run.target })
+
+    lt.assertEquals('能用', true, ok)
+    lt.assertEquals('记牌器还是空的', 0, #run.game:getEffects())
+    lt.assertEquals('牌还在手上', 1, run.hand:count())
+end)

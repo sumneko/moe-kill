@@ -105,6 +105,16 @@ function M:remove()
     Delete(self)
 end
 
+--- 让这次生效以「不成立」收尾：原因记进 `.err`（不是报错），并就地停住执行体
+---@param reason any # 不成立的原因
+function M:reject(reason)
+    local task = assert(self.task, '效果还没有发动')
+    task:reject(reason)
+    if moe.task.getCurrentTask() == task then
+        coroutine.yield()
+    end
+end
+
 --- 结算这次效果：返回值就是这次结算的结果
 function M:settle()
     error('效果子类必须实现 settle', 2)

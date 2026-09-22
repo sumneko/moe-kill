@@ -35,8 +35,9 @@ local function startTurn(options)
 
     run.game:on('回合-结束', function ()
         state.turns = state.turns + 1
-        if options.stopAfter and state.task and state.turns >= options.stopAfter then
-            state.task:cancel()
+        if options.stopAfter and state.turns >= options.stopAfter then
+            moe.await.sleep(0)
+            assert(state.task):cancel()
         end
     end)
     run.game:on('卡牌-询问', function (ask)
@@ -244,23 +245,89 @@ lt.test('回合：阵亡的角色不再得到回合', function ()
     lt.assertEquals('2 号位阵亡者被跳过，轮到 3 号位', state.run.players[3], started[2])
 end)
 
-lt.test('回合：出牌阶段问满上限就结束，不会一直问下去', function ()
+lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就不再问', function ()
+    ---@type string[] # 每次询问时选项里的牌名
+    local offered = {}
+    local state = startTurn {
+        setup = function (run)
+            local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
+            for _ = 1, 3 do
+                hand:put(run.game:createCard('杀'))
+            end
+            hand:put(run.game:createCard('闪'))       -- 【闪】没声明「获取目标」⇒ 用不了
+            run.game:on('卡牌-询问', function (ask)
+                if ask.reason ~= '出牌' then
+                    return
+                end
+                ---@type string[]
+                local names = {}
+                for _, option in ipairs(assert(ask.options)) do
+                    names[#names + 1] = assert(option.card:getLabel())
+                end
+                offered[#offered + 1] = table.concat(names, ',')
+            end)
+        end,
+        answer    = support.pickFirst,
+        stopAfter = 1,
+    }
+
+    state.task:await()
+
+    lt.assertEquals('只问了一次（用完一张【杀】之后选项就空了）', 1, #offered)
+    lt.assertEquals('选项里没有用不了的【闪】', false, offered[1]:find('闪', 1, true) ~= nil)
+    lt.assertEquals('选项里是【杀】', true, offered[1]:find('^杀', 1) ~= nil)
+
+    local lost = 0
+    for _, player in ipairs(state.run.desk.alivePlayers) do
+        lost = lost + (player:getAttr('体力上限') - player:getAttr('体力'))
+    end
+    lt.assertEquals('一共掉 1 点血（一个选项里的目标被打中）', 1, lost)
+    lt.assertEquals('用掉的那张进了弃牌', 1, assert(state.run.game:getZone('弃牌')):count())
+end)
+
+lt.test('回合：答复不在选项里 ⇒ 拒收，阶段就此结束', function ()
+    ---@type Card?
+    local jink = nil
     ---@type Zone?
     local hand = nil
     local state = startTurn {
         setup = function (run)
             hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
-            hand:put(run.game:createCard('闪'))     -- 【闪】没声明「获取目标」⇒ 拿它出牌必然失败
+            jink = run.game:createCard('闪')
+            hand:put(jink)
         end,
-        answer = function (ask)
-            local card = assert(ask.to:getZone('手牌'), '被问者没有手牌区'):list()[1]
-            return { card = card }                  -- 每次都答同一张（且不给目标）
+        answer = function ()
+            return { card = assert(jink) }              -- 乱答一张不在选项里的
         end,
         stopAfter = 1,
     }
 
     state.task:await()
 
-    lt.assertEquals('一个回合正常跑完了（不是卡在这儿）', 1, state.turns)
-    lt.assertEquals('那张用不了的牌一次也没用出去（摸 2 + 那张闪）', 3, assert(hand):count())
+    lt.assertEquals('回合照常跑完', 1, state.turns)
+    lt.assertEquals('乱答的那张没被用出去（摸 2 + 那张闪）', 3, assert(hand):count())
+    lt.assertEquals('弃牌还是空的', 0, assert(state.run.game:getZone('弃牌')):count())
+end)
+
+lt.test('回合：【杀】每出牌阶段限一次，阶段外不受限', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local hand   = assert(user:getZone('手牌'), '没有手牌区')
+    local first  = run.game:createCard('杀')
+    local second = run.game:createCard('杀')
+    hand:put(first)
+    hand:put(second)
+
+    run.game:fire('阶段-开始', { player = user, phase = '出牌' })
+
+    lt.assertEquals('阶段里第一张能用', true, (run.game:canUse(user, first, target)))
+    run.game:useCard(user, first, { target })
+
+    local ok, reason = run.game:canUse(user, second, target)
+    lt.assertEquals('用过一张之后第二张就用不了了', false, ok)
+    lt.assertEquals('原因是「本阶段已经用过」', '本阶段已经用过「杀」了', reason)
+
+    run.game:fire('阶段-结束', { player = user, phase = '出牌' })
+    lt.assertEquals('阶段结束就不受限了', true, (run.game:canUse(user, second, target)))
 end)
