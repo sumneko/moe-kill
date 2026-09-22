@@ -48,6 +48,26 @@ lt.test('效果：没有结算时没有根', function ()
     lt.assertEquals('还没有发起过结算', 0, #game:getEffects())
 end)
 
+lt.test('操作上限：一个回合里起的结算太多就报错，重置后又从头算', function ()
+    local game, players = newGame(1)
+
+    local function ask()
+        game:askCard(players[1], '测试', {})
+    end
+
+    for _ = 1, 1000 do
+        ask()
+    end
+    lt.assertError('第 1001 次要报错（防内容写死循环）', ask)
+
+    game:resetOperations()
+    for _ = 1, 1000 do
+        ask()
+    end
+    lt.assertEquals('重置后又整跑了一轮（没被拦下）', 2000, #game:getEffects())
+    lt.assertError('再超一次照样报错', ask)
+end)
+
 lt.test('效果：结算期间是根，结束就清掉', function ()
     local game, players = newGame(2)
 

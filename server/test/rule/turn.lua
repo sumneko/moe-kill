@@ -243,3 +243,41 @@ lt.test('回合：阵亡的角色不再得到回合', function ()
     lt.assertEquals('第一个回合是主公', state.run.players[1], started[1])
     lt.assertEquals('2 号位阵亡者被跳过，轮到 3 号位', state.run.players[3], started[2])
 end)
+
+lt.test('回合：操作计数每个回合重新开始', function ()
+    ---@type integer[] # 每个回合开始那一刻的操作数
+    local seen = {}
+    local state = startTurn {
+        setup = function (run)
+            run.game:on('回合-开始', function ()
+                ---@diagnostic disable-next-line: invisible
+                seen[#seen + 1] = run.game.operations
+            end)
+        end,
+        answer    = endPhase(),
+        stopAfter = 2,
+    }
+
+    advance(state, 2)
+
+    lt.assertEquals('第一个回合开始时是 0', 0, seen[1])
+    lt.assertEquals('第二个回合开始时又回到 0（不累积）', 0, seen[2])
+end)
+
+lt.test('回合：出牌阶段一直答用不了的牌会撞上操作上限，而不是卡死', function ()
+    local state = startTurn {
+        setup = function (run)
+            local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
+            hand:put(run.game:createCard('闪'))     -- 【闪】没声明「获取目标」⇒ 拿它出牌必然失败
+        end,
+        answer = function (ask)
+            local card = assert(ask.to:getZone('手牌'), '被问者没有手牌区'):list()[1]
+            return { card = card }                  -- 每次都答同一张（且不给目标）
+        end,
+    }
+
+    state.task:await()
+
+    lt.assertNotEquals('流程以失败收尾（不是永远转下去）', nil, state.task.err)
+    lt.assertEquals('报的正是操作上限', true, tostring(state.task.err):find('操作超过', 1, true) ~= nil)
+end)

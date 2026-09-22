@@ -122,7 +122,11 @@ end
 ---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
 ---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
+---@field private operations integer # 这一回合已经起过多少次结算（防内容写死循环）
 local M = Class 'Game'
+
+---@type integer # 一个回合里最多允许起多少次结算（超了就是死循环）
+M.MAX_OPERATIONS = 1000
 
 ---@param desk Desk
 ---@param random Random
@@ -134,6 +138,7 @@ function M:__init(desk, random)
     self.zoneMap  = {}
     self.effects  = {}
     self.dyingPending = {}
+    self.operations   = 0
     self.sources  = moe.loader.DEFAULT_SOURCES
     self.list     = {}
     desk:bindGame(self)
@@ -465,6 +470,19 @@ end
 ---@param effect Effect
 function M:addEffect(effect)
     self.effects[#self.effects + 1] = effect
+end
+
+--- 记一次操作（每起一次结算算一次）—— 超过一个回合的上限就是死循环，报错
+function M:countOperation()
+    self.operations = self.operations + 1
+    if self.operations > M.MAX_OPERATIONS then
+        error('这一个回合的操作超过 {} 次（像是死循环）' % { M.MAX_OPERATIONS }, 0)
+    end
+end
+
+--- 重置本回合的操作计数（回合开始时由内容侧调）
+function M:resetOperations()
+    self.operations = 0
 end
 
 ---@return Effect? # 最近发起过的那个根效果

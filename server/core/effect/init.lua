@@ -39,6 +39,7 @@ function M:apply()
     end
     local parent = moe.task.getCurrentTask()?.context.effect
     self.parent = parent
+    self.game:countOperation()
     self.task = moe.task.create { effect = self }
 
     self.task:execute(function ()
