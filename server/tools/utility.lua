@@ -1692,7 +1692,7 @@ end
 ---空表不认为是严格数组。
 ---@param t table
 ---@return boolean
-function m.isStrictArray(t)
+function m.isStrictList(t)
     if t[1] == nil then
         return false
     end
@@ -1708,15 +1708,17 @@ function m.isStrictArray(t)
     return true
 end
 
----把一个值统一成列表：列表原样返回（空表也是空列表）、单个值包成一张表、给 nil 还是 nil（可选参数用「不存在」表达「没给」）。
 ---@generic T
----@param value T|T[]|nil
----@return T[]?
+---@param value T|T[]
+---@return T[] # 不会返回空：nil 不属于它管（可选参数在上层自己判断）
 function m.toList(value)
-    if value == nil then
-        return nil
+    if type(value) ~= 'table' then
+        return { value }
     end
-    if type(value) == 'table' and (m.isStrictArray(value) or next(value) == nil) then
+    if not next(value) then
+        return value
+    end
+    if m.isStrictList(value) then
         return value
     end
     return { value }

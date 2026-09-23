@@ -103,7 +103,11 @@ local function answerProblem(options, answer)
     end
     for _, option in ipairs(options) do
         if option.card == answer.card then
-            local targets = moe.util.toList(answer.targets)
+            ---@type Player[]?
+            local targets = nil
+            if answer.targets ~= nil then
+                targets = moe.util.toList(answer.targets)
+            end
             if not option.targets then
                 if targets then
                     return '这次答复不该给目标'
@@ -139,9 +143,14 @@ function M:answer(value)
         self.task:reject(problem)
         return
     end
+    ---@type Player[]?
+    local targets = nil
+    if value.targets ~= nil then
+        targets = moe.util.toList(value.targets)
+    end
     self.task:resolve {
         card    = value.card,
-        targets = moe.util.toList(value.targets),
+        targets = targets,
     }
 end
 
