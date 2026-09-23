@@ -528,18 +528,17 @@ function M:ask(to, reason, question)
     return ask
 end
 
---- 把牌挪到某个牌区（给一串就依次经过，停在最后一站）
+--- 把牌挪到某个牌区
 ---@async
 ---@param card Card|Card[] # 要挪的牌（单张或一批）
----@param zone string|string[]|Zone|Zone[] # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找）
+---@param zone string|Zone # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找）
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
 function M:moveCard(card, zone)
     local cards = moe.util.toList(card)
-    local zones = moe.util.toList(zone)
     local effect = moe.moveCard.create {
         game  = self,
         cards = cards,
-        zones = zones,
+        zone  = zone,
     }
     effect:apply():await()
     return effect
