@@ -67,6 +67,12 @@ Depends = nil
 ---@field fire fun(self: Game, name: '回复-后', ctx: Heal): any
 ---@field on fun(self: Game, name: '摸牌', callback: fun(ctx: Draw): any): function
 ---@field fire fun(self: Game, name: '摸牌', ctx: Draw): any
+---@field on fun(self: Game, name: '判定-亮牌', callback: fun(ctx: Judge): any): function
+---@field fire fun(self: Game, name: '判定-亮牌', ctx: Judge): any
+---@field on fun(self: Game, name: '判定-前', callback: fun(ctx: Judge): any): function
+---@field fire fun(self: Game, name: '判定-前', ctx: Judge): any # 改判窗口：只能在这里面换牌
+---@field on fun(self: Game, name: '判定-后', callback: fun(ctx: Judge): any): function
+---@field fire fun(self: Game, name: '判定-后', ctx: Judge): any
 ---@field on fun(self: Game, name: '濒死-进入', callback: fun(ctx: Dying): any): function
 ---@field fire fun(self: Game, name: '濒死-进入', ctx: Dying): any
 ---@field on fun(self: Game, name: '濒死-离开', callback: fun(ctx: Dying): any): function

@@ -15,9 +15,17 @@ game:on('游戏-开始', function ()
     game:moveCard(cards, deck)
     deck:shuffle()
 
-    game:createZone('弃牌')
+    local discard = game:createZone('弃牌')
     game:createZone('处理')
     for _, player in ipairs(game.desk.players) do
         player:addZone('手牌')
     end
+
+    deck:setShortageHandler(function (zone)     -- 抽牌堆空了：把弃牌全部洗回来
+        if discard:count() == 0 then
+            return
+        end
+        game:moveCard(discard:list(), zone)
+        zone:shuffle()
+    end)
 end)

@@ -116,6 +116,7 @@ test.require 'test.core.effect.damage'
 test.require 'test.core.effect.heal'
 test.require 'test.core.effect.draw'
 test.require 'test.core.effect.dying'
+test.require 'test.core.effect.judge'
 test.require 'test.core.effect.ask'
 test.require 'test.core.effect.ask-card'
 test.require 'test.core.effect.play'
@@ -133,6 +134,7 @@ test.require 'test.rule.turn'
 test.require 'test.rule.dying'
 test.require 'test.rule.draw'
 test.require 'test.rule.game-over'
+test.require 'test.rule.judge'
 
 local bodyDone = false
 local bodyFailures = 0

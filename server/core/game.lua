@@ -584,6 +584,20 @@ function M:draw(player, count)
     return draw
 end
 
+---@async
+---@param player Player # 谁的判定
+---@param reason? string # 为什么判（内容由发起方定，内核不解释）
+---@return Judge # 这次判定（已经结完：结果读 `.card`，失败读 `.err`）
+function M:judge(player, reason)
+    local judge = moe.judge.create {
+        game   = self,
+        player = player,
+        reason = reason,
+    }
+    judge:apply():await()
+    return judge
+end
+
 ---@param targets Player|Player[]
 ---@return Player[] # 目标列表（单个也包成表）
 local function toPlayerList(targets)

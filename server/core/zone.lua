@@ -192,6 +192,12 @@ function M:takeTop()
     error('该牌区不具备有序能力，无法取顶', 2)
 end
 
+---@param count integer
+---@return Card[]
+function M:draw(count)
+    error('该牌区不具备有序能力，无法从顶取牌', 2)
+end
+
 ---@param random? Random
 ---@return Zone
 function M:shuffle(random)

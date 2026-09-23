@@ -14,15 +14,20 @@ local function fill(zone, source)
     return cards
 end
 
----@param zone Zone
+---@param list Card[]
 ---@return string
-local function zoneLabels(zone)
-    local list  = zone:list()
+local function labels(list)
     local names = {}
     for i = 1, #list do
         names[i] = tostring(list[i]:getLabel())
     end
     return table.concat(names, ',')
+end
+
+---@param zone Zone
+---@return string
+local function zoneLabels(zone)
+    return labels(zone:list())
 end
 
 ---@param seed integer
@@ -155,8 +160,68 @@ lt.test('无序牌区：取顶与洗牌明确失败', function ()
     fill(zone, DECK)
 
     lt.assertError('取顶失败', function () zone:takeTop() end)
+    lt.assertError('从顶取牌失败', function () zone:draw(1) end)
     lt.assertError('洗牌失败', function () zone:shuffle(moe.random.create(1)) end)
     lt.assertEquals('失败后顺序不变', table.concat(DECK, ','), zoneLabels(zone))
+end)
+
+lt.test('有序牌区：从顶取 n 张，不够就少给', function ()
+    local zone = moe.orderedZone.create()
+    fill(zone, { '甲', '乙', '丙' })
+
+    local two = zone:draw(2)
+    lt.assertEquals('取到 2 张', 2, #two)
+    lt.assertEquals('取的是前两张', '甲,乙', labels(two))
+    lt.assertEquals('区里剩 1 张', '丙', zoneLabels(zone))
+
+    local rest = zone:draw(5)
+    lt.assertEquals('再多要也只有 1 张', 1, #rest)
+    lt.assertEquals('要不到不报错', '', zoneLabels(zone))
+
+    lt.assertEquals('空区取到 0 张', 0, #zone:draw(1))
+end)
+
+lt.test('有序牌区：取空了会调不足回调，补到就接着取', function ()
+    local zone  = moe.orderedZone.create()
+    local stock = moe.zone.create()
+    fill(stock, { '甲', '乙', '丙' })
+
+    ---@type integer
+    local times = 0
+    zone:setShortageHandler(function (target)
+        times = times + 1
+        lt.assertEquals('回调收到的是这个区', zone, target)
+        for _, card in ipairs(stock:list()) do
+            stock:move(card, zone)
+        end
+    end)
+
+    local cards = zone:draw(3)
+
+    lt.assertEquals('只调了一次', 1, times)
+    lt.assertEquals('取到 3 张', 3, #cards)
+    lt.assertEquals('按补进来的顺序取', '甲,乙,丙', labels(cards))
+end)
+
+lt.test('有序牌区：回调补不到牌就少给', function ()
+    local zone = moe.orderedZone.create()
+
+    ---@type integer
+    local times = 0
+    zone:setShortageHandler(function ()
+        times = times + 1
+    end)
+
+    local cards = zone:draw(2)
+
+    lt.assertEquals('调了一次', 1, times)
+    lt.assertEquals('一张都没取到', 0, #cards)
+end)
+
+lt.test('有序牌区：没挂回调时取空就少给', function ()
+    local zone = moe.orderedZone.create()
+
+    lt.assertEquals('要 3 张拿到 0 张', 0, #zone:draw(3))
 end)
 
 lt.test('有序牌区：洗牌必须传入随机源', function ()
