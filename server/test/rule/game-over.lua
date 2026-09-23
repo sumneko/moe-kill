@@ -96,6 +96,54 @@ lt.test('胜负：主公阵亡且只剩内奸 ⇒ 内奸胜', function ()
     lt.assertEquals('只剩内奸活着', 1, #run.desk.alivePlayers)
 end)
 
+--- 把抽牌堆里的牌全部挪进处理区（弃牌堆本来就空）⇒ 两张堆都没有牌
+---@param run Test.RuleSupport
+local function emptyBothPiles(run)
+    local deck      = assert(run.game:getZone('抽牌'), '没有抽牌')
+    local somewhere = assert(run.game:getZone('处理'), '没有处理')
+    for _, card in ipairs(deck:list()) do
+        deck:move(card, somewhere)
+    end
+end
+
+lt.test('平局：摸牌时抽牌堆与弃牌堆都没牌 ⇒ 平局', function ()
+    local run = startGame()
+    emptyBothPiles(run)
+
+    local draw = run.game:draw(run.players[1], 1)
+
+    lt.assertEquals('一张都没摸到', 0, assert(run.players[1]:getZone('手牌')):count())
+    lt.assertEquals('摸牌本身不算失败', nil, draw.err)
+    local result = assert(run.game:getResult(), '游戏没有结束')
+    lt.assertEquals('平局', '平局', result.side)
+    lt.assertEquals('理由', '牌堆与弃牌堆都没有牌', result.reason)
+end)
+
+lt.test('平局：判定时两堆都没牌 ⇒ 平局', function ()
+    local run = startGame()
+    emptyBothPiles(run)
+
+    local judge = run.game:judge(run.players[1], '测试')
+
+    lt.assertEquals('翻不出牌', nil, judge.card)
+    lt.assertEquals('平局', '平局', assert(run.game:getResult()).side)
+end)
+
+lt.test('平局：抽牌堆空但弃牌还有牌 ⇒ 洗回照常取，不算耗尽', function ()
+    local run     = startGame()
+    local deck    = assert(run.game:getZone('抽牌'), '没有抽牌')
+    local discard = assert(run.game:getZone('弃牌'), '没有弃牌')
+    for _, card in ipairs(deck:list()) do
+        deck:move(card, discard)
+    end
+
+    local draw = run.game:draw(run.players[1], 2)
+
+    lt.assertEquals('洗回后摸到 2 张', 2, assert(run.players[1]:getZone('手牌')):count())
+    lt.assertEquals('摸牌没失败', nil, draw.err)
+    lt.assertEquals('游戏没结束', nil, run.game:getResult())
+end)
+
 lt.test('游戏结束：结束把流程就地收掉', function ()
     local probe <close> = useProbe()
     write('流程包/流程.lua', [[
