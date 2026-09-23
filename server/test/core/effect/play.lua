@@ -96,6 +96,29 @@ Card '测试杀'
     lt.assertEquals('收尾时机也拿得到目标', target, settledTarget)
 end)
 
+lt.test('使用：生效钩子拿得到这次用牌', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2) }
+    end)
+    : on('生效', function (cardEffect, useCard)
+        cardEffect.user:setTag('生效的用牌', useCard)
+        cardEffect.user:setTag('临时区拿得到', useCard:getTempZone() ~= nil)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:put(card)
+
+    local useCard = game:useCard(user, card, { target })
+
+    lt.assertEquals('第二个参数就是这次用牌', useCard, user:getTag('生效的用牌'))
+    lt.assertEquals('不用翻父子关系就能拿临时区', true, user:getTag('临时区拿得到'))
+end)
+
 lt.test('使用：自己的阶段里用一次就记一次账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[

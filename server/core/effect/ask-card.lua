@@ -1,14 +1,17 @@
 require 'core.effect.effect'
 
----@class AskCard.Answer # 一次答复：给出哪张牌；要打给谁的话再带上目标
+--- 一次答复：给出哪张牌；要打给谁的话再带上目标
+---@class AskCard.Answer
 ---@field card Card
 ---@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）
 
----@class AskCard.Option # 一个合法选项：可以给出的一张牌
+--- 一个合法选项：可以给出的一张牌
+---@class AskCard.Option
 ---@field card Card
 ---@field targets? Player[] # 这张牌的可用目标（省略 = 那就不该给目标，如「打出」）
 
----@class AskCard.Condition # 要什么样的牌（内核据此算出合法选项）
+--- 要什么样的牌（内核据此算出合法选项）
+---@class AskCard.Condition
 ---@field name? string # 牌名（省略 = 不限）
 ---@field targets? Player[] # 目标窗口：只收「能用在这组人身上」的牌（空表 = 只要求「至少有一个合法目标」）；省略 = 不要求目标
 ---@field cards? Card[] # 候选就是这批牌（省略 = 遍历被问者的每个牌区）

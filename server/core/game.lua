@@ -211,7 +211,8 @@ end
 ---@field random Random
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field packages? string[] # 加载清单（省略时只装默认加载的包）
----@class Game.Result # 一局的结果
+--- 一局的结果
+---@class Game.Result
 ---@field side string # 胜方阵营：主公方 / 反贼 / 内奸 / 平局
 ---@field reason string # 胜负依据（中文短句，给人看 / 前端可直接显示）
 ---@class Game

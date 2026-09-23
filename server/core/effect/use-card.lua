@@ -47,7 +47,7 @@ function M:settle()
         handler(self)
     end
     for target in self.game.desk:actionOrder(self.targets) do
-        local effect = New 'CardEffect' (self.game, def, self.user, self.card, target)
+        local effect = New 'CardEffect' (self.game, self, def, target)
         effect:apply()
     end
     for _, handler in ipairs(def:getHandlers('结算后')) do
@@ -56,28 +56,29 @@ function M:settle()
     self.game:fire('卡牌-结算后', self)
 end
 
----@class CardEffect : Effect # 这张牌对某个目标的一次生效
+--- 这张牌对某个目标的一次生效
+---@class CardEffect : Effect
 local CardEffect = Class 'CardEffect'
 
 Extends('CardEffect', 'Effect')
 
 ---@param game Game
+---@param useCard UseCard # 这次生效属于哪一次用牌
 ---@param def CardDef
----@param user Player
----@param card Card
 ---@param target Player
-function CardEffect:__init(game, def, user, card, target)
-    self.kind   = 'cardEffect'
-    self.def    = def
-    self.user   = user
-    self.card   = card
-    self.target = target
+function CardEffect:__init(game, useCard, def, target)
+    self.kind    = 'cardEffect'
+    self.useCard = useCard
+    self.def     = def
+    self.user    = useCard.user
+    self.card    = useCard.card
+    self.target  = target
 end
 
 ---@async
 function CardEffect:settle()
     for _, handler in ipairs(self.def:getHandlers('生效')) do
-        handler(self)
+        handler(self, self.useCard)
     end
 end
 

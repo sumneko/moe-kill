@@ -6,7 +6,8 @@ require 'core.effect.effect'
 ---@field reason? string # 这次为什么问（内核不解释，原样带给规则层）
 ---@field question any # 问什么（内容由发起方定，应答方自己解释）
 
----@class Ask : Effect # 通用决策询问：问什么、答什么都由发起方解释
+--- 通用决策询问：问什么、答什么都由发起方解释
+---@class Ask : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
 ---@field question any # 问什么

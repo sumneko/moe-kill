@@ -12,10 +12,11 @@ Card = nil
 ---@type fun(items: string[])
 Depends = nil
 
----@class CardDef # 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
+--- 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
+---@class CardDef
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(target: CardDef.Target): Player[]): CardDef
 ---@field on fun(self: CardDef, event: '结算前', handler: fun(useCard: UseCard)): CardDef # 使用结算开始时跑一次（逐目标之前）
----@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect)): CardDef
+---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard)): CardDef
 ---@field on fun(self: CardDef, event: '结算后', handler: fun(useCard: UseCard)): CardDef # 所有目标结算完之后跑一次
 ---@field limit fun(self: CardDef, phase: string, count: integer): CardDef # 声明这个阶段里最多用几次（没声明 = 1000）
 ---@field getLimit fun(self: CardDef, phase: string): integer
@@ -26,16 +27,20 @@ Depends = nil
 ---@field getZone fun(self: CardDef): string?
 ---@field extends fun(self: CardDef, name: string): CardDef # 把基类定义的钩子与字段抖过来（基类的钩子跑在前面）
 
----@class CardDef.Target # 「获取目标」的上下文：这次想用哪张牌（还没定目标）
+--- 「获取目标」的上下文：这次想用哪张牌（还没定目标）
+---@class CardDef.Target
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
 
----@class Game.Event.游戏开始 # 目前没有事件参数：触发时给空表，环境对象从 game 取
+--- 目前没有事件参数：触发时给空表，环境对象从 game 取
+---@class Game.Event.游戏开始
 
----@class Game.Event.回合 # 回合级时机：谁是回合角色
+--- 回合级时机：谁是回合角色
+---@class Game.Event.回合
 ---@field player Player # 回合角色
 
----@class Game.Event.卡牌能否使用 # 这张牌此刻能不能用：返回非 nil 值即否决（返回值就是原因）
+--- 这张牌此刻能不能用：返回非 nil 值即否决（返回值就是原因）
+---@class Game.Event.卡牌能否使用
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
 ---@field targets? Player[] # 要校验的目标（省略 = 只判「此刻能不能用」）

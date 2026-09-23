@@ -10,8 +10,8 @@ Card '五谷丰登'
     : on('结算前', function (useCard)
         game:moveCard(game:getZone('抽牌'):draw(#useCard.targets), useCard:getTempZone())
     end)
-    : on('生效', function (cardEffect)
-        local revealed = assert(cardEffect.parent):getTempZone():list()
+    : on('生效', function (cardEffect, useCard)
+        local revealed = useCard:getTempZone():list()
         local card = game:askCard(cardEffect.target, '五谷丰登', { cards = revealed }).card
         if not card then
             return

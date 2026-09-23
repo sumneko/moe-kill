@@ -35,7 +35,8 @@ local preparse = require 'core.loader.preparse'
 ---@field loaded table<string, true>
 ---@field excludes table<string, string>
 
----@class Loader # 装载器模块（无状态）：把规则装进某个局
+--- 装载器模块（无状态）：把规则装进某个局
+---@class Loader
 moe.loader = {}
 
 ---@type string[] # 默认来源：仓库根下项目自己的包容器

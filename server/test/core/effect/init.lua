@@ -1,6 +1,7 @@
 local lt = require 'test.ltest'
 
----@class ProbeEffect : Effect # 测试用：把建实例时给的请求当作这次结算的结果交出去
+--- 测试用：把建实例时给的请求当作这次结算的结果交出去
+---@class ProbeEffect : Effect
 ---@field request any # 这次用什么当结果
 local ProbeEffect = Class 'ProbeEffect'
 
@@ -17,7 +18,8 @@ function ProbeEffect:settle()
     return self.request
 end
 
----@class RejectEffect : Effect # 测试用：这次结算当场不成立
+--- 测试用：这次结算当场不成立
+---@class RejectEffect : Effect
 local RejectEffect = Class 'RejectEffect'
 
 Extends('RejectEffect', 'Effect')
@@ -31,7 +33,8 @@ function RejectEffect:settle()
     self:reject('不成立')
 end
 
----@class OuterEffect : Effect # 测试用：结算里再嵌套一个内层效果
+--- 测试用：结算里再嵌套一个内层效果
+---@class OuterEffect : Effect
 local OuterEffect = Class 'OuterEffect'
 
 Extends('OuterEffect', 'Effect')
