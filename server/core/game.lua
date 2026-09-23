@@ -520,8 +520,8 @@ end
 ---@param zone string|string[]|Zone|Zone[] # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找）
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
 function M:moveCard(card, zone)
-    local cards = assert(moe.util.toList(card))
-    local zones = assert(moe.util.toList(zone))
+    local cards = moe.util.toList(card)
+    local zones = moe.util.toList(zone)
     local effect = moe.moveCard.create {
         game  = self,
         cards = cards,
@@ -661,7 +661,7 @@ function M:canUse(user, card, targets)
     ---@type Player[]?
     local list = nil
     if targets ~= nil then
-        list = assert(moe.util.toList(targets))
+        list = moe.util.toList(targets)
         if #list == 0 then
             return false, '「{}」至少要指定一个目标' % { def.fullName }
         end
@@ -700,7 +700,7 @@ function M:useCard(user, card, targets)
         game    = self,
         user    = user,
         card    = card,
-        targets = assert(moe.util.toList(targets)),
+        targets = moe.util.toList(targets),
     }
     effect:apply():await()
     return effect
