@@ -37,3 +37,17 @@ function table.contains(list, value)
     end
     return false
 end
+
+---@generic T
+---@param list T[]
+---@param value T
+---@return T[] # 去掉这个值的所有出现（不改原表）
+function table.without(list, value)
+    local result = {}
+    for i = 1, #list do
+        if list[i] ~= value then
+            result[#result + 1] = list[i]
+        end
+    end
+    return result
+end

@@ -307,18 +307,20 @@ local function loadWithContent(items)
     })
 end
 
-lt.test('规则集：@tools 给内容侧的 table 加了三个助手', function ()
+lt.test('规则集：@tools 给内容侧的 table 加了四个助手', function ()
     local guard <close> = prepare()
     write('a.lua', 'Card("甲"):on("跑", function ()\n'
         .. '    local list = { 1, 2, 3, 4 }\n'
         .. '    local picked = table.filter(list, function (value) return value % 2 == 0 end)\n'
         .. '    assert(table.contains(picked, 4))\n'
-        .. '    return table.concat(table.map(picked, tostring), ",")\n'
+        .. '    local rest = table.without(picked, 2)\n'
+        .. '    assert(#picked == 2)\n'
+        .. '    return table.concat(table.map(rest, tostring), ",")\n'
         .. 'end)')
 
     loadWithContent(list('a'))
 
-    lt.assertEquals('内容侧直接用 table.filter / map / contains', '2,4', card('甲'):getHandlers('跑')[1]())
+    lt.assertEquals('内容侧直接用 table.filter / map / contains / without', '4', card('甲'):getHandlers('跑')[1]())
 end)
 
 lt.test('规则集：内容侧的标准库是副本，改了不影响内核', function ()
