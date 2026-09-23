@@ -512,6 +512,23 @@ function M:askCard(to, reason, condition)
     return ask
 end
 
+--- 要一张牌（要一次使用：能用的牌 + 目标）
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
+---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；内核据此在被问者的牌区里算出 `ask.options`）
+---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
+function M:askUseCard(to, reason, condition)
+    local ask = moe.askUseCard.create {
+        game      = self,
+        to        = to,
+        reason    = reason,
+        condition = condition,
+    }
+    ask:apply():await()
+    return ask
+end
+
 --- 要一个决策（问什么、答什么都由发起方解释）
 ---@async
 ---@param to Player # 被问者

@@ -41,7 +41,7 @@ local function startTurn(options)
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason ~= '使用' then
+        if ask.reason ~= '出牌' then
             return
         end
         moe.await.sleep(0)
@@ -189,7 +189,7 @@ lt.test('回合：出牌阶段用一张杀并结算', function ()
             run.players[1]:getZone('手牌'):put(slash)
         end,
         answer = function (ask, run)
-            if ask.reason ~= '使用' or not slash then
+            if ask.reason ~= '出牌' or not slash then
                 return nil
             end
             local card = slash
@@ -271,7 +271,7 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
             -- 【闪】没声明「获取目标」⇒ 用不了
             hand:put(run.game:createCard('闪'))
             run.game:on('卡牌-询问', function (ask)
-                if ask.reason ~= '使用' then
+                if ask.reason ~= '出牌' then
                     return
                 end
                 ---@type string[]

@@ -1,14 +1,14 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-23 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **481 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **483 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
 ```
 moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属性 / 分身份）
   → game:runFlow()（回合流程：准备→判定→摸牌→出牌→弃牌→结束）
-  → 出牌阶段：game:askCard(player, '使用', { zone = '手牌' })（缘由 '使用' ⇒ 内核按使用语义筛：用不了的牌不进选项；选项带各自的可用目标）
+  → 出牌阶段：game:askUseCard(player, '出牌', { zone = '手牌' })（「使用」的语义由类型携带：候选逐张跑 canUse，用不了的牌不进选项；选项带各自的可用目标）
   → game:useCard（canUse 二次校验（含次数）→ 记一次账 → 取出牌 → 逐目标 CardEffect 生效）
   → 伤害 / 回复（内核只发时机，扣血 / 回血写在 @基础）
   → 濒死求桃（早于 '伤害-后'）→ 死亡 → 奖惩（先）→ 身份场胜负判定（后）→ game:endGame 收掉流程
@@ -27,15 +27,15 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 **内核现状**（`server/core/`）
 
 - 对象：`Card` / `Zone` / `OrderedZone` / `Attributes` / `Random` / `Desk` / `Player` / `Game` / `Event` / `Phase`
-- 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ `ask` / `ask-card` / `move-card` / `damage` / `heal` / `draw` / `dying` / `judge`；**嵌套上限 `Effect.MAX_DEPTH = 150`**（安全阀：超了那一层以「取消」收尾 + `warn`，不算失败；实测再深进程会直接没）
-- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目）/ `useCard` / `askCard` / `ask` / `moveCard` / `damage` / `heal` / `draw` / `judge` / `createCard` / `createZone` / `enterDying` / `getDying` / `endGame` / `runFlow` / `registerFlow`
+- 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ `ask` / `ask-card` / **`ask-use-card`** / `move-card` / `damage` / `heal` / `draw` / `dying` / `judge`；**嵌套上限 `Effect.MAX_DEPTH = 150`**（安全阀：超了那一层以「取消」收尾 + `warn`，不算失败；实测再深进程会直接没）
+- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目）/ `useCard` / `askCard` / **`askUseCard`** / `ask` / `moveCard` / `damage` / `heal` / `draw` / `judge` / `createCard` / `createZone` / `enterDying` / `getDying` / `endGame` / `runFlow` / `registerFlow`
 - **定义上的三件套**（2026-09-22；分类口径 2026-09-23 改成覆盖）：`CardDef:kind(名字)` / `isKind` / `getKinds`（分类，内核只记录；取值省略「牌」字；**入参 `string|string[]`、一次调用定下、重复调以后写的为准**）、`CardDef:zone(区名)` / `getZone`（**必须从哪个牌区用**，`canUse` 的内建条目；不声明 = 任一牌区都行）、`CardDef:extends(名字)`（把基类的钩子与字段**抄**过来，基类的钩子跑前面、分类也覆盖（基类没分类就不动）、抄完脱钩、支持限定名）；公共模板在 `package/@基础/基本牌.lua`（`kind '基本'` + `zone '手牌'`），【杀】用 `: extends '基本牌'`
 - **号是局内发的**（2026-09-22）：`game:nextId()` —— 每次都递增、重装规则内容不重置、**牌与将来的技能共用同一串号**；牌实例自己不再取号（`Card:__init(label, id)` / `moe.card.create(label, id)` 的号都由调用方给），另一局从 1 重新开始
 - **阶段是内核一等对象**（2026-09-22）：`game:enterPhase(玩家, 阶段名)` 返回可 `<close>` 的 `Phase` 实例（`game.phase` = 当前阶段；可嵌套、离开要按嵌套顺序）；阶段事件改**由内核触发**，载荷 = 阶段实例（**BREAKING**：原先读 `phase` 的那个字段改叫 `name`）；实例上有**标签袋**与**两本账**：`addUseCount / getUseCount`（已用次数）、`addLimit / getLimitDelta`（上限增减）
 - **按次数的限制整套在内核**（2026-09-22）：限额写在**内容定义**上（`Card '杀' : limit('出牌', 1)`，没声明就是 1000 = 事实上不限）；`game:canUse` 多一条**内建条目**（阶段属于使用者时 `已用 < 限额 + 增减`，不通过就**不问内容侧**），`useCard` 校验通过后**内核自己记一次**（只在自己的阶段里记）—— 两种口径：`phase:addUseCount(名字, -1)`（此牌不计次数）、`phase:addLimit(名字, n)`（可以多用一次 / +1000 相当于不限）；**原来的 `@基础/使用限制.lua` 已删**（用户 2026-09-22 同意）
 - **濒死：内核判死、按玩家记一份账**（2026-09-22，本批）：检查点在规则侧（`@基础/伤害.lua` 扣完血判 ≤0）⇒ `game:enterDying(受害者, 这次伤害)` **当场结算**（不再记账、不再等效果收尾、也不再能撤销）；`Dying:settle()` = 发 **`'濒死-进入'`** → **没人喊 `leave()` 就 `player:setAlive(false)`**；`leave()` 幂等、**当场**发 **`'濒死-离开'`**（`@基础/回复.lua` 在体力 > 0 时喊）；**一个玩家同时只有一个濒死**（`enterDying` 返回现有实例并换致死伤害，`getDying(player)` 查得到）；**时序：濒死（含判死 / 奖惩 / 胜负）早于 `'伤害-后'`**；**凶手 = `game:getDying(死者).damage.from`**（`'凶手'` 标签退役）；`Draw` 对已阵亡的角色直接完成；`game.dyingPending` / `game:flushDying()` 与属性监听那套已删；**求桃的一圈从顺序锚点起**（官方口径，2026-09-23 改正；旧口径「从濒死者起」已废）
 - **事件的快速返回**（2026-09-22）：时机回调**明确返回非 nil 值就停下、跳过之后的事件**，`game:fire` 把它交回调用方（落在 `tools/simple-event.lua`，记账在 `infrastructure.md`）；规则侧因此约定**疑问式事件名（能否…）= 期望返回值的事件**
-- **询问的条件 = 一组筛选条件**（2026-09-22 落地；**2026-09-23 重做**）：`game:askCard(被问者, 缘由, 条件?)` —— `AskCard.Condition` 四个字段 `name?` / `zone?` / `card?` / `target?`，**数组 = 满足其一、单值 = 归一化（`moe.util.toList`）、不填 = 无要求**；候选默认来自被问者的牌区，给了 `zone`（名字按「被问者 → 局上」解析，别人的区传对象）/ `card` 就取那里（并集）；**缘由 `'使用'`（或给了 `target`）⇒ 内核逐张跑 `canUse`**（用不了的不进选项、选项带可用目标；给了 `target` 时取交集）；**答复必须落在选项里**（不在就拒收：`.err` = 原因、`.card` 不存在）；不给条件 = 不做限制。四处调用点：出牌阶段 `'使用' + { zone = '手牌' }`、求桃 `{ name = '桃', target = 濒死者 }`、打出 `{ name = '闪' }`、五谷丰登 `{ card = 亮出的牌 }`、过河拆桥 / 顺手牵羊 `{ zone = 目标身上有牌的区 }`**内核在询问前遍历被问者的牌区、按条件算出 `ask.options`**（条件里给了 `targets` 就跑 `canUse`，于是内容侧的 `'卡牌-能否使用'` 条目一并生效；`targets = {}` 空表 = 只要求「至少有一个合法目标」；省略 `targets` = 不要求目标、不跑 `canUse`）；**答复必须落在选项里**（不在就拒收：`.err` = 原因、`.card` 不存在）；不给条件 = 不做限制。业务层三处调用点都是一行（`'出牌'` / `'打出'` / 求桃）
+- **询问的条件 = 一组筛选条件；「要一张牌」与「要一次使用」是两个类**（2026-09-22 落地；2026-09-23 重做 + 拆类）：`game:askCard(被问者, 缘由, 条件?)`（`AskCard.Condition` = `name?` / `zone?` / `card?`）与 **`game:askUseCard(被问者, 缘由, 条件?)`**（`AskUseCard : AskCard`，条件多一条 `target?`）—— **每个字段都是一条筛选条件**（数组 = 满足其一、单值 = 归一化（`moe.util.toList`）、不填 = 无要求）；候选默认来自被问者的牌区，给了 `zone`（名字按「被问者 → 局上」解析，别人的区传对象）/ `card` 就取那里（并集）；**`AskUseCard` 的候选逐张跑 `canUse`**（用不了的不进选项、选项带可用目标；给了 `target` 时取交集）、**答复必须给目标**，而 `AskCard` **拒收目标**；答复不在选项里就拒收（`.err` = 原因、`.card` 不存在）；不给条件 = 不做限制。调用点：出牌阶段 `askUseCard` + `{ zone = '手牌' }`、求桃 `askUseCard` + `{ name = '桃', target = 濒死者 }`、打出 `askCard` + `{ name = '闪' }`、五谷丰登 `{ card = 亮出的牌 }`、过河拆桥 / 顺手牵羊 `{ zone = 目标身上有牌的区 }`
 - **牌面（花色 / 点数）**（2026-09-23）：`Card` 多两个字段 `suit` / `point`（**直接读字段**，不给 getter —— 见 `code-style.md` §11），`game:createCard(名字, 花色?, 点数?)`；内核**只存不解释**（不校验、不换算）；`标准/牌表.lua` 改成**逐张**（`{ name = '杀', suit = '黑桃', point = 7 }`，张数与牌面仍是草稿待核对），`@基础/牌堆.lua` 建牌时传牌面
 - **判定动作（2026-09-23）**：内核 `Judge : Effect`（`kind` = `judge`）+ `game:judge(玩家, 缘由?)`（当场结算，结果读 `.card`）；三个时机 **`'判定-亮牌'` →（改判窗口）`'判定-前'` → `'判定-后'`**，`judge:replace(新牌)` **只在窗口里有效**（窗口外直接报错），被换下的记进 `judge.replaced`；**内核不搬牌、不认识牌面** —— 翻牌与收牌写在 `@基础/判定.lua`（判定牌与改判换下的牌都在**这次判定的临时区**里，收尾统一送弃牌；结果就是那张牌）；**取顶 / 洗回提炼成牌区接口**：`OrderedZone:draw(n)`（不够就少给）+ `setShortageHandler`（`@基础/牌堆.lua` 挂「弃牌全部洗回」），摸牌改用它 ⇒ `@基础/抽牌.lua` 里的 `recycleDiscard` 退休；**还没做**：判定区与延时锦囊、判定阶段的结算、技能的改判实现
 - **平局（2026-09-23）**：结局取值现在是四种 **主公方 / 反贼 / 内奸 / 平局**（`Game.Result.side`）；**牌堆与弃牌堆都没牌** ⇒ `@基础/牌堆.lua` 的不足回调洗不回来，就地 `game:endGame { side = '平局', reason = '牌堆与弃牌堆都没有牌' }`（发现即结束；这一轮已取到的牌不会再挪给谁）
@@ -48,7 +48,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 ## 2 下一步：待用户挑（**尚未开工**）
 
-上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + `AskCard` 的 `zones` 候选 + 两张牌 + 装备 / 判定两个空区）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
+上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）与 `split-ask-use-card`（拆出 `AskUseCard`）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
 | 候选 | 现状 / 前置 |
 | --- | --- |

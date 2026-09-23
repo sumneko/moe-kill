@@ -1,21 +1,20 @@
 require 'core.effect.effect'
 
---- 一次答复：给出哪张牌；要打给谁的话再带上目标
+--- 一次答复：给出哪张牌（要一次使用时再带上目标）
 ---@class AskCard.Answer
 ---@field card? Card # 给出的牌（答不上就是不给）
----@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）
+---@field targets? Player|Player[] # 目标：只有 `AskUseCard` 接受（`AskCard` 给了会被拒收）
 
 --- 一个合法选项：可以给出的一张牌
 ---@class AskCard.Option
 ---@field card Card # 给出的牌
----@field targets? Player[] # 这张牌的可用目标（省略 = 那就不该给目标，如「打出」）
+---@field targets? Player[] # 这张牌的可用目标（「要一次使用」才有；有它就代表答复必须给目标、且要落在这里）
 
 --- 要什么样的牌：每个字段都是一条筛选条件（数组 = 满足其一；单值 = 当成只有一个的数组；不填 = 无要求）
 ---@class AskCard.Condition
 ---@field name? string|string[] # 牌名
 ---@field zone? string|Zone|(string|Zone)[] # 牌在哪个区里（名字按「被问者 → 局上」解析；别人的区要传区对象）
 ---@field card? Card|Card[] # 牌必须在这批里（可以不属于任何牌区）
----@field target? Player|Player[] # 可用目标要与它至少有一个重合
 
 ---@class AskCard.CreateOptions
 ---@field game Game
@@ -29,7 +28,6 @@ require 'core.effect.effect'
 ---@field condition? AskCard.Condition # 要什么样的牌
 ---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
 ---@field card? Card # 答复给出的那张牌（= `.result.card`）
----@field targets? Player[] # 答复指定的目标（= `.result.targets`；恒为一张列表）
 ---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskCard'
 
@@ -60,48 +58,17 @@ local function resolveZone(game, to, item)
     return to:getZone(item) or game:getZone(item)
 end
 
---- 这张牌算不算一个合法选项
----@param game Game
----@param to Player
+--- 把一张牌装成一个选项（不算就返回空）—— 子类在这里补「能不能用、目标是谁」
 ---@param card Card
----@param names string[]?
----@param targets Player[]?
----@param usable boolean # 要不要按「使用」的语义跑 canUse
----@return AskCard.Option? # 不算就返回空
-local function optionOf(game, to, card, names, targets, usable)
-    if names and not moe.util.arrayHas(names, card:getLabel()) then
-        return nil
-    end
-    if not usable then
-        return { card = card }
-    end
-    local ok, _, legal = game:canUse(to, card)
-    if not ok or not legal then
-        return nil
-    end
-    if not targets then
-        return { card = card, targets = legal }
-    end
-    ---@type Player[]
-    local list = {}
-    for _, player in ipairs(legal) do
-        if moe.util.arrayHas(targets, player) then
-            list[#list + 1] = player
-        end
-    end
-    if #list == 0 then
-        return nil
-    end
-    return { card = card, targets = list }
+---@return AskCard.Option?
+function M:makeOption(card)
+    return { card = card }
 end
 
 --- 按条件算出合法选项（候选默认来自被问者的牌区；给了 `zone` / `card` 就只看那些）
----@param game Game
----@param to Player
----@param condition AskCard.Condition?
----@param reason string # `'使用'` = 按使用语义筛（跑 canUse）
 ---@return AskCard.Option[]? # 没给条件就是空 = 不做限制
-local function collectOptions(game, to, condition, reason)
+function M:collectOptions()
+    local condition = self.condition
     if not condition then
         return nil
     end
@@ -110,7 +77,7 @@ local function collectOptions(game, to, condition, reason)
     local cards = {}
     if condition.zone then
         for _, item in ipairs(moe.util.toList(condition.zone)) do
-            local zone = resolveZone(game, to, item)
+            local zone = resolveZone(self.game, self.to, item)
             if zone then
                 local held = zone:list()
                 table.move(held, 1, #held, #cards + 1, cards)
@@ -122,57 +89,49 @@ local function collectOptions(game, to, condition, reason)
         table.move(list, 1, #list, #cards + 1, cards)
     end
     if not condition.zone and not condition.card then
-        for _, zone in ipairs(to:getZones()) do
+        for _, zone in ipairs(self.to:getZones()) do
             local held = zone:list()
             table.move(held, 1, #held, #cards + 1, cards)
         end
     end
 
-    local names   = condition.name and moe.util.toList(condition.name) or nil
-    local targets = condition.target and moe.util.toList(condition.target) or nil
-    local usable  = reason == '使用' or targets ~= nil
+    local names = condition.name and moe.util.toList(condition.name) or nil
 
     ---@type AskCard.Option[]
     local options = {}
     for _, card in ipairs(cards) do
-        local option = optionOf(game, to, card, names, targets, usable)
-        if option then
-            options[#options + 1] = option
+        if not names or moe.util.arrayHas(names, card:getLabel()) then
+            local option = self:makeOption(card)
+            if option then
+                options[#options + 1] = option
+            end
         end
     end
     return options
 end
 
---- 答复是否落在合法选项里
----@param options AskCard.Option[]?
----@param answer AskCard.Answer
----@return any # 不合法时给原因
-local function answerProblem(options, answer)
+--- 这个选项与这份答复配不配（子类在这里补「目标」那一半）
+---@param option AskCard.Option
+---@param value AskCard.Answer
+---@return any # 通过就是空
+function M:checkOption(option, value)
+    if value.targets ~= nil then
+        return '这次答复不该给目标'
+    end
+    return nil
+end
+
+--- 答复落在合法选项里吗（不在就给原因）
+---@param value AskCard.Answer
+---@return any # 通过就是空
+function M:checkAnswer(value)
+    local options = self.options
     if not options then
         return nil
     end
     for _, option in ipairs(options) do
-        if option.card == answer.card then
-            ---@type Player[]?
-            local targets = nil
-            if answer.targets ~= nil then
-                targets = moe.util.toList(answer.targets)
-            end
-            if not option.targets then
-                if targets then
-                    return '这次答复不该给目标'
-                end
-                return nil
-            end
-            if not targets or #targets == 0 then
-                return '这次答复要给出目标'
-            end
-            for _, target in ipairs(targets) do
-                if not moe.util.arrayHas(option.targets, target) then
-                    return '答复的目标不在可选项里'
-                end
-            end
-            return nil
+        if option.card == value.card then
+            return self:checkOption(option, value)
         end
     end
     return '答复不在可选项里'
@@ -188,7 +147,7 @@ function M:answer(value)
         log.info('这次询问已经答过了，先给出的算数')
         return
     end
-    local problem = answerProblem(self.options, value)
+    local problem = self:checkAnswer(value)
     if problem then
         self.task:reject(problem)
         return
@@ -211,17 +170,10 @@ M.__getter.card = function (self)
     return self.result?.card
 end
 
---- 答复指定的目标（恒为一张列表）
----@param self AskCard
----@return Player[]?
-M.__getter.targets = function (self)
-    return self.result?.targets
-end
-
 --- 把询问交给应答方（选项先摆好；答复一到，结果就定下了）
 ---@async
 function M:settle()
-    self.options = collectOptions(self.game, self.to, self.condition, self.reason)
+    self.options = self:collectOptions()
     self.game:fire('卡牌-询问', self)
 
     if not self.result then

@@ -222,7 +222,8 @@ server/bin/moe-kill.exe --test core.player    # 玩家套件（属性实例 / �
 server/bin/moe-kill.exe --test core.game      # 局套件（建局 / 按名字建取牌区 / 建牌 / 绑定随机源洗牌）
 server/bin/moe-kill.exe --test core.effect           # 效果族**全部**（基类 + 下面全部子类；套件名就是模块名、按**前缀**过滤，所以这一条一次跑完）
 server/bin/moe-kill.exe --test core.effect.ask       # 询问套件（答复往返 / 先答的算数 / 没人应答）
-server/bin/moe-kill.exe --test core.effect.ask-card  # 要牌套件（缘由 / 答复与答复后时机 / 被取消的询问）
+server/bin/moe-kill.exe --test core.effect.ask-card  # 要牌套件（缘由 / 条件筛选 / 答复与答复后时机 / 被取消的询问）
+server/bin/moe-kill.exe --test core.effect.ask-use-card # 要一次使用套件（能用的牌 + 可用目标与 target 交集）
 server/bin/moe-kill.exe --test core.effect.play      # 使用牌套件（校验 / 取牌 / 结算回调 / 收尾时机）
 server/bin/moe-kill.exe --test core.effect.damage    # 伤害套件（三个时机 / 点数 / 便利入口 / 改体力属规则侧）
 server/bin/moe-kill.exe --test core.effect.heal      # 回复套件（三个时机 / 点数 / 建实例先不结算）
