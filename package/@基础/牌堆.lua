@@ -1,4 +1,4 @@
--- 开局建牌堆：按牌表造牌并洗牌，建弃牌堆与各人的手牌区；抽牌堆不够时把弃牌洗回来（洗不回来就地判平局）
+-- 开局建牌堆：按牌表造牌并洗牌，建弃牌堆与各人的牌区；抽牌堆不够时把弃牌洗回来（洗不回来就地判平局）
 game:on('游戏-开始', function ()
     local cardTable = game:getValue('牌表')
     if not cardTable then
@@ -17,6 +17,9 @@ game:on('游戏-开始', function ()
     local discard = game:createZone('弃牌')
     for _, player in ipairs(game.desk.players) do
         player:addZone('手牌')
+        player:addZone('装备')
+        player:addZone('判定')
+        assert(player:getZone('手牌')):setVisible(false)
     end
 
     deck:setShortageHandler(function (zone)

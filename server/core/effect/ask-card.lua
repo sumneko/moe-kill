@@ -1,20 +1,23 @@
 require 'core.effect.effect'
 
---- 一次答复：给出哪张牌；要打给谁的话再带上目标
+--- 一次答复：给出哪张牌（或哪个区域）；要打给谁的话再带上目标
 ---@class AskCard.Answer
----@field card Card
+---@field card? Card # 给出的牌（候选是区域时不给）
 ---@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）
+---@field zone? Zone # 给出的区域（候选是区域整体时用）
 
---- 一个合法选项：可以给出的一张牌
+--- 一个合法选项：可以给出的一张牌，或一个区域整体（盲选：里面有什么看不见）
 ---@class AskCard.Option
----@field card Card
+---@field card? Card # 给出的牌
 ---@field targets? Player[] # 这张牌的可用目标（省略 = 那就不该给目标，如「打出」）
+---@field zone? Zone # 给出的区域
 
 --- 要什么样的牌（内核据此算出合法选项）
 ---@class AskCard.Condition
 ---@field name? string # 牌名（省略 = 不限）
 ---@field targets? Player[] # 目标窗口：只收「能用在这组人身上」的牌（空表 = 只要求「至少有一个合法目标」）；省略 = 不要求目标
 ---@field cards? Card[] # 候选就是这批牌（省略 = 遍历被问者的每个牌区）
+---@field zones? Zone[] # 候选还可以是这几个区域整体（可与 `cards` 同时给；给了它就不遍历被问者的牌区）
 
 ---@class AskCard.CreateOptions
 ---@field game Game
@@ -29,6 +32,7 @@ require 'core.effect.effect'
 ---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
 ---@field card? Card # 答复给出的那张牌（= `.result.card`）
 ---@field targets? Player[] # 答复指定的目标（= `.result.targets`；恒为一张列表）
+---@field zone? Zone # 答复指定的区域（= `.result.zone`）
 ---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskCard'
 
@@ -75,7 +79,7 @@ local function optionOf(game, to, card, condition)
     return { card = card, targets = window }
 end
 
---- 按条件算出合法选项（候选默认来自被问者的牌区；给了 `cards` 就只看那一批）
+--- 按条件算出合法选项（候选默认来自被问者的牌区；给了 `cards` / `zones` 就只看那些）
 ---@param game Game
 ---@param to Player
 ---@param condition AskCard.Condition?
@@ -84,24 +88,29 @@ local function collectOptions(game, to, condition)
     if not condition then
         return nil
     end
+
+    ---@type Card[]
+    local cards = {}
+    if condition.cards then
+        table.move(condition.cards, 1, #condition.cards, 1, cards)
+    elseif not condition.zones then
+        for _, zone in ipairs(to:getZones()) do
+            local held = zone:list()
+            table.move(held, 1, #held, #cards + 1, cards)
+        end
+    end
+
     ---@type AskCard.Option[]
     local options = {}
-    local candidates = condition.cards
-    if candidates then
-        for _, card in ipairs(candidates) do
-            local option = optionOf(game, to, card, condition)
-            if option then
-                options[#options + 1] = option
-            end
+    for _, card in ipairs(cards) do
+        local option = optionOf(game, to, card, condition)
+        if option then
+            options[#options + 1] = option
         end
-        return options
     end
-    for _, zone in ipairs(to:getZones()) do
-        for _, card in ipairs(zone:list()) do
-            local option = optionOf(game, to, card, condition)
-            if option then
-                options[#options + 1] = option
-            end
+    if condition.zones then
+        for _, zone in ipairs(condition.zones) do
+            options[#options + 1] = { zone = zone }
         end
     end
     return options
@@ -116,7 +125,11 @@ local function answerProblem(options, answer)
         return nil
     end
     for _, option in ipairs(options) do
-        if option.card == answer.card then
+        if option.zone then
+            if option.zone == answer.zone then
+                return nil
+            end
+        elseif option.card == answer.card then
             ---@type Player[]?
             local targets = nil
             if answer.targets ~= nil then
@@ -165,6 +178,7 @@ function M:answer(value)
     self.task:resolve {
         card    = value.card,
         targets = targets,
+        zone    = value.zone,
     }
 end
 
@@ -173,6 +187,13 @@ end
 ---@return Card?
 M.__getter.card = function (self)
     return self.result?.card
+end
+
+--- 答复指定的区域
+---@param self AskCard
+---@return Zone?
+M.__getter.zone = function (self)
+    return self.result?.zone
 end
 
 --- 答复指定的目标（恒为一张列表）

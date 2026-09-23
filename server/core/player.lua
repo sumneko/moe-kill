@@ -64,6 +64,7 @@ function M:addZone(name, zone)
         error('这个玩家已经有叫 {} 的牌区了' % { name }, 2)
     end
     local instance = zone or New 'Zone' ()
+    instance:bindOwner(self)
     self.zoneMap[name] = instance
     self.zoneList[#self.zoneList+1] = instance
     local removed = false

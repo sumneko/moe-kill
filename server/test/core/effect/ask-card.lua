@@ -406,3 +406,57 @@ lt.test('询问：不给条件就不做限制', function ()
     lt.assertEquals('照样收下答复', anything, ask.card)
     lt.assertEquals('不算失败', nil, ask.err)
 end)
+
+lt.test('询问：候选可以是一批区域（盲选）', function ()
+    local game, players = newGame(2)
+    local first  = moe.zone.create()
+    local second = moe.zone.create()
+    first:put(game:createCard('杀'))
+    second:put(game:createCard('闪'))
+    putInHand(players[1], { game:createCard('桃') })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { zone = second }
+    end)
+
+    local ask     = game:askCard(players[1], nil, { zones = { first, second } })
+    local options = assert(ask.options)
+
+    lt.assertEquals('只看给定的区域，不看被问者的牌区', 2, #options)
+    lt.assertEquals('第一项是那个区域', first, options[1].zone)
+    lt.assertEquals('第二项是另一个区域', second, options[2].zone)
+    lt.assertEquals('答复拿到那个区域', second, ask.zone)
+    lt.assertEquals('答复里没有牌', nil, ask.card)
+end)
+
+lt.test('询问：答复的区域不在候选项里就拒收', function ()
+    local game, players = newGame(2)
+    local mine    = moe.zone.create()
+    local outside = moe.zone.create()
+    game:on('卡牌-询问', function (ask)
+        ask:answer { zone = outside }
+    end)
+
+    local ask = game:askCard(players[1], nil, { zones = { mine } })
+
+    lt.assertEquals('没拿到答复', nil, ask.zone)
+    lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
+end)
+
+lt.test('询问：牌与区域可以同时是候选', function ()
+    local game, players = newGame(2)
+    local card = game:createCard('杀')
+    local zone = moe.zone.create()
+    zone:put(game:createCard('闪'))
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = card }
+    end)
+
+    local ask     = game:askCard(players[1], nil, { cards = { card }, zones = { zone } })
+    local options = assert(ask.options)
+
+    lt.assertEquals('两类候选都在', 2, #options)
+    lt.assertEquals('先是看得见的牌', card, options[1].card)
+    lt.assertEquals('后是看不见的区域', zone, options[2].zone)
+    lt.assertEquals('答复拿到那张牌', card, ask.card)
+    lt.assertEquals('答复里没有区域', nil, ask.zone)
+end)

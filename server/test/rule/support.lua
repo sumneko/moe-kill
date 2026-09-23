@@ -10,9 +10,9 @@ local M = {}
 ---@field count integer # 座位数
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field seed? integer
----@field answers? Card[] # 脚本化的答复（按顺序给出牌；省略时一律不响应）
+---@field answers? (Card|AskCard.Answer)[] # 脚本化的答复（按顺序给；直接给牌就是答复那张，给表就是整份答复）
 
----@param answers Card[]?
+---@param answers (Card|AskCard.Answer)[]?
 ---@return fun(ask: AskCard)
 local function scripted(answers)
     local index = 0
@@ -24,7 +24,14 @@ local function scripted(answers)
         if index > #answers then
             error('脚本里没有更多牌了', 2)
         end
-        ask:answer { card = answers[index] }
+        local answer = answers[index]
+        if Type(answer) then
+            ---@cast answer Card
+            ask:answer { card = answer }
+        else
+            ---@cast answer -Card
+            ask:answer(answer)
+        end
     end
 end
 

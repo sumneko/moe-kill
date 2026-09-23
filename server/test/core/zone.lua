@@ -224,3 +224,24 @@ lt.test('有序牌区：禁用后不能洗牌', function ()
     lt.assertError('禁用后洗牌失败', function () zone:shuffle(moe.random.create(1)) end)
     lt.assertEquals('顺序未变', table.concat(DECK, ','), zoneLabels(zone))
 end)
+
+lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看得见', function ()
+    local game   = moe.game.create { seats = 2, random = moe.random.create(1) }
+    local system = moe.attribute.create()
+    local mine   = moe.player.create(game, { attributes = system:createInstance() })
+    local other  = moe.player.create(game, { attributes = system:createInstance() })
+
+    local open = moe.zone.create()
+    lt.assertEquals('默认对所有人可见', true, open:isVisibleTo(other))
+
+    mine:addZone('手牌')
+    local hand = assert(mine:getZone('手牌'))
+    hand:setVisible(false)
+
+    lt.assertEquals('持有者自己看得见', true, hand:isVisibleTo(mine))
+    lt.assertEquals('别人看不见', false, hand:isVisibleTo(other))
+
+    local nobody = moe.zone.create()
+    nobody:setVisible(false)
+    lt.assertEquals('没有归属的暗区：谁都看不见', false, nobody:isVisibleTo(mine))
+end)

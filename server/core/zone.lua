@@ -2,6 +2,8 @@
 ---@field kind string
 ---@field protected cards Card[]
 ---@field private enabled boolean
+---@field private visible boolean # 是否对所有人可见（默认可见；不可见时只有持有者看得见）
+---@field private owner? Player # 这个区属于谁（玩家建区时记；公共区没有）
 local M = Class 'Zone'
 
 ---@param count integer
@@ -31,6 +33,7 @@ function M:__init()
     self.kind    = 'zone'
     self.cards   = {}
     self.enabled = true
+    self.visible = true
 end
 
 function M:checkEnabled(action)
@@ -153,6 +156,25 @@ end
 ---@return boolean
 function M:isEnabled()
     return self.enabled
+end
+
+--- 记下这个区属于谁（只有玩家建区时用）
+---@param player Player
+function M:bindOwner(player)
+    self.owner = player
+end
+
+--- 设置可见性
+---@param value boolean
+function M:setVisible(value)
+    self.visible = value and true or false
+end
+
+--- 这个区对某人是否可见
+---@param viewer Player
+---@return boolean
+function M:isVisibleTo(viewer)
+    return self.visible or self.owner == viewer
 end
 
 ---@return Card
