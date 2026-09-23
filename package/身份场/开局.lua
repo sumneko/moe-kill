@@ -1,3 +1,4 @@
+-- 开局：按人数把身份发下去（主公坐 1 号位）、给主公加体力上限
 game:on('游戏-开始', function ()
     local seats  = game.desk.players
     local config = game:getValue('身份配置')
