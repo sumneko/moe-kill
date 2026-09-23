@@ -96,11 +96,11 @@ lt.test('胜负：主公阵亡且只剩内奸 ⇒ 内奸胜', function ()
     lt.assertEquals('只剩内奸活着', 1, #run.desk.alivePlayers)
 end)
 
---- 把抽牌堆里的牌全部挪进处理区（弃牌堆本来就空）⇒ 两张堆都没有牌
+--- 把抽牌堆里的牌全部挪到一块别处（弃牌堆本来就空）⇒ 两张堆都没有牌
 ---@param run Test.RuleSupport
 local function emptyBothPiles(run)
     local deck      = assert(run.game:getZone('抽牌'), '没有抽牌')
-    local somewhere = assert(run.game:getZone('处理'), '没有处理')
+    local somewhere = run.game:createZone('别处')
     for _, card in ipairs(deck:list()) do
         deck:move(card, somewhere)
     end

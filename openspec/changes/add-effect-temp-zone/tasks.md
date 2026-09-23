@@ -26,3 +26,12 @@
 - [x] 4.1 更新 `.agents/skills/moe-kill-dev/references/architecture.md`（`Effect` 行加临时区与收尾时机、时机表、`effect/` 目录说明、无头测试清单）与 `references/progress.md`
 - [x] 4.2 更新 `.agents/skills/sanguosha-rules/SKILL.md`（§9.10 五谷丰登的写法改成临时区版本）
 - [x] 4.3 验证：`server/bin/moe-kill.exe --test` 0 失败；问题面板 information 及以上 0；`openspec validate add-effect-temp-zone --strict` 通过
+
+## 5. 批二：判定 / 使用 / 打出也进临时区，废弃 `处理` 公共区
+
+- [x] 5.1 `package/@基础/牌堆.lua`：不再建 `处理` 公共区
+- [x] 5.2 `package/@基础/使用.lua`：用过的牌进 `ctx:getTempZone()`，`'卡牌-结算后'` 订阅删掉（收尾统一送弃牌）
+- [x] 5.3 `package/@基础/打出.lua`：打出的牌进**发起那次结算**的临时区（`ctx.parent`；没有父结算就直接送 `弃牌`），`'卡牌-答复后'` 订阅删掉
+- [x] 5.4 `package/@基础/判定.lua`：翻出的判定牌进 `judge:getTempZone()`、`'判定-后'` 整段删掉；内核 `Judge:replace` 把新牌也挪进同一块临时区
+- [x] 5.5 用例：删掉 5 处「处理只是路过 / 处理也建好了」断言（牌的去向已由「进弃牌」覆盖）；腾空牌堆的两处改用例自建区
+- [x] 5.6 验证：`--test` 468 用例 0 失败；问题面板 information 及以上 0

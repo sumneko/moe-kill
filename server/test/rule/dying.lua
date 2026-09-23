@@ -63,7 +63,6 @@ lt.test('濒死：自己给一张桃就能活下来', function ()
     lt.assertEquals('还活着', true, target:isAlive())
     lt.assertEquals('桃不在手上了', 0, target:getZone('手牌'):count())
     lt.assertEquals('桃进了弃牌', 1, run.game:getZone('弃牌'):count())
-    lt.assertEquals('处理只是路过', 0, assert(run.game:getZone('处理')):count())
 end)
 
 lt.test('濒死：从当前回合角色开始按行动顺序问，下家的桃也能救人', function ()

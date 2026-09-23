@@ -45,7 +45,7 @@ lt.test('抽牌：牌堆和弃牌都空时能摸多少摸多少，不报错', fu
     local player = run.players[1]
     local deck   = assert(run.game:getZone('抽牌'), '没有抽牌')
 
-    local somewhere = assert(run.game:getZone('处理'), '没有处理')
+    local somewhere = run.game:createZone('别处')
     for _, card in ipairs(deck:list()) do
         deck:move(card, somewhere)
     end

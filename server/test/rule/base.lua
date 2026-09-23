@@ -114,7 +114,6 @@ lt.test('基础：按牌表建出牌堆', function ()
     lt.assertEquals('张数等于牌表总数', totalCards(run.game), deck:count())
     lt.assertEquals('每张牌都带牌名标签', '杀', deck:list()[1]:getLabel())
     lt.assertEquals('弃牌也建好了', true, run.game:getZone('弃牌') ~= nil)
-    lt.assertEquals('处理也建好了', true, run.game:getZone('处理') ~= nil)
 end)
 
 lt.test('基础：洗牌可复现', function ()

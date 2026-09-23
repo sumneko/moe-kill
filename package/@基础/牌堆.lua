@@ -14,7 +14,6 @@ game:on('游戏-开始', function ()
     deck:shuffle()
 
     local discard = game:createZone('弃牌')
-    game:createZone('处理')
     for _, player in ipairs(game.desk.players) do
         player:addZone('手牌')
     end

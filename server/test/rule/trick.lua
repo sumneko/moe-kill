@@ -38,7 +38,6 @@ lt.test('无中生有：用出去就摸两张', function ()
     lt.assertEquals('手牌净多一张（用掉那张，又摸两张）', 2, assert(user:getZone('手牌')):count())
     lt.assertEquals('抽牌少了 2 张', deckBefore - 2, deck:count())
     lt.assertEquals('弃牌里就是那张锦囊', card, assert(run.game:getZone('弃牌')):list()[1])
-    lt.assertEquals('处理只是路过', 0, assert(run.game:getZone('处理')):count())
 end)
 
 lt.test('无中生有：只能以自己为目标', function ()
