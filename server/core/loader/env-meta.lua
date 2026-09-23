@@ -17,7 +17,7 @@ Depends = nil
 ---@field on fun(self: CardDef, event: '生效', handler: fun(ctx: CardEffect)): CardDef
 ---@field limit fun(self: CardDef, phase: string, count: integer): CardDef # 声明这个阶段里最多用几次（没声明 = 1000）
 ---@field getLimit fun(self: CardDef, phase: string): integer
----@field kind fun(self: CardDef, name: string): CardDef # 加一个分类（可多次调；取值省略「牌」字：基本 / 锦囊 / 装备）
+---@field kind fun(self: CardDef, name: string|string[]): CardDef # 声明分类（一次调用定下；要多个就给一张列表；取值省略「牌」字：基本 / 锦囊 / 装备）
 ---@field isKind fun(self: CardDef, name: string): boolean
 ---@field getKinds fun(self: CardDef): string[]
 ---@field zone fun(self: CardDef, zone: string): CardDef # 必须从哪个牌区用（不声明 = 使用者任一牌区都行）

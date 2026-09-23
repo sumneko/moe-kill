@@ -45,25 +45,33 @@ local function newGame(source)
     return game, player
 end
 
-lt.test('定义：分类可多条、重复写只算一次、取到的是快照', function ()
+---@param game Game
+---@param name string
+---@return string # 分类列表拼成一行
+local function kindsOf(game, name)
+    return table.concat(assert(game:getCard(name)):getKinds(), ',')
+end
+
+lt.test('定义：分类一次给一张列表，重复调以后写的为准，取到的是快照', function ()
     local guard <close> = useProbe()
     local game = newGame([[
 Card '甲'
+    : kind { '锦囊', '延时锦囊', '锦囊' }
+Card '乙'
     : kind '基本'
-    : kind '锦囊'
-    : kind '基本'
+    : kind '装备'
 ]])
 
-    local def = assert(game:getCard('甲'))
+    lt.assertEquals('按列表顺序，重名只算一次', '锦囊,延时锦囊', kindsOf(game, '甲'))
+    lt.assertEquals('重复调以后写的为准', '装备', kindsOf(game, '乙'))
 
-    lt.assertEquals('按声明顺序', '基本,锦囊', table.concat(def:getKinds(), ','))
-    lt.assertEquals('同名只算一次', 2, #def:getKinds())
-    lt.assertEquals('isKind 正面', true, def:isKind('锦囊'))
-    lt.assertEquals('isKind 反面', false, def:isKind('装备'))
+    local def = assert(game:getCard('甲'))
+    lt.assertEquals('isKind 正面', true, def:isKind('延时锦囊'))
+    lt.assertEquals('isKind 反面', false, def:isKind('基本'))
 
     local snapshot = def:getKinds()
     snapshot[1] = '改过'
-    lt.assertEquals('拿到的列表改不动定义', '基本,锦囊', table.concat(def:getKinds(), ','))
+    lt.assertEquals('拿到的列表改不动定义', '锦囊,延时锦囊', kindsOf(game, '甲'))
 end)
 
 lt.test('定义：牌区声明与读、重复写后者覆盖、不声明就是空', function ()
@@ -157,8 +165,31 @@ Card '子'
 
     local def = assert(game:getCard('子'))
 
-    lt.assertEquals('分类累积', '基本,锦囊', table.concat(def:getKinds(), ','))
+    lt.assertEquals('分类以后一次为准（覆盖）', '锦囊', kindsOf(game, '子'))
     lt.assertEquals('牌区以后写的为准', '装备', def:getZone())
+end)
+
+lt.test('定义：extends 拄分类是覆盖，基类没分类就不动', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '基'
+    : kind '基本'
+Card '素'
+    : zone '手牌'
+Card '子'
+    : kind '装备'
+    : extends '基'
+Card '丙'
+    : extends '基'
+    : kind '锦囊'
+Card '丁'
+    : kind '装备'
+    : extends '素'
+]])
+
+    lt.assertEquals('基类的分类覆盖自己写的', '基本', kindsOf(game, '子'))
+    lt.assertEquals('extends 之后写的覆盖拄来的', '锦囊', kindsOf(game, '丙'))
+    lt.assertEquals('基类没分类就不动自己的', '装备', kindsOf(game, '丁'))
 end)
 
 lt.test('定义：extends 支持限定名', function ()

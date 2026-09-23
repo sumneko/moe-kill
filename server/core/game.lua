@@ -70,13 +70,26 @@ function CardDef:getLimit(phase)
     return self.limits[phase] or DEFAULT_LIMIT
 end
 
---- 给这张牌加一个分类（可以多次调；同一个名字重复写只算一次）
----@param name string # 分类名（内核不解释取值）
+--- 声明这张牌的分类（一次调用就把分类定下来；重复调以后写的为准；要多个就给一张列表）
+---@param name string|string[] # 分类名（内核不解释取值）
 ---@return CardDef
 function CardDef:kind(name)
-    if not self.kindSet[name] then
-        self.kindSet[name] = true
-        self.kinds[#self.kinds + 1] = name
+    ---@type string[]
+    local list
+    if type(name) == 'table' then
+        ---@cast name string[]
+        list = name
+    else
+        ---@cast name string
+        list = { name }
+    end
+    self.kinds   = {}
+    self.kindSet = {}
+    for _, item in ipairs(list) do
+        if not self.kindSet[item] then
+            self.kindSet[item] = true
+            self.kinds[#self.kinds + 1] = item
+        end
     end
     return self
 end
@@ -128,8 +141,8 @@ function CardDef:extends(name)
         end
         self.handlers[event] = merged
     end
-    for _, kind in ipairs(base.kinds) do
-        self:kind(kind)
+    if #base.kinds > 0 then
+        self:kind(base.kinds)
     end
     if base.useZone then
         self.useZone = base.useZone
