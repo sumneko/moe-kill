@@ -61,15 +61,15 @@ lt.test('伤害：伤害前与伤害后时机的先后与上下文', function ()
     ---@type Player?
     local seenTo = nil
 
-    ---@param ctx Damage
-    local function onBefore(ctx)
-        trace[#trace + 1] = '前 {} {}' % { target:getAttr('体力'), ctx.amount }
+    ---@param damage Damage
+    local function onBefore(damage)
+        trace[#trace + 1] = '前 {} {}' % { target:getAttr('体力'), damage.amount }
     end
 
-    ---@param ctx Damage
-    local function onAfter(ctx)
-        trace[#trace + 1] = '后 {} {}' % { target:getAttr('体力'), ctx.amount }
-        seenTo = ctx.to
+    ---@param damage Damage
+    local function onAfter(damage)
+        trace[#trace + 1] = '后 {} {}' % { target:getAttr('体力'), damage.amount }
+        seenTo = damage.to
     end
 
     game:on('伤害-前', onBefore)
@@ -132,14 +132,14 @@ lt.test('伤害：两个时机收到同一个实例', function ()
     ---@type Damage?
     local after = nil
 
-    ---@param ctx Damage
-    local function onBefore(ctx)
-        before = ctx
+    ---@param damage Damage
+    local function onBefore(damage)
+        before = damage
     end
 
-    ---@param ctx Damage
-    local function onAfter(ctx)
-        after = ctx
+    ---@param damage Damage
+    local function onAfter(damage)
+        after = damage
     end
 
     game:on('伤害-前', onBefore)
@@ -155,24 +155,24 @@ lt.test('伤害：结算期间在栈上', function ()
     local game, players = newGame(2)
 
     ---@type Damage?
-    local ctxSeen = nil
+    local damageSeen = nil
     ---@type Effect?
     local topSeen = nil
     ---@type string?
     local kindSeen = nil
 
-    ---@param ctx Damage
-    local function onAfter(ctx)
-        ctxSeen  = ctx
-        topSeen  = game:getEffect()
-        kindSeen = ctx.kind
+    ---@param damage Damage
+    local function onAfter(damage)
+        damageSeen = damage
+        topSeen    = game:getEffect()
+        kindSeen   = damage.kind
     end
 
     game:on('伤害-后', onAfter)
 
     game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('触发时栈顶就是这次伤害', ctxSeen, topSeen)
+    lt.assertEquals('触发时栈顶就是这次伤害', damageSeen, topSeen)
     lt.assertEquals('种类标识', 'damage', kindSeen)
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)

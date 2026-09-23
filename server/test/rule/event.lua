@@ -49,34 +49,34 @@ end
 
 lt.test('时机：加载期注册的回调能被触发', function ()
     local guard <close> = prepare()
-    write('甲/开始.lua', 'game:on("游戏-开始", function (ctx) ctx.record = "甲" end)')
+    write('甲/开始.lua', 'game:on("游戏-开始", function (event) event.record = "甲" end)')
 
     load(list('甲'))
 
     ---@type table<string, any>
-    local ctx = {}
-    game:fire('游戏-开始', ctx)
+    local payload = {}
+    game:fire('游戏-开始', payload)
 
-    lt.assertEquals('回调被执行并拿到上下文', '甲', ctx.record)
+    lt.assertEquals('回调被执行并拿到上下文', '甲', payload.record)
 end)
 
 lt.test('时机：后注册的后执行，于是覆盖先前的', function ()
     local guard <close> = prepare()
-    write('甲/开始.lua', 'game:on("游戏-开始", function (ctx) ctx.identity = "甲写的" end)')
-    write('乙/开始.lua', 'game:on("游戏-开始", function (ctx) ctx.identity = "乙写的" end)')
+    write('甲/开始.lua', 'game:on("游戏-开始", function (event) event.identity = "甲写的" end)')
+    write('乙/开始.lua', 'game:on("游戏-开始", function (event) event.identity = "乙写的" end)')
 
     load(list('甲', '乙'))
 
     ---@type table<string, any>
-    local ctx = {}
-    game:fire('游戏-开始', ctx)
+    local payload = {}
+    game:fire('游戏-开始', payload)
 
-    lt.assertEquals('后加载的包后注册、后执行，写完的值生效', '乙写的', ctx.identity)
+    lt.assertEquals('后加载的包后注册、后执行，写完的值生效', '乙写的', payload.identity)
 end)
 
 lt.test('时机：注册返回的 disposer 能撤销', function ()
     local guard <close> = prepare()
-    write('甲/开始.lua', 'local undo = game:on("游戏-开始", function (ctx) ctx.record = "甲" end)\n'
+    write('甲/开始.lua', 'local undo = game:on("游戏-开始", function (event) event.record = "甲" end)\n'
         .. 'if type(undo) ~= "function" then\n'
         .. '    error("注册没有返回撤销函数")\n'
         .. 'end\n'
@@ -85,32 +85,32 @@ lt.test('时机：注册返回的 disposer 能撤销', function ()
     load(list('甲'))
 
     ---@type table<string, any>
-    local ctx = {}
-    game:fire('游戏-开始', ctx)
-    lt.assertEquals('撤销后不再触发', nil, ctx.record)
+    local payload = {}
+    game:fire('游戏-开始', payload)
+    lt.assertEquals('撤销后不再触发', nil, payload.record)
 end)
 
 lt.test('时机：加载之外也能注册（订阅随下一次装载清空）', function ()
     local guard <close> = prepare()
     ---@type table<string, any>
-    local ctx = {}
-    local undo = game:on('游戏-开始', function (seen)
-        ---@cast seen table<string, any>
-        seen.record = '加载之外'
+    local payload = {}
+    local undo = game:on('游戏-开始', function (event)
+        ---@cast event table<string, any>
+        event.record = '加载之外'
     end)
 
-    game:fire('游戏-开始', ctx)
-    lt.assertEquals('加载之外注册照常生效', '加载之外', ctx.record)
+    game:fire('游戏-开始', payload)
+    lt.assertEquals('加载之外注册照常生效', '加载之外', payload.record)
 
     undo()
-    ctx.record = nil
-    game:fire('游戏-开始', ctx)
-    lt.assertEquals('撤销后不再触发', nil, ctx.record)
+    payload.record = nil
+    game:fire('游戏-开始', payload)
+    lt.assertEquals('撤销后不再触发', nil, payload.record)
 end)
 
 lt.test('时机：清空重载后旧注册不再触发', function ()
     local guard <close> = prepare()
-    write('甲/开始.lua', 'game:on("游戏-开始", function (ctx) ctx.record = "第一轮" end)')
+    write('甲/开始.lua', 'game:on("游戏-开始", function (event) event.record = "第一轮" end)')
 
     load(list('甲'))
     ---@type table<string, any>
@@ -140,16 +140,16 @@ end)
 
 lt.test('时机：同一个时机在多个文件里注册也按加载顺序执行', function ()
     local guard <close> = prepare()
-    write('甲/一.lua', 'game:on("游戏-开始", function (ctx) ctx.order = (ctx.order or "") .. "一" end)')
-    write('甲/二.lua', 'game:on("游戏-开始", function (ctx) ctx.order = (ctx.order or "") .. "二" end)')
+    write('甲/一.lua', 'game:on("游戏-开始", function (event) event.order = (event.order or "") .. "一" end)')
+    write('甲/二.lua', 'game:on("游戏-开始", function (event) event.order = (event.order or "") .. "二" end)')
 
     load(list('甲'))
 
     ---@type table<string, any>
-    local ctx = {}
-    game:fire('游戏-开始', ctx)
+    local payload = {}
+    game:fire('游戏-开始', payload)
 
-    lt.assertEquals('按文件加载顺序注册', '一二', ctx.order)
+    lt.assertEquals('按文件加载顺序注册', '一二', payload.order)
 end)
 
 lt.test('快速返回：回调明确返回了返回值就跳过之后的事件，并以它为准', function ()

@@ -189,8 +189,8 @@ lt.test('桌子：玩家一建出来就带着局，死亡时机发得出来', fu
 
     ---@type Player?
     local seen = nil
-    game:on('玩家-死亡', function (ctx)
-        seen = ctx
+    game:on('玩家-死亡', function (player)
+        seen = player
     end)
 
     a:setAlive(false)

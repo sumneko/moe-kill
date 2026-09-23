@@ -92,14 +92,14 @@ lt.test('回合：首回合从主公开始，六个阶段依次走完', function
 
     local state = startTurn {
         setup = function (run)
-            run.game:on('回合-开始', function (ctx)
-                firstPlayer = firstPlayer or ctx.player
+            run.game:on('回合-开始', function (turn)
+                firstPlayer = firstPlayer or turn.player
             end)
-            run.game:on('阶段-开始', function (ctx)
-                marks[#marks+1] = '开始:' .. ctx.name
+            run.game:on('阶段-开始', function (phase)
+                marks[#marks+1] = '开始:' .. phase.name
             end)
-            run.game:on('阶段-结束', function (ctx)
-                marks[#marks+1] = '结束:' .. ctx.name
+            run.game:on('阶段-结束', function (phase)
+                marks[#marks+1] = '结束:' .. phase.name
             end)
         end,
         answer    = endPhase(),
@@ -245,8 +245,8 @@ lt.test('回合：阵亡的角色不再得到回合', function ()
     local state = startTurn {
         setup = function (run)
             run.players[2]:setAlive(false)
-            run.game:on('回合-开始', function (ctx)
-                started[#started+1] = ctx.player
+            run.game:on('回合-开始', function (turn)
+                started[#started+1] = turn.player
             end)
         end,
         answer    = endPhase(),

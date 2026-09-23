@@ -94,15 +94,15 @@ Card '基'
     : kind '基本'
     : zone '手牌'
     : limit('出牌', 2)
-    : on('获取目标', function (ctx)
-        ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '基')
+    : on('获取目标', function (target)
+        target.user:setTag('顺序', (target.user:getTag('顺序') or '') .. '基')
         return game.desk.players
     end)
 Card '子'
     : extends '基'
     : limit('出牌', 5)
-    : on('获取目标', function (ctx)
-        ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '子')
+    : on('获取目标', function (target)
+        target.user:setTag('顺序', (target.user:getTag('顺序') or '') .. '子')
         return game.desk.players
     end)
 ]])

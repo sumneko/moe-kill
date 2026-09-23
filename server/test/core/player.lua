@@ -122,8 +122,8 @@ lt.test('玩家：默认活着，死亡时触发时机', function ()
     local seen = nil
     ---@type integer
     local times = 0
-    game:on('玩家-死亡', function (ctx)
-        seen  = ctx
+    game:on('玩家-死亡', function (player)
+        seen  = player
         times = times + 1
     end)
 

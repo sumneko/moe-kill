@@ -64,7 +64,7 @@ end
 
 local SIMPLE = [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]]
@@ -72,7 +72,7 @@ Card '测试杀'
 local LIMITED = [[
 Card '测试杀'
     : limit('测试阶段', 1)
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]]
@@ -80,7 +80,7 @@ Card '测试杀'
 local FROM_HAND = [[
 Card '测试杀'
     : zone '手牌'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]]
@@ -88,7 +88,7 @@ Card '测试杀'
 local NO_SUCH_ZONE = [[
 Card '测试杀'
     : zone '没有这个区'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]]
@@ -261,8 +261,8 @@ lt.test('校验：「获取目标」没返回列表 ⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame([[
 Card '测试杀'
-    : on('获取目标', function (ctx)
-        ctx.user:setTag('问过', true)
+    : on('获取目标', function (target)
+        target.user:setTag('问过', true)
     end)
 ]])
     local card = run.game:createCard('测试杀')
@@ -279,7 +279,7 @@ lt.test('校验：合法目标为空 ⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame([[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return {}
     end)
 ]])
@@ -296,10 +296,10 @@ lt.test('校验：多个「获取目标」取交集', function ()
     local guard <close> = useProbe()
     local run = newGame([[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]])
@@ -322,9 +322,9 @@ lt.test('校验：内容侧条目可以否决（返回值就是原因）', funct
 
     ---@type Card[] # 条目看到的那些牌
     local seen = {}
-    run.game:on('卡牌-能否使用', function (ctx)
-        seen[#seen + 1] = ctx.card
-        if ctx.card == card then
+    run.game:on('卡牌-能否使用', function (check)
+        seen[#seen + 1] = check.card
+        if check.card == card then
             return '这张现在不许用'
         end
     end)

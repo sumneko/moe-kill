@@ -60,9 +60,9 @@ lt.test('决策询问：有答复才触发「决策-答复」', function ()
     local game, players = newGame(2)
     local fired = 0
 
-    game:on('决策-答复', function (ctx)
+    game:on('决策-答复', function (ask)
         fired = fired + 1
-        lt.assertEquals('时机里读得到答复', true, ctx.reply ~= nil)
+        lt.assertEquals('时机里读得到答复', true, ask.reply ~= nil)
     end)
 
     game:ask(players[1], '出牌', {})

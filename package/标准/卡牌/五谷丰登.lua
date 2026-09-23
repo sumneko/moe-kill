@@ -4,17 +4,17 @@
 
 Card '五谷丰登'
     : extends '锦囊牌'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.alivePlayers
     end)
-    : on('结算前', function (ctx)
-        game:moveCard(game:getZone('抽牌'):draw(#ctx.targets), ctx:getTempZone())
+    : on('结算前', function (useCard)
+        game:moveCard(game:getZone('抽牌'):draw(#useCard.targets), useCard:getTempZone())
     end)
-    : on('生效', function (ctx)
-        local revealed = assert(ctx.parent):getTempZone():list()
-        local card = game:askCard(ctx.target, '五谷丰登', { cards = revealed }).card
+    : on('生效', function (cardEffect)
+        local revealed = assert(cardEffect.parent):getTempZone():list()
+        local card = game:askCard(cardEffect.target, '五谷丰登', { cards = revealed }).card
         if not card then
             return
         end
-        game:moveCard(card, assert(ctx.target:getZone('手牌'), '目标没有手牌区'))
+        game:moveCard(card, assert(cardEffect.target:getZone('手牌'), '目标没有手牌区'))
     end)

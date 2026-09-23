@@ -126,11 +126,11 @@ lt.test('效果：结算期间是根，结束就清掉', function ()
     ---@type string[]
     local trace = {}
 
-    game:on('伤害-前', function (ctx)
-        trace[#trace + 1] = '前 {}' % { tostring(game:getEffect() == ctx) }
+    game:on('伤害-前', function (damage)
+        trace[#trace + 1] = '前 {}' % { tostring(game:getEffect() == damage) }
     end)
-    game:on('伤害-后', function (ctx)
-        trace[#trace + 1] = '后 {}' % { tostring(game:getEffect() == ctx) }
+    game:on('伤害-后', function (damage)
+        trace[#trace + 1] = '后 {}' % { tostring(game:getEffect() == damage) }
     end)
 
     game:damage(players[1], players[2], 1)
@@ -147,9 +147,9 @@ lt.test('效果：嵌套结算会压深，结束后回到外层', function ()
     ---@type boolean
     local nested = false
 
-    game:on('伤害-前', function (ctx)
-        ---@cast ctx Damage
-        trace[#trace + 1] = '进入 {} 层 {}' % { ctx.deep, ctx.to == players[2] and '外层' or '内层' }
+    game:on('伤害-前', function (damage)
+        ---@cast damage Damage
+        trace[#trace + 1] = '进入 {} 层 {}' % { damage.deep, damage.to == players[2] and '外层' or '内层' }
         if not nested then
             nested = true
             game:damage(players[2], players[3], 1)
@@ -176,15 +176,15 @@ lt.test('效果：内层的父是外层，根效果没有父', function ()
     ---@type boolean
     local nested = false
 
-    game:on('伤害-前', function (ctx)
-        ---@cast ctx Effect
+    game:on('伤害-前', function (damage)
+        ---@cast damage Effect
         if not nested then
             nested    = true
-            outerSeen = ctx
+            outerSeen = damage
             game:damage(players[2], players[3], 1)
         else
-            innerSeen  = ctx
-            parentSeen = ctx.parent
+            innerSeen  = damage
+            parentSeen = damage.parent
         end
     end)
 
@@ -205,9 +205,9 @@ lt.test('效果：根效果的父不存在，也不报错', function ()
     ---@type Effect?
     local topSeen = nil
 
-    game:on('伤害-前', function (ctx)
-        ---@cast ctx Effect
-        topSeen = ctx
+    game:on('伤害-前', function (damage)
+        ---@cast damage Effect
+        topSeen = damage
     end)
 
     game:damage(players[1], players[2], 1)
@@ -222,9 +222,9 @@ lt.test('效果：沿父效果能还原整条结算链', function ()
     ---@type Effect[] # 按进入顺序
     local entered = {}
 
-    game:on('伤害-前', function (ctx)
-        ---@cast ctx Effect
-        entered[#entered + 1] = ctx
+    game:on('伤害-前', function (damage)
+        ---@cast damage Effect
+        entered[#entered + 1] = damage
         if #entered < 3 then
             game:damage(players[1], players[#entered + 2], 1)
         end
@@ -276,10 +276,10 @@ lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
     ---@type string[]
     local trace = {}
 
-    game:on('即将生效', function (ctx)
-        trace[#trace + 1] = '{} {}' % { ctx.kind, game:getEffect() == ctx }
-        ---@cast ctx Effect
-        ctx:remove()
+    game:on('即将生效', function (effect)
+        trace[#trace + 1] = '{} {}' % { effect.kind, game:getEffect() == effect }
+        ---@cast effect Effect
+        effect:remove()
         trace[#trace + 1] = '取消之后这一行不该执行'
     end)
     game:on('即将生效', function ()
@@ -308,10 +308,10 @@ lt.test('效果：取消只作用于这一个效果，外层照常结算完', fu
             outerDone = true
         end
     end)
-    game:on('即将生效', function (ctx)
-        ---@cast ctx Damage
-        if ctx.amount == 2 then
-            ctx:remove()
+    game:on('即将生效', function (effect)
+        ---@cast effect Damage
+        if effect.amount == 2 then
+            effect:remove()
         end
     end)
 
@@ -329,9 +329,9 @@ lt.test('效果：被取消后它自己的结算不再执行', function ()
     ---@type string[]
     local trace = {}
 
-    game:on('即将生效', function (ctx)
-        ---@cast ctx Effect
-        ctx:remove()
+    game:on('即将生效', function (effect)
+        ---@cast effect Effect
+        effect:remove()
     end)
 
     local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
@@ -419,9 +419,9 @@ lt.test('效果：自动失败交给任务的错误处理器，取消不交', fu
     lt.assertEquals('处理器收到一次', 1, #lt.errors)
     lt.assertEquals('收到的是这个失败', true, tostring(lt.errors[1]):find('故意报错', 1, true) ~= nil)
 
-    game:on('即将生效', function (ctx)
-        ---@cast ctx Effect
-        ctx:remove()
+    game:on('即将生效', function (effect)
+        ---@cast effect Effect
+        effect:remove()
     end)
     game:damage(players[1], players[2], 1)
 
@@ -487,9 +487,9 @@ lt.test('效果：取消也收尾（牌不能留在已经死掉的效果里）',
     local game = newGame(1)
     local finished = 0
     game:on('效果-收尾', function () finished = finished + 1 end)
-    game:on('即将生效', function (ctx)
-        ---@cast ctx Effect
-        ctx:remove()
+    game:on('即将生效', function (effect)
+        ---@cast effect Effect
+        effect:remove()
     end)
 
     New 'ProbeEffect' (game, nil):apply()

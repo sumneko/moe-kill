@@ -69,13 +69,13 @@ end)
 lt.test('事件：上下文透传', function ()
     local event = moe.event.create()
     local received
-    event:on('甲', function (ctx) received = ctx end)
+    event:on('甲', function (payload) received = payload end)
 
     ---@type table<string, any>
-    local ctx = { count = 4 }
-    event:fire('甲', ctx)
+    local payload = { count = 4 }
+    event:fire('甲', payload)
 
-    lt.assertEquals('回调收到触发时传的上下文', ctx, received)
+    lt.assertEquals('回调收到触发时传的上下文', payload, received)
 end)
 
 lt.test('事件：clear 清空全部注册', function ()

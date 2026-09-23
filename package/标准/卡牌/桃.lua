@@ -3,8 +3,8 @@
 
 Card '桃'
     : extends '基本牌'
-    : on('获取目标', function (ctx)
-        local user = ctx.user
+    : on('获取目标', function (target)
+        local user = target.user
         ---@type Player[]
         local targets = {}
         if user:getAttr('体力') > 0 and user:getAttr('体力') < user:getAttr('体力上限') then
@@ -17,6 +17,6 @@ Card '桃'
         end
         return targets
     end)
-    : on('生效', function (ctx)
-        game:heal(ctx.target, 1)
+    : on('生效', function (cardEffect)
+        game:heal(cardEffect.target, 1)
     end)

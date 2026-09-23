@@ -29,11 +29,11 @@ lt.test('阶段：进入时触发阶段-开始，阶段实例就是事件上下�
     local started = nil
     ---@type Phase?
     local ended = nil
-    game:on('阶段-开始', function (ctx)
-        started = ctx
+    game:on('阶段-开始', function (phase)
+        started = phase
     end)
-    game:on('阶段-结束', function (ctx)
-        ended = ctx
+    game:on('阶段-结束', function (phase)
+        ended = phase
     end)
 
     local phase = game:enterPhase(players[1], '出牌')
@@ -53,11 +53,11 @@ lt.test('阶段：作用域结束（<close>）就离开', function ()
     local game, players = newGame()
     ---@type string[]
     local marks = {}
-    game:on('阶段-开始', function (ctx)
-        marks[#marks+1] = '开始:' .. ctx.name
+    game:on('阶段-开始', function (phase)
+        marks[#marks+1] = '开始:' .. phase.name
     end)
-    game:on('阶段-结束', function (ctx)
-        marks[#marks+1] = '结束:' .. ctx.name
+    game:on('阶段-结束', function (phase)
+        marks[#marks+1] = '结束:' .. phase.name
     end)
 
     do

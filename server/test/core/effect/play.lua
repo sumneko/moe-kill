@@ -57,15 +57,15 @@ lt.test('使用：用一张牌并结算', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
-    : on('生效', function (ctx)
-        ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '一')
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('顺序', (cardEffect.user:getTag('顺序') or '') .. '一')
     end)
-    : on('生效', function (ctx)
-        ctx.user:setTag('顺序', (ctx.user:getTag('顺序') or '') .. '二')
-        ctx.user:setTag('目标', ctx.target)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('顺序', (cardEffect.user:getTag('顺序') or '') .. '二')
+        cardEffect.user:setTag('目标', cardEffect.target)
     end)
 ]])
 
@@ -80,10 +80,10 @@ Card '测试杀'
     ---@type Player?
     local settledTarget = nil
 
-    ---@param ctx UseCard
-    local function onSettled(ctx)
-        settledCard   = ctx.card
-        settledTarget = ctx.targets[1]
+    ---@param useCard UseCard
+    local function onSettled(useCard)
+        settledCard   = useCard.card
+        settledTarget = useCard.targets[1]
     end
     game:on('卡牌-结算后', onSettled)
 
@@ -100,7 +100,7 @@ lt.test('使用：自己的阶段里用一次就记一次账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]])
@@ -126,7 +126,7 @@ lt.test('使用：阶段不是使用者的就不记账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]])
@@ -146,7 +146,7 @@ lt.test('使用：离开阶段之后用牌不记账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]])
@@ -167,11 +167,11 @@ lt.test('使用：目标给单个或一张列表都行', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
-    : on('生效', function (ctx)
-        ctx.user:setTag('目标', ctx.target)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('目标', cardEffect.target)
     end)
 ]])
 
@@ -188,8 +188,8 @@ lt.test('使用：牌不在使用者手上时报错', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('生效', function (ctx)
-        ctx.user:setTag('用了', true)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('用了', true)
     end)
 ]])
 
@@ -221,11 +221,11 @@ lt.test('使用：给出的目标必须是合法目标的子集', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
-    : on('生效', function (ctx)
-        ctx.user:setTag('用了', ctx.target)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('用了', cardEffect.target)
     end)
 ]])
 
@@ -245,8 +245,8 @@ lt.test('使用：没声明「获取目标」的牌用不了', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('使用', function (ctx)
-        ctx.user:setTag('用了', ctx.targets[1])
+    : on('使用', function (useCard)
+        useCard.user:setTag('用了', useCard.targets[1])
     end)
 ]])
 
@@ -266,8 +266,8 @@ lt.test('使用：钩子没返回列表时用不了', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
-        ctx.user:setTag('问过目标', true)
+    : on('获取目标', function (target)
+        target.user:setTag('问过目标', true)
     end)
 ]])
 
@@ -285,7 +285,7 @@ lt.test('使用：合法目标为空时用不了', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return {}
     end)
 ]])
@@ -303,7 +303,7 @@ lt.test('使用：给出的目标不能为空', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]])
@@ -321,14 +321,14 @@ lt.test('使用：多个钩子取交集', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
-    : on('生效', function (ctx)
-        ctx.user:setTag('用了', true)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('用了', true)
     end)
 ]])
 
@@ -349,13 +349,13 @@ lt.test('使用：结算期间这次生效在栈上', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
-    : on('生效', function (ctx)
-        ctx.user:setTag('父是根', game:getEffect() == ctx.parent)
-        ctx.user:setTag('种类', ctx.kind)
-        ctx.user:setTag('父是用牌', ctx.parent and ctx.parent.kind)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('父是根', game:getEffect() == cardEffect.parent)
+        cardEffect.user:setTag('种类', cardEffect.kind)
+        cardEffect.user:setTag('父是用牌', cardEffect.parent and cardEffect.parent.kind)
     end)
 ]])
 
@@ -377,7 +377,7 @@ lt.test('使用：失败后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
 ]])
@@ -395,7 +395,7 @@ lt.test('使用：结算中抛错后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
     : on('生效', function ()
@@ -420,11 +420,11 @@ lt.test('使用：结算里造成的伤害认这次用牌为父', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
-    : on('生效', function (ctx)
-        game:damage(ctx.user, ctx.target, 1)
+    : on('生效', function (cardEffect)
+        game:damage(cardEffect.user, cardEffect.target, 1)
     end)
 ]])
 
@@ -435,9 +435,9 @@ Card '测试杀'
     ---@type Damage?
     local damageSeen = nil
 
-    ---@param ctx Damage
-    local function onBefore(ctx)
-        damageSeen = ctx
+    ---@param damage Damage
+    local function onBefore(damage)
+        damageSeen = damage
     end
     game:on('伤害-前', onBefore)
 
@@ -491,12 +491,12 @@ lt.test('使用：逐目标生效，顺序按行动顺序', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('生效', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    : on('生效', function (cardEffect)
+        local order = cardEffect.user:getTag('顺序') or ''
+        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
     end)
 ]])
 
@@ -515,20 +515,20 @@ lt.test('使用：牌自己的「结算前」/「结算后」各跑一次，顺�
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('结算前', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. '结算前')
+    : on('结算前', function (useCard)
+        local order = useCard.user:getTag('顺序') or ''
+        useCard.user:setTag('顺序', order .. '结算前')
     end)
-    : on('生效', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    : on('生效', function (cardEffect)
+        local order = cardEffect.user:getTag('顺序') or ''
+        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
     end)
-    : on('结算后', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. '结算后')
+    : on('结算后', function (useCard)
+        local order = useCard.user:getTag('顺序') or ''
+        useCard.user:setTag('顺序', order .. '结算后')
     end)
 ]])
 
@@ -547,12 +547,12 @@ lt.test('使用：起点是顺序锚点，不是使用者', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('生效', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    : on('生效', function (cardEffect)
+        local order = cardEffect.user:getTag('顺序') or ''
+        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
     end)
 ]])
 
@@ -572,12 +572,12 @@ lt.test('使用：收尾时机在所有目标处理完之后，且只触发一�
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('生效', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. '生效' .. tostring(game.desk:getIndex(ctx.target)))
+    : on('生效', function (cardEffect)
+        local order = cardEffect.user:getTag('顺序') or ''
+        cardEffect.user:setTag('顺序', order .. '生效' .. tostring(game.desk:getIndex(cardEffect.target)))
     end)
 ]])
 
@@ -587,10 +587,10 @@ Card '测试杀'
     local hand = assert(user:getZone('手牌'))
     hand:put(card)
 
-    game:on('卡牌-结算后', function (ctx)
-        ---@cast ctx UseCard
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. '收尾')
+    game:on('卡牌-结算后', function (useCard)
+        ---@cast useCard UseCard
+        local order = useCard.user:getTag('顺序') or ''
+        useCard.user:setTag('顺序', order .. '收尾')
     end)
 
     game:useCard(user, card, { players[2], players[3] })
@@ -602,12 +602,12 @@ lt.test('使用：牌出手前触发一次时机，早于第一个生效', funct
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
     end)
-    : on('生效', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. '生效')
+    : on('生效', function (cardEffect)
+        local order = cardEffect.user:getTag('顺序') or ''
+        cardEffect.user:setTag('顺序', order .. '生效')
     end)
 ]])
 
@@ -617,9 +617,9 @@ Card '测试杀'
 
     ---@type (Card?)[]
     local seen = {}
-    game:on('卡牌-结算前', function (ctx)
-        ---@cast ctx UseCard
-        seen[#seen + 1] = ctx.card
+    game:on('卡牌-结算前', function (useCard)
+        ---@cast useCard UseCard
+        seen[#seen + 1] = useCard.card
         user:setTag('顺序', (user:getTag('顺序') or '') .. '取出')
         user:setTag('取出时还在手上吗', hand:count())
     end)
@@ -639,12 +639,12 @@ lt.test('使用：每个目标的生效可以被单独取消', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('生效', function (ctx)
-        local order = ctx.user:getTag('顺序') or ''
-        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    : on('生效', function (cardEffect)
+        local order = cardEffect.user:getTag('顺序') or ''
+        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
     end)
 ]])
 
@@ -655,10 +655,10 @@ Card '测试杀'
     hand:put(card)
 
     local blocked = players[2]
-    game:on('即将生效', function (ctx)
-        ---@cast ctx CardEffect
-        if ctx.kind == 'cardEffect' and ctx.target == blocked then
-            ctx:remove()
+    game:on('即将生效', function (cardEffect)
+        ---@cast cardEffect CardEffect
+        if cardEffect.kind == 'cardEffect' and cardEffect.target == blocked then
+            cardEffect:remove()
         end
     end)
 

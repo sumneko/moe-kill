@@ -4,18 +4,18 @@
 Card '杀'
     : extends '基本牌'
     : limit('出牌', 1)
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         local desk  = game.desk
-        local range = ctx.user:getAttr('攻击范围')
+        local range = target.user:getAttr('攻击范围')
         return table.filter(desk.alivePlayers, function (player)
-            return player ~= ctx.user
-               and desk:getDistance(ctx.user, player) <= range
+            return player ~= target.user
+               and desk:getDistance(target.user, player) <= range
         end)
     end)
-    : on('生效', function (ctx)
-        local target = ctx.target
+    : on('生效', function (cardEffect)
+        local target = cardEffect.target
         if game:askCard(target, '打出', { name = '闪' }).card then
             return
         end
-        game:damage(ctx.user, target, 1)
+        game:damage(cardEffect.user, target, 1)
     end)

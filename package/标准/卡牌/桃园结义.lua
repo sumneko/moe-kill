@@ -3,9 +3,9 @@
 
 Card '桃园结义'
     : extends '锦囊牌'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return game.desk.alivePlayers
     end)
-    : on('生效', function (ctx)
-        game:heal(ctx.target, 1)
+    : on('生效', function (cardEffect)
+        game:heal(cardEffect.target, 1)
     end)

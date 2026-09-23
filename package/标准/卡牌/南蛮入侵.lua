@@ -3,15 +3,15 @@
 
 Card '南蛮入侵'
     : extends '锦囊牌'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= ctx.user
+            return player ~= target.user
         end)
     end)
-    : on('生效', function (ctx)
-        local target = ctx.target
+    : on('生效', function (cardEffect)
+        local target = cardEffect.target
         if game:askCard(target, '打出', { name = '杀' }).card then
             return
         end
-        game:damage(ctx.user, target, 1)
+        game:damage(cardEffect.user, target, 1)
     end)

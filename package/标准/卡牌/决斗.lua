@@ -3,14 +3,14 @@
 
 Card '决斗'
     : extends '锦囊牌'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= ctx.user
+            return player ~= target.user
         end)
     end)
-    : on('生效', function (ctx)
-        local attacker = ctx.user
-        local defender = ctx.target
+    : on('生效', function (cardEffect)
+        local attacker = cardEffect.user
+        local defender = cardEffect.target
         while true do
             if not game:askCard(defender, '打出', { name = '杀' }).card then
                 game:damage(attacker, defender, 1)

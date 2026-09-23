@@ -11,9 +11,9 @@ do
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '闪'
 Card '测试牌'
-    : on('获取目标', function (ctx)
+    : on('获取目标', function (target)
         return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= ctx.user
+            return player ~= target.user
         end)
     end)
 ]])
@@ -239,10 +239,10 @@ lt.test('询问：被取消的询问以「没有答复」结束，结算其余�
 
     ---@type string[]
     local trace = {}
-    game:on('即将生效', function (ctx)
-        ---@cast ctx AskCard
-        if ctx.kind == 'askCard' then
-            ctx:remove()
+    game:on('即将生效', function (effect)
+        ---@cast effect AskCard
+        if effect.kind == 'askCard' then
+            effect:remove()
         end
     end)
     game:on('伤害-前', function ()
@@ -265,11 +265,11 @@ lt.test('答复：有答复才触发答复时机，上下文是这次询问', fu
     ---@type (Card?)[]
     local atFire = {}
     local fired  = 0
-    game:on('卡牌-答复', function (ctx)
-        ---@cast ctx AskCard
-        seen[#seen + 1] = ctx
+    game:on('卡牌-答复', function (askCard)
+        ---@cast askCard AskCard
+        seen[#seen + 1] = askCard
         fired           = fired + 1
-        atFire[fired]   = ctx.card
+        atFire[fired]   = askCard.card
     end)
 
     local jink = game:createCard('闪')
