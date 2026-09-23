@@ -107,10 +107,16 @@ function M:getNext(player)
     return nil
 end
 
----@param from Player # 从谁开始
 ---@param allowed Player[]? # 允许参与的角色，不传表示都允许
+---@param from Player? # 从谁开始，不传表示从当前回合角色开始
 ---@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
-function M:actionOrder(from, allowed)
+function M:actionOrder(allowed, from)
+    if not from then
+        from = self.game and self.game.turnPlayer
+    end
+    if not from then
+        error('没有起点：此刻不在任何角色的回合里，得显式给出从谁开始', 2)
+    end
     local start = self:getIndex(from)
     if not start then
         error('这个玩家不在这张桌子上', 2)

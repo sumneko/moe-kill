@@ -21,6 +21,7 @@ local function newGame(count)
         player:setAttr('体力', 4)
         players[i] = player
     end
+    game.turnPlayer = players[1]
     return game, players
 end
 

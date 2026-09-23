@@ -47,7 +47,7 @@ function M.pickFirst(ask)
 end
 
 ---@param options Test.RuleSupport.StartOptions
----@return Test.RuleSupport
+---@return Test.RuleSupport # 已经开局，并宣告轮到 1 号位
 function M.start(options)
     local desk   = moe.desk.create(options.count)
     local random = moe.random.create(options.seed or 1)
@@ -67,6 +67,7 @@ function M.start(options)
         players[i] = player
     end
     game:fire('游戏-开始', {})
+    game.turnPlayer = players[1]
     return { players = players, desk = desk, random = random, game = game }
 end
 

@@ -37,27 +37,52 @@ lt.test('桌子：按行动顺序依次给出角色，轮到自己就结束', fu
     desk:sit(4, d)
     desk:sit(5, e)
 
-    ---@param from Player
     ---@param allowed Player[]?
+    ---@param from Player?
     ---@return string # 座位号连起来
-    local function seats(from, allowed)
+    local function seats(allowed, from)
         ---@type string[]
         local list = {}
-        for player in desk:actionOrder(from, allowed) do
+        for player in desk:actionOrder(allowed, from) do
             list[#list + 1] = tostring(desk:getIndex(player))
         end
         return table.concat(list, ',')
     end
 
-    lt.assertEquals('允许列表里没有自己 ⇒ 从下家开始绕一圈', '3,4,5,1', seats(b, { e, c, a, d }))
-    lt.assertEquals('自己在允许列表里 ⇒ 排在最前', '2,3,4,5,1', seats(b, { b, c, d, e, a }))
-    lt.assertEquals('不给允许列表表示都允许', '2,3,4,5,1', seats(b))
-    lt.assertEquals('只允许自己 ⇒ 就自己一个', '1', seats(a, { a }))
-    lt.assertEquals('允许列表里重复的角色只给一次', '2', seats(a, { b, b }))
-    lt.assertEquals('允许列表外的角色跳过', '3,4', seats(b, { c, d }))
-    lt.assertEquals('允许列表里的桌外角色跳过', '2,3,4,5', seats(a, { newPlayer(), b, c, d, e }))
+    lt.assertEquals('允许列表里没有自己 ⇒ 从下家开始绕一圈', '3,4,5,1', seats({ e, c, a, d }, b))
+    lt.assertEquals('自己在允许列表里 ⇒ 排在最前', '2,3,4,5,1', seats({ b, c, d, e, a }, b))
+    lt.assertEquals('不给允许列表表示都允许', '2,3,4,5,1', seats(nil, b))
+    lt.assertEquals('只允许自己 ⇒ 就自己一个', '1', seats({ a }, a))
+    lt.assertEquals('允许列表里重复的角色只给一次', '2', seats({ b, b }, a))
+    lt.assertEquals('允许列表外的角色跳过', '3,4', seats({ c, d }, b))
+    lt.assertEquals('允许列表里的桌外角色跳过', '2,3,4,5', seats({ newPlayer(), b, c, d, e }, a))
     lt.assertError('起点不在桌上报错', function ()
-        desk:actionOrder(newPlayer())
+        desk:actionOrder(nil, newPlayer())
+    end)
+end)
+
+lt.test('桌子：不给起点就用当前回合角色', function ()
+    local desk = moe.desk.create(3)
+    local a    = newPlayer()
+    local b    = newPlayer()
+    local c    = newPlayer()
+    desk:sit(1, a)
+    desk:sit(2, b)
+    desk:sit(3, c)
+
+    local game = moe.game.create { desk = desk, random = moe.random.create(1) }
+    game.turnPlayer = b
+
+    ---@type string[]
+    local list = {}
+    for player in desk:actionOrder() do
+        list[#list + 1] = tostring(desk:getIndex(player))
+    end
+    lt.assertEquals('从当前回合角色起绕一圈', '2,3,1', table.concat(list, ','))
+
+    game.turnPlayer = nil
+    lt.assertError('既不在回合里、又没给起点 ⇒ 报错', function ()
+        desk:actionOrder()
     end)
 end)
 
@@ -71,7 +96,7 @@ lt.test('桌子：同一名角色占两个座位也只给一次', function ()
 
     ---@type string[]
     local list = {}
-    for player in desk:actionOrder(b) do
+for player in desk:actionOrder(nil, b) do
         list[#list + 1] = tostring(desk:getIndex(player))
     end
     lt.assertEquals('同一个角色只给一次', '2,1', table.concat(list, ','))

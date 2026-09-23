@@ -66,8 +66,9 @@ lt.test('濒死：自己给一张桃就能活下来', function ()
     lt.assertEquals('处理只是路过', 0, assert(run.game:getZone('处理')):count())
 end)
 
-lt.test('濒死：从濒死者开始按行动顺序问，下家的桃也能救人', function ()
+lt.test('濒死：从当前回合角色开始按行动顺序问，下家的桃也能救人', function ()
     local run    = support.start { count = 3, packages = { '标准' } }
+    local turn   = run.players[1]
     local target = run.players[2]
     local helper = run.players[3]
     local peach  = takeCard(run, helper, '桃')
@@ -82,11 +83,12 @@ lt.test('濒死：从濒死者开始按行动顺序问，下家的桃也能救�
         end
     end)
 
-    run.game:damage(run.players[1], target, 5)
+    run.game:damage(turn, target, 5)
 
-    lt.assertEquals('只问了两家', 2, #asked)
-    lt.assertEquals('先问濒死者本人', 2, seat(asked[1]))
-    lt.assertEquals('再问他的下家', 3, seat(asked[2]))
+    lt.assertEquals('一圈里三家各问一次', 3, #asked)
+    lt.assertEquals('先问当前回合角色', 1, seat(asked[1]))
+    lt.assertEquals('再问濒死者本人', 2, seat(asked[2]))
+    lt.assertEquals('最后问濒死者的下家', 3, seat(asked[3]))
     lt.assertEquals('下家把桃用了出来', 1, target:getAttr('体力'))
     lt.assertEquals('还活着', true, target:isAlive())
 end)
@@ -94,10 +96,14 @@ end)
 lt.test('濒死：差 2 点时同一个人可以连给两张', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local target = run.players[2]
+    local seat   = seatOf(run)
 
     ---@type Card[]
     local remaining = { takeCard(run, target, '桃'), takeCard(run, target, '桃') }
+    ---@type Player[] # 被问过的人（按被问顺序）
+    local asked = {}
     run.game:on('卡牌-询问', function (ask)
+        asked[#asked + 1] = assert(ask.to)
         if ask.to == target and #remaining > 0 then
             ask:answer { card = table.remove(remaining, 1), targets = { target } }
         end
@@ -108,6 +114,8 @@ lt.test('濒死：差 2 点时同一个人可以连给两张', function ()
     lt.assertEquals('两张桃把体力顶回 1', 1, target:getAttr('体力'))
     lt.assertEquals('还活着', true, target:isAlive())
     lt.assertEquals('两张桃都进了弃牌', 2, run.game:getZone('弃牌'):count())
+    lt.assertEquals('回正之前一直问同一个人，不回头问前面的', '1,2,2',
+        ('%s,%s,%s'):format(seat(asked[1]), seat(asked[2]), seat(asked[3])))
 end)
 
 lt.test('濒死：一圈都没人给桃时就真死，并且触发玩家-死亡', function ()
