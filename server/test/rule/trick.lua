@@ -111,10 +111,92 @@ lt.test('南蛮入侵 / 万箭齐发：合法目标是所有其他角色', funct
     lt.assertEquals('不含自己', false, moe.util.arrayHas(other, user))
 end)
 
-lt.test('锦囊：三张的分类都是锦囊与非延时锦囊', function ()
+lt.test('桃园结义：所有角色各回 1 点，满血的不变', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '桃园结义')
+    user:setAttr('体力', 3)
+    run.players[2]:setAttr('体力', 4)
+
+    run.game:useCard(user, card, run.game.desk.alivePlayers)
+
+    lt.assertEquals('受伤的使用者回到 4', 4, user:getAttr('体力'))
+    lt.assertEquals('受伤的下家回到 5', 5, run.players[2]:getAttr('体力'))
+    lt.assertEquals('满血的不变', 5, run.players[3]:getAttr('体力'))
+    lt.assertEquals('弃牌里就是这张锦囊', card, assert(run.game:getZone('弃牌')):list()[1])
+end)
+
+lt.test('桃园结义：合法目标是所有存活角色，包含自己', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '桃园结义')
+
+    local targets = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    lt.assertEquals('三个人的局里三个目标', 3, #targets)
+    lt.assertEquals('包含自己', true, moe.util.arrayHas(targets, user))
+end)
+
+lt.test('决斗：由目标先打出杀，先不出的挨 1 点', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeCard(run, user, '决斗')
+    local slash  = takeCard(run, user, '杀')
+
+    ---@type table<Player, Card[]>
+    local script = {
+        [target] = { takeCard(run, target, '杀') },
+        [user]   = { slash },
+    }
+    ---@type Player[] # 被问过的人（按被问顺序）
+    local asked = {}
+    run.game:on('卡牌-询问', function (ask)
+        local to = assert(ask.to)
+        asked[#asked + 1] = to
+        local cards = script[to]
+        if cards and #cards > 0 then
+            ask:answer { card = table.remove(cards, 1) }
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('先问目标', target, asked[1])
+    lt.assertEquals('再问使用者', user, asked[2])
+    lt.assertEquals('目标打不出第二轮 ⇒ 又问他一次', target, asked[3])
+    lt.assertEquals('被问了三次', 3, #asked)
+    lt.assertEquals('目标挨 1 点', 4, target:getAttr('体力'))
+    lt.assertEquals('使用者没事', 5, user:getAttr('体力'))
+    lt.assertEquals('打出的杀进了弃牌', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), slash))
+end)
+
+lt.test('决斗：目标手上没杀就直接挨 1 点', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeCard(run, user, '决斗')
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('目标挨 1 点', 4, target:getAttr('体力'))
+    lt.assertEquals('使用者没事', 5, user:getAttr('体力'))
+end)
+
+lt.test('决斗：合法目标是其他角色，不含自己', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '决斗')
+
+    local targets = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    lt.assertEquals('三个人的局里两个目标', 2, #targets)
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
+end)
+
+lt.test('锦囊：已落地的都归类为锦囊与非延时锦囊', function ()
     local run = support.start { count = 2, packages = { '标准' } }
 
-    for _, name in ipairs({ '无中生有', '南蛮入侵', '万箭齐发' }) do
+    for _, name in ipairs({ '无中生有', '南蛮入侵', '万箭齐发', '桃园结义', '决斗' }) do
         local def = assert(run.game:getCard(name), '没有这张牌的定义')
 
         lt.assertEquals('{} 是锦囊' % { name }, true, def:isKind('锦囊'))
