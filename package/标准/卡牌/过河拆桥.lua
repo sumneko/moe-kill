@@ -1,6 +1,6 @@
 -- 【过河拆桥】（标准版）
 -- 出牌阶段，对一名区域里有牌的其他角色使用。你弃置其区域里的一张牌。
--- 其区域里你能看见的牌可以直接挑；看不见的（手牌）只能从那个区里随机弃一张。
+-- 服务器侧看得见所有牌（隐瞒是协议层的事）⇒ 目标的每个区都逐张当候选，挑中哪张就弃哪张。
 
 ---@param player Player
 ---@return boolean # 身上（任一牌区里）有没有牌
@@ -13,6 +13,14 @@ local function hasCard(player)
     return false
 end
 
+---@param player Player
+---@return Zone[] # 身上有牌的那些区
+local function cardZones(player)
+    return table.filter(player:getZones(), function (zone)
+        return zone:count() > 0
+    end)
+end
+
 Card '过河拆桥'
     : extends '锦囊牌'
     : on('获取目标', function (target)
@@ -21,26 +29,7 @@ Card '过河拆桥'
         end)
     end)
     : on('生效', function (cardEffect)
-        local user   = cardEffect.user
-        local target = cardEffect.target
-        local cards  = {}
-        local zones  = {}
-        for _, zone in ipairs(target:getZones()) do
-            local held = zone:list()
-            if #held > 0 then
-                if zone:isVisibleTo(user) then
-                    table.move(held, 1, #held, #cards + 1, cards)
-                else
-                    zones[#zones + 1] = zone
-                end
-            end
-        end
-
-        local ask  = game:askCard(user, '过河拆桥', { cards = cards, zones = zones })
-        local card = ask.card
-        if not card and ask.zone then
-            card = game.random:pick(ask.zone:list())
-        end
+        local card = game:askCard(cardEffect.user, '过河拆桥', { zone = cardZones(cardEffect.target) }).card
         if not card then
             return
         end

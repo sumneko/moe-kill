@@ -5,7 +5,7 @@ game:on('濒死-进入', function (dying)
     local current = start
     while player:getAttr('体力') < 1 do
         ---@type AskCard.Condition # 只要能救他的【桃】
-        local condition = { name = '桃', targets = { player } }
+        local condition = { name = '桃', target = player }
         ---@type Card?
         local card = game:askCard(current, '使用', condition).card
         if card then

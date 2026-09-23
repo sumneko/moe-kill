@@ -290,15 +290,14 @@ lt.test('五谷丰登：起点是顺序锚点，不是使用者', function ()
     lt.assertEquals('第一个选牌的是 1 号位（锚点），不是 3 号位的使用者', '1,2,3', table.concat(asked, ','))
 end)
 
-lt.test('过河拆桥：目标的手牌是暗的 ⇒ 从那个区随机弃一张', function ()
+lt.test('过河拆桥：目标身上有牌的区都逐张当候选，弃掉挑中的那张', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
     local card   = takeCard(run, user, '过河拆桥')
-    takeCard(run, target, '杀')
-    takeCard(run, target, '闪')
+    local hidden = takeCard(run, target, '杀')
+    local weapon = equipCard(run, target, '诸葛连弩')
     local hand   = assert(target:getZone('手牌'), '没有手牌区')
-    local before = hand:list()
 
     ---@type AskCard?
     local asked = nil
@@ -307,50 +306,45 @@ lt.test('过河拆桥：目标的手牌是暗的 ⇒ 从那个区随机弃一张
     run.game:on('卡牌-询问', function (ask)
         asked   = ask
         options = assert(ask.options)
-        ask:answer { zone = assert(options[1].zone) }
+        ask:answer { card = hidden }
     end)
 
     run.game:useCard(user, card, { target })
 
     lt.assertEquals('问的是使用者', user, assert(asked).to)
-    lt.assertEquals('候选只有一个：那个看不见的区', 1, #options)
-    lt.assertEquals('候选就是手牌区', hand, options[1].zone)
-    lt.assertEquals('暗区的候选里没有牌', nil, options[1].card)
-    lt.assertEquals('目标少了一张手牌', 1, hand:count())
+    lt.assertEquals('手牌与装备区的牌都在候选里', 2, #options)
+    lt.assertEquals('按牌区的加入顺序（手牌在前）', hidden, options[1].card)
+    lt.assertEquals('装备区的牌在后', weapon, options[2].card)
+    lt.assertEquals('不是「使用」⇒ 不要求给目标', nil, options[1].targets)
 
-    local left = hand:list()
-    local gone = left[1] == before[1] and before[2] or before[1]
-    lt.assertEquals('剩下那张还在他手上', hand, left[1]:getZone())
-    lt.assertEquals('弃掉的是他原来手上的那张', true,
-        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), gone))
+    lt.assertEquals('挑中的手牌进了弃牌', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), hidden))
+    lt.assertEquals('目标手牌空了', 0, hand:count())
+    lt.assertEquals('装备区没动', 1, assert(target:getZone('装备')):count())
 end)
 
-lt.test('过河拆桥：目标装备区的明牌由使用者挑一张', function ()
+lt.test('过河拆桥：目标只有手牌时，候选就是那几张手牌', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
     local card   = takeCard(run, user, '过河拆桥')
-    local weapon = equipCard(run, target, '诸葛连弩')
-    local hidden = takeCard(run, target, '杀')
+    takeCard(run, target, '杀')
+    takeCard(run, target, '闪')
     local hand   = assert(target:getZone('手牌'), '没有手牌区')
 
     ---@type AskCard.Option[]
     local options = {}
     run.game:on('卡牌-询问', function (ask)
         options = assert(ask.options)
-        ask:answer { card = weapon }
+        ask:answer { card = options[2].card }
     end)
 
     run.game:useCard(user, card, { target })
 
-    lt.assertEquals('两个候选项', 2, #options)
-    lt.assertEquals('看得见的牌在前', weapon, options[1].card)
-    lt.assertEquals('看不见的区在后', hand, options[2].zone)
-    lt.assertEquals('装备区空了', 0, assert(target:getZone('装备')):count())
-    lt.assertEquals('手牌没动', 1, hand:count())
-    lt.assertEquals('暗牌还在他手上', hand, hidden:getZone())
-    lt.assertEquals('被弃的那张进了弃牌', true,
-        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), weapon))
+    lt.assertEquals('两张手牌都进了候选', 2, #options)
+    lt.assertEquals('目标少了一张手牌', 1, hand:count())
+    lt.assertEquals('剩下那张还在他手上', hand, assert(hand:list()[1]):getZone())
+    lt.assertEquals('弃牌里有这张锦囊与被弃的那张', 2, assert(run.game:getZone('弃牌')):count())
 end)
 
 lt.test('过河拆桥：合法目标是「区域里有牌」的其他角色', function ()
@@ -366,26 +360,31 @@ lt.test('过河拆桥：合法目标是「区域里有牌」的其他角色', fu
     lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
 end)
 
-lt.test('顺手牵羊：把目标装备区的明牌拿进自己的手牌', function ()
+lt.test('顺手牵羊：挑中目标哪张，就把哪张拿进自己的手牌', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
     local card   = takeCard(run, user, '顺手牵羊')
     local weapon = equipCard(run, target, '诸葛连弩')
+    takeCard(run, target, '杀')
     local hand   = assert(user:getZone('手牌'), '没有手牌区')
 
+    ---@type AskCard.Option[]
+    local options = {}
     run.game:on('卡牌-询问', function (ask)
+        options = assert(ask.options)
         ask:answer { card = weapon }
     end)
 
     run.game:useCard(user, card, { target })
 
+    lt.assertEquals('手牌与装备区的牌都在候选里', 2, #options)
     lt.assertEquals('牌到了自己手上', hand, weapon:getZone())
-    lt.assertEquals('装备区空了', 0, assert(target:getZone('装备')):count())
+    lt.assertEquals('目标装备区空了', 0, assert(target:getZone('装备')):count())
     lt.assertEquals('手上就这一张（拿走的那张，用完的已出手）', 1, hand:count())
 end)
 
-lt.test('顺手牵羊：拿目标的手牌时只能随机拿一张', function ()
+lt.test('顺手牵羊：手牌也在候选里，挑中就直接拿走', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
@@ -394,7 +393,9 @@ lt.test('顺手牵羊：拿目标的手牌时只能随机拿一张', function ()
     local hand   = assert(target:getZone('手牌'), '没有手牌区')
 
     run.game:on('卡牌-询问', function (ask)
-        ask:answer { zone = assert(assert(ask.options)[1].zone) }
+        local option = assert(assert(ask.options)[1])
+        lt.assertEquals('候选带的是牌（不是区）', true, option.card ~= nil)
+        ask:answer { card = option.card }
     end)
 
     run.game:useCard(user, card, { target })

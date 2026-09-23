@@ -93,7 +93,7 @@ lt.test('询问：候选可以来自给定的一批牌（不看被问者的牌�
     putInHand(players[2], { mine })
     answerWith(game, { outside })
 
-    local ask = game:askCard(players[2], nil, { cards = { outside } })
+    local ask = game:askCard(players[2], nil, { card = { outside } })
 
     lt.assertEquals('选项就一个', 1, #assert(ask.options))
     lt.assertEquals('选项就是给的那张', outside, assert(ask.options)[1].card)
@@ -107,7 +107,7 @@ lt.test('询问：候选来自给定的一批牌时，手牌里的牌不算数',
     putInHand(players[2], { mine })
     answerWith(game, { mine })
 
-    local ask = game:askCard(players[2], nil, { cards = { outside } })
+    local ask = game:askCard(players[2], nil, { card = { outside } })
 
     lt.assertEquals('拒收 ⇒ 没有答复', nil, ask.card)
     lt.assertEquals('原因记在 err 上', true, ask.err ~= nil)
@@ -127,8 +127,8 @@ lt.test('询问：答复带上目标（单个或一张列表）', function ()
         end
     end)
 
-    ---@type AskCard.Condition # 目标窗口 = 2、3 号位
-    local condition = { name = '测试牌', targets = { players[2], players[3] } }
+    ---@type AskCard.Condition # 名单 = 2、3 号位（选项的目标就是交集）
+    local condition = { name = '测试牌', target = { players[2], players[3] } }
 
     local single = game:askCard(players[1], '测试', condition)
     lt.assertEquals('牌读得到', card, single.card)
@@ -351,7 +351,7 @@ lt.test('询问：答复要与选项一致（目标该给、不该给、不能�
     end)
 
     ---@type AskCard.Condition
-    local withTarget = { name = '测试牌', targets = { players[2] } }
+    local withTarget = { name = '测试牌', target = { players[2] } }
     ---@type AskCard.Condition
     local withoutTarget = { name = '闪' }
 
@@ -381,20 +381,6 @@ lt.test('询问：条件按牌名筛，手牌里没有就不算选项', function
     lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
 end)
 
-lt.test('询问：条件的 targets 给空表 ⇒ 只收「至少有一个合法目标」的牌', function ()
-    local game, players = newGame(3)
-    local usable = game:createCard('测试牌')
-    local plain  = game:createCard('闪')
-    putInHand(players[1], { usable, plain })
-
-    local ask = game:askCard(players[1], nil, { targets = {} })
-
-    local options = assert(ask.options)
-    lt.assertEquals('只有声明了「获取目标」的那张进了选项', 1, #options)
-    lt.assertEquals('选项里就是它', usable, options[1].card)
-    lt.assertEquals('选项带上了它各自的可用目标', 2, #assert(options[1].targets))
-    lt.assertEquals('没人应答 ⇒ 没有答复', nil, ask.card)
-end)
 
 lt.test('询问：不给条件就不做限制', function ()
     local game, players = newGame(2)
@@ -407,56 +393,107 @@ lt.test('询问：不给条件就不做限制', function ()
     lt.assertEquals('不算失败', nil, ask.err)
 end)
 
-lt.test('询问：候选可以是一批区域（盲选）', function ()
+lt.test('询问：条件按区筛（名字在被问者身上解析）', function ()
     local game, players = newGame(2)
-    local first  = moe.zone.create()
-    local second = moe.zone.create()
-    first:put(game:createCard('杀'))
-    second:put(game:createCard('闪'))
-    putInHand(players[1], { game:createCard('桃') })
-    game:on('卡牌-询问', function (ask)
-        ask:answer { zone = second }
-    end)
+    local mine = game:createCard('闪')
+    putInHand(players[1], { mine })
+    players[1]:addZone('装备')
+    assert(players[1]:getZone('装备')):put(game:createCard('杀'))
+    answerWith(game, { mine })
 
-    local ask     = game:askCard(players[1], nil, { zones = { first, second } })
+    local ask     = game:askCard(players[1], nil, { zone = '手牌' })
     local options = assert(ask.options)
 
-    lt.assertEquals('只看给定的区域，不看被问者的牌区', 2, #options)
-    lt.assertEquals('第一项是那个区域', first, options[1].zone)
-    lt.assertEquals('第二项是另一个区域', second, options[2].zone)
-    lt.assertEquals('答复拿到那个区域', second, ask.zone)
-    lt.assertEquals('答复里没有牌', nil, ask.card)
+    lt.assertEquals('手牌区外的牌不算', 1, #options)
+    lt.assertEquals('选项就是手牌里那张', mine, options[1].card)
+    lt.assertEquals('答复照旧收下', mine, ask.card)
 end)
 
-lt.test('询问：答复的区域不在候选项里就拒收', function ()
+lt.test('询问：条件的 zone 可以给区对象、也可以给好几个（其一）', function ()
     local game, players = newGame(2)
-    local mine    = moe.zone.create()
-    local outside = moe.zone.create()
-    game:on('卡牌-询问', function (ask)
-        ask:answer { zone = outside }
-    end)
+    putInHand(players[1], { game:createCard('闪') })
+    players[1]:addZone('装备')
+    local equip = assert(players[1]:getZone('装备'))
+    equip:put(game:createCard('杀'))
+    players[1]:addZone('判定')
+    assert(players[1]:getZone('判定')):put(game:createCard('桃'))
 
-    local ask = game:askCard(players[1], nil, { zones = { mine } })
+    local only = game:askCard(players[1], nil, { zone = equip })
+    lt.assertEquals('给区对象：只有那个区的牌', 1, #assert(only.options))
+    lt.assertEquals('选项就是它', equip:peek(1), assert(only.options)[1].card)
 
-    lt.assertEquals('没拿到答复', nil, ask.zone)
-    lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
+    local many = game:askCard(players[1], nil, { zone = { equip, '判定' } })
+    lt.assertEquals('给两个区：并集', 2, #assert(many.options))
+
+    local none = game:askCard(players[1], nil, { zone = '没有这个区' })
+    lt.assertEquals('区名解析不到 ⇒ 没有候选', 0, #assert(none.options))
 end)
 
-lt.test('询问：牌与区域可以同时是候选', function ()
+lt.test('询问：条件的 name 可以给好几个（满足其一）', function ()
     local game, players = newGame(2)
-    local card = game:createCard('杀')
-    local zone = moe.zone.create()
-    zone:put(game:createCard('闪'))
-    game:on('卡牌-询问', function (ask)
-        ask:answer { card = card }
-    end)
+    local jink  = game:createCard('闪')
+    local slash = game:createCard('杀')
+    putInHand(players[1], { jink, slash, game:createCard('桃') })
+    answerWith(game, { slash })
 
-    local ask     = game:askCard(players[1], nil, { cards = { card }, zones = { zone } })
+    local ask     = game:askCard(players[1], nil, { name = { '闪', '杀' } })
     local options = assert(ask.options)
 
-    lt.assertEquals('两类候选都在', 2, #options)
-    lt.assertEquals('先是看得见的牌', card, options[1].card)
-    lt.assertEquals('后是看不见的区域', zone, options[2].zone)
-    lt.assertEquals('答复拿到那张牌', card, ask.card)
-    lt.assertEquals('答复里没有区域', nil, ask.zone)
+    lt.assertEquals('符合的只有两张', 2, #options)
+    lt.assertEquals('第一张是闪', jink, options[1].card)
+    lt.assertEquals('第二张是杀', slash, options[2].card)
+    lt.assertEquals('答复收下', slash, ask.card)
+end)
+
+lt.test('询问：条件的 card 给一批牌，与 zone 可以同时给（并集）', function ()
+    local game, players = newGame(2)
+    local inHand  = game:createCard('闪')
+    local outside = game:createCard('杀')
+    putInHand(players[1], { inHand })
+    answerWith(game, { outside, outside })
+
+    local only = game:askCard(players[1], nil, { card = outside })
+    lt.assertEquals('给一批牌：只有它（手牌不算）', 1, #assert(only.options))
+    lt.assertEquals('答复是这批里的就算数', outside, only.card)
+
+    local both = game:askCard(players[1], nil, { card = outside, zone = '手牌' })
+    lt.assertEquals('同时给：并集', 2, #assert(both.options))
+end)
+
+lt.test('询问：缘由是「使用」⇒ 只收能用的牌，选项带可用目标', function ()
+    local game, players = newGame(3)
+    local usable = game:createCard('测试牌')
+    local plain  = game:createCard('闪')
+    putInHand(players[1], { usable, plain })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = usable, targets = { players[2] } }
+    end)
+
+    local ask     = game:askCard(players[1], '使用', { zone = '手牌' })
+    local options = assert(ask.options)
+
+    lt.assertEquals('没声明「获取目标」的不进选项', 1, #options)
+    lt.assertEquals('选项带上了可用目标', 2, #assert(options[1].targets))
+    lt.assertEquals('答复收下', usable, ask.card)
+    lt.assertEquals('答复里的目标也收下', 1, #assert(ask.targets))
+end)
+
+lt.test('询问：条件的 target ⇒ 可用目标要与它至少有一个重合', function ()
+    local game, players = newGame(3)
+    local card = game:createCard('测试牌')
+    putInHand(players[1], { card })
+
+    local ask     = game:askCard(players[1], nil, { name = '测试牌', target = players[2] })
+    local options = assert(ask.options)
+
+    lt.assertEquals('能用在这张上 ⇒ 进选项', 1, #options)
+    local targets = assert(options[1].targets)
+    lt.assertEquals('选项的目标就是交集（名单里那个）', 1, #targets)
+    lt.assertEquals('就是 2 号位', players[2], targets[1])
+
+    local none = game:askCard(players[1], nil, { name = '测试牌', target = players[1] })
+    lt.assertEquals('名单里没有能用的目标 ⇒ 没有候选', 0, #assert(none.options))
+
+    local empty = game:askCard(players[1], nil, { target = {} })
+    lt.assertEquals('空的 target 名单不再是特例 ⇒ 也没有候选', 0, #assert(empty.options))
 end)
