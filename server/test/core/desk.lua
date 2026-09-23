@@ -1,16 +1,24 @@
 local lt = require 'test.ltest'
 
+---@param count integer
+---@return Game
+local function newGame(count)
+    return moe.game.create { seats = count, random = moe.random.create(1) }
+end
+
+---@param game Game
 ---@return Player
-local function newPlayer()
+local function newPlayer(game)
     local system = moe.attribute.create()
-    return moe.player.create { attributes = system:createInstance() }
+    return moe.player.create(game, { attributes = system:createInstance() })
 end
 
 lt.test('桌子：座位号决定行动顺序', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
-    local b    = newPlayer()
-    local c    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
+    local c    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(2, b)
     desk:sit(3, c)
@@ -25,12 +33,13 @@ lt.test('桌子：座位号决定行动顺序', function ()
 end)
 
 lt.test('桌子：按行动顺序依次给出角色，轮到自己就结束', function ()
-    local desk = moe.desk.create(5)
-    local a    = newPlayer()
-    local b    = newPlayer()
-    local c    = newPlayer()
-    local d    = newPlayer()
-    local e    = newPlayer()
+    local game = newGame(5)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
+    local c    = newPlayer(game)
+    local d    = newPlayer(game)
+    local e    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(2, b)
     desk:sit(3, c)
@@ -55,22 +64,21 @@ lt.test('桌子：按行动顺序依次给出角色，轮到自己就结束', fu
     lt.assertEquals('只允许自己 ⇒ 就自己一个', '1', seats({ a }, a))
     lt.assertEquals('允许列表里重复的角色只给一次', '2', seats({ b, b }, a))
     lt.assertEquals('允许列表外的角色跳过', '3,4', seats({ c, d }, b))
-    lt.assertEquals('允许列表里的桌外角色跳过', '2,3,4,5', seats({ newPlayer(), b, c, d, e }, a))
+    lt.assertEquals('允许列表里的桌外角色跳过', '2,3,4,5', seats({ newPlayer(game), b, c, d, e }, a))
     lt.assertError('起点不在桌上报错', function ()
-        desk:actionOrder(nil, newPlayer())
+        desk:actionOrder(nil, newPlayer(game))
     end)
 end)
 
 lt.test('桌子：不给起点就用顺序锚点', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
-    local b    = newPlayer()
-    local c    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
+    local c    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(2, b)
     desk:sit(3, c)
-
-    local game = moe.game.create { desk = desk, random = moe.random.create(1) }
 
     ---@return string # 座位号连起来
     local function seats()
@@ -96,9 +104,10 @@ lt.test('桌子：不给起点就用顺序锚点', function ()
 end)
 
 lt.test('桌子：同一名角色占两个座位也只给一次', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
-    local b    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(2, b)
     desk:sit(3, a)
@@ -112,10 +121,11 @@ for player in desk:actionOrder(nil, b) do
 end)
 
 lt.test('桌子：跳过不参与行动的玩家', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
-    local b    = newPlayer()
-    local c    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
+    local c    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(2, b)
     desk:sit(3, c)
@@ -128,9 +138,10 @@ lt.test('桌子：跳过不参与行动的玩家', function ()
 end)
 
 lt.test('桌子：跳过空座位', function ()
-    local desk = moe.desk.create(5)
-    local a    = newPlayer()
-    local b    = newPlayer()
+    local game = newGame(5)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(4, b)
 
@@ -140,26 +151,26 @@ lt.test('桌子：跳过空座位', function ()
 end)
 
 lt.test('桌子：座位列表跟着入座更新', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
 
     desk:sit(1, a)
     lt.assertEquals('先读一次（建立缓存）', 1, #desk.players)
 
-    local b = newPlayer()
+    local b = newPlayer(game)
     desk:sit(3, b)
     lt.assertEquals('新入座的也进列表', 2, #desk.players)
     lt.assertEquals('按座位号排序', b, desk.players[2])
 end)
 
 lt.test('桌子：存活列表跟着死亡更新', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
-    local b    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(2, b)
-
-    local game = moe.game.create { desk = desk, random = moe.random.create(1) }
 
     lt.assertEquals('先读一次（建立缓存），两个都在', 2, #desk.alivePlayers)
 
@@ -171,11 +182,10 @@ lt.test('桌子：存活列表跟着死亡更新', function ()
     lt.assertEquals('局照旧带着这张桌子', desk, game.desk)
 end)
 
-lt.test('桌子：先有局再入座，玩家也拿得到局', function ()
-    local desk = moe.desk.create(2)
-    local game = moe.game.create { desk = desk, random = moe.random.create(1) }
-    local a    = newPlayer()
-    desk:sit(1, a)
+lt.test('桌子：玩家一建出来就带着局，死亡时机发得出来', function ()
+    local game = newGame(2)
+    local a    = newPlayer(game)
+    game.desk:sit(1, a)
 
     ---@type Player?
     local seen = nil
@@ -185,13 +195,14 @@ lt.test('桌子：先有局再入座，玩家也拿得到局', function ()
 
     a:setAlive(false)
 
-    lt.assertEquals('入座时回填了局，死亡时机发得出来', a, seen)
+    lt.assertEquals('死亡时机发得出来', a, seen)
 end)
 
 lt.test('桌子：同一座位与相邻座位距离都是 1', function ()
-    local desk = moe.desk.create(8)
-    local a    = newPlayer()
-    local b    = newPlayer()
+    local game = newGame(8)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(2, b)
 
@@ -200,10 +211,11 @@ lt.test('桌子：同一座位与相邻座位距离都是 1', function ()
 end)
 
 lt.test('桌子：沿较短方向计算距离', function ()
-    local desk = moe.desk.create(8)
-    local a    = newPlayer()
-    local b    = newPlayer()
-    local c    = newPlayer()
+    local game = newGame(8)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
+    local c    = newPlayer(game)
     desk:sit(1, a)
     desk:sit(5, b)
     desk:sit(8, c)
@@ -214,10 +226,11 @@ lt.test('桌子：沿较短方向计算距离', function ()
 end)
 
 lt.test('桌子：距离按座位总数求值', function ()
-    local wide   = moe.desk.create(8)
-    local narrow = moe.desk.create(5)
-    local a      = newPlayer()
-    local b      = newPlayer()
+    local game   = newGame(8)
+    local wide   = game.desk
+    local narrow = moe.desk.create(game, 5)
+    local a      = newPlayer(game)
+    local b      = newPlayer(game)
     wide:sit(1, a)
     wide:sit(5, b)
     narrow:sit(1, a)
@@ -228,9 +241,10 @@ lt.test('桌子：距离按座位总数求值', function ()
 end)
 
 lt.test('桌子：非法入座报错', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
-    local b    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
     desk:sit(1, a)
 
     lt.assertError('同一个座位不能坐两个人', function ()
@@ -245,9 +259,10 @@ lt.test('桌子：非法入座报错', function ()
 end)
 
 lt.test('桌子：不在桌上的玩家不能参与求值', function ()
-    local desk = moe.desk.create(3)
-    local a    = newPlayer()
-    local b    = newPlayer()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
     desk:sit(1, a)
 
     lt.assertError('没入座的玩家没有下一个行动者', function ()

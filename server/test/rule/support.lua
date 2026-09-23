@@ -49,20 +49,20 @@ end
 ---@param options Test.RuleSupport.StartOptions
 ---@return Test.RuleSupport # 已经开局，并宣告轮到 1 号位
 function M.start(options)
-    local desk   = moe.desk.create(options.count)
     local random = moe.random.create(options.seed or 1)
     local game   = moe.game.create {
-        desk     = desk,
+        seats    = options.count,
         random   = random,
         sources  = options.sources,
         packages = options.packages,
     }
+    local desk = game.desk
     game:on('卡牌-询问', scripted(options.answers))
     local attributeSystem = game:getAttributeSystem()
     ---@type Player[]
     local players = {}
     for i = 1, options.count do
-        local player = moe.player.create { attributes = attributeSystem:createInstance() }
+        local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         players[i] = player
     end

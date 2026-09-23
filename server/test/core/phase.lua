@@ -3,9 +3,9 @@ local lt = require 'test.ltest'
 ---@return Game
 ---@return Player[]
 local function newGame()
-    local desk   = moe.desk.create(2)
     local random = moe.random.create(1)
-    local game   = moe.game.create { desk = desk, random = random }
+    local game   = moe.game.create { seats = 2, random = random }
+    local desk   = game.desk
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {
         min    = -999999,
@@ -15,7 +15,7 @@ local function newGame()
     ---@type Player[]
     local players = {}
     for i = 1, 2 do
-        local player = moe.player.create { attributes = attributeSystem:createInstance() }
+        local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         player:setAttr('体力', 4)
         players[i] = player

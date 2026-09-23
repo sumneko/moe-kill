@@ -10,7 +10,7 @@ local game
 ---@return Game
 local function newGame(sources)
     return moe.game.create {
-        desk    = moe.desk.create(4),
+        seats   = 4,
         random  = moe.random.create(1),
         sources = sources or { probeDir:string() .. '/*' },
     }

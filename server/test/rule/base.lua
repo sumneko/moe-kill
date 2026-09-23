@@ -9,7 +9,7 @@ local probeDir = moe.env.ROOT_PATH / 'tmp' / 'overlay-probe'
 ---@return Game
 local function newGame(sources, items)
     return moe.game.create {
-        desk     = moe.desk.create(4),
+        seats    = 4,
         random   = moe.random.create(1),
         sources  = sources,
         packages = items,

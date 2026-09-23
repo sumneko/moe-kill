@@ -207,7 +207,7 @@ local function copyMeta(meta)
 end
 
 ---@class Game.CreateOptions
----@field desk Desk
+---@field seats integer # 座位数（桌子由局自己建）
 ---@field random Random
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field packages? string[] # 加载清单（省略时只装默认加载的包）
@@ -238,10 +238,10 @@ end
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
 local M = Class 'Game'
 
----@param desk Desk
+---@param seats integer
 ---@param random Random
-function M:__init(desk, random)
-    self.desk     = desk
+function M:__init(seats, random)
+    self.desk     = moe.desk.create(self, seats)
     self.random   = random
     self.events   = moe.event.create()
     self.zoneList = {}
@@ -252,7 +252,6 @@ function M:__init(desk, random)
     self.idCounter = 0
     self.phaseStack = {}
     self.dyingMap = {}
-    desk:bindGame(self)
     self:resetContent()
 end
 
@@ -828,10 +827,10 @@ moe.game = {}
 ---@param options Game.CreateOptions
 ---@return Game
 function moe.game.create(options)
-    if not options or not options.desk or not options.random then
-        error('建局需要一张桌子与一个随机源', 2)
+    if not options or not options.seats or not options.random then
+        error('建局需要一个座位数与一个随机源', 2)
     end
-    local game = New 'Game' (options.desk, options.random)
+    local game = New 'Game' (options.seats, options.random)
     moe.loader.install(game, {
         sources  = options.sources,
         packages = options.packages,

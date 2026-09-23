@@ -15,13 +15,13 @@ end
 ---@return Game
 ---@return Player[]
 local function newBareGame()
-    local desk   = moe.desk.create(2)
     local random = moe.random.create(1)
     local game   = moe.game.create {
-        desk    = desk,
+        seats   = 2,
         random  = random,
         sources = { probeDir:string() .. '/*' },
     }
+    local desk = game.desk
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {
         min    = -999999,
@@ -31,7 +31,7 @@ local function newBareGame()
     ---@type Player[]
     local players = {}
     for i = 1, 2 do
-        local player = moe.player.create { attributes = attributeSystem:createInstance() }
+        local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         players[i] = player
     end

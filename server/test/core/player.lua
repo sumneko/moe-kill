@@ -5,11 +5,18 @@ local function newSystem()
     return moe.attribute.create()
 end
 
+---@param system AttributeSystem
+---@return Player
+local function newPlayer(system)
+    local game = moe.game.create { seats = 1, random = moe.random.create(1) }
+    return moe.player.create(game, { attributes = system:createInstance() })
+end
+
 lt.test('玩家：持有属性实例', function ()
     local system = newSystem()
     system:define('体力上限', { min = 0 })
-    local a = moe.player.create { attributes = system:createInstance() }
-    local b = moe.player.create { attributes = system:createInstance() }
+    local a = newPlayer(system)
+    local b = newPlayer(system)
 
     a:getAttributes():set('体力上限', 4)
     b:getAttributes():set('体力上限', 3)
@@ -20,7 +27,7 @@ end)
 
 lt.test('玩家：牌区可增删', function ()
     local system = newSystem()
-    local player = moe.player.create { attributes = system:createInstance() }
+    local player = newPlayer(system)
 
     local undo = player:addZone('手牌区')
     player:addZone('装备区')
@@ -38,7 +45,7 @@ end)
 
 lt.test('玩家：同名牌区报错', function ()
     local system = newSystem()
-    local player = moe.player.create { attributes = system:createInstance() }
+    local player = newPlayer(system)
     player:addZone('手牌区')
 
     lt.assertError('重复名字报错', function ()
@@ -49,7 +56,7 @@ end)
 lt.test('玩家：属性读写代理', function ()
     local system = newSystem()
     system:define('体力上限', { min = 0 })
-    local player = moe.player.create { attributes = system:createInstance() }
+    local player = newPlayer(system)
 
     player:setAttr('体力上限', 4)
     lt.assertEquals('setAttr 写进去', 4, player:getAttr('体力上限'))
@@ -61,7 +68,7 @@ end)
 
 lt.test('玩家：标签原样存取', function ()
     local system = newSystem()
-    local player = moe.player.create { attributes = system:createInstance() }
+    local player = newPlayer(system)
 
     player:setTag('身份', '主公')
     lt.assertEquals('读到的就是写入的', '主公', player:getTag('身份'))
@@ -77,7 +84,7 @@ end)
 
 lt.test('玩家：参与行动由存活派生', function ()
     local system = newSystem()
-    local player = moe.player.create { attributes = system:createInstance() }
+    local player = newPlayer(system)
 
     lt.assertEquals('默认参与行动', true, player.acting)
 
@@ -92,16 +99,17 @@ end)
 ---@return Game # 一个装着这些玩家的局（座位号 = 参数顺序）
 ---@return Player[]
 local function newGame(count)
-    local desk = moe.desk.create(count)
+    local game = moe.game.create { seats = count, random = moe.random.create(1) }
+    local desk = game.desk
     ---@type Player[]
     local players = {}
     for i = 1, count do
         local system = newSystem()
-        local player = moe.player.create { attributes = system:createInstance() }
+        local player = moe.player.create(game, { attributes = system:createInstance() })
         desk:sit(i, player)
         players[i] = player
     end
-    return moe.game.create { desk = desk, random = moe.random.create(1) }, players
+    return game, players
 end
 
 lt.test('玩家：默认活着，死亡时触发时机', function ()
@@ -138,7 +146,7 @@ end)
 
 lt.test('玩家：没上桌的玩家也能置存活状态', function ()
     local system = newSystem()
-    local player = moe.player.create { attributes = system:createInstance() }
+    local player = newPlayer(system)
 
     player:setAlive(false)
 

@@ -3,9 +3,8 @@ local lt = require 'test.ltest'
 ---@param seed? integer
 ---@return Game
 local function newGame(seed)
-    local desk   = moe.desk.create(4)
     local random = moe.random.create(seed or 1)
-    return moe.game.create { desk = desk, random = random }
+    return moe.game.create { seats = 4, random = random }
 end
 
 ---@param zone Zone
@@ -20,18 +19,23 @@ local function labels(zone)
 end
 
 lt.test('局：持一张桌子与一个随机源', function ()
-    local desk   = moe.desk.create(4)
     local random = moe.random.create(1)
-    local game   = moe.game.create { desk = desk, random = random }
+    local game   = moe.game.create { seats = 4, random = random }
 
-    lt.assertEquals('取回同一张桌子', desk, game.desk)
-    lt.assertEquals('取回同一个随机源', random, game.random)
-    lt.assertEquals('两者也是公开字段', true, game.desk == desk and game.random == random)
+    lt.assertEquals('桌子按给的座位数建好', 4, game.desk:getCount())
+    lt.assertEquals('随机源就是给的那个', random, game.random)
+    lt.assertEquals('两者都是公开字段', true, game.desk ~= nil and game.random == random)
 
     ---@type any
-    local missingRandom = { desk = desk }
-    lt.assertError('缺桌子或随机源报错', function ()
-        moe.game.create(missingRandom)
+    local noSeats = { random = random }
+    lt.assertError('没给座位数报错', function ()
+        moe.game.create(noSeats)
+    end)
+
+    ---@type any
+    local noRandom = { seats = 4 }
+    lt.assertError('没给随机源报错', function ()
+        moe.game.create(noRandom)
     end)
 end)
 
@@ -160,7 +164,7 @@ end)
 lt.test('局：牌区名先找当前回合角色，再找局上的牌区', function ()
     local game = newGame()
     local gameHand = game:createZone('手牌')
-    local lord = moe.player.create { attributes = game:getAttributeSystem():createInstance() }
+    local lord = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
     game.desk:sit(1, lord)
     lord:addZone('手牌')
     lord:addZone('装备')
@@ -217,7 +221,7 @@ end)
 
 lt.test('定义：阶段限额随定义走，没声明就是 1000', function ()
     local game = moe.game.create {
-        desk     = moe.desk.create(4),
+        seats    = 4,
         random   = moe.random.create(1),
         packages = { '标准' },
     }
@@ -237,7 +241,7 @@ end)
 
 lt.test('局：建局时装好规则', function ()
     local game = moe.game.create {
-        desk     = moe.desk.create(4),
+        seats    = 4,
         random   = moe.random.create(1),
         packages = { '标准' },
     }

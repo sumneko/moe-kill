@@ -26,13 +26,13 @@ end
 ---@return Player # 目标（坐 2 号位）
 ---@return Zone # 使用者的手牌区
 local function newGame()
-    local desk = moe.desk.create(2)
     local game = moe.game.create {
-        desk     = desk,
+        seats    = 2,
         random   = moe.random.create(1),
         sources  = { probeDir:string() .. '/*' },
         packages = { '探针' },
     }
+    local desk = game.desk
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {
         min    = -999999,
@@ -42,7 +42,7 @@ local function newGame()
     ---@type Player[]
     local players = {}
     for i = 1, 2 do
-        local player = moe.player.create { attributes = attributeSystem:createInstance() }
+        local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         player:setAttr('体力', 4)
         players[i] = player
@@ -461,13 +461,13 @@ end)
 ---@return Game # 局（来源只有探针包）
 ---@return Player[] # 按座位号升序
 local function newWideGame(count)
-    local desk = moe.desk.create(count)
     local game = moe.game.create {
-        desk     = desk,
+        seats    = count,
         random   = moe.random.create(1),
         sources  = { probeDir:string() .. '/*' },
         packages = { '探针' },
     }
+    local desk = game.desk
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {
         min    = -999999,
@@ -477,7 +477,7 @@ local function newWideGame(count)
     ---@type Player[]
     local players = {}
     for i = 1, count do
-        local player = moe.player.create { attributes = attributeSystem:createInstance() }
+        local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         player:setAttr('体力', 4)
         player:addZone('手牌')

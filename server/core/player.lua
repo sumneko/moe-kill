@@ -9,12 +9,14 @@
 ---@field private zoneMap table<string, Zone>
 ---@field private tags table<string, any>
 ---@field private alive boolean
----@field private game? Game # 属于哪一局（入座 / 局建立时绑定）
+---@field private game Game # 属于哪一局
 local M = Class 'Player'
 
+---@param game Game
 ---@param attributes Attributes
 ---@param name? string
-function M:__init(attributes, name)
+function M:__init(game, attributes, name)
+    self.game       = game
     self.name       = name
     self.attributes = attributes
     self.zoneList   = {}
@@ -142,11 +144,6 @@ function M:isAlive()
     return self.alive
 end
 
----@param game Game
-function M:bindGame(game)
-    self.game = game
-end
-
 ---@param value boolean
 function M:setAlive(value)
     local alive = value and true or false
@@ -154,7 +151,7 @@ function M:setAlive(value)
         return
     end
     self.alive = alive
-    if not alive and self.game then
+    if not alive then
         self.game:fire('玩家-死亡', self)
     end
 end
@@ -162,11 +159,12 @@ end
 ---@class Player.API
 moe.player = {}
 
+---@param game Game
 ---@param options Player.CreateOptions
 ---@return Player
-function moe.player.create(options)
-    if not options or not options.attributes then
-        error('玩家需要一个属性实例', 2)
+function moe.player.create(game, options)
+    if not game or not options or not options.attributes then
+        error('玩家需要一局与一个属性实例', 2)
     end
-    return New 'Player' (options.attributes, options.name)
+    return New 'Player' (game, options.attributes, options.name)
 end

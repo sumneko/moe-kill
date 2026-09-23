@@ -16,17 +16,17 @@ end
 ---@return Game
 ---@return Player[] # 按座位号升序
 local function newBareGame(count)
-    local desk   = moe.desk.create(count)
     local random = moe.random.create(1)
     local game   = moe.game.create {
-        desk    = desk,
+        seats   = count,
         random  = random,
         sources = { probeDir:string() .. '/*' },
     }
+    local desk = game.desk
     ---@type Player[]
     local players = {}
     for i = 1, count do
-        local player = moe.player.create { attributes = game:getAttributeSystem():createInstance() }
+        local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
         desk:sit(i, player)
         players[i] = player
     end

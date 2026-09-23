@@ -26,7 +26,7 @@ end
 ---@return Game
 local function newProbeGame(items)
     return moe.game.create {
-        desk     = moe.desk.create(2),
+        seats    = 2,
         random   = moe.random.create(1),
         sources  = { probeDir:string() .. '/*' },
         packages = items,

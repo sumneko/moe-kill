@@ -1,24 +1,15 @@
 ---@class Desk: Class.Base
 ---@field package seats table<integer, Player>
 ---@field package count integer
----@field package game? Game # 属于哪一局（bindGame 之后才有）
+---@field package game Game # 属于哪一局
 local M = Class 'Desk'
 
+---@param game Game
 ---@param count integer
-function M:__init(count)
+function M:__init(game, count)
+    self.game  = game
     self.seats = {}
     self.count = count
-end
-
----@param game Game
-function M:bindGame(game)
-    self.game = game
-    for i = 1, self.count do
-        local player = self.seats[i]
-        if player then
-            player:bindGame(game)
-        end
-    end
 end
 
 ---@return integer
@@ -36,9 +27,6 @@ function M:sit(index, player)
         error('座位 {} 上已经有人了' % { index }, 2)
     end
     self.seats[index] = player
-    if self.game then
-        player:bindGame(self.game)
-    end
 end
 
 ---@param index integer
@@ -112,8 +100,7 @@ end
 ---@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
 function M:actionOrder(allowed, from)
     if not from then
-        local game = self.game
-        from = game and (game.turnPlayer or game.lastTurnPlayer)
+        from = self.game.turnPlayer or self.game.lastTurnPlayer
     end
     if not from then
         error('没有起点：还没有任何人开始过回合，得显式给出从谁开始', 2)
@@ -166,11 +153,12 @@ end
 ---@class Desk.API
 moe.desk = {}
 
+---@param game Game
 ---@param count integer
 ---@return Desk
-function moe.desk.create(count)
+function moe.desk.create(game, count)
     if type(count) ~= 'number' or math.type(count) ~= 'integer' or count < 1 then
         error('桌子需要正整数个座位：{}' % { tostring(count) }, 2)
     end
-    return New 'Desk' (count)
+    return New 'Desk' (game, count)
 end

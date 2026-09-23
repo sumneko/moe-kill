@@ -131,9 +131,9 @@ lt.test('重载：默认范围只含登记过的模块', function ()
 end)
 
 lt.test('重载：局跨重载照常可用', function ()
-    local desk   = moe.desk.create(4)
     local random = moe.random.create(1)
-    local game   = moe.game.create { desk = desk, random = random, packages = { '标准' } }
+    local game   = moe.game.create { seats = 4, random = random, packages = { '标准' } }
+    local desk   = game.desk
 
     local cardTable = game:getValue('牌表')
 
@@ -259,7 +259,7 @@ lt.test('重载：已存在的实例立即使用新代码', function ()
 end)
 
 lt.test('重载：局上的号源跨重载接着走', function ()
-    local game   = moe.game.create { desk = moe.desk.create(4), random = moe.random.create(1) }
+    local game   = moe.game.create { seats = 4, random = moe.random.create(1) }
     local before = game:nextId()
     local reloaded = moe.reload.reload()
     local after  = game:nextId()

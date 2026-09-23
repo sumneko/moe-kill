@@ -26,20 +26,20 @@ end
 ---@return Player # 1 号位
 local function newGame(source)
     write('探针/牌.lua', source)
-    local desk = moe.desk.create(2)
     local game = moe.game.create {
-        desk     = desk,
+        seats    = 2,
         random   = moe.random.create(1),
         sources  = { probeDir:string() .. '/*' },
         packages = { '探针' },
     }
+    local desk = game.desk
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {
         min    = -999999,
         max    = 999999,
         simple = true,
     })
-    local player = moe.player.create { attributes = attributeSystem:createInstance() }
+    local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
     desk:sit(1, player)
     player:setAttr('体力', 4)
     return game, player
@@ -202,13 +202,13 @@ Card '甲'
 Card '子'
     : extends '另一个.甲'
 ]])
-    local desk = moe.desk.create(2)
     local game = moe.game.create {
-        desk     = desk,
+        seats    = 2,
         random   = moe.random.create(1),
         sources  = { probeDir:string() .. '/*' },
         packages = { '另一个', '探针' },
     }
+    local desk = game.desk
 
     lt.assertEquals('按限定名取到基类', true, assert(game:getCard('子')):isKind('基本'))
 end)
