@@ -57,12 +57,69 @@ lt.test('无中生有：只能以自己为目标', function ()
     lt.assertEquals('原因是不能以这个角色为目标', '「标准.无中生有」不能以这个角色为目标', reason)
 end)
 
-lt.test('无中生有：分类是锦囊与非延时锦囊', function ()
-    local run = support.start { count = 2, packages = { '标准' } }
-    local def = assert(run.game:getCard('无中生有'), '没有这张牌的定义')
+lt.test('南蛮入侵：所有其他角色各挨一次，打出杀的就不受伤', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local user  = run.players[1]
+    local card  = takeCard(run, user, '南蛮入侵')
+    local slash = takeCard(run, run.players[2], '杀')
 
-    lt.assertEquals('是锦囊', true, def:isKind('锦囊'))
-    lt.assertEquals('是非延时锦囊', true, def:isKind('非延时锦囊'))
-    lt.assertEquals('两个分类都在', '锦囊,非延时锦囊', table.concat(def:getKinds(), ','))
-    lt.assertEquals('从手牌用', '手牌', def:getZone())
+    run.game:on('卡牌-询问', function (ask)
+        if ask.to == run.players[2] then
+            ask:answer { card = slash }
+        end
+    end)
+
+    run.game:useCard(user, card, { run.players[2], run.players[3] })
+
+    lt.assertEquals('打出杀的不受伤', 5, run.players[2]:getAttr('体力'))
+    lt.assertEquals('没杀可打的掉 1 点', 4, run.players[3]:getAttr('体力'))
+    lt.assertEquals('使用者不受影响', 5, user:getAttr('体力'))
+    lt.assertEquals('打出的杀进了弃牌', true, moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), slash))
+end)
+
+lt.test('万箭齐发：所有其他角色各挨一次，打出闪的就不受伤', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '万箭齐发')
+    local jink = takeCard(run, run.players[3], '闪')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.to == run.players[3] then
+            ask:answer { card = jink }
+        end
+    end)
+
+    run.game:useCard(user, card, { run.players[2], run.players[3] })
+
+    lt.assertEquals('打出闪的不受伤', 5, run.players[3]:getAttr('体力'))
+    lt.assertEquals('没闪可打的掉 1 点', 4, run.players[2]:getAttr('体力'))
+    lt.assertEquals('使用者不受影响', 5, user:getAttr('体力'))
+end)
+
+lt.test('南蛮入侵 / 万箭齐发：合法目标是所有其他角色', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local nanman = takeCard(run, user, '南蛮入侵')
+    local arrows = takeCard(run, user, '万箭齐发')
+
+    local one = assert(select(3, run.game:canUse(user, nanman)), '南蛮该给出合法目标')
+    lt.assertEquals('三个人的局里两个目标', 2, #one)
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(one, user))
+
+    local other = assert(select(3, run.game:canUse(user, arrows)), '万箭该给出合法目标')
+    lt.assertEquals('万箭一样', 2, #other)
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(other, user))
+end)
+
+lt.test('锦囊：三张的分类都是锦囊与非延时锦囊', function ()
+    local run = support.start { count = 2, packages = { '标准' } }
+
+    for _, name in ipairs({ '无中生有', '南蛮入侵', '万箭齐发' }) do
+        local def = assert(run.game:getCard(name), '没有这张牌的定义')
+
+        lt.assertEquals('{} 是锦囊' % { name }, true, def:isKind('锦囊'))
+        lt.assertEquals('{} 是非延时锦囊' % { name }, true, def:isKind('非延时锦囊'))
+        lt.assertEquals('{} 的两个分类都在' % { name }, '锦囊,非延时锦囊', table.concat(def:getKinds(), ','))
+        lt.assertEquals('{} 从手牌用' % { name }, '手牌', def:getZone())
+    end
 end)
