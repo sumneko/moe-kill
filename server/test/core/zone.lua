@@ -85,29 +85,6 @@ lt.test('牌区：空区取牌与越界取牌明确失败', function ()
     lt.assertEquals('失败后内容不变', '甲', zoneLabels(zone))
 end)
 
-lt.test('牌区：参数可设、可读、可改、可删', function ()
-    local zone = moe.zone.create({ ['可见'] = true })
-
-    lt.assertEquals('创建时传入的参数', true, zone:getParam('可见'))
-    lt.assertEquals('未设置的参数为 nil', nil, zone:getParam('归属'))
-
-    zone:setParam('归属', '玩家甲')
-    lt.assertEquals('新增参数', '玩家甲', zone:getParam('归属'))
-
-    zone:setParam('可见', false)
-    lt.assertEquals('修改参数', false, zone:getParam('可见'))
-    lt.assertEquals('其它参数不受影响', '玩家甲', zone:getParam('归属'))
-
-    lt.assertEquals('删除已有参数', true, zone:removeParam('归属'))
-    lt.assertEquals('删除后读回 nil', nil, zone:getParam('归属'))
-    lt.assertEquals('删除不存在的参数', false, zone:removeParam('归属'))
-
-    ---@type any
-    local notString = 1
-    lt.assertError('参数名必须是字符串', function () zone:setParam(notString, '值') end)
-    lt.assertError('参数值不能为 nil', function () zone:setParam('可见', nil) end)
-end)
-
 lt.test('牌区：kind 只用来区分子类', function ()
     lt.assertEquals('基类的 kind', 'zone', moe.zone.create().kind)
     lt.assertEquals('有序子类的 kind', 'orderedZone', moe.orderedZone.create().kind)

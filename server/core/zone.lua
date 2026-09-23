@@ -1,7 +1,6 @@
 ---@class Zone
 ---@field kind string
 ---@field protected cards Card[]
----@field private params table<string, any>
 ---@field private enabled boolean
 local M = Class 'Zone'
 
@@ -28,17 +27,10 @@ local function resolvePosition(count, position)
     return index
 end
 
----@param params? table<string, any>
-function M:__init(params)
+function M:__init()
     self.kind    = 'zone'
     self.cards   = {}
-    self.params  = {}
     self.enabled = true
-    if params then
-        for key, value in pairs(params) do
-            self:setParam(key, value)
-        end
-    end
 end
 
 function M:checkEnabled(action)
@@ -140,30 +132,6 @@ function M:clear()
     return count
 end
 
----@param key string
----@param value any
-function M:setParam(key, value)
-    assert(type(key) == 'string', '参数名必须是字符串')
-    assert(value ~= nil, '参数值不能是 nil')
-    self.params[key] = value
-end
-
----@param key string
----@return any
-function M:getParam(key)
-    return self.params[key]
-end
-
----@param key string
----@return boolean
-function M:removeParam(key)
-    if self.params[key] == nil then
-        return false
-    end
-    self.params[key] = nil
-    return true
-end
-
 ---@return boolean
 function M:disable()
     if not self.enabled then
@@ -207,8 +175,7 @@ end
 ---@class Zone.API
 moe.zone = {}
 
----@param params? table<string, any>
 ---@return Zone
-function moe.zone.create(params)
-    return New 'Zone' (params)
+function moe.zone.create()
+    return New 'Zone' ()
 end

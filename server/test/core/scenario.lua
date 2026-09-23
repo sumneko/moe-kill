@@ -48,11 +48,7 @@ lt.test('场景：用移动一次把牌送进牌区', function ()
     lt.assertEquals('手牌区多一张且在顶部', '第3张', zoneLabels(hand))
 end)
 
-lt.test('场景：区域名、参数与属性名全由调用方决定', function ()
-    local zone = moe.zone.create({ ['谁能看到'] = '只有自己', ['属于谁'] = '玩家甲' })
-    lt.assertEquals('区域参数原样保存', '只有自己', zone:getParam('谁能看到'))
-    lt.assertEquals('没有的键读到 nil', nil, zone:getParam('手牌'))
-
+lt.test('场景：属性名与取值全由调用方决定', function ()
     local system = moe.attribute.create()
     system:define('体力', { min = 0, max = 4 })
     system:define('手牌上限', { min = 0, max = 20 })
