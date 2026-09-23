@@ -1710,7 +1710,7 @@ end
 
 ---@generic T
 ---@param value T|T[]
----@return T[] # 不会返回空：nil 不属于它管（可选参数在上层自己判断）
+---@return T[]?
 function m.toList(value)
     if type(value) ~= 'table' then
         return { value }
