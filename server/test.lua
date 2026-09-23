@@ -100,6 +100,7 @@ moe.task.setErrorHandler(function (err)
 end)
 
 test.require 'test.smoke'
+test.require 'test.util'
 test.require 'test.session'
 test.require 'test.async'
 test.require 'test.core'

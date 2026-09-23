@@ -42,20 +42,6 @@ function M:__init(game, to, reason, condition)
     self.condition = condition
 end
 
---- 目标统一成一张列表
----@param targets? Player|Player[]
----@return Player[]?
-local function toTargetList(targets)
-    if targets == nil then
-        return nil
-    end
-    if Type(targets) ~= nil then
-        ---@cast targets Player
-        return { targets }
-    end
-    ---@cast targets Player[]
-    return targets
-end
 
 --- 按条件看这张牌算不算一个合法选项
 ---@param game Game
@@ -117,7 +103,7 @@ local function answerProblem(options, answer)
     end
     for _, option in ipairs(options) do
         if option.card == answer.card then
-            local targets = toTargetList(answer.targets)
+            local targets = moe.util.toList(answer.targets)
             if not option.targets then
                 if targets then
                     return '这次答复不该给目标'
@@ -155,7 +141,7 @@ function M:answer(value)
     end
     self.task:resolve {
         card    = value.card,
-        targets = toTargetList(value.targets),
+        targets = moe.util.toList(value.targets),
     }
 end
 

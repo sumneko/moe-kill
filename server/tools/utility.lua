@@ -470,7 +470,26 @@ local esc = {
     ['\n'] = '\\\n',
 }
 
+local function escapeInvalidUtf8(str)
+    local result = {}
+    local start = 1
+    while true do
+        local _, invalid = utf8Len(str, start)
+        if not invalid then
+            result[#result+1] = str:sub(start)
+            break
+        end
+        result[#result+1] = str:sub(start, invalid - 1)
+        result[#result+1] = ('\\%03d'):format(stringByte(str, invalid))
+        start = invalid + 1
+    end
+    return tableConcat(result)
+end
+
 function m.viewString(str, quo)
+    if not utf8Len(str) then
+        str = escapeInvalidUtf8(str)
+    end
     if not quo then
         if str:find('[\r\n]') then
             quo = '[['
@@ -912,6 +931,11 @@ end
 
 function m.multiTable(max, default)
     local mts = {}
+    if default and type(default) ~= 'function' then
+        local value = default
+        default = function () return value end
+        ---@cast default function
+    end
     for i = 1, max - 1 do
         if i < max - 1 then
             mts[i] = { __index = function (t, k)
@@ -1213,13 +1237,6 @@ function m.stringSimilar(s1, s2, ignoreCase)
         return false, 0
     end
 
-    if s1:find '[^\x00-\x7F]' then
-        if ignoreCase then
-            return s1:upper() == s2:sub(1, #s1):upper(), 0
-        end
-        return s1 == s2:sub(1, #s1), 0
-    end
-
     if ignoreCase then
         s1 = s1:upper()
         s2 = s2:upper()
@@ -1336,6 +1353,8 @@ function m.enableFormatString()
                 local inside = key:sub(2, -2)
                 if inside:find('{', 1, true) then
                     return '{' .. inside % args .. '}'
+                else
+                    return
                 end
             end
             if fmt then
@@ -1437,6 +1456,43 @@ function m.asKey(str)
         return str
     end
     return ('[%q]'):format(str)
+end
+
+---@param ... table
+---@return table
+function m.mergeStruct(...)
+    local result
+    local copyed = {}
+
+    local function merge(a, b)
+        if copyed[b] then
+            return copyed[b]
+        end
+        if type(b) ~= 'table' then
+            return b
+        end
+        if not a then
+            a = {}
+        end
+        copyed[b] = a
+        local usedKeys = {}
+        for i, v in ipairs(b) do
+            a[#a+1] = v
+            usedKeys[i] = true
+        end
+        for k, v in pairs(b) do
+            if not usedKeys[k] then
+                a[k] = merge(a[k], v)
+            end
+        end
+        return a
+    end
+
+    for _, t in ipairs { ... } do
+        result = merge(result, t)
+    end
+
+    return result
 end
 
 ---@param job function
@@ -1630,6 +1686,40 @@ function m.setMetaMethod(obj, name, value)
     else
         setmetatable(obj, { [name] = value })
     end
+end
+
+---判断一张表是否是严格数组（即索引从 1 开始且连续的数组）。
+---空表不认为是严格数组。
+---@param t table
+---@return boolean
+function m.isStrictArray(t)
+    if t[1] == nil then
+        return false
+    end
+    local n = 0
+    for _ in pairs(t) do
+        n = n + 1
+    end
+    for i = 1, n do
+        if t[i] == nil then
+            return false
+        end
+    end
+    return true
+end
+
+---把一个值统一成列表：列表原样返回（空表也是空列表）、单个值包成一张表、给 nil 还是 nil（可选参数用「不存在」表达「没给」）。
+---@generic T
+---@param value T|T[]|nil
+---@return T[]?
+function m.toList(value)
+    if value == nil then
+        return nil
+    end
+    if type(value) == 'table' and (m.isStrictArray(value) or next(value) == nil) then
+        return value
+    end
+    return { value }
 end
 
 return m

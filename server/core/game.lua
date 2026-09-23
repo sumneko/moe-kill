@@ -600,17 +600,6 @@ function M:judge(player, reason)
     return judge
 end
 
----@param targets Player|Player[]
----@return Player[] # 目标列表（单个也包成表）
-local function toPlayerList(targets)
-    if Type(targets) ~= nil then
-        ---@cast targets Player
-        return { targets }
-    end
-    ---@cast targets Player[]
-    return targets
-end
-
 ---@param def CardDef
 ---@param user Player
 ---@param card Card
@@ -681,9 +670,8 @@ function M:canUse(user, card, targets)
     end
 
     ---@type Player[]?
-    local list = nil
-    if targets ~= nil then
-        list = toPlayerList(targets)
+    local list = moe.util.toList(targets)
+    if list then
         if #list == 0 then
             return false, '「{}」至少要指定一个目标' % { def.fullName }
         end
@@ -722,7 +710,7 @@ function M:useCard(user, card, targets)
         game    = self,
         user    = user,
         card    = card,
-        targets = toPlayerList(targets),
+        targets = moe.util.toList(targets) or {},
     }
     effect:apply():await()
     return effect
