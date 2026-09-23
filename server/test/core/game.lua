@@ -57,7 +57,7 @@ lt.test('局：默认建无序牌区，ordered 建有序牌区', function ()
     lt.assertEquals('ordered 是有序的', 'orderedZone', game:createZone('抽牌', true).kind)
 end)
 
-lt.test('局：建牌带牌名', function ()
+lt.test('局：建牌带牌名与牌面', function ()
     local game = newGame()
 
     lt.assertEquals('牌名写进不透明标签', '杀', game:createCard('杀'):getLabel())
@@ -65,6 +65,11 @@ lt.test('局：建牌带牌名', function ()
     lt.assertError('牌名不能为空', function ()
         game:createCard('')
     end)
+
+    local card = game:createCard('杀', '梅花', 8)
+    lt.assertEquals('花色直接读字段', '梅花', card.suit)
+    lt.assertEquals('点数直接读字段', 8, card.point)
+    lt.assertEquals('不传牌面就是空', nil, game:createCard('闪').point)
 end)
 
 lt.test('局：发号给牌，将来也给技能', function ()

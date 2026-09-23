@@ -41,14 +41,9 @@ local function attributes(player)
 end
 
 ---@param game Game
----@return integer # 当前牌表的总张数
+---@return integer # 当前牌表的总张数（逐张表：数表长）
 local function totalCards(game)
-    local cardTable = assert(game:getValue('牌表'), '没有牌表')
-    local total = 0
-    for _, entry in ipairs(cardTable) do
-        total = total + entry.count
-    end
-    return total
+    return #assert(game:getValue('牌表'), '没有牌表')
 end
 
 lt.test('基础：规则数值后者覆盖前者', function ()
@@ -158,6 +153,28 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
     lt.assertEquals('无懈可击 4 张', 4, counts['无懈可击'])
     lt.assertEquals('万箭齐发 1 张', 1, counts['万箭齐发'])
     lt.assertEquals('借刀杀人 2 张', 2, counts['借刀杀人'])
+end)
+
+lt.test('基础：牌表里每张都有合法的花色与点数', function ()
+    local run       = support.start { packages = { '身份场', '标准' }, count = 4 }
+    local cardTable = assert(run.game:getValue('牌表'), '没有牌表')
+    ---@type table<string, true>
+    local suits = { ['黑桃'] = true, ['红桃'] = true, ['梅花'] = true, ['方块'] = true }
+
+    local bad = 0
+    for _, entry in ipairs(cardTable) do
+        if not suits[entry.suit] or math.type(entry.point) ~= 'integer' or entry.point < 1 or entry.point > 13 then
+            bad = bad + 1
+        end
+    end
+
+    lt.assertEquals('牌面全都是合法取值', 0, bad)
+    lt.assertEquals('草稿牌表共 102 张', 102, #cardTable)
+
+    local deck = assert(run.game:getZone('抽牌'), '没有建出抽牌')
+    local card = deck:list()[1]
+    lt.assertEquals('牌堆里的牌带着花色', true, card.suit ~= nil)
+    lt.assertEquals('牌堆里的牌带着点数', true, card.point ~= nil)
 end)
 
 lt.test('基础：没有牌表时不建牌堆', function ()

@@ -72,13 +72,9 @@ local function advance(state, turns)
 end
 
 ---@param game Game
----@return integer # 牌表总张数
+---@return integer # 牌表总张数（逐张表：数表长）
 local function totalCards(game)
-    local total = 0
-    for _, entry in ipairs(assert(game:getValue('牌表'), '没有牌表')) do
-        total = total + entry.count
-    end
-    return total
+    return #assert(game:getValue('牌表'), '没有牌表')
 end
 
 --- 一律「结束出牌阶段」的答复

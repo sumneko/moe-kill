@@ -469,14 +469,16 @@ function M:nextId()
     return self.idCounter
 end
 
---- 按牌名建一张牌（号由这一局发）
+--- 按牌名建一张牌（号由这一局发；花色与点数由内容侧给，内核不解释）
 ---@param name string
+---@param suit? string # 花色
+---@param point? integer # 点数
 ---@return Card
-function M:createCard(name)
+function M:createCard(name, suit, point)
     if type(name) ~= 'string' or name == '' then
         error('牌名必须是非空字符串', 2)
     end
-    return moe.card.create(name, self:nextId())
+    return moe.card.create(name, self:nextId(), suit, point)
 end
 
 ---@param to Player # 被问者

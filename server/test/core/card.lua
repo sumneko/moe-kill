@@ -21,7 +21,7 @@ lt.test('牌：改标签不动标识', function ()
     lt.assertEquals('标识不变', id, card:getId())
 end)
 
-lt.test('牌：内核不预设任何牌的定义', function ()
+lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', function ()
     local card = lt.card('杀')
     local keys = {}
 
@@ -31,12 +31,21 @@ lt.test('牌：内核不预设任何牌的定义', function ()
         end
     end
     table.sort(keys)
-    lt.assertEquals('只有标识与标签两类字段', 'id,label', table.concat(keys, ','))
+    lt.assertEquals('没给牌面时只有标识与标签两类字段', 'id,label', table.concat(keys, ','))
 
     ---@type any
     local raw = card
     lt.assertEquals('没有名称字段', nil, raw['名称'])
-    lt.assertEquals('没有花色字段', nil, raw['花色'])
-    lt.assertEquals('没有点数字段', nil, raw['点数'])
     lt.assertEquals('没有效果字段', nil, raw['效果'])
+end)
+
+lt.test('牌：花色与点数直接读字段', function ()
+    local card = moe.card.create('杀', 7, '黑桃', 9)
+
+    lt.assertEquals('花色就是给进来的那个', '黑桃', card.suit)
+    lt.assertEquals('点数就是给进来的那个', 9, card.point)
+
+    local plain = moe.card.create('闪', 8)
+    lt.assertEquals('没给花色就是空', nil, plain.suit)
+    lt.assertEquals('没给点数就是空', nil, plain.point)
 end)

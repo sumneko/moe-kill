@@ -8,9 +8,7 @@ game:on('游戏-开始', function ()
     ---@type Card[]
     local cards = {}
     for _, entry in ipairs(cardTable) do
-        for _ = 1, entry.count do
-            cards[#cards + 1] = game:createCard(entry.name)
-        end
+        cards[#cards + 1] = game:createCard(entry.name, entry.suit, entry.point)
     end
     game:moveCard(cards, deck)
     deck:shuffle()

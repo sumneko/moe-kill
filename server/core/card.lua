@@ -1,14 +1,20 @@
 ---@class Card
 ---@field private id integer
 ---@field private label? any
+---@field suit? string # 花色（内容给的值，内核不解释）
+---@field point? integer # 点数（1..13，内核不解释）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 local M = Class 'Card'
 
 ---@param label? any
 ---@param id integer # 号由局发（`game:nextId`）
-function M:__init(label, id)
+---@param suit? string # 花色
+---@param point? integer # 点数
+function M:__init(label, id, suit, point)
     self.id    = id
     self.label = label
+    self.suit  = suit
+    self.point = point
 end
 
 ---@return integer
@@ -48,7 +54,9 @@ moe.card = {}
 
 ---@param label? any
 ---@param id integer # 号由局发（`game:nextId`）
+---@param suit? string # 花色
+---@param point? integer # 点数
 ---@return Card
-function moe.card.create(label, id)
-    return New 'Card' (label, id)
+function moe.card.create(label, id, suit, point)
+    return New 'Card' (label, id, suit, point)
 end
