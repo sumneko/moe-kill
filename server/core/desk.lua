@@ -107,32 +107,33 @@ function M:getNext(player)
     return nil
 end
 
----@param from Player # 从谁的下家开始
----@param players Player[] # 要排序的角色（必须是坐在桌上的）
----@return Player[] # 按行动顺序排好的一份新列表（自己排在最末）
-function M:sortByActionOrder(from, players)
+---@param from Player # 从谁开始
+---@param allowed Player[]? # 允许参与的角色，不传表示都允许
+---@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
+function M:actionOrder(from, allowed)
     local start = self:getIndex(from)
     if not start then
         error('这个玩家不在这张桌子上', 2)
     end
-    ---@type table<Player, boolean>
-    local pending = {}
-    for _, player in ipairs(players) do
-        pending[player] = true
-    end
-    ---@type Player[]
-    local sorted = {}
-    for step = 1, self.count do
-        local player = self.seats[(start - 1 + step) % self.count + 1]
-        if player and pending[player] then
-            pending[player] = nil
-            sorted[#sorted + 1] = player
+    ---@type table<Player, boolean>?
+    local allowedSet = nil
+    if allowed then
+        allowedSet = {}
+        for _, player in ipairs(allowed) do
+            allowedSet[player] = true
         end
     end
-    for _ in pairs(pending) do
-        error('要排序的角色里有人不在这张桌子上', 2)
+    local step = 0
+    return function ()
+        while step < self.count do
+            local player = self.seats[(start - 1 + step) % self.count + 1]
+            step = step + 1
+            if player and (not allowedSet or allowedSet[player]) then
+                return player
+            end
+        end
+        return nil
     end
-    return sorted
 end
 
 ---@param from Player

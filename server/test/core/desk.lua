@@ -24,7 +24,7 @@ lt.test('桌子：座位号决定行动顺序', function ()
     lt.assertEquals('玩家能查出自己的座位号', 2, desk:getIndex(b))
 end)
 
-lt.test('桌子：按行动顺序排序，自己排在最末', function ()
+lt.test('桌子：按行动顺序依次给出角色，轮到自己就结束', function ()
     local desk = moe.desk.create(5)
     local a    = newPlayer()
     local b    = newPlayer()
@@ -37,22 +37,27 @@ lt.test('桌子：按行动顺序排序，自己排在最末', function ()
     desk:sit(4, d)
     desk:sit(5, e)
 
-    ---@param players Player[]
+    ---@param from Player
+    ---@param allowed Player[]?
     ---@return string # 座位号连起来
-    local function seats(players)
+    local function seats(from, allowed)
         ---@type string[]
         local list = {}
-        for _, player in ipairs(players) do
+        for player in desk:actionOrder(from, allowed) do
             list[#list + 1] = tostring(desk:getIndex(player))
         end
         return table.concat(list, ',')
     end
 
-    lt.assertEquals('从 b 的下家开始绕一圈', '3,4,5,1', seats(desk:sortByActionOrder(b, { e, c, a, d })))
-    lt.assertEquals('自己排在最末', '3,4,5,1,2', seats(desk:sortByActionOrder(b, { e, c, a, d, b })))
-    lt.assertEquals('重复给出的角色只排一次', '2', seats(desk:sortByActionOrder(a, { b, b })))
-    lt.assertError('不在桌上的角色报错', function ()
-        desk:sortByActionOrder(a, { newPlayer() })
+    lt.assertEquals('允许列表里没有自己 ⇒ 从下家开始绕一圈', '3,4,5,1', seats(b, { e, c, a, d }))
+    lt.assertEquals('自己在允许列表里 ⇒ 排在最前', '2,3,4,5,1', seats(b, { b, c, d, e, a }))
+    lt.assertEquals('不给允许列表表示都允许', '2,3,4,5,1', seats(b))
+    lt.assertEquals('只允许自己 ⇒ 就自己一个', '1', seats(a, { a }))
+    lt.assertEquals('允许列表里重复的角色只给一次', '2', seats(a, { b, b }))
+    lt.assertEquals('允许列表外的角色跳过', '3,4', seats(b, { c, d }))
+    lt.assertEquals('允许列表里的桌外角色跳过', '2,3,4,5', seats(a, { newPlayer(), b, c, d, e }))
+    lt.assertError('起点不在桌上报错', function ()
+        desk:actionOrder(newPlayer())
     end)
 end)
 
