@@ -1,6 +1,5 @@
 ---@meta
 
--- 这个包给内核接口补的类型声明：属性名与规则数值的取值
 ---@class Game
 ---@field getValue fun(self: Game, name: '默认体力'|'主公额外体力'): integer
 ---@field getValue fun(self: Game, name: string): any
