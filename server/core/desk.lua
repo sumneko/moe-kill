@@ -123,12 +123,15 @@ function M:actionOrder(from, allowed)
             allowedSet[player] = true
         end
     end
-    local step = 0
+    ---@type table<Player, boolean>
+    local visited = {}
+    local step    = 0
     return function ()
         while step < self.count do
             local player = self.seats[(start - 1 + step) % self.count + 1]
             step = step + 1
-            if player and (not allowedSet or allowedSet[player]) then
+            if player and not visited[player] and (not allowedSet or allowedSet[player]) then
+                visited[player] = true
                 return player
             end
         end

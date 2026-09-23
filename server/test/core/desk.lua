@@ -61,6 +61,22 @@ lt.test('桌子：按行动顺序依次给出角色，轮到自己就结束', fu
     end)
 end)
 
+lt.test('桌子：同一名角色占两个座位也只给一次', function ()
+    local desk = moe.desk.create(3)
+    local a    = newPlayer()
+    local b    = newPlayer()
+    desk:sit(1, a)
+    desk:sit(2, b)
+    desk:sit(3, a)
+
+    ---@type string[]
+    local list = {}
+    for player in desk:actionOrder(b) do
+        list[#list + 1] = tostring(desk:getIndex(player))
+    end
+    lt.assertEquals('同一个角色只给一次', '2,1', table.concat(list, ','))
+end)
+
 lt.test('桌子：跳过不参与行动的玩家', function ()
     local desk = moe.desk.create(3)
     local a    = newPlayer()
