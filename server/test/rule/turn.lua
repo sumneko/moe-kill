@@ -118,6 +118,24 @@ lt.test('回合：首回合从主公开始，六个阶段依次走完', function
     lt.assertEquals('停掉之后没有第二个回合', 1, state.turns)
 end)
 
+lt.test('回合：回合结束时就把上一个回合角色记下来（顺序锚点）', function ()
+    ---@type Player?
+    local anchor = nil
+    local state = startTurn {
+        setup = function (run)
+            run.game:on('回合-结束', function ()
+                anchor = run.game.lastTurnPlayer
+            end)
+        end,
+        answer    = endPhase(),
+        stopAfter = 1,
+    }
+
+    advance(state, 1)
+
+    lt.assertEquals('锚点是刚结束回合的那个角色', state.run.players[1], anchor)
+end)
+
 lt.test('回合：摸牌阶段摸 2 张', function ()
     local before = 0
     local state = startTurn {

@@ -61,7 +61,7 @@ lt.test('桌子：按行动顺序依次给出角色，轮到自己就结束', fu
     end)
 end)
 
-lt.test('桌子：不给起点就用当前回合角色', function ()
+lt.test('桌子：不给起点就用顺序锚点', function ()
     local desk = moe.desk.create(3)
     local a    = newPlayer()
     local b    = newPlayer()
@@ -71,17 +71,26 @@ lt.test('桌子：不给起点就用当前回合角色', function ()
     desk:sit(3, c)
 
     local game = moe.game.create { desk = desk, random = moe.random.create(1) }
-    game.turnPlayer = b
 
-    ---@type string[]
-    local list = {}
-    for player in desk:actionOrder() do
-        list[#list + 1] = tostring(desk:getIndex(player))
+    ---@return string # 座位号连起来
+    local function seats()
+        ---@type string[]
+        local list = {}
+        for player in desk:actionOrder() do
+            list[#list + 1] = tostring(desk:getIndex(player))
+        end
+        return table.concat(list, ',')
     end
-    lt.assertEquals('从当前回合角色起绕一圈', '2,3,1', table.concat(list, ','))
 
-    game.turnPlayer = nil
-    lt.assertError('既不在回合里、又没给起点 ⇒ 报错', function ()
+    game.turnPlayer = b
+    lt.assertEquals('回合内：从当前回合角色起绕一圈', '2,3,1', seats())
+
+    game.turnPlayer     = nil
+    game.lastTurnPlayer = c
+    lt.assertEquals('回合结束后：从上一个回合角色起绕一圈', '3,1,2', seats())
+
+    game.lastTurnPlayer = nil
+    lt.assertError('没人开过回合、又没给起点 ⇒ 报错', function ()
         desk:actionOrder()
     end)
 end)

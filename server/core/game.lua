@@ -223,6 +223,7 @@ end
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
 ---@field turnPlayer? Player # 当前回合角色（由流程维护；挪牌按名字找牌区时先找它身上）
+---@field lastTurnPlayer? Player # 上一个回合角色（回合结束后留作顺序锚点）
 ---@field private attributeSystem? AttributeSystem
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
@@ -263,6 +264,7 @@ function M:resetContent()
     self.loadedFiles = {}
     self.flow        = nil
     self.turnPlayer  = nil
+    self.lastTurnPlayer = nil
     self.attributeSystem = nil
     self.events:clear()
 end

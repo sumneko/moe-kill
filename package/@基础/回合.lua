@@ -38,7 +38,8 @@ end
 
 ---@param player Player
 local function runTurn(player)
-    game.turnPlayer = player
+    game.turnPlayer     = player
+    game.lastTurnPlayer = player
     game:fire('回合-开始', { player = player })
     for _, name in ipairs(PHASES) do
         local _ <close> = game:enterPhase(player, name)

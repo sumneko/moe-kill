@@ -108,14 +108,15 @@ function M:getNext(player)
 end
 
 ---@param allowed Player[]? # 允许参与的角色，不传表示都允许
----@param from Player? # 从谁开始，不传表示从当前回合角色开始
+---@param from Player? # 从谁开始，不传表示从顺序锚点开始（当前回合角色，回合结束后是上一个）
 ---@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
 function M:actionOrder(allowed, from)
     if not from then
-        from = self.game and self.game.turnPlayer
+        local game = self.game
+        from = game and (game.turnPlayer or game.lastTurnPlayer)
     end
     if not from then
-        error('没有起点：此刻不在任何角色的回合里，得显式给出从谁开始', 2)
+        error('没有起点：还没有任何人开始过回合，得显式给出从谁开始', 2)
     end
     local start = self:getIndex(from)
     if not start then
