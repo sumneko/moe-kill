@@ -172,7 +172,7 @@ end
 - 包目录名可以带一个 `@` 前缀（表示该包默认加载，见 `architecture.md` 第 9 节），包内文件名不带。
 - **注入环境给的「函数」用 PascalCase，给的「对象 / 命名空间」小写**（用户 2026-09-19 定）：`Card` / `Depends` 是框架入口（与既有的 `Class` / `New` / `Extends` 同类），`game`（与 `moe` 同类）是环境给的对象。理由：包文件里 `local card = game:createCard('杀')` 这类局部变量很自然，小写入口一遮就没了；大写既躲开遮蔽，又能一眼区分「加载期 DSL」与「普通 API」。
   - **给标准库加助手就用库名本身**（用户 2026-09-21 定）：`table.filter` / 将来的 `string.trim`，**不要**另起 `Table` / `util` 这类全局 —— 名字自己说明了「这是对标准库的扩充」（做法与边界见 `architecture.md` 9.6）。
-- **回调参数按「载荷的具体类型」起名，别叫 `ctx`**（用户 2026-09-23 定）：载荷是内核某个类的实例就用它的小驼峰类名 —— `useCard`（`'卡牌-结算前'` / `'卡牌-结算后'` / 牌的 `'结算前'` / `'结算后'`）、`cardEffect`（牌的 `'生效'`）、`askCard`（`'卡牌-询问'` / `'卡牌-答复'` / `'卡牌-答复后'`）、`damage` / `heal` / `dying` / `draw` / `judge` / `phase` / `player` / `ask` / `effect`（`'即将生效'` 与 `'效果-收尾'`）、`result`（`'游戏-结束'`，类型是 `Game.Result`）；**没有类实例的载荷用描述性短名** —— `target`（牌的 `'获取目标'`，类型 `CardDef.Target`）、`check`（`'卡牌-能否使用'`）、`turn`（`'回合-开始'` / `'回合-结束'`）、`event`（`'游戏-开始'`，空表）、`payload`（`game:on` 的 `string` 兜底签名）。**用不上载荷就干脆不接参数**（`function ()`）；`env-meta.lua` 的 `fun(...)` 签名里也照这个起名。
+- **回调参数按「载荷的具体类型」起名，别叫 `ctx`**（用户 2026-09-23 定）：载荷是内核某个类的实例就用它的小驼峰类名 —— `useCard`（`'卡牌-结算前'` / `'卡牌-结算后'` / 牌的 `'结算前'` / `'结算后'`）、`cardEffect`（牌的 `'生效'`）、`askCard` / `askUseCard` / `askPlayCard`（`'卡牌-询问'` / `'卡牌-答复'` / `'卡牌-答复后'` —— 载荷按实际是哪个类起名）、`damage` / `heal` / `dying` / `draw` / `judge` / `phase` / `player` / `ask` / `effect`（`'即将生效'` 与 `'效果-收尾'`）、`result`（`'游戏-结束'`，类型是 `Game.Result`）；**没有类实例的载荷用描述性短名** —— `target`（牌的 `'获取目标'`，类型 `CardDef.Target`）、`check`（`'卡牌-能否使用'`）、`turn`（`'回合-开始'` / `'回合-结束'`）、`event`（`'游戏-开始'`，空表）、`payload`（`game:on` 的 `string` 兜底签名）。**用不上载荷就干脆不接参数**（`function ()`）；`env-meta.lua` 的 `fun(...)` 签名里也照这个起名。
 
 ## 9. 防御性检查的边界
 

@@ -50,12 +50,12 @@ Depends = nil
 ---@field fire fun(self: Game, name: '游戏-开始', event: Game.Event.游戏开始): any
 ---@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
----@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard): any): function
----@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard): any
----@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskUseCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskUseCard): any
----@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskUseCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskUseCard): any
+---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskUseCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskUseCard|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskUseCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskUseCard|AskPlayCard): any
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
 ---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard): any): function

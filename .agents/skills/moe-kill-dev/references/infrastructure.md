@@ -224,6 +224,7 @@ server/bin/moe-kill.exe --test core.effect           # 效果族**全部**（基
 server/bin/moe-kill.exe --test core.effect.ask       # 询问套件（答复往返 / 先答的算数 / 没人应答）
 server/bin/moe-kill.exe --test core.effect.ask-card  # 要牌套件（缘由 / 条件筛选 / 答复与答复后时机 / 被取消的询问）
 server/bin/moe-kill.exe --test core.effect.ask-use-card # 要一次使用套件（能用的牌 + 可用目标与 target 交集）
+server/bin/moe-kill.exe --test core.effect.ask-play-card # 打出套件（答复的牌进发起那次结算的临时区、没有父结算就不动）
 server/bin/moe-kill.exe --test core.effect.play      # 使用牌套件（校验 / 取牌 / 结算回调 / 收尾时机）
 server/bin/moe-kill.exe --test core.effect.damage    # 伤害套件（三个时机 / 点数 / 便利入口 / 改体力属规则侧）
 server/bin/moe-kill.exe --test core.effect.heal      # 回复套件（三个时机 / 点数 / 建实例先不结算）

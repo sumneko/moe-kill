@@ -12,7 +12,7 @@ Card '决斗'
         local attacker = cardEffect.user
         local defender = cardEffect.target
         while true do
-            if not game:askCard(defender, '打出', { name = '杀' }).card then
+            if not game:askPlayCard(defender, '决斗', { name = '杀' }).card then
                 game:damage(attacker, defender, 1)
                 return
             end

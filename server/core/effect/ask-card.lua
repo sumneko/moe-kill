@@ -170,6 +170,11 @@ M.__getter.card = function (self)
     return self.result?.card
 end
 
+--- 答复已定下、答复时机之前跑一次（子类在这里处置那张牌）
+---@async
+function M:onAnswered()
+end
+
 --- 把询问交给应答方（选项先摆好；答复一到，结果就定下了）
 ---@async
 function M:settle()
@@ -180,6 +185,7 @@ function M:settle()
         return
     end
 
+    self:onAnswered()
     self.game:fire('卡牌-答复', self)
     self.game:fire('卡牌-答复后', self)
 end

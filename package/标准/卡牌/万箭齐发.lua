@@ -10,7 +10,7 @@ Card '万箭齐发'
     end)
     : on('生效', function (cardEffect)
         local target = cardEffect.target
-        if game:askCard(target, '打出', { name = '闪' }).card then
+        if game:askPlayCard(target, '万箭齐发', { name = '闪' }).card then
             return
         end
         game:damage(cardEffect.user, target, 1)

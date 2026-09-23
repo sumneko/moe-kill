@@ -259,32 +259,17 @@ lt.test('答复：有答复才触发答复时机，上下文是这次询问', fu
     lt.assertEquals('答复时机里结果已经定下', jink, atFire[1])
 end)
 
-lt.test('答复：缘由是「打出」时基础规则把牌送进弃牌', function ()
+lt.test('答复：`AskCard` 自己不处置那张牌', function ()
     local game, players = newGame(2)
     local hand = assert(players[2]:getZone('手牌'))
     local jink = game:createCard('闪')
     hand:put(jink)
     answerWith(game, { jink })
 
-    local ask = game:askCard(players[2], '打出', { name = '闪' })
+    local ask = game:askCard(players[2], '交出', { name = '闪' })
 
     lt.assertEquals('答复拿到了', jink, ask.card)
-    lt.assertEquals('答复的牌也挂在询问上', jink, ask.card)
-    lt.assertEquals('牌离开了手', 0, hand:count())
-    lt.assertEquals('牌最终进了弃牌', true, moe.util.arrayHas(assert(game:getZone('弃牌')):list(), jink))
-    lt.assertEquals('处理只是路过', 0, assert(game:getZone('处理')):count())
-end)
-
-lt.test('答复：缘由不是「打出」时基础规则不接管', function ()
-    local game, players = newGame(2)
-    local hand = assert(players[2]:getZone('手牌'))
-    local jink = game:createCard('闪')
-    hand:put(jink)
-    answerWith(game, { jink })
-
-    game:askCard(players[2], '交出', { name = '闪' })
-
-    lt.assertEquals('牌还在手上', 1, hand:count())
+    lt.assertEquals('牌还在手上（去向由内容侧定）', 1, hand:count())
     lt.assertEquals('弃牌还是空的', 0, assert(game:getZone('弃牌')):count())
 end)
 
@@ -408,5 +393,3 @@ lt.test('询问：条件的 card 给一批牌，与 zone 可以同时给（并�
     local both = game:askCard(players[1], nil, { card = outside, zone = '手牌' })
     lt.assertEquals('同时给：并集', 2, #assert(both.options))
 end)
-
-
