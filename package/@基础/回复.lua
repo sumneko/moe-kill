@@ -1,3 +1,8 @@
 game:on('回复-生效', function (heal)
-    heal.to:addAttr('体力', heal.amount)
+    local to = heal.to
+    to:addAttr('体力', heal.amount)
+    local dying = game:getDying(to)
+    if dying and to:getAttr('体力') > 0 then
+        dying:leave()
+    end
 end)

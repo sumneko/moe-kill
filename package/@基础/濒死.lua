@@ -1,8 +1,5 @@
 game:on('濒死-进入', function (dying)
-    local player = dying.player
-    local damage = dying.damage
-    player:setTag('凶手', damage and damage.from)
-
+    local player  = dying.player
     local current = player
     while player:getAttr('体力') < 1 do
         ---@type AskCard.Condition # 只要能救他的【桃】
@@ -18,11 +15,4 @@ game:on('濒死-进入', function (dying)
             end
         end
     end
-    if player:getAttr('体力') < 1 then
-        player:setAlive(false)
-    end
-end)
-
-game:on('濒死-离开', function (dying)
-    dying.player:removeTag('凶手')
 end)

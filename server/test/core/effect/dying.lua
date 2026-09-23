@@ -24,7 +24,7 @@ local function newGame(count)
     return game, players
 end
 
-lt.test('濒死：当场结算，上下文里是濒死者与这次伤害', function ()
+lt.test('濒死：当场结算；没人喊脱离就由濒死结算杀死他', function ()
     local game, players = newGame(2)
 
     ---@type Dying?
@@ -39,63 +39,107 @@ lt.test('濒死：当场结算，上下文里是濒死者与这次伤害', funct
     lt.assertEquals('种类标识', 'dying', dying.kind)
     lt.assertEquals('上下文里是那个濒死的人', players[2], dying.player)
     lt.assertEquals('没传伤害就是空', nil, dying.damage)
+    lt.assertEquals('没人喊脱离 ⇒ 阵亡', false, players[2]:isAlive())
+    lt.assertEquals('结完账就清了', nil, game:getDying(players[2]))
+end)
 
+lt.test('濒死：带着那次伤害；喊了脱离就不杀', function ()
+    local game, players = newGame(2)
     local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+
+    ---@type Dying?
+    local seen = nil
+    ---@type integer
+    local leftTimes = 0
+    game:on('濒死-进入', function (dying)
+        seen = dying
+        dying:leave()
+    end)
+    game:on('濒死-离开', function ()
+        leftTimes = leftTimes + 1
+    end)
+
     game:enterDying(players[2], damage)
 
     lt.assertEquals('传了伤害就带上了', damage, assert(seen).damage)
+    lt.assertEquals('喊过脱离 ⇒ 还活着', true, players[2]:isAlive())
+    lt.assertEquals('脱离时机当场就发了', 1, leftTimes)
+    lt.assertEquals('脱离之后查不到这次的账', nil, game:getDying(players[2]))
 end)
 
-lt.test('濒死：结完还活着就触发「濒死-离开」，判死就不触发', function ()
+lt.test('濒死：leave() 幂等', function ()
     local game, players = newGame(2)
 
-    ---@type string[]
-    local trace = {}
+    ---@type Dying?
+    local seen = nil
+    ---@type integer
+    local leftTimes = 0
     game:on('濒死-进入', function (dying)
-        trace[#trace + 1] = '进入:' .. tostring(dying.player:isAlive())
+        seen = dying
+        dying:leave()
+        dying:leave()          -- 重复调
     end)
     game:on('濒死-离开', function ()
-        trace[#trace + 1] = '离开'
+        leftTimes = leftTimes + 1
     end)
 
-    game:enterDying(players[1])
-
-    lt.assertEquals('没人判死 ⇒ 进出各一次', '进入:true,离开', table.concat(trace, ','))
-
-    game:on('濒死-进入', function (dying)
-        dying.player:setAlive(false)
-    end)
     game:enterDying(players[2])
 
-    lt.assertEquals('判死 ⇒ 只有进入', '进入:true,离开,进入:true', table.concat(trace, ','))
+    lt.assertEquals('只发一次时机', 1, leftTimes)
+    lt.assertEquals('还活着', true, players[2]:isAlive())
+    lt.assertEquals('脱离标记为真', true, assert(seen):hasLeft())
 end)
 
-lt.test('濒死：濒死里再进濒死会自然嵌套', function ()
+lt.test('濒死：已经在濒死中 ⇒ 返回同一个，致死伤害换成这一次', function ()
     local game, players = newGame(2)
+    local first  = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    local second = moe.damage.create { game = game, from = players[1], to = players[2], amount = 3 }
 
+    ---@type Dying?
+    local outer = nil
+    ---@type Dying?
+    local inner = nil
     ---@type integer
-    local count = 0
-    ---@type boolean
-    local reentered = false
+    local entered = 0
 
     game:on('濒死-进入', function (dying)
-        count = count + 1
-        if not reentered then
-            reentered = true
-            game:enterDying(dying.player, dying.damage)
+        entered = entered + 1
+        if outer then
+            return
         end
+        outer = dying
+        inner = game:enterDying(players[2], second)   -- 濒死中再受伤
+        lt.assertEquals('返回的是同一次结算', dying, inner)
+        lt.assertEquals('致死伤害换成了后一次', second, dying.damage)
+    end)
+
+    game:enterDying(players[2], first)
+
+    lt.assertEquals('那次结算只进了一次', 1, entered)
+    lt.assertEquals('返回的就是那一次', outer, inner)
+    lt.assertEquals('没人喊脱离 ⇒ 照样会死', false, players[2]:isAlive())
+end)
+
+lt.test('濒死：脱离之后再进濒死是新的一次', function ()
+    local game, players = newGame(2)
+
+    ---@type Dying?
+    local oldone = nil
+    ---@type Dying?
+    local newone = nil
+
+    game:on('濒死-进入', function (dying)
+        if oldone then
+            return
+        end
+        oldone = dying
+        dying:leave()
+        newone = game:enterDying(players[2])
+        lt.assertEquals('是新的一次结算', false, oldone == newone)
     end)
 
     game:enterDying(players[2])
 
-    lt.assertEquals('起了两次濒死', 2, count)
-end)
-
-lt.test('濒死：内核不判死，只把时机交给规则侧', function ()
-    local game, players = newGame(2)
-
-    game:enterDying(players[2])
-
-    lt.assertEquals('没人处理 ⇒ 玩家照样活着', true, players[2]:isAlive())
-    lt.assertEquals('体力也没被动过', 4, players[2]:getAttr('体力'))
+    lt.assertEquals('旧的那次没杀他', true, assert(oldone):hasLeft())
+    lt.assertEquals('新那次没人喊脱离 ⇒ 阵亡', false, players[2]:isAlive())
 end)

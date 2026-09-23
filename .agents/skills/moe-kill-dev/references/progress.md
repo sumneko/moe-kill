@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-22 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **419 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **421 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -27,12 +27,12 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - 对象：`Card` / `Zone` / `OrderedZone` / `Attributes` / `Random` / `Desk` / `Player` / `Game` / `Event` / `Phase`
 - 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ `ask` / `ask-card` / `move-card` / `damage` / `heal` / `draw` / `dying`；**嵌套上限 `Effect.MAX_DEPTH = 150`**（安全阀：超了那一层以「取消」收尾 + `warn`，不算失败；实测再深进程会直接没）
-- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目）/ `useCard` / `askCard` / `ask` / `moveCard` / `damage` / `heal` / `draw` / `createCard` / `createZone` / `enterDying` / `endGame` / `runFlow` / `registerFlow`
+- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目）/ `useCard` / `askCard` / `ask` / `moveCard` / `damage` / `heal` / `draw` / `createCard` / `createZone` / `enterDying` / `getDying` / `endGame` / `runFlow` / `registerFlow`
 - **定义上的三件套**（2026-09-22）：`CardDef:kind(名字)` / `isKind` / `getKinds`（分类，内核只记录；取值省略「牌」字）、`CardDef:zone(区名)` / `getZone`（**必须从哪个牌区用**，`canUse` 的内建条目；不声明 = 任一牌区都行）、`CardDef:extends(名字)`（把基类的钩子与字段**抄**过来，基类的钩子跑前面、抄完脱钩、支持限定名）；公共模板在 `package/@基础/基本牌.lua`（`kind '基本'` + `zone '手牌'`），【杀】用 `: extends '基本牌'`
 - **号是局内发的**（2026-09-22）：`game:nextId()` —— 每次都递增、重装规则内容不重置、**牌与将来的技能共用同一串号**；牌实例自己不再取号（`Card:__init(label, id)` / `moe.card.create(label, id)` 的号都由调用方给），另一局从 1 重新开始
 - **阶段是内核一等对象**（2026-09-22）：`game:enterPhase(玩家, 阶段名)` 返回可 `<close>` 的 `Phase` 实例（`game.phase` = 当前阶段；可嵌套、离开要按嵌套顺序）；阶段事件改**由内核触发**，ctx = 阶段实例（**BREAKING**：`ctx.phase` → `ctx.name`）；实例上有**标签袋**与**两本账**：`addUseCount / getUseCount`（已用次数）、`addLimit / getLimitDelta`（上限增减）
 - **按次数的限制整套在内核**（2026-09-22）：限额写在**内容定义**上（`Card '杀' : limit('出牌', 1)`，没声明就是 1000 = 事实上不限）；`game:canUse` 多一条**内建条目**（阶段属于使用者时 `已用 < 限额 + 增减`，不通过就**不问内容侧**），`useCard` 校验通过后**内核自己记一次**（只在自己的阶段里记）—— 两种口径：`phase:addUseCount(名字, -1)`（此牌不计次数）、`phase:addLimit(名字, n)`（可以多用一次 / +1000 相当于不限）；**原来的 `@基础/使用限制.lua` 已删**（用户 2026-09-22 同意）
-- **濒死当场结、带着那次伤害**（2026-09-22）：检查点在规则侧（`@基础/伤害.lua` 扣完血判 ≤0）⇒ `game:enterDying(受害者, 这次伤害)` **当场结算**（不再记账、不再等效果收尾、也不再能撤销）；时机 **`'濒死'` → `'濒死-进入'`（BREAKING）**，新增 **`'濒死-离开'`**（结完还活着才发）；**时序：濒死（含判死 / 奖惩 / 胜负）早于 `'伤害-后'`**；凶手记在死者的 `'凶手'` 标签上；`Draw` 对已阵亡的角色直接完成；`game.dyingPending` / `game:flushDying()` 与属性监听那套已删
+- **濒死：内核判死、按玩家记一份账**（2026-09-22，本批）：检查点在规则侧（`@基础/伤害.lua` 扣完血判 ≤0）⇒ `game:enterDying(受害者, 这次伤害)` **当场结算**（不再记账、不再等效果收尾、也不再能撤销）；`Dying:settle()` = 发 **`'濒死-进入'`** → **没人喊 `leave()` 就 `player:setAlive(false)`**；`leave()` 幂等、**当场**发 **`'濒死-离开'`**（`@基础/回复.lua` 在体力 > 0 时喊）；**一个玩家同时只有一个濒死**（`enterDying` 返回现有实例并换致死伤害，`getDying(player)` 查得到）；**时序：濒死（含判死 / 奖惩 / 胜负）早于 `'伤害-后'`**；**凶手 = `game:getDying(死者).damage.from`**（`'凶手'` 标签退役）；`Draw` 对已阵亡的角色直接完成；`game.dyingPending` / `game:flushDying()` 与属性监听那套已删
 - **事件的快速返回**（2026-09-22）：时机回调**明确返回非 nil 值就停下、跳过之后的事件**，`game:fire` 把它交回调用方（落在 `tools/simple-event.lua`，记账在 `infrastructure.md`）；规则侧因此约定**疑问式事件名（能否…）= 期望返回值的事件**
 - **询问带合法选项**（2026-09-22）：`game:askCard(被问者, 缘由, 条件?)` —— 条件是 `AskCard.Condition`（`name?` 牌名 + `targets?` 目标窗口）；**内核在询问前遍历被问者的牌区、按条件算出 `ask.options`**（条件里给了 `targets` 就跑 `canUse`，于是内容侧的 `'卡牌-能否使用'` 条目一并生效；`targets = {}` 空表 = 只要求「至少有一个合法目标」；省略 `targets` = 不要求目标、不跑 `canUse`）；**答复必须落在选项里**（不在就拒收：`.err` = 原因、`.card` 不存在）；不给条件 = 不做限制。业务层三处调用点都是一行（`'出牌'` / `'打出'` / 求桃）
 - 时机 21 个 —— 清单见 `references/architecture.md` 第 10 节与 `server/core/loader/env-meta.lua`
