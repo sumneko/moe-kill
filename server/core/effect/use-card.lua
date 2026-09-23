@@ -43,9 +43,15 @@ function M:settle()
     ---@cast index integer
     zone:take(index)
     self.game:fire('卡牌-结算前', self)
+    for _, handler in ipairs(def:getHandlers('结算前')) do
+        handler(self)
+    end
     for target in self.game.desk:actionOrder(self.targets) do
         local effect = New 'CardEffect' (self.game, def, self.user, self.card, target)
         effect:apply()
+    end
+    for _, handler in ipairs(def:getHandlers('结算后')) do
+        handler(self)
     end
     self.game:fire('卡牌-结算后', self)
 end

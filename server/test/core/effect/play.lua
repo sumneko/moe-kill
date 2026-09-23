@@ -511,6 +511,38 @@ Card '测试杀'
     lt.assertEquals('从使用者的下家开始绕一圈', '234', user:getTag('顺序'))
 end)
 
+lt.test('使用：牌自己的「结算前」/「结算后」各跑一次，顺序对', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return game.desk.players
+    end)
+    : on('结算前', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. '结算前')
+    end)
+    : on('生效', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    end)
+    : on('结算后', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. '结算后')
+    end)
+]])
+
+    local game, players = newWideGame(3)
+    local card = game:createCard('测试杀')
+    local user = players[1]
+    local hand = assert(user:getZone('手牌'))
+    hand:put(card)
+
+    game:useCard(user, card, { players[2], players[3] })
+
+    lt.assertEquals('结算前 → 逐个生效 → 结算后', '结算前23结算后', user:getTag('顺序'))
+end)
+
 lt.test('使用：起点是顺序锚点，不是使用者', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[

@@ -14,7 +14,9 @@ Depends = nil
 
 ---@class CardDef # 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(ctx: CardDef.TargetCtx): Player[]): CardDef
+---@field on fun(self: CardDef, event: '结算前', handler: fun(ctx: UseCard)): CardDef # 使用结算开始时跑一次（逐目标之前）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(ctx: CardEffect)): CardDef
+---@field on fun(self: CardDef, event: '结算后', handler: fun(ctx: UseCard)): CardDef # 所有目标结算完之后跑一次
 ---@field limit fun(self: CardDef, phase: string, count: integer): CardDef # 声明这个阶段里最多用几次（没声明 = 1000）
 ---@field getLimit fun(self: CardDef, phase: string): integer
 ---@field kind fun(self: CardDef, name: string|string[]): CardDef # 声明分类（一次调用定下；要多个就给一张列表；取值省略「牌」字：基本 / 锦囊 / 装备）

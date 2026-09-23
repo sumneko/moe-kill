@@ -193,10 +193,97 @@ lt.test('决斗：合法目标是其他角色，不含自己', function ()
     lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
 end)
 
+lt.test('五谷丰登：亮出等同于目标数的牌，每人拿一张，剩余进弃牌', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '五谷丰登')
+    local deck = assert(run.game:getZone('抽牌'), '没有抽牌')
+    local before = deck:count()
+
+    run.game:on('卡牌-询问', function (ask)
+        local answer = support.pickFirst(ask)
+        if answer then
+            ask:answer(answer)
+        end
+    end)
+
+    run.game:useCard(user, card, run.game.desk.alivePlayers)
+
+    lt.assertEquals('亮出 3 张（抽牌少了 3 张）', before - 3, deck:count())
+    lt.assertEquals('使用者拿一张', 1, assert(user:getZone('手牌')):count())
+    lt.assertEquals('第二家拿一张', 1, assert(run.players[2]:getZone('手牌')):count())
+    lt.assertEquals('第三家拿一张', 1, assert(run.players[3]:getZone('手牌')):count())
+    lt.assertEquals('弃牌里只剩下那张用过的锦囊', 1, assert(run.game:getZone('弃牌')):count())
+end)
+
+lt.test('五谷丰登：没人答的那一轮拿不到牌，剩下的进弃牌', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '五谷丰登')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.to == user then
+            local answer = support.pickFirst(ask)
+            if answer then
+                ask:answer(answer)
+            end
+        end
+    end)
+
+    run.game:useCard(user, card, run.game.desk.alivePlayers)
+
+    lt.assertEquals('只有答了的那家拿到牌', 1, assert(user:getZone('手牌')):count())
+    lt.assertEquals('另外两家没拿到', 0, assert(run.players[2]:getZone('手牌')):count())
+    lt.assertEquals('剩下的两张连用过的一起进弃牌', 3, assert(run.game:getZone('弃牌')):count())
+end)
+
+lt.test('五谷丰登：从顺序锚点起依次选牌', function ()
+    local run  = support.start { count = 4, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '五谷丰登')
+
+    ---@type string[] # 被问的座位号（按被问顺序）
+    local asked = {}
+    run.game:on('卡牌-询问', function (ask)
+        local to = assert(ask.to)
+        asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
+        local answer = support.pickFirst(ask)
+        if answer then
+            ask:answer(answer)
+        end
+    end)
+
+    run.game:useCard(user, card, run.game.desk.alivePlayers)
+
+    lt.assertEquals('一圈里四家各问一次', 4, #asked)
+    lt.assertEquals('使用者（坐 1 号位）第一个，然后按行动顺序', '1,2,3,4', table.concat(asked, ','))
+end)
+
+lt.test('五谷丰登：起点是顺序锚点，不是使用者', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[3]
+    local card = takeCard(run, user, '五谷丰登')
+
+    ---@type string[] # 被问的座位号（按被问顺序）
+    local asked = {}
+    run.game:on('卡牌-询问', function (ask)
+        local to = assert(ask.to)
+        asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
+        local answer = support.pickFirst(ask)
+        if answer then
+            ask:answer(answer)
+        end
+    end)
+
+    run.game:useCard(user, card, run.game.desk.alivePlayers)
+
+    lt.assertEquals('第一个选牌的是 1 号位（锚点），不是 3 号位的使用者', '1,2,3', table.concat(asked, ','))
+end)
+
 lt.test('锦囊：已落地的都归类为锦囊与非延时锦囊', function ()
     local run = support.start { count = 2, packages = { '标准' } }
 
-    for _, name in ipairs({ '无中生有', '南蛮入侵', '万箭齐发', '桃园结义', '决斗' }) do
+    for _, name in ipairs({ '无中生有', '南蛮入侵', '万箭齐发', '桃园结义', '决斗', '五谷丰登' }) do
         local def = assert(run.game:getCard(name), '没有这张牌的定义')
 
         lt.assertEquals('{} 是锦囊' % { name }, true, def:isKind('锦囊'))

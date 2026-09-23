@@ -48,6 +48,22 @@ lt.test('效果：没有结算时没有根', function ()
     lt.assertEquals('还没有发起过结算', 0, #game:getEffects())
 end)
 
+lt.test('效果：可以挂标签袋（内容侧存这次结算的临时数据）', function ()
+    local game, players = newGame(2)
+
+    local effect = game:damage(players[1], players[2], 1)
+    effect:setTag('缘由', '测试')
+
+    lt.assertEquals('读得回来', '测试', effect:getTag('缘由'))
+
+    effect:removeTag('缘由')
+    lt.assertEquals('移除后读到不存在', nil, effect:getTag('缘由'))
+
+    lt.assertError('空键报错', function ()
+        effect:setTag('', 1)
+    end)
+end)
+
 lt.test('效果：嵌套太深的那一层以「取消」收尾，不算失败也不报错', function ()
     local game = newGame(1)
     lt.clearErrors()

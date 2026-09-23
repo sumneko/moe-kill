@@ -5,6 +5,7 @@
 ---@field result? any # 结果：这次结算给出的那个值（子类可在结算中途就定下）
 ---@field err? any # 失败：出错时记在这儿（等它的人也会收到这个错误）
 ---@field package task? Task # 这次结算的任务：驱动、完成、叫醒等待者都归它
+---@field private tags table<string, any> # 标签袋（内容侧挂这次结算的临时数据；内核不解释）
 local M = Class 'Effect'
 
 Extends(M, 'GCHost')
@@ -18,12 +19,33 @@ M.MAX_DEPTH = 150
 function M:__init(game)
     self.kind  = 'effect'
     self.game  = game
+    self.tags  = {}
     ---@type Effect[]
     self.childs = {}
 end
 
 function M:__del()
     self.task?:cancel()
+end
+
+---@param key string
+---@param value any
+function M:setTag(key, value)
+    if type(key) ~= 'string' or key == '' then
+        error('标签键必须是非空字符串', 2)
+    end
+    self.tags[key] = value
+end
+
+---@param key string
+---@return any
+function M:getTag(key)
+    return self.tags[key]
+end
+
+---@param key string
+function M:removeTag(key)
+    self.tags[key] = nil
 end
 
 --- 驱动这次结算（要等外部输入时它会挂在那儿，回来时不一定结完）

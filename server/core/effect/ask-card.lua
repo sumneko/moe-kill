@@ -8,9 +8,10 @@ require 'core.effect'
 ---@field card Card
 ---@field targets? Player[] # 这张牌的可用目标（省略 = 那就不该给目标，如「打出」）
 
----@class AskCard.Condition # 要什么样的牌（内核据此在被问者的牌区里算出合法选项）
+---@class AskCard.Condition # 要什么样的牌（内核据此算出合法选项）
 ---@field name? string # 牌名（省略 = 不限）
 ---@field targets? Player[] # 目标窗口：只收「能用在这组人身上」的牌（空表 = 只要求「至少有一个合法目标」）；省略 = 不要求目标
+---@field cards? Card[] # 候选就是这批牌（省略 = 遍历被问者的每个牌区）
 
 ---@class AskCard.CreateOptions
 ---@field game Game
@@ -71,7 +72,7 @@ local function optionOf(game, to, card, condition)
     return { card = card, targets = window }
 end
 
---- 按条件在被问者名下每个牌区里算出合法选项
+--- 按条件算出合法选项（候选默认来自被问者的牌区；给了 `cards` 就只看那一批）
 ---@param game Game
 ---@param to Player
 ---@param condition AskCard.Condition?
@@ -82,6 +83,16 @@ local function collectOptions(game, to, condition)
     end
     ---@type AskCard.Option[]
     local options = {}
+    local candidates = condition.cards
+    if candidates then
+        for _, card in ipairs(candidates) do
+            local option = optionOf(game, to, card, condition)
+            if option then
+                options[#options + 1] = option
+            end
+        end
+        return options
+    end
     for _, zone in ipairs(to:getZones()) do
         for _, card in ipairs(zone:list()) do
             local option = optionOf(game, to, card, condition)

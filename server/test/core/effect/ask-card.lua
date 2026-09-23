@@ -86,6 +86,33 @@ lt.test('询问：一次往返（选项按条件算出来）', function ()
     lt.assertEquals('选项挂在询问上', jink, assert(ask.options)[1].card)
 end)
 
+lt.test('询问：候选可以来自给定的一批牌（不看被问者的牌区）', function ()
+    local game, players = newGame(2)
+    local mine    = game:createCard('闪')
+    local outside = game:createCard('杀')
+    putInHand(players[2], { mine })
+    answerWith(game, { outside })
+
+    local ask = game:askCard(players[2], nil, { cards = { outside } })
+
+    lt.assertEquals('选项就一个', 1, #assert(ask.options))
+    lt.assertEquals('选项就是给的那张', outside, assert(ask.options)[1].card)
+    lt.assertEquals('答复给这批里的牌就算数', outside, ask.card)
+end)
+
+lt.test('询问：候选来自给定的一批牌时，手牌里的牌不算数', function ()
+    local game, players = newGame(2)
+    local mine    = game:createCard('闪')
+    local outside = game:createCard('杀')
+    putInHand(players[2], { mine })
+    answerWith(game, { mine })
+
+    local ask = game:askCard(players[2], nil, { cards = { outside } })
+
+    lt.assertEquals('拒收 ⇒ 没有答复', nil, ask.card)
+    lt.assertEquals('原因记在 err 上', true, ask.err ~= nil)
+end)
+
 lt.test('询问：答复带上目标（单个或一张列表）', function ()
     local game, players = newGame(3)
     local card  = game:createCard('测试牌')
