@@ -163,7 +163,8 @@ end)
 
     local game = newProbeGame { '流程包' }
     game:on('决策-询问', function (ask)
-        moe.await.sleep(0) -- 让出一次：流程此刻正挂在这条询问上
+        -- 让出一次：流程此刻正挂在这条询问上
+        moe.await.sleep(0)
         ask:answer('继续')
     end)
 
@@ -207,7 +208,8 @@ lt.test('奖惩：凶手已阵亡时照发，但一张也摸不到', function ()
     local before = hand:count()
 
     killer:setAlive(false)
-    run.game:damage(killer, run.players[3], 10)   -- 反贼死，凶手已阵亡
+    -- 反贼死，凶手已阵亡
+    run.game:damage(killer, run.players[3], 10)
 
     lt.assertEquals('奖励照发但摸牌被拦', before, hand:count())
 end)
@@ -230,7 +232,8 @@ lt.test('奖惩：排在胜负判定之前（反贼是最后一个死的）', fu
     local before = hand:count()
 
     kill(run, run.players[4])              -- 内奸：无奖励
-    kill(run, run.players[3])              -- 反贼：有奖励，且这一下让主公方胜
+    -- 反贼：有奖励，且这一下让主公方胜
+    kill(run, run.players[3])
 
     lt.assertEquals('游戏已结束', '主公方', assert(run.game:getResult()).side)
     lt.assertEquals('结束前那 3 张照摸到了', before + 3, hand:count())

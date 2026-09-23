@@ -19,7 +19,7 @@ game:on('游戏-开始', function ()
         player:addZone('手牌')
     end
 
-    deck:setShortageHandler(function (zone)     -- 抽牌堆空了：把弃牌全部洗回来
+    deck:setShortageHandler(function (zone)
         if discard:count() == 0 then
             game:endGame { side = '平局', reason = '牌堆与弃牌堆都没有牌' }
             return

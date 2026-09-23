@@ -320,7 +320,8 @@ lt.test('询问：答复不在可选项里时拒收，原因记在 `.err`', func
     local jink  = game:createCard('闪')
     local other = game:createCard('闪')
     putInHand(players[2], { jink })
-    answerWith(game, { other })   -- 答一张不在手上的牌 ⇒ 不在选项里
+    -- 答一张不在手上的牌 ⇒ 不在选项里
+    answerWith(game, { other })
 
     local ask = game:askCard(players[2], nil, { name = '闪' })
 
@@ -331,8 +332,10 @@ end)
 
 lt.test('询问：答复要与选项一致（目标该给、不该给、不能给外的）', function ()
     local game, players = newGame(3)
-    local named = game:createCard('测试牌')   -- 有「获取目标」：条件里给目标窗口
-    local plain = game:createCard('闪')       -- 没「获取目标」：条件里只按名
+    -- 有「获取目标」：条件里给目标窗口
+    local named = game:createCard('测试牌')
+    -- 没「获取目标」：条件里只按名
+    local plain = game:createCard('闪')
     putInHand(players[1], { named, plain })
 
     ---@type table<integer, AskCard.Answer>

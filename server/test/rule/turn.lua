@@ -268,7 +268,8 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
             for _ = 1, 3 do
                 hand:put(run.game:createCard('杀'))
             end
-            hand:put(run.game:createCard('闪'))       -- 【闪】没声明「获取目标」⇒ 用不了
+            -- 【闪】没声明「获取目标」⇒ 用不了
+            hand:put(run.game:createCard('闪'))
             run.game:on('卡牌-询问', function (ask)
                 if ask.reason ~= '出牌' then
                     return
@@ -312,7 +313,8 @@ lt.test('回合：答复不在选项里 ⇒ 拒收，阶段就此结束', functi
             hand:put(jink)
         end,
         answer = function ()
-            return { card = assert(jink) }              -- 乱答一张不在选项里的
+            -- 乱答一张不在选项里的
+            return { card = assert(jink) }
         end,
         stopAfter = 1,
     }

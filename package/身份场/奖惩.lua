@@ -2,8 +2,9 @@
 -- 装备区还没做 ⇒ 现在只弃手牌，等装备批次补上。
 
 game:on('玩家-死亡', function (player)
-    local dying  = game:getDying(player)          -- 死亡时机里那次濒死的账还在
-    local damage = dying and dying.damage         -- 致死伤害 = 最后一次打他那一丁
+    -- 死亡时机里那次濒死的账还在
+    local dying  = game:getDying(player)
+    local damage = dying and dying.damage
     local killer = damage and damage.from
     if not killer or killer == player then
         return

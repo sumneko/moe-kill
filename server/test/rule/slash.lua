@@ -140,7 +140,8 @@ lt.test('杀：目标答一张不是【闪】的牌会被拒收，等于没打�
     local user   = run.players[1]
     local target = run.players[2]
     local card   = takeSlash(run, user)
-    local other  = takeCard(run, target, '杀')      -- 手上真有张【杀】，但它不是这次的选项
+    -- 手上真有张【杀】，但它不是这次的选项
+    local other  = takeCard(run, target, '杀')
 
     run.game:on('卡牌-询问', function (ask)
         ask:answer { card = other }
