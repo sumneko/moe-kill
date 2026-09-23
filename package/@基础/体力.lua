@@ -1,3 +1,4 @@
+-- 定义「体力」属性：下限到负数，上限跟着「体力上限」走
 local attributeSystem = game:getAttributeSystem()
 
 attributeSystem:define('体力', {

@@ -1,3 +1,4 @@
+-- 摸牌：从抽牌堆顶取 count 张，整批放进该玩家的手牌
 game:on('摸牌', function (draw)
     local deck = assert(game:getZone('抽牌'), '局上没有抽牌区')
     ---@cast deck OrderedZone

@@ -1,3 +1,4 @@
+-- 判定：从抽牌堆顶翻一张，放进这次判定自己的临时处理区
 game:on('判定-亮牌', function (judge)
     local deck = assert(game:getZone('抽牌'), '局上没有抽牌区')
     ---@cast deck OrderedZone

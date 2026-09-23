@@ -1,3 +1,4 @@
+-- 濒死：从顺序锚点起按行动顺序求【桃】
 game:on('濒死-进入', function (dying)
     local player  = dying.player
     local start   = assert(game.turnPlayer or game.lastTurnPlayer, '濒死结算要从顺序锚点起，但还没有任何人开始过回合')

@@ -1,3 +1,4 @@
+-- 定义「攻击范围」属性：够不够得着由内容包拿它与距离比
 local attributeSystem = game:getAttributeSystem()
 
 attributeSystem:define('攻击范围', {
