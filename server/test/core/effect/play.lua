@@ -47,6 +47,7 @@ local function newGame()
         player:setAttr('体力', 4)
         players[i] = player
     end
+    game.turnPlayer = players[1]
     local hand = moe.zone.create()
     players[1]:addZone('手牌', hand)
     return game, players[1], players[2], hand
@@ -482,6 +483,7 @@ local function newWideGame(count)
         player:addZone('手牌')
         players[i] = player
     end
+    game.turnPlayer = players[1]
     return game, players
 end
 
@@ -507,6 +509,31 @@ Card '测试杀'
     game:useCard(user, card, { players[4], players[2], players[3] })
 
     lt.assertEquals('从使用者的下家开始绕一圈', '234', user:getTag('顺序'))
+end)
+
+lt.test('使用：起点是顺序锚点，不是使用者', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (ctx)
+        return game.desk.players
+    end)
+    : on('生效', function (ctx)
+        local order = ctx.user:getTag('顺序') or ''
+        ctx.user:setTag('顺序', order .. tostring(game.desk:getIndex(ctx.target)))
+    end)
+]])
+
+    local game, players = newWideGame(4)
+    local card = game:createCard('测试杀')
+    local user = players[3]
+    local hand = assert(user:getZone('手牌'))
+    hand:put(card)
+    game.turnPlayer = players[1]
+
+    game:useCard(user, card, { players[4], players[2] })
+
+    lt.assertEquals('从锚点的下家起绕一圈', '24', user:getTag('顺序'))
 end)
 
 lt.test('使用：收尾时机在所有目标处理完之后，且只触发一次', function ()

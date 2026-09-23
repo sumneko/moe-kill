@@ -43,7 +43,7 @@ function M:settle()
     ---@cast index integer
     zone:take(index)
     self.game:fire('卡牌-结算前', self)
-    for target in self.game.desk:actionOrder(self.targets, self.user) do
+    for target in self.game.desk:actionOrder(self.targets) do
         local effect = New 'CardEffect' (self.game, def, self.user, self.card, target)
         effect:apply()
     end
