@@ -1,4 +1,4 @@
-require 'core.effect'
+require 'core.effect.effect'
 
 ---@class Judge.CreateOptions
 ---@field game Game # 这次判定属于哪一局

@@ -8,25 +8,13 @@ Card '五谷丰登'
         return game.desk.alivePlayers
     end)
     : on('结算前', function (ctx)
-        ---@type Card[] # 亮出的这批牌此刻不属于任何区，先记在这次用牌上
-        local revealed = game:getZone('抽牌'):draw(#ctx.targets)
-        ctx:setTag('剩余', revealed)
+        game:moveCard(game:getZone('抽牌'):draw(#ctx.targets), ctx:getTempZone())
     end)
     : on('生效', function (ctx)
-        local use = assert(ctx.parent)
-        ---@type Card[]
-        local remaining = assert(use:getTag('剩余'))
-        local card = game:askCard(ctx.target, '五谷丰登', { cards = remaining }).card
+        local revealed = assert(ctx.parent):getTempZone():list()
+        local card = game:askCard(ctx.target, '五谷丰登', { cards = revealed }).card
         if not card then
             return
         end
-        use:setTag('剩余', table.without(remaining, card))
         game:moveCard(card, assert(ctx.target:getZone('手牌'), '目标没有手牌区'))
-    end)
-    : on('结算后', function (ctx)
-        ---@type Card[]
-        local remaining = assert(ctx:getTag('剩余'))
-        if #remaining > 0 then
-            game:moveCard(remaining, '弃牌')
-        end
     end)

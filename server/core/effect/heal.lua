@@ -1,4 +1,4 @@
-require 'core.effect'
+require 'core.effect.effect'
 
 ---@class Heal.CreateOptions
 ---@field game Game # 这次回复属于哪一局

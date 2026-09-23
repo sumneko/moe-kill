@@ -43,6 +43,8 @@ Depends = nil
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(ctx: Game.EventCtx.游戏开始): any): function
 ---@field fire fun(self: Game, name: '游戏-开始', ctx: Game.EventCtx.游戏开始): any
+---@field on fun(self: Game, name: '效果-收尾', callback: fun(ctx: Effect): any): function
+---@field fire fun(self: Game, name: '效果-收尾', ctx: Effect): any
 ---@field on fun(self: Game, name: '卡牌-询问', callback: fun(ctx: AskCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-询问', ctx: AskCard): any
 ---@field on fun(self: Game, name: '卡牌-答复', callback: fun(ctx: AskCard): any): function

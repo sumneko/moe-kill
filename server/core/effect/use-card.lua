@@ -1,4 +1,4 @@
-require 'core.effect'
+require 'core.effect.effect'
 
 ---@class UseCard.CreateOptions
 ---@field game Game

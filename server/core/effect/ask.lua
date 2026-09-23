@@ -1,4 +1,4 @@
-require 'core.effect'
+require 'core.effect.effect'
 
 ---@class Ask.CreateOptions
 ---@field game Game

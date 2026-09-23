@@ -1,4 +1,4 @@
-require 'core.effect'
+require 'core.effect.effect'
 
 ---@class AskCard.Answer # 一次答复：给出哪张牌；要打给谁的话再带上目标
 ---@field card Card

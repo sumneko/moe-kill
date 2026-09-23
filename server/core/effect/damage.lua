@@ -1,4 +1,4 @@
-require 'core.effect'
+require 'core.effect.effect'
 
 ---@class Damage.CreateOptions
 ---@field game Game # 这次伤害属于哪一局

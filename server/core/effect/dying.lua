@@ -1,4 +1,4 @@
-require 'core.effect'
+require 'core.effect.effect'
 
 ---@class Dying.CreateOptions
 ---@field game Game # 这次濒死属于哪一局
