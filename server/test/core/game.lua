@@ -126,8 +126,9 @@ lt.test('局：挪牌时的几种失败记在效果上，且不改状态', funct
     lt.clearErrors()
 
     lt.assertFailed('局上没有这个牌区', game:moveCard(card, '没有这个区'))
+    lt.assertFailed('没给目标区', game:moveCard(card, nil))
 
-    lt.assertEquals('失败都被收下', 1, #lt.errors)
+    lt.assertEquals('失败都被收下', 2, #lt.errors)
     lt.clearErrors()
     lt.assertEquals('失败后牌还在原处', 1, hand:count())
     lt.assertEquals('失败后归属没变', hand, card:getZone())

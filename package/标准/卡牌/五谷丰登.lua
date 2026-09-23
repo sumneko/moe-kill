@@ -16,5 +16,5 @@ Card '五谷丰登'
         if not card then
             return
         end
-        game:moveCard(card, assert(cardEffect.target:getZone('手牌'), '目标没有手牌区'))
+        game:moveCard(card, cardEffect.target:getZone('手牌'))
     end)

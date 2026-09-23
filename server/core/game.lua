@@ -532,7 +532,7 @@ end
 --- 把牌挪到某个牌区
 ---@async
 ---@param card Card|Card[] # 要挪的牌（单张或一批）
----@param zone string|Zone # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找）
+---@param zone? string|Zone # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找；不给 = 这次挪牌失败）
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
 function M:moveCard(card, zone)
     local cards = moe.util.toList(card)
