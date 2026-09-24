@@ -20,19 +20,6 @@ Depends = nil
 ---@field on fun(self: CardDef, event: '结算前', handler: fun(useCard: UseCard)): CardDef # 使用结算开始时跑一次（逐目标之前）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard)): CardDef
 ---@field on fun(self: CardDef, event: '结算后', handler: fun(useCard: UseCard)): CardDef # 所有目标结算完之后跑一次
----@field limit fun(self: CardDef, phase: string, count: integer): CardDef # 声明这个阶段里最多用几次（没声明 = 1000）
----@field getLimit fun(self: CardDef, phase: string): integer
----@field kind fun(self: CardDef, name: string|string[]): CardDef # 声明分类（一次调用定下；要多个就给一张列表；取值省略「牌」字：基本 / 锦囊 / 装备）
----@field addKind fun(self: CardDef, name: string|string[]): CardDef # 追加分类（已声明过的不动，只往里加）
----@field isKind fun(self: CardDef, name: string): boolean
----@field getKinds fun(self: CardDef): string[]
----@field zone fun(self: CardDef, zone: string): CardDef # 必须从哪个牌区用（不声明 = 使用者任一牌区都行）
----@field getZone fun(self: CardDef): string?
----@field noTarget fun(self: CardDef): CardDef # 声明这张牌不指定目标（官方装备牌；给了目标就不成立）
----@field isNoTarget fun(self: CardDef): boolean
----@field value fun(self: CardDef, name: string, value: any): CardDef # 声明这张牌上的一条数据（名字与取值都由写牌的人定）
----@field getValue fun(self: CardDef, name: string): any
----@field extends fun(self: CardDef, name: string): CardDef # 把基类定义的钩子与字段抖过来（基类的钩子跑在前面）
 
 --- 「获取目标」的上下文：这次想用哪张牌（还没定目标）
 ---@class CardDef.Target
