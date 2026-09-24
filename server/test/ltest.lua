@@ -24,7 +24,7 @@ M.cardId         = 0
 ---@return Card
 function M.card(name)
     M.cardId = M.cardId + 1
-    return moe.card.create(name, M.cardId)
+    return moe.card.create(M.game(), name, M.cardId)
 end
 
 --- 用例共用的一个局：牌区必须有个局才建得起来，但只测牌区本身的用例不关心这局是什么

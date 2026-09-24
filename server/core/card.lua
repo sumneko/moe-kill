@@ -5,20 +5,20 @@
 ---@field point? integer # 点数（1..13）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
----@field private game? Game # 属于哪一局（读自己的内容定义时用）
+---@field private game Game # 属于哪一局（读自己的内容定义时用）
 local M = Class 'Card'
 
+---@param game Game # 属于哪一局（读自己的内容定义时用）
 ---@param name? any # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数
----@param game? Game # 属于哪一局（测试里自己造的牌可以不给）
-function M:__init(name, id, suit, point, game)
+function M:__init(game, name, id, suit, point)
+    self.game  = game
     self.id    = id
     self.name  = name
     self.suit  = suit
     self.point = point
-    self.game  = game
 end
 
 ---@return integer # 牌的号（这一局发的）
@@ -32,9 +32,9 @@ function M:setName(name)
     self.name = name
 end
 
----@return CardDef? # 这张牌的内容定义（不在任何一局里就没有）
+---@return CardDef? # 这张牌的内容定义（查不到就是空）
 function M:getDef()
-    return self.game?:getCard(self.name)
+    return self.game:getCard(self.name)
 end
 
 --- 这张牌是不是这个分类
@@ -98,12 +98,12 @@ end
 moe.card = {}
 
 --- 建一张牌
+---@param game Game # 属于哪一局
 ---@param name? any # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数
----@param game? Game # 属于哪一局（读自己的内容定义时用）
 ---@return Card
-function moe.card.create(name, id, suit, point, game)
-    return New 'Card' (name, id, suit, point, game)
+function moe.card.create(game, name, id, suit, point)
+    return New 'Card' (game, name, id, suit, point)
 end

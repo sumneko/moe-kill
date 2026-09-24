@@ -568,7 +568,7 @@ function M:createCard(name, suit, point)
     if type(name) ~= 'string' or name == '' then
         error('牌名必须是非空字符串', 2)
     end
-    return moe.card.create(name, self:nextId(), suit, point, self)
+    return moe.card.create(self, name, self:nextId(), suit, point)
 end
 
 --- 要一张牌

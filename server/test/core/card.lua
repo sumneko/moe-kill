@@ -1,12 +1,12 @@
 local lt = require 'test.ltest'
 
 lt.test('牌：标识与牌名都由调用方给出', function ()
-    local card = moe.card.create('杀', 7)
+    local card = moe.card.create(lt.game(), '杀', 7)
 
     lt.assertEquals('标识就是给进来的号', 7, card:getId())
     lt.assertEquals('牌名就是给进来的那个值', '杀', card.name)
 
-    local plain = moe.card.create(nil, 8)
+    local plain = moe.card.create(lt.game(), nil, 8)
     lt.assertEquals('可以不要牌名', nil, plain.name)
     lt.assertEquals('两张牌各自用各自的号', false, card:getId() == plain:getId())
 end)
@@ -31,7 +31,7 @@ lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', fu
         end
     end
     table.sort(keys)
-    lt.assertEquals('没给牌面时只有标识与牌名两类字段', 'id,name', table.concat(keys, ','))
+    lt.assertEquals('没给牌面时的字段就是这三样', 'game,id,name', table.concat(keys, ','))
 
     ---@type any
     local raw = card
@@ -40,12 +40,12 @@ lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', fu
 end)
 
 lt.test('牌：花色与点数直接读字段', function ()
-    local card = moe.card.create('杀', 7, '黑桃', 9)
+    local card = moe.card.create(lt.game(), '杀', 7, '黑桃', 9)
 
     lt.assertEquals('花色就是给进来的那个', '黑桃', card.suit)
     lt.assertEquals('点数就是给进来的那个', 9, card.point)
 
-    local plain = moe.card.create('闪', 8)
+    local plain = moe.card.create(lt.game(), '闪', 8)
     lt.assertEquals('没给花色就是空', nil, plain.suit)
     lt.assertEquals('没给点数就是空', nil, plain.point)
 end)
