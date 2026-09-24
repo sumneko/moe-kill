@@ -16,19 +16,17 @@ Card '坐骑牌'
         if not name then
             return
         end
-        local delta = card:getValue('距离修正')
-        if not delta then
-            return
-        end
-        card:withZone(zone.owner:getAttributes():addModifier(name, delta))
+        card:withZone(zone.owner:getAttributes():addModifier(name, card:getValue('距离修正')))
     end)
 
 -- 进攻马（-1 马）：计算自己到别人的距离时减
 Card '进攻马'
     : extends '坐骑牌'
     : addKind '进攻马'
+    : value('距离修正', -1)
 
 -- 防御马（+1 马）：别人计算到自己的距离时加
 Card '防御马'
     : extends '坐骑牌'
     : addKind '防御马'
+    : value('距离修正', 1)

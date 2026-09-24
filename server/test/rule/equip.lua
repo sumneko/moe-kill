@@ -235,6 +235,8 @@ lt.test('装备：两类坐骑各自是一个定义，分类与钩子都在这�
         lt.assertEquals(name .. '：分类里有槽位名', true, def:isKind(name))
         lt.assertEquals(name .. '：两条马各管一边', false,
             def:isKind(name == '进攻马' and '防御马' or '进攻马'))
+        lt.assertEquals(name .. '：距离修正也在这里定下', name == '进攻马' and -1 or 1,
+            def:getValue('距离修正'))
         lt.assertEquals(name .. '：钩子也从坐骑牌抄来了', 1, #def:getHandlers('进入区域'))
     end
 end)

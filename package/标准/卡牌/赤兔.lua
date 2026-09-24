@@ -3,4 +3,3 @@
 
 Card '赤兔'
     : extends '进攻马'
-    : value('距离修正', -1)

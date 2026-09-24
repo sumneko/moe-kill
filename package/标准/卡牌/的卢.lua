@@ -3,4 +3,3 @@
 
 Card '的卢'
     : extends '防御马'
-    : value('距离修正', 1)

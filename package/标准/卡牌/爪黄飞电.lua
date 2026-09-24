@@ -3,4 +3,3 @@
 
 Card '爪黄飞电'
     : extends '防御马'
-    : value('距离修正', 1)
