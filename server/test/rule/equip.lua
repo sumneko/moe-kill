@@ -219,3 +219,22 @@ lt.test('装备：牌表里 14 张装备都定义好了，各自进对了槽', f
         end
     end
 end)
+
+lt.test('装备：两类坐骑各自是一个定义，分类与钩子都在这里备好', function ()
+    local run = support.start { count = 2, packages = { '标准' } }
+
+    local horse = assert(run.game:getCard('坐骑牌'), '没有坐骑牌')
+    lt.assertEquals('坐骑牌：是装备', true, horse:isKind('装备'))
+    lt.assertEquals('坐骑牌：是坐骑', true, horse:isKind('坐骑'))
+    lt.assertEquals('坐骑牌：不沾具体哪种马', false, horse:isKind('进攻马'))
+    lt.assertEquals('坐骑牌：不沾具体哪种马（二）', false, horse:isKind('防御马'))
+
+    for _, name in ipairs { '进攻马', '防御马' } do
+        local def = assert(run.game:getCard(name), '没有定义：' .. name)
+        lt.assertEquals(name .. '：抄来了装备与坐骑', true, def:isKind('装备') and def:isKind('坐骑'))
+        lt.assertEquals(name .. '：分类里有槽位名', true, def:isKind(name))
+        lt.assertEquals(name .. '：两条马各管一边', false,
+            def:isKind(name == '进攻马' and '防御马' or '进攻马'))
+        lt.assertEquals(name .. '：钩子也从坐骑牌抄来了', 1, #def:getHandlers('进入区域'))
+    end
+end)
