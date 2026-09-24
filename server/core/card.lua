@@ -34,11 +34,7 @@ end
 
 ---@return CardDef? # 这张牌的内容定义（不在任何一局里就没有）
 function M:getDef()
-    local game = self.game
-    if not game then
-        return nil
-    end
-    return game:getCard(self.name)
+    return self.game?:getCard(self.name)
 end
 
 --- 这张牌是不是这个分类
@@ -46,7 +42,7 @@ end
 ---@return boolean
 function M:isKind(name)
     local def = self:getDef()
-    return def ~= nil and def:isKind(name)
+    return def?:isKind(name)
 end
 
 --- 读这张牌上的一条数据
@@ -54,7 +50,7 @@ end
 ---@return any # 没声明过（或没有定义 / 不在局里）就是「不存在」
 function M:getValue(name)
     local def = self:getDef()
-    return def and def:getValue(name)
+    return def?:getValue(name)
 end
 
 ---@type string?
@@ -64,7 +60,7 @@ M.fullName = nil
 ---@return string? # 完整名（包名.名字）
 M.__getter.fullName = function (self)
     local def = self:getDef()
-    return def and def.fullName
+    return def?.fullName
 end
 
 --- 这张牌现在在哪个牌区

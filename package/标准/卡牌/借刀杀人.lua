@@ -8,8 +8,7 @@
 local function weaponOf(player)
     local equip = player:getZone('装备')
     for _, card in ipairs(equip:list()) do
-        local def = game:getCard(card.name)
-        if def and def:isKind('武器') then
+        if card:isKind('武器') then
             return card
         end
     end

@@ -215,3 +215,19 @@ end
 - **不缓存派生值**：`__getter` 每次现算（`desk.alivePlayers` 就是这么做的，理由见 `architecture.md` 第 12 节 —— 局的事件表每次装载都清空，挂在它上面的内核缓存会静默失效）。
 - **存量不动**：已经有的一批无参 `getXxx()`（`Card:getId`、`Game:getResult` / `getEffects` / `getZones`、`Player:getZones` …）**不主动清理**（改它们是纯噪音改动、还会碰到别人的代码）；顺手遇到相关代码时再单独提。**例外**：`Card:getLabel` / `setLabel` 已经在 2026-09-24 的顺手清理里去掉了 —— 牌名改成公开字段 `card.name`（写用 `setName`），与 `card.suit` / `card.point` 一致；`CardDef` 上本来就叫 `name`，两边现在同名。
 - 边界：**这不是「字段都公开」**—— 需要封装的（如 `Zone` 内部的 `cards`、`Game` 内部的 `events`）照样用 `private` + 方法；本节的只是「**只读、无参**」这类接口的形状选择。
+
+## 12. 可选链
+
+**能自然表达「没有就算了」的地方就用可选链，不要写 `if` 包一层**（用户 2026-09-24 定）。本工程的 Lua 在构建期开了可选链补丁（`3rd/bee.lua/3rd/lua-patch/optchain`），四种形状都能用：
+
+| 写法 | 什么意思 | 例子 |
+| ---- | ---- | ---- |
+| `a?.b` | 字段访问（`a` 为空 ⇒ 整个表达式为空） | `def?.fullName` |
+| `a?:b(args)` | **方法调用**（保留 `self`） | `def?:isKind(name)` |
+| `a?[k]` | 索引 | `t?[key]` |
+| `a?(args)` | 函数调用（接收者是个值、不带 `self`） | `handler?(self)` |
+
+- **首选写法**（照 `server/core/card.lua` 的 `getDef` / `isKind` 改）：`local game = self.game; if not game then return nil end; return game:getCard(self.name)` ⇒ `return self.game?:getCard(self.name)`；`def ~= nil and def:isKind(name)` ⇒ `def?:isKind(name)`。
+- **坑（踩过）**：方法调用必须写 **`?:`** —— `a?.b()` 是「字段访问 + 普通调用」，**不带 `self`**（实测报 `attempt to index a nil value (local 'self')`）；`?.` / `?[` / `?()` 分别对应字段 / 索引 / 函数调用。
+- **返回值可能变「空」**：`def?:isKind(name)` 在 `def` 为空时给的是 **`nil` 而不是 `false`** —— 判真假照旧（`nil` 是假），但**精确比较**（`== false`、断言、`assertNotEquals`）时得自己 `== true` 收一下。`a?.b` 同理：链上任何一环为空，结果都是空。
+- **它不是「到处加防御」**：可选链只是把「本来就允许为空、且空了就该跳过」的地方写短，判断标准仍按 §9（**这一步真的会缺吗**）。别为了"看着安全"给不该空的字段加 `?`。
