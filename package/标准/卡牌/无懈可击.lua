@@ -21,7 +21,7 @@ local function nullified(card)
         if used then
             local effect = game:useCardToCard(player, used, card).cardEffectToCard
             -- 刚用出去的那张无懈自己也会被问一遍「能否生效」：它没生效，就说明它没抵掉 card
-            if effect and effect.success then
+            if effect?.success then
                 return true
             end
         end
