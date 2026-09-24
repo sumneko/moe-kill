@@ -3,7 +3,7 @@
 ---@field protected cards Card[]
 ---@field private enabled boolean
 ---@field private visible boolean # 是否对所有人可见（默认可见；不可见时只有持有者看得见）
----@field private owner? Player # 这个区属于谁（玩家建区时记；公共区没有）
+---@field owner? Player # 这个区属于谁（公共区没有归属者）
 local M = Class 'Zone'
 
 ---@param count integer
@@ -53,6 +53,33 @@ function M:checkIndex(index)
     end
 end
 
+--- 这张牌在这个区里的名字（只有槽位区有）
+---@protected
+---@param card Card
+---@return string? # 槽位名（不是槽位区就是空）
+function M:slotOf(card)
+    return nil
+end
+
+--- 牌进来了：把它定义上的「进入区域」钩子各跑一次（没有归属者 / 没有定义就什么都不做）
+---@param card Card
+function M:notifyEnter(card)
+    local player = self.owner
+    local game   = player and player.game
+    local label  = card:getLabel()
+    if not game or type(label) ~= 'string' or label == '' then
+        return
+    end
+    local def = game:getCard(label)
+    if not def then
+        return
+    end
+    local slot = self:slotOf(card)
+    for _, handler in ipairs(def:getHandlers('进入区域')) do
+        handler(card, self, slot)
+    end
+end
+
 --- 放一张牌进来（已经在别的牌区里的牌要用 `move`）
 ---@param card Card
 ---@return Card
@@ -63,6 +90,7 @@ function M:put(card)
     end
     self.cards[#self.cards + 1] = card
     card:bindZone(self)
+    self:notifyEnter(card)
     return card
 end
 
@@ -110,6 +138,7 @@ function M:move(card, to, position)
     table.remove(self.cards, index)
     table.insert(to.cards, target, card)
     card:bindZone(to)
+    to:notifyEnter(card)
     return card
 end
 

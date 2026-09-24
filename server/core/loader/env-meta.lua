@@ -15,6 +15,7 @@ Depends = nil
 
 --- 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
 ---@class CardDef
+---@field on fun(self: CardDef, event: '进入区域', handler: fun(card: Card, zone: Zone, slot: string?): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发；槽位区额外给槽位名）
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(target: CardDef.Target): Player[]): CardDef
 ---@field on fun(self: CardDef, event: '结算前', handler: fun(useCard: UseCard)): CardDef # 使用结算开始时跑一次（逐目标之前）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard)): CardDef
@@ -22,6 +23,7 @@ Depends = nil
 ---@field limit fun(self: CardDef, phase: string, count: integer): CardDef # 声明这个阶段里最多用几次（没声明 = 1000）
 ---@field getLimit fun(self: CardDef, phase: string): integer
 ---@field kind fun(self: CardDef, name: string|string[]): CardDef # 声明分类（一次调用定下；要多个就给一张列表；取值省略「牌」字：基本 / 锦囊 / 装备）
+---@field addKind fun(self: CardDef, name: string|string[]): CardDef # 追加分类（已声明过的不动，只往里加）
 ---@field isKind fun(self: CardDef, name: string): boolean
 ---@field getKinds fun(self: CardDef): string[]
 ---@field zone fun(self: CardDef, zone: string): CardDef # 必须从哪个牌区用（不声明 = 使用者任一牌区都行）

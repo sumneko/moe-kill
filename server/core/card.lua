@@ -1,21 +1,24 @@
----@class Card
+---@class Card: Class.Base
 ---@field private id integer # 号（这一局发的）
 ---@field private label? any # 牌名
 ---@field suit? string # 花色
 ---@field point? integer # 点数（1..13）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
+---@field private game? Game # 属于哪一局（读自己的内容定义时用）
 local M = Class 'Card'
 
----@param label? any
+---@param label? any # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数
-function M:__init(label, id, suit, point)
+---@param game? Game # 属于哪一局（测试里自己造的牌可以不给）
+function M:__init(label, id, suit, point, game)
     self.id    = id
     self.label = label
     self.suit  = suit
     self.point = point
+    self.game  = game
 end
 
 ---@return integer # 牌的号（这一局发的）
@@ -32,6 +35,41 @@ end
 ---@param label? any # 新牌名
 function M:setLabel(label)
     self.label = label
+end
+
+---@return CardDef? # 这张牌的内容定义（不在任何一局里就没有）
+function M:getDef()
+    local game = self.game
+    if not game then
+        return nil
+    end
+    return game:getCard(self.label)
+end
+
+--- 这张牌是不是这个分类
+---@param name string
+---@return boolean
+function M:isKind(name)
+    local def = self:getDef()
+    return def ~= nil and def:isKind(name)
+end
+
+--- 读这张牌上的一条数据
+---@param name string # 数据的名字
+---@return any # 没声明过（或没有定义 / 不在局里）就是「不存在」
+function M:getValue(name)
+    local def = self:getDef()
+    return def and def:getValue(name)
+end
+
+---@type string?
+M.fullName = nil
+
+---@param self Card
+---@return string? # 完整名（包名.名字）
+M.__getter.fullName = function (self)
+    local def = self:getDef()
+    return def and def.fullName
 end
 
 --- 这张牌现在在哪个牌区
@@ -73,7 +111,8 @@ moe.card = {}
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数
+---@param game? Game # 属于哪一局（读自己的内容定义时用）
 ---@return Card
-function moe.card.create(label, id, suit, point)
-    return New 'Card' (label, id, suit, point)
+function moe.card.create(label, id, suit, point, game)
+    return New 'Card' (label, id, suit, point, game)
 end

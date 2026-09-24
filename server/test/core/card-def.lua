@@ -225,3 +225,81 @@ Card '子'
 
     lt.assertEquals('错误里点名那个名字', true, err:find('没有这个', 1, true) ~= nil)
 end)
+
+lt.test('定义：addKind 只往里加，重复的与已有分类不动', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '甲'
+    : kind '装备'
+    : addKind '武器'
+    : addKind { '装备', '武器', '坐骑' }
+]])
+
+    lt.assertEquals('已有的保留、新加的接在后面', '装备,武器,坐骑', kindsOf(game, '甲'))
+    lt.assertEquals('加进来的也认', true, assert(game:getCard('甲')):isKind('坐骑'))
+end)
+
+lt.test('定义：addKind 接在 extends 之后用，基类分类不会丢', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '基'
+    : kind { '装备', '坐骑' }
+Card '子'
+    : extends '基'
+    : addKind '进攻马'
+]])
+
+    lt.assertEquals('抄来的在后面加的仍留着', '装备,坐骑,进攻马', kindsOf(game, '子'))
+end)
+
+lt.test('定义：牌进玩家的牌区就发「进入区域」，进槽位时带上槽位名', function ()
+    local guard <close> = useProbe()
+    local game, player = newGame([[
+Card '甲'
+    : on('进入区域', function (card, zone, slot)
+        local owner = assert(zone.owner, '发钩子的时候应该读得到归属者')
+        owner:setTag('记录', (owner:getTag('记录') or '')
+            .. card:getLabel() .. '@' .. tostring(slot) .. ';')
+    end)
+]])
+
+    local card = game:createCard('甲')
+    local hand = assert(player:getZone('手牌'), '没有手牌区')
+    hand:put(card)
+    lt.assertEquals('放手牌里发一次，普通区没有槽位名', '甲@nil;', player:getTag('记录'))
+
+    local equipZone = assert(player:getZone('装备'), '没有装备区')
+    equipZone:setSlots({ '武器' })
+    hand:move(card, equipZone)
+    lt.assertEquals('移进装备区还没占槽，槽位名仍是空', '甲@nil;甲@nil;', player:getTag('记录'))
+
+    equipZone:putInto('武器', card)
+    lt.assertEquals('占上槽位后再发一次，这次给得出槽位名', '甲@nil;甲@nil;甲@武器;',
+        player:getTag('记录'))
+end)
+
+lt.test('定义：公共区与没定义的牌不发「进入区域」', function ()
+    local guard <close> = useProbe()
+    local game, player = newGame([[
+Card '甲'
+    : on('进入区域', function (card, zone, slot)
+        local owner = assert(zone.owner, '发钩子的时候应该读得到归属者')
+        owner:setTag('记录', (owner:getTag('记录') or '') .. tostring(slot) .. ';')
+    end)
+]])
+
+    local discard = assert(game:getZone('弃牌'), '没有弃牌区')
+    discard:put(game:createCard('甲'))
+    lt.assertEquals('公共区没有归属者，不发', nil, player:getTag('记录'))
+
+    local hand = assert(player:getZone('手牌'), '没有手牌区')
+    hand:put(game:createCard('没有定义'))
+    lt.assertEquals('牌在局里但没有定义，也不发', nil, player:getTag('记录'))
+
+    hand:put(game:createCard('甲'))
+    lt.assertEquals('玩家自己的区照常发', 'nil;', player:getTag('记录'))
+
+    local equipped = hand:list()[2]
+    hand:move(equipped, discard)
+    lt.assertEquals('从玩家的区挪去公共区不会再发', 'nil;', player:getTag('记录'))
+end)

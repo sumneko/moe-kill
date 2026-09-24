@@ -9,7 +9,7 @@
 ---@field private zoneMap table<string, Zone>
 ---@field private tags table<string, any>
 ---@field private alive boolean
----@field private game Game # 属于哪一局
+---@field game Game # 属于哪一局（牌区顺着归属者找到局）
 local M = Class 'Player'
 
 ---@param game Game

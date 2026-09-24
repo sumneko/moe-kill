@@ -45,6 +45,18 @@ function M:checkSlot(slot)
     end
 end
 
+--- 这张牌在哪个槽位里
+---@param card Card
+---@return string?
+function M:slotOf(card)
+    for slot, held in pairs(self.slotMap) do
+        if held == card then
+            return slot
+        end
+    end
+    return nil
+end
+
 --- 这个槽位里现在那张牌
 ---@param slot string
 ---@return Card? # 空着 / 记的牌已经不在本区就是「不存在」
@@ -76,12 +88,12 @@ function M:putInto(slot, card)
         self:move(old, game:getZone('弃牌'))
     end
     local from = card:getZone()
+    self.slotMap[slot] = card
     if from then
         from:move(card, self)
     else
         self:put(card)
     end
-    self.slotMap[slot] = card
     return card
 end
 

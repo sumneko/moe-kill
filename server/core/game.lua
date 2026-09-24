@@ -105,6 +105,28 @@ function CardDef:isKind(name)
     return self.kindSet[name] == true
 end
 
+--- 追加分类（不覆盖已经声明过的）
+---@param name string|string[] # 分类名（取值由你定）
+---@return CardDef
+function CardDef:addKind(name)
+    ---@type string[]
+    local list
+    if type(name) == 'table' then
+        ---@cast name string[]
+        list = name
+    else
+        ---@cast name string
+        list = { name }
+    end
+    for _, item in ipairs(list) do
+        if not self.kindSet[item] then
+            self.kindSet[item] = true
+            self.kinds[#self.kinds + 1] = item
+        end
+    end
+    return self
+end
+
 ---@return string[] # 分类列表（快照，按声明顺序）
 function CardDef:getKinds()
     ---@type string[]
@@ -545,7 +567,7 @@ function M:createCard(name, suit, point)
     if type(name) ~= 'string' or name == '' then
         error('牌名必须是非空字符串', 2)
     end
-    return moe.card.create(name, self:nextId(), suit, point)
+    return moe.card.create(name, self:nextId(), suit, point, self)
 end
 
 --- 要一张牌
