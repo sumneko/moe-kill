@@ -27,4 +27,4 @@
 ## 4. 收尾
 
 - [x] 4.1 `openspec validate inherit-temp-zone --strict` 通过
-- [ ] 4.2 `tasks.md` 全部勾选后归档：`openspec archive inherit-temp-zone --yes`
+- [x] 4.2 `tasks.md` 全部勾选后归档：`openspec archive inherit-temp-zone --yes`
