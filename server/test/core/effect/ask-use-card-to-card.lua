@@ -10,11 +10,13 @@ do
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '抵消牌'
-    : on('对卡牌生效', function (cardEffectToCard)
-        cardEffectToCard.user:setTag('生效了', cardEffectToCard.target)
+    : on('获取卡牌目标', function (target)
+        return target.target
     end)
 Card '另一张抵消牌'
-    : on('对卡牌生效', function () end)
+    : on('获取卡牌目标', function (target)
+        return target.target
+    end)
 Card '没声明牌'
 ]])
     assert(ok, err)
@@ -74,7 +76,7 @@ lt.test('要对牌使用：候选逐张跑校验，选项带上目标牌', funct
     local options = assert(ask.options)
 
     lt.assertEquals('种类标识', 'askUseCardToCard', ask.kind)
-    lt.assertEquals('没声明「对卡牌生效」的不进选项', 1, #options)
+    lt.assertEquals('没声明「获取卡牌目标」的不进选项', 1, #options)
     lt.assertEquals('选项带上了目标牌', target, options[1].target)
     lt.assertEquals('答复收下', usable, ask.card)
 end)

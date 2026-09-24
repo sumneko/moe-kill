@@ -874,10 +874,10 @@ function M:canUse(user, card, target)
     return true, nil, legal
 end
 
---- 这张牌此刻能不能「对一张牌使用」（合法性由「声明了『对卡牌生效』」表达；目标牌由发起方给定）
+--- 这张牌此刻能不能「对一张牌使用」（合法性由「获取卡牌目标」给出；目标牌由发起方给定）
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
----@param targetCard? Card # 要用在哪张牌上（省略 = 只判「此刻能不能对牌使用」）
+---@param targetCard? Card # 要用在哪张牌上（省略 = 只判「这类牌能不能对牌使用」）
 ---@return boolean # 能这样用吗
 ---@return any # 不能的原因
 function M:canUseToCard(user, card, targetCard)
@@ -885,8 +885,18 @@ function M:canUseToCard(user, card, targetCard)
     if not def then
         return false, problem
     end
-    if #def:getHandlers('对卡牌生效') == 0 then
-        return false, '「{}」没有声明「对卡牌生效」，不能对牌使用' % { def.fullName }
+    local handlers = def:getHandlers('获取卡牌目标')
+    if #handlers == 0 then
+        return false, '「{}」没有声明「获取卡牌目标」，不能对牌使用' % { def.fullName }
+    end
+    if targetCard then
+        ---@type CardDef.Target
+        local ctx = { user = user, card = card, target = targetCard }
+        for _, handler in ipairs(handlers) do
+            if not handler(ctx) then
+                return false, '「{}」不能对这张牌使用' % { def.fullName }
+            end
+        end
     end
 
     -- 内容侧有没有异议

@@ -17,15 +17,16 @@ Depends = nil
 ---@class CardDef
 ---@field on fun(self: CardDef, event: '进入区域', handler: fun(card: Card, zone: Zone, slot: string?): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发；槽位区额外给槽位名）
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(target: CardDef.Target): Player[]): CardDef
+---@field on fun(self: CardDef, event: '获取卡牌目标', handler: fun(target: CardDef.Target): Card?): CardDef # 返回要对的那张牌（空 = 不能对这张牌使用）；声明它 = 这张牌能「对牌使用」
 ---@field on fun(self: CardDef, event: '结算前', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard)): CardDef
----@field on fun(self: CardDef, event: '对卡牌生效', handler: fun(cardEffectToCard: CardEffectToCard, useCard: UseCardToCard)): CardDef # 对一张牌使用时的生效（声明它 = 这张牌能「对牌使用」）
 ---@field on fun(self: CardDef, event: '结算后', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 所有目标结算完之后跑一次
 
---- 「获取目标」的上下文：这次想用哪张牌（还没定目标）
+--- 「获取目标」/「获取卡牌目标」的上下文：这次想用哪张牌（还没定目标）
 ---@class CardDef.Target
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
+---@field target? Card # 要对的那张牌（对牌使用这一支才有）
 ---@field targets? Player[] # 期望的目标
 
 --- 目前没有事件参数：触发时给空表，环境对象从 game 取

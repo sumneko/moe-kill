@@ -10,11 +10,20 @@ do
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '抵消牌'
-    : on('对卡牌生效', function (cardEffectToCard)
-        cardEffectToCard.user:setTag('抵消掉了', cardEffectToCard.target)
+    : on('获取卡牌目标', function (target)
+        return target.target
     end)
 Card '受检牌'
-    : on('对卡牌生效', function () end)
+    : on('获取卡牌目标', function (target)
+        return target.target
+    end)
+Card '挑目标牌'
+    : on('获取卡牌目标', function (target)
+        local card = target.target
+        if card and card.name == '受检牌' then
+            return card
+        end
+    end)
 Card '没声明牌'
 ]])
     assert(ok, err)
@@ -61,12 +70,13 @@ lt.test('对牌使用：用一张牌，目标是一张牌', function ()
     local useCard = game:useCardToCard(user, card, target)
 
     lt.assertEquals('种类标识', 'useCardToCard', useCard.kind)
-    lt.assertEquals('目标牌就是给的那张', target, user:getTag('抵消掉了'))
+    lt.assertEquals('这次使用记下了那张目标牌', target, useCard.targetCard)
+    lt.assertEquals('产生了对那张牌的一次生效', 'cardEffectToCard', assert(useCard.cardEffectToCard).kind)
     lt.assertEquals('牌已经离开手牌', 0, hand:count())
     lt.assertEquals('用掉的牌进弃牌堆', true, moe.util.arrayHas(game:getZone('弃牌'):list(), card))
 end)
 
-lt.test('对牌使用：钩子拿得到这次用牌', function ()
+lt.test('对牌使用：结算后拿得到目标牌与这次用牌', function ()
     local game, players = newGame(2)
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
@@ -99,7 +109,7 @@ lt.test('对牌使用：钩子拿得到这次用牌', function ()
     lt.assertEquals('这次使用记下了它产生的那次生效', 'cardEffectToCard', assert(seenUseCard).cardEffectToCard.kind)
 end)
 
-lt.test('对牌使用：没声明「对卡牌生效」就用不了', function ()
+lt.test('对牌使用：没声明「获取卡牌目标」就用不了', function ()
     local game, players = newGame(2)
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
@@ -108,10 +118,23 @@ lt.test('对牌使用：没声明「对卡牌生效」就用不了', function ()
 
     local ok, reason = game:canUseToCard(user, card)
     lt.assertEquals('不成立', false, ok)
-    lt.assertEquals('原因', '「探针.没声明牌」没有声明「对卡牌生效」，不能对牌使用', reason)
+    lt.assertEquals('原因', '「探针.没声明牌」没有声明「获取卡牌目标」，不能对牌使用', reason)
 
     lt.assertFailed('用也用不出去', game:useCardToCard(user, card, game:createCard('没声明牌')))
     lt.assertEquals('牌留在手上', 1, hand:count())
+end)
+
+lt.test('对牌使用：钩子不认那张牌就用不了', function ()
+    local game, players = newGame(2)
+    local user = players[1]
+    local hand = assert(user:getZone('手牌'))
+    local card = game:createCard('挑目标牌')
+    hand:put(card)
+
+    local ok, reason = game:canUseToCard(user, card, game:createCard('没声明牌'))
+    lt.assertEquals('不成立', false, ok)
+    lt.assertEquals('原因', '「探针.挑目标牌」不能对这张牌使用', reason)
+    lt.assertEquals('认得的牌就能用', true, (game:canUseToCard(user, card, game:createCard('受检牌'))))
 end)
 
 lt.test('对牌使用：不在手上的牌不成立', function ()

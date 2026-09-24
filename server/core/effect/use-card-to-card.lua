@@ -88,11 +88,9 @@ function CardEffectToCard:getTempZone()
     return self:createTempZone()
 end
 
+--- 它本身不做事：这张牌要不要被阻止，由内容侧在 `'效果-能否生效'` 里回报
 ---@async
 function CardEffectToCard:settle()
-    for _, handler in ipairs(self.def:getHandlers('对卡牌生效')) do
-        handler(self, self.useCard)
-    end
 end
 
 ---@class UseCardToCard.API
