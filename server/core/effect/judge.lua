@@ -3,7 +3,7 @@ require 'core.effect.effect'
 ---@class Judge.CreateOptions
 ---@field game Game # 这次判定属于哪一局
 ---@field player Player # 谁要判定
----@field reason? string # 为什么判（内容由发起方定，内核不解释）
+---@field reason? string # 为什么判（内容由发起方定）
 
 ---@class Judge : Effect
 ---@field player Player # 谁要判定
@@ -56,7 +56,7 @@ function M:fireBefore()
     self.game:fire('判定-前', self)
 end
 
---- 判定结算：亮牌 → 改判窗口 → 结果已定；内核不搬牌、不认识牌面
+--- 判定结算：亮牌 → 改判窗口 → 结果已定（翻牌与收牌都由内容侧做）
 ---@async
 function M:settle()
     self.game:fire('判定-亮牌', self)

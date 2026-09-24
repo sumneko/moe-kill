@@ -19,7 +19,7 @@ require 'core.effect.effect'
 ---@class AskCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内核不解释，原样带给规则层）
+---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@field condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
 
 ---@class AskCard : Effect

@@ -6,7 +6,7 @@
 ---@field err? any # 失败：出错时记在这儿（等它的人也会收到这个错误）
 ---@field package task? Task # 这次结算的任务：驱动、完成、叫醒等待者都归它
 ---@field tempZone? Zone # 自己建的那块临时处理区（没建过为空 —— 要一块区请用 getTempZone）
----@field private tags table<string, any> # 标签袋（内容侧挂这次结算的临时数据；内核不解释）
+---@field private tags table<string, any> # 标签袋（内容侧挂这次结算的临时数据）
 local M = Class 'Effect'
 
 Extends(M, 'GCHost')

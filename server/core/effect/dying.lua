@@ -3,7 +3,7 @@ require 'core.effect.effect'
 ---@class Dying.CreateOptions
 ---@field game Game # 这次濒死属于哪一局
 ---@field player Player # 谁进入濒死
----@field damage? Damage # 把它打到濒死的**最后一次**伤害（内核只搬运，不解释）
+---@field damage? Damage # 把它打到濒死的最后一次伤害
 
 ---@class Dying : Effect
 ---@field damage? Damage # 把它打到濒死的最后一次伤害（濒死期间再受伤就换成新的那次）

@@ -1,5 +1,5 @@
 ---@class Phase
----@field name string # 阶段名（内容侧定的，内核当成不透明字符串）
+---@field name string # 阶段名（内容侧定的）
 ---@field player Player # 这个阶段属于谁
 ---@field private game Game
 ---@field private tags table<string, any>
@@ -40,7 +40,7 @@ function M:removeTag(key)
 end
 
 --- 改本阶段某名字用过的次数（正负都行）
----@param name string # 牌名 / 技能名（内核不解释）
+---@param name string # 牌名 / 技能名（取值由你定）
 ---@param delta integer
 function M:addUseCount(name, delta)
     self.useCounts[name] = (self.useCounts[name] or 0) + delta

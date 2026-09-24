@@ -8,7 +8,7 @@
 ---@field private limits table<string, integer> # 每个阶段最多用几次
 ---@field private kinds string[] # 分类（可多条，按声明顺序）
 ---@field private kindSet table<string, true> # 分类去重用
----@field private values table<string, any> # 这张牌自带的数据（内核只存不解释）
+---@field private values table<string, any> # 这张牌自带的数据
 ---@field private noTargetFlag? boolean # 不指定目标
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 local CardDef = Class 'CardDef'
@@ -378,7 +378,7 @@ end
 
 --- 进入一个回合阶段（返回的阶段可以当 `<close>` 用：作用域结束就离开）
 ---@param player Player # 这个阶段属于谁
----@param name string # 阶段名（内核当成不透明字符串）
+---@param name string # 阶段名（取值由你定）
 ---@return Phase
 function M:enterPhase(player, name)
     if type(name) ~= 'string' or name == '' then
@@ -541,7 +541,7 @@ end
 
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskCard.Condition # 要什么样的牌（内核据此在被问者的牌区里算出 `ask.options`；省略 = 不做限制）
+---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
 ---@return AskCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
 ---@async
 function M:askCard(to, reason, condition)
@@ -559,7 +559,7 @@ end
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；内核据此在被问者的牌区里算出 `ask.options`）
+---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不做限制）
 ---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
 function M:askUseCard(to, reason, condition)
     local ask = moe.askUseCard.create {
@@ -576,7 +576,7 @@ end
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskCard.Condition # 要什么样的牌（内核据此在被问者的牌区里算出 `ask.options`）
+---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
 ---@return AskPlayCard # 这次询问（已经结完：答复读 `.card`，失败读 `.err`）
 function M:askPlayCard(to, reason, condition)
     local ask = moe.askPlayCard.create {
@@ -734,7 +734,6 @@ local function collectLegalTargets(def, user, card)
     return legal
 end
 
---- 这张牌此刻能不能这样用：① 牌本身能不能用、② 给的目标配不配（两件事分开判，原因也分开）
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
 ---@param targets? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
@@ -742,7 +741,7 @@ end
 ---@return any # 不能的原因
 ---@return Player[]? # 能用时的合法目标（无目标牌没有）
 function M:canUse(user, card, targets)
-    -- ① 牌本身能不能用：找得到牌名与定义、牌在使用者身上、在它声明的牌区里
+    -- 牌本身：找得到牌名与定义、牌在使用者身上、在它声明的牌区里
     local name = card:getLabel()
     if type(name) ~= 'string' then
         return false, '这张牌没有牌名，查不到内容定义'
@@ -792,7 +791,7 @@ function M:canUse(user, card, targets)
         end
     end
 
-    -- ① 牌本身能不能用（接着判）：次数用满没有
+    -- 牌本身（接着判）：次数用满没有
     local phase = self:getUsePhase(user)
     if phase then
         local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
@@ -801,7 +800,7 @@ function M:canUse(user, card, targets)
         end
     end
 
-    -- ① 牌本身能不能用（再接着判）：内容侧有没有异议
+    -- 牌本身（再接着判）：内容侧有没有异议
     local refusal = self:fire('卡牌-能否使用', { user = user, card = card, targets = list })
     if refusal ~= nil then
         if refusal == false then

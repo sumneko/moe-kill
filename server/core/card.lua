@@ -39,7 +39,7 @@ function M:getZone()
     return self.zone
 end
 
---- 牌离开这个牌区时调它（挂在牌上，随它在区里这段寿命）
+--- 牌离开这个牌区时调它
 ---@param disposer function
 function M:withZone(disposer)
     if not self.zoneGCHost then
@@ -51,6 +51,7 @@ end
 --- 记下这张牌所在的牌区（只有牌区自己用：放进 / 取出时维护）
 ---@param zone Zone?
 function M:bindZone(zone)
+    -- 只在真的换区时扔掉容器：同区内部调序不算离开
     if self.zone ~= zone and self.zoneGCHost then
         Delete(self.zoneGCHost)
         self.zoneGCHost = nil

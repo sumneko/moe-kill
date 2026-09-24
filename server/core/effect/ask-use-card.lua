@@ -15,7 +15,7 @@ require 'core.effect.ask-card'
 ---@class AskUseCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内核不解释，原样带到应答方）
+---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@field condition? AskUseCard.Condition # 要什么样的牌（省略 = 不做限制）
 
 --- 要一次「使用」：候选逐张跑 canUse（用不了的牌不进选项），答复必须带目标
