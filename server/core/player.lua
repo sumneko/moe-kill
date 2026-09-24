@@ -23,6 +23,9 @@ function M:__init(game, attributes, name)
     self.zoneMap    = {}
     self.tags       = {}
     self.alive      = true
+    self:addZone('手牌')
+    self:addZone('装备')
+    self:addZone('判定')
 end
 
 ---@return Attributes
@@ -83,6 +86,8 @@ function M:addZone(name, zone)
     end
 end
 
+--- 玩家身上的牌区（`手牌` / `装备` / `判定` 由内核建好，包不得重建）
+---@overload fun(self: Player, name: '手牌'|'装备'|'判定'): Zone
 ---@param name string
 ---@return Zone?
 function M:getZone(name)

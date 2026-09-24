@@ -1,7 +1,8 @@
 ---@meta
 
 -- 本文件只声明注入环境的类型：环境对象本身、内容定义入口、以及 game 上的**事件**（按名收窄 on/fire 的上下文）。
--- Game 上其余入口（askCard / moveCard …）的声明在 `server/core/game.lua`，别往这里抄一份。
+-- Game 上其余入口（askCard / moveCard / drawCards …）的声明在 `server/core/game.lua`，别往这里抄一份。
+-- 内核建好的五个基础牌区（局上 `抽牌` / `弃牌`，玩家身上 `手牌` / `装备` / `判定`）是**对内容侧的约定**：包可以直接取（`game:getZone('弃牌')`），但不得重建同名区；声明见 `game.lua` / `player.lua` 里 getZone 的重载。
 
 ---@type Game
 game = nil

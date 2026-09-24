@@ -22,7 +22,7 @@ end
 
 ---@param player Player
 local function discardPhase(player)
-    local hand  = assert(player:getZone('手牌'), '这个玩家没有手牌区')
+    local hand  = player:getZone('手牌')
     local extra = hand:count() - player:getAttr('体力')
     if extra <= 0 then
         return

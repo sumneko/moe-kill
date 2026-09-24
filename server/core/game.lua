@@ -253,6 +253,8 @@ function M:__init(seats, random)
     self.idCounter = 0
     self.phaseStack = {}
     self.dyingMap = {}
+    self:createZone('抽牌', true)
+    self:createZone('弃牌')
     self:resetContent()
 end
 
@@ -463,6 +465,9 @@ function M:createZone(name, ordered)
     return zone
 end
 
+--- 局上的公共牌区（`抽牌` / `弃牌` 由内核建好，包不得重建）
+---@overload fun(self: Game, name: '抽牌'): OrderedZone
+---@overload fun(self: Game, name: '弃牌'): Zone
 ---@param name string
 ---@return Zone?
 function M:getZone(name)
@@ -621,6 +626,20 @@ function M:draw(player, count)
     }
     draw:apply():await()
     return draw
+end
+
+--- 抽牌：从抽牌堆顶抽 count 张（省略去向 = 抽进这个玩家的手牌；给了就用它，例如抽到某块处理区）
+---@async
+---@param player Player # 谁抽
+---@param count integer # 抽几张
+---@param to? Zone # 抽到哪个牌区（省略 = 该玩家的手牌区）
+---@return Card[] # 实际抽到的牌（牌堆不够时可能少于 count）
+function M:drawCards(player, count, to)
+    local cards = self:getZone('抽牌'):draw(count)
+    if #cards > 0 then
+        self:moveCard(cards, to or player:getZone('手牌'))
+    end
+    return cards
 end
 
 ---@async

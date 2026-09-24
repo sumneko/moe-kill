@@ -8,7 +8,7 @@ Card '五谷丰登'
         return game.desk.alivePlayers
     end)
     : on('结算前', function (useCard)
-        game:moveCard(game:getZone('抽牌'):draw(#useCard.targets), useCard:getTempZone())
+        game:drawCards(useCard.user, #useCard.targets, useCard:getTempZone())
     end)
     : on('生效', function (cardEffect, useCard)
         local revealed = useCard:getTempZone():list()

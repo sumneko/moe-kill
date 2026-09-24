@@ -48,8 +48,7 @@ local function newGame()
         players[i] = player
     end
     game.turnPlayer = players[1]
-    local hand = moe.zone.create()
-    players[1]:addZone('手牌', hand)
+    local hand = players[1]:getZone('手牌')
     return game, players[1], players[2], hand
 end
 
@@ -505,7 +504,6 @@ local function newWideGame(count)
         local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         player:setAttr('体力', 4)
-        player:addZone('手牌')
         players[i] = player
     end
     game.turnPlayer = players[1]

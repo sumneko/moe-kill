@@ -9,7 +9,6 @@ local function newGame(count)
         random = moe.random.create(1),
     }
     local desk = game.desk
-    game:createZone('弃牌')
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {
         min    = -999999,
@@ -21,7 +20,6 @@ local function newGame(count)
     for i = 1, count do
         local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
-        player:addZone('手牌')
         player:setAttr('体力', 4)
         players[i] = player
     end

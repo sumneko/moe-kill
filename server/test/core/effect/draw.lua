@@ -41,8 +41,7 @@ end
 lt.test('摸牌：内核不碰牌区，只触发「摸牌」时机', function ()
     local bare <close> = useBareSources()
     local game, players = newBareGame()
-    local deck = game:createZone('抽牌', true)
-    players[1]:addZone('手牌')
+    local deck = game:getZone('抽牌')
     for _ = 1, 3 do
         deck:put(game:createCard('杀'))
     end
@@ -61,7 +60,7 @@ lt.test('摸牌：内核不碰牌区，只触发「摸牌」时机', function ()
     lt.assertEquals('摸牌的人可读', players[1], payload.player)
     lt.assertEquals('摸几张可读', 2, payload.count)
     lt.assertEquals('内核不碰抽牌区', 3, deck:count())
-    lt.assertEquals('内核不碰手牌', 0, assert(players[1]:getZone('手牌')):count())
+    lt.assertEquals('内核不碰手牌', 0, players[1]:getZone('手牌'):count())
 end)
 
 lt.test('摸牌：没有订阅者时照常结完', function ()
@@ -78,8 +77,7 @@ end)
 lt.test('摸牌：已阵亡的不摸、不触发时机', function ()
     local bare <close> = useBareSources()
     local game, players = newBareGame()
-    local deck = game:createZone('抽牌', true)
-    players[1]:addZone('手牌')
+    local deck = game:getZone('抽牌')
     deck:put(game:createCard('杀'))
 
     ---@type integer
@@ -91,6 +89,6 @@ lt.test('摸牌：已阵亡的不摸、不触发时机', function ()
 
     lt.assertEquals('没触发时机', 0, fired)
     lt.assertEquals('牌还在抽牌里', 1, deck:count())
-    lt.assertEquals('手牌还是空的', 0, assert(players[1]:getZone('手牌')):count())
+    lt.assertEquals('手牌还是空的', 0, players[1]:getZone('手牌'):count())
     lt.assertEquals('不算失败', nil, draw.err)
 end)

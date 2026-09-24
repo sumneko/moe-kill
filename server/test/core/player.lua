@@ -25,6 +25,20 @@ lt.test('玩家：持有属性实例', function ()
     lt.assertEquals('别人的属性不受影响', 3, b:getAttributes():get('体力上限'))
 end)
 
+lt.test('玩家：内核建好手牌 / 装备 / 判定三个区', function ()
+    local player = newPlayer(newSystem())
+
+    lt.assertEquals('三个区都在', 3, #player:getZones())
+    lt.assertEquals('手牌区', true, player:getZone('手牌') ~= nil)
+    lt.assertEquals('装备区', true, player:getZone('装备') ~= nil)
+    lt.assertEquals('判定区', true, player:getZone('判定') ~= nil)
+    lt.assertEquals('手牌区按加入顺序在前', player:getZone('手牌'), player:getZones()[1])
+
+    local other = newPlayer(newSystem())
+    player:getZone('手牌'):setVisible(false)
+    lt.assertEquals('归属记在持有者身上', false, player:getZone('手牌'):isVisibleTo(other))
+end)
+
 lt.test('玩家：牌区可增删', function ()
     local system = newSystem()
     local player = newPlayer(system)
@@ -32,13 +46,13 @@ lt.test('玩家：牌区可增删', function ()
     local undo = player:addZone('手牌区')
     player:addZone('装备区')
 
-    lt.assertEquals('两个牌区都在', 2, #player:getZones())
-    lt.assertEquals('按加入顺序', player:getZone('手牌区'), player:getZones()[1])
+    lt.assertEquals('两个自建牌区都在', 5, #player:getZones())
+    lt.assertEquals('按加入顺序排在后面', player:getZone('手牌区'), player:getZones()[4])
     lt.assertEquals('按名字查得到', true, player:getZone('装备区') ~= nil)
 
     undo()
     undo()
-    lt.assertEquals('撤销后只剩一个', 1, #player:getZones())
+    lt.assertEquals('撤销后少一个', 4, #player:getZones())
     lt.assertEquals('被撤销的查不到了', nil, player:getZone('手牌区'))
     lt.assertEquals('另一个不受影响', true, player:getZone('装备区') ~= nil)
 end)
@@ -50,6 +64,14 @@ lt.test('玩家：同名牌区报错', function ()
 
     lt.assertError('重复名字报错', function ()
         player:addZone('手牌区')
+    end)
+end)
+
+lt.test('玩家：内核建过的名字不能再建', function ()
+    local player = newPlayer(newSystem())
+
+    lt.assertError('手牌区不能再建', function ()
+        player:addZone('手牌')
     end)
 end)
 

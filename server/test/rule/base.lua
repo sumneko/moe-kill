@@ -176,11 +176,12 @@ lt.test('基础：牌表里每张都有合法的花色与点数', function ()
     lt.assertEquals('牌堆里的牌带着点数', true, card.point ~= nil)
 end)
 
-lt.test('基础：没有牌表时不建牌堆', function ()
+lt.test('基础：没有牌表时牌堆是空的', function ()
     lt.expectErrors(1)
     local run = support.start { count = 4 }
 
-    lt.assertEquals('没有牌表就不建出抽牌（回调报错被时机机制记录）', nil, run.game:getZone('抽牌'))
+    lt.assertEquals('抽牌区由内核建好了', true, run.game:getZone('抽牌') ~= nil)
+    lt.assertEquals('但没有牌（回调报错被时机机制记录）', 0, run.game:getZone('抽牌'):count())
 end)
 
 lt.test('基础：体力可以降到负数，写值会被钳到上限', function ()

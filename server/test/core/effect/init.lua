@@ -566,8 +566,9 @@ lt.test('效果：内层效果先收尾，外层后收尾', function ()
     lt.assertEquals('一共两次', 2, #order)
 end)
 
-lt.test('效果：收尾只发信号，临时区里的牌不会自己跑掉', function ()
+lt.test('效果：收尾时临时区剩下的牌进弃牌堆', function ()
     local game = newGame(1)
+    local discard = game:getZone('弃牌')
     local probe = New 'ProbeEffect' (game, nil)
     local zone = probe:getTempZone()
     local card = game:createCard('测试牌')
@@ -575,6 +576,27 @@ lt.test('效果：收尾只发信号，临时区里的牌不会自己跑掉', fu
 
     probe:apply()
 
-    lt.assertEquals('牌还在临时区里', 1, zone:count())
-    lt.assertEquals('位置就是这块临时区', zone, card:getZone())
+    lt.assertEquals('临时区空了', 0, zone:count())
+    lt.assertEquals('牌进了弃牌堆', discard, card:getZone())
+end)
+
+lt.test('效果：内容侧在收尾里先搬走的牌，内核不再动它', function ()
+    local game = newGame(1)
+    local discard = game:getZone('弃牌')
+    local probe = New 'ProbeEffect' (game, nil)
+    local zone = probe:getTempZone()
+    local kept = game:createCard('留下的牌')
+    local left = game:createCard('剩下的牌')
+    game:moveCard(kept, zone)
+    game:moveCard(left, zone)
+
+    local stash = moe.zone.create()
+    game:on('效果-收尾', function (effect)
+        game:moveCard(kept, stash)
+    end)
+
+    probe:apply()
+
+    lt.assertEquals('被搬走的落在内容侧给的地方', stash, kept:getZone())
+    lt.assertEquals('没被搬走的进弃牌堆', discard, left:getZone())
 end)

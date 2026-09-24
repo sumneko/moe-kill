@@ -32,8 +32,6 @@ local function newGame(count)
         packages = { '探针' },
     }
     local desk = game.desk
-    game:createZone('弃牌')
-    game:createZone('处理')
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {
         min    = -999999,
@@ -45,7 +43,6 @@ local function newGame(count)
     for i = 1, count do
         local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
-        player:addZone('手牌')
         player:setAttr('体力', 4)
         players[i] = player
     end
@@ -331,8 +328,7 @@ lt.test('询问：条件按区筛（名字在被问者身上解析）', function
     local game, players = newGame(2)
     local mine = game:createCard('闪')
     putInHand(players[1], { mine })
-    players[1]:addZone('装备')
-    assert(players[1]:getZone('装备')):put(game:createCard('杀'))
+    players[1]:getZone('装备'):put(game:createCard('杀'))
     answerWith(game, { mine })
 
     local ask     = game:askCard(players[1], nil, { zone = '手牌' })
@@ -346,11 +342,9 @@ end)
 lt.test('询问：条件的 zone 可以给区对象、也可以给好几个（其一）', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('闪') })
-    players[1]:addZone('装备')
-    local equip = assert(players[1]:getZone('装备'))
+    local equip = players[1]:getZone('装备')
     equip:put(game:createCard('杀'))
-    players[1]:addZone('判定')
-    assert(players[1]:getZone('判定')):put(game:createCard('桃'))
+    players[1]:getZone('判定'):put(game:createCard('桃'))
 
     local only = game:askCard(players[1], nil, { zone = equip })
     lt.assertEquals('给区对象：只有那个区的牌', 1, #assert(only.options))

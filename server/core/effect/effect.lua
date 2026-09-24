@@ -79,8 +79,15 @@ function M:bindFinish()
     local task = assert(self.task, '效果还没有发动')
     local game = self.game
     local function finish()
-        if self.tempZone then
-            game:fire('效果-收尾', self)
+        local zone = self.tempZone
+        if not zone then
+            return
+        end
+        game:fire('效果-收尾', self)
+        -- 结算的默认收尾：内容侧没留走的牌进弃牌堆
+        local discard = game:getZone('弃牌')
+        for _, card in ipairs(zone:list()) do
+            zone:move(card, discard)
         end
     end
     task:onResolved(finish)

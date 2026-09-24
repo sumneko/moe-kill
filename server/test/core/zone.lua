@@ -234,8 +234,7 @@ lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看�
     local open = moe.zone.create()
     lt.assertEquals('默认对所有人可见', true, open:isVisibleTo(other))
 
-    mine:addZone('手牌')
-    local hand = assert(mine:getZone('手牌'))
+    local hand = mine:getZone('手牌')
     hand:setVisible(false)
 
     lt.assertEquals('持有者自己看得见', true, hand:isVisibleTo(mine))

@@ -52,8 +52,7 @@ local function newGame(cardSource)
         player:setAttr('体力', 4)
         players[i] = player
     end
-    local hand = moe.zone.create()
-    players[1]:addZone('手牌', hand)
+    local hand = players[1]:getZone('手牌')
     return {
         game   = game,
         user   = players[1],
@@ -226,7 +225,7 @@ lt.test('校验：声明了牌区 ⇒ 必须从那个区里用', function ()
     lt.assertEquals('在声明的手牌区里就能用', true, (run.game:canUse(run.user, card, run.target)))
 
     local other = moe.zone.create()
-    run.user:addZone('装备', other)
+    run.user:addZone('别处', other)
     other:put(run.hand:take(1))
 
     local ok, reason = run.game:canUse(run.user, card, run.target)
@@ -251,7 +250,7 @@ lt.test('校验：没声明牌区 ⇒ 在使用者任一牌区里都能用', fun
     local run = newGame(SIMPLE)
     local card = run.game:createCard('测试杀')
     local other = moe.zone.create()
-    run.user:addZone('装备', other)
+    run.user:addZone('别处', other)
     other:put(card)
 
     lt.assertEquals('别的区里照样能用', true, (run.game:canUse(run.user, card, run.target)))
