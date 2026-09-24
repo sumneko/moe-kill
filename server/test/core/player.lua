@@ -99,6 +99,26 @@ lt.test('玩家：属性读写代理', function ()
     lt.assertEquals('与 getAttributes 是同一份数据', 3, player:getAttributes():get('体力上限'))
 end)
 
+lt.test('玩家：addAttr 返回的撤销函数只减掉自己那条', function ()
+    local system = newSystem()
+    system:define('体力上限', { min = 0 })
+    local player = newPlayer(system)
+    player:setAttr('体力上限', 4)
+
+    local undo  = player:addAttr('体力上限', 2)
+    local other = player:addAttr('体力上限', 1)
+    lt.assertEquals('两条加成都在', 7, player:getAttr('体力上限'))
+
+    undo()
+    lt.assertEquals('撤掉的那条只减 2', 5, player:getAttr('体力上限'))
+
+    undo()
+    lt.assertEquals('再撤一次不变（幂等）', 5, player:getAttr('体力上限'))
+
+    other()
+    lt.assertEquals('撤完回到原值', 4, player:getAttr('体力上限'))
+end)
+
 lt.test('玩家：标签原样存取', function ()
     local system = newSystem()
     local player = newPlayer(system)

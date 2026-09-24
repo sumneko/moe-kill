@@ -12,5 +12,5 @@ Card '武器牌'
         if not range then
             return
         end
-        card:withZone(zone.owner:getAttributes():addModifier('攻击范围', range))
+        card:withZone(zone.owner:addAttr('攻击范围', range))
     end)

@@ -11,5 +11,5 @@
 ---@field getAttr fun(self: Player, name: string): any
 ---@field setAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正', value: number)
 ---@field setAttr fun(self: Player, name: string, value: any)
----@field addAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正', delta: number)
----@field addAttr fun(self: Player, name: string, delta: any)
+---@field addAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正', delta: number): fun()
+---@field addAttr fun(self: Player, name: string, delta: any): fun()

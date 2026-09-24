@@ -47,11 +47,12 @@ function M:getAttr(name)
     return self.attributes:get(name)
 end
 
---- 增减一个属性
+--- 增减一个属性（返回撤销函数：精确减掉这次加的量）
 ---@param name string
 ---@param value number
+---@return fun()
 function M:addAttr(name, value)
-    self.attributes:add(name, value)
+    return self.attributes:addModifier(name, value)
 end
 
 ---@return string? # 名字（建玩家时可以不给）
