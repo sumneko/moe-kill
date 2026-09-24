@@ -52,3 +52,24 @@ lt.test('判定：改判换上的牌与旧判定牌都进弃牌堆', function ()
     lt.assertEquals('换上那张的归属是弃牌堆', discard, new:getZone())
     lt.assertEquals('旧那张的归属也是弃牌堆', discard, old:getZone())
 end)
+
+lt.test('判定：嵌在别的结算里，判定牌在该次判定结束时就走', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local discard = assert(run.game:getZone('弃牌'), '没有弃牌')
+    ---@type Judge?
+    local judge = nil
+    ---@type boolean?
+    local flushed = nil
+
+    run.game:on('伤害-前', function ()
+        judge = run.game:judge(run.players[2], '测试')
+    end)
+    run.game:on('伤害-后', function ()
+        flushed = judge ~= nil and judge.card ~= nil and judge.card:getZone() == discard
+    end)
+
+    run.game:damage(run.players[1], run.players[2], 1)
+
+    lt.assertEquals('伤害结算里起过判定', true, judge ~= nil)
+    lt.assertEquals('判定牌在判定结束时就已经进弃牌堆', true, flushed == true)
+end)

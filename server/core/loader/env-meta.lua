@@ -48,7 +48,7 @@ Depends = nil
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function
 ---@field fire fun(self: Game, name: '游戏-开始', event: Game.Event.游戏开始): any
----@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function
+---@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function # 只发给区的归属者（结完时自己建过临时处理区的那次结算）
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
 ---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskPlayCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskPlayCard): any

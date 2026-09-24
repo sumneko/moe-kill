@@ -33,7 +33,7 @@ function RejectEffect:settle()
     self:reject('不成立')
 end
 
---- 测试用：结算里再嵌套一个内层效果
+--- 测试用：结算里再嵌套一个内层效果（两边各要一块临时区）
 ---@class OuterEffect : Effect
 local OuterEffect = Class 'OuterEffect'
 
@@ -46,9 +46,32 @@ end
 
 ---@async
 function OuterEffect:settle()
+    self:getTempZone()
     local inner = New 'ProbeEffect' (self.game, nil)
     inner.kind = 'inner'
+    inner:getTempZone()
     inner:apply():await()
+end
+
+--- 测试用：结算里先要一块临时区，再嵌一个内层效果（记下内层，供断言继承）
+---@class ZoneProbeEffect : Effect
+---@field inner? Effect # 结算里嵌的那个内层效果
+local ZoneProbeEffect = Class 'ZoneProbeEffect'
+
+Extends('ZoneProbeEffect', 'Effect')
+
+---@param game Game
+function ZoneProbeEffect:__init(game)
+    self.kind = 'zoneProbe'
+end
+
+---@async
+function ZoneProbeEffect:settle()
+    self:getTempZone()
+    local inner = New 'ProbeEffect' (self.game, nil)
+    inner.kind  = 'inner'
+    inner:apply():await()
+    self.inner = inner
 end
 
 ---@param count integer
@@ -445,7 +468,7 @@ lt.test('任务：到点没结完以超时失败', function ()
     lt.assertEquals('超时不算报错，不交给处理器', 0, #lt.errors)
 end)
 
-lt.test('效果：临时处理区按需建，且每个效果各自一块', function ()
+lt.test('效果：临时处理区按需建，顶层效果各自一块', function ()
     local game = newGame(1)
 
     local one = New 'ProbeEffect' (game, nil)
@@ -459,6 +482,30 @@ lt.test('效果：临时处理区按需建，且每个效果各自一块', funct
     lt.assertEquals('另一个效果是另一块', true, other:getTempZone() ~= zone)
 end)
 
+lt.test('效果：内层效果沿父层拿到同一块区，归属者身上才有区', function ()
+    local game = newGame(1)
+    local outer = New 'ZoneProbeEffect' (game)
+    outer:apply():await()
+
+    local inner = assert(outer.inner, '内层没跑')
+    local zone  = assert(outer.tempZone, '外层没建区')
+    lt.assertEquals('内层自己身上没有区', nil, inner.tempZone)
+    lt.assertEquals('内层拿到的是外层那块', zone, inner:getTempZone())
+end)
+
+lt.test('效果：没建过区的效果不发收尾（继承来的由归属者清）', function ()
+    local game = newGame(1)
+    ---@type string[]
+    local finished = {}
+    game:on('效果-收尾', function (effect)
+        finished[#finished+1] = effect.kind
+    end)
+
+    New 'ZoneProbeEffect' (game):apply():await()
+
+    lt.assertEquals('只有归属者收到收尾', 'zoneProbe', table.concat(finished, ','))
+end)
+
 lt.test('效果：结完时收尾一次', function ()
     local game = newGame(1)
     ---@type Effect[]
@@ -468,6 +515,7 @@ lt.test('效果：结完时收尾一次', function ()
     end)
 
     local probe = New 'ProbeEffect' (game, nil)
+    probe:getTempZone()
     probe:apply()
 
     lt.assertEquals('只收一次', 1, #finished)
@@ -480,6 +528,7 @@ lt.test('效果：不成立也收尾', function ()
     game:on('效果-收尾', function () finished = finished + 1 end)
 
     local reject = New 'RejectEffect' (game)
+    reject:getTempZone()
     reject:apply()
 
     lt.assertEquals('这次结算不成立', '不成立', reject.err)
@@ -495,7 +544,9 @@ lt.test('效果：取消也收尾（牌不能留在已经死掉的效果里）',
         effect:remove()
     end)
 
-    New 'ProbeEffect' (game, nil):apply()
+    local probe = New 'ProbeEffect' (game, nil)
+    probe:getTempZone()
+    probe:apply()
 
     lt.assertEquals('取消也要收尾', 1, finished)
 end)

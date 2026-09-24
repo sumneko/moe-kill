@@ -22,6 +22,12 @@ function M:__init(game, user, card, targets)
     self.targets = targets
 end
 
+--- 这次用牌就是一次结算：临时区自己建，不向父层取
+---@return Zone
+function M:getTempZone()
+    return self:createTempZone()
+end
+
 ---@async
 function M:settle()
     local ok, reason = self.game:canUse(self.user, self.card, self.targets)
@@ -73,6 +79,12 @@ function CardEffect:__init(game, useCard, def, target)
     self.user    = useCard.user
     self.card    = useCard.card
     self.target  = target
+end
+
+--- 对这个目标的一次生效就是一次结算：临时区自己建，不向父层取
+---@return Zone
+function CardEffect:getTempZone()
+    return self:createTempZone()
 end
 
 ---@async

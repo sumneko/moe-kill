@@ -106,6 +106,7 @@ Card '测试杀'
     : on('生效', function (cardEffect, useCard)
         cardEffect.user:setTag('生效的用牌', useCard)
         cardEffect.user:setTag('临时区拿得到', useCard:getTempZone() ~= nil)
+        cardEffect.user:setTag('生效自己建区', cardEffect:getTempZone() ~= useCard:getTempZone())
     end)
 ]])
 
@@ -117,6 +118,7 @@ Card '测试杀'
 
     lt.assertEquals('第二个参数就是这次用牌', useCard, user:getTag('生效的用牌'))
     lt.assertEquals('不用翻父子关系就能拿临时区', true, user:getTag('临时区拿得到'))
+    lt.assertEquals('每个目标的生效自己建区（不借用牌那块）', true, user:getTag('生效自己建区'))
 end)
 
 lt.test('使用：自己的阶段里用一次就记一次账', function ()

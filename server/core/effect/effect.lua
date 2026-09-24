@@ -5,7 +5,7 @@
 ---@field result? any # 结果：这次结算给出的那个值（子类可在结算中途就定下）
 ---@field err? any # 失败：出错时记在这儿（等它的人也会收到这个错误）
 ---@field package task? Task # 这次结算的任务：驱动、完成、叫醒等待者都归它
----@field tempZone? Zone # 结算期的临时处理区（第一次要放牌时才建）
+---@field tempZone? Zone # 自己建的那块临时处理区（没建过为空 —— 要一块区请用 getTempZone）
 ---@field private tags table<string, any> # 标签袋（内容侧挂这次结算的临时数据；内核不解释）
 local M = Class 'Effect'
 
@@ -49,25 +49,42 @@ function M:removeTag(key)
     self.tags[key] = nil
 end
 
---- 这次结算的临时处理区：第一次问它时才建，不进公共区表（它属于这次结算，不是有名字的公共牌区）
+--- 这次结算的临时处理区：自己没有就向父层要，一路问到「自己就是一次结算」的那次（UseCard / CardEffect / Judge），都没有由最外层建
 ---@return Zone
 function M:getTempZone()
-    if not self.tempZone then
-        self.tempZone = moe.zone.create()
+    local zone = self.tempZone
+    if zone then
+        return zone
     end
-    return self.tempZone
+    local parent = self.parent
+    if parent then
+        return parent:getTempZone()
+    end
+    return self:createTempZone()
+end
+
+--- 就地建自己这块临时区（「自己就是一次结算」的效果重写 getTempZone 时用它）
+---@return Zone
+function M:createTempZone()
+    local zone = self.tempZone
+    if not zone then
+        zone = moe.zone.create()
+        self.tempZone = zone
+    end
+    return zone
 end
 
 ---@private
 function M:bindFinish()
     local task = assert(self.task, '效果还没有发动')
     local game = self.game
-    task:onResolved(function ()
-        game:fire('效果-收尾', self)
-    end)
-    task:onRejected(function ()
-        game:fire('效果-收尾', self)
-    end)
+    local function finish()
+        if self.tempZone then
+            game:fire('效果-收尾', self)
+        end
+    end
+    task:onResolved(finish)
+    task:onRejected(finish)
 end
 
 --- 驱动这次结算（要等外部输入时它会挂在那儿，回来时不一定结完）

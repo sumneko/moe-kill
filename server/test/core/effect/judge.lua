@@ -87,6 +87,30 @@ lt.test('判定：亮牌之后可以换牌，被换下的按顺序记着', funct
     lt.assertEquals('再被换下的是第二张', second, judge.replaced[2])
 end)
 
+lt.test('判定：嵌在别的结算里也用自己的临时区', function ()
+    local bare <close> = useBareSources()
+    local game, players = newBareGame(2)
+    ---@type Damage?
+    local damage = nil
+    ---@type Judge?
+    local judge = nil
+
+    game:on('伤害-前', function (payload)
+        ---@cast payload Damage
+        damage = payload
+        payload:getTempZone()
+        judge = game:judge(players[2], '测试')
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    local outer = assert(damage, '伤害没起')
+    local inner = assert(judge, '判定没起')
+    lt.assertEquals('没要过区就没有', nil, inner.tempZone)
+    lt.assertEquals('判定要区时自己建，不借外层那块', true, inner:getTempZone() ~= outer:getTempZone())
+    lt.assertEquals('那块区记在判定自己身上', true, inner.tempZone ~= nil)
+end)
+
 lt.test('判定：换牌只能在「判定-前」里做', function ()
     local bare <close> = useBareSources()
     local game, players = newBareGame(2)

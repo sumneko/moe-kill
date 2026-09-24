@@ -10,13 +10,12 @@ function M:__init()
     self.kind = 'askPlayCard'
 end
 
---- 交出来的牌进**发起这次结算的临时处理区**（收尾时由内容侧统一送弃牌堆）；没有父结算就不动，交给内容侧
+--- 交出来的牌进**发起这次结算的临时处理区**（收尾时由内容侧统一送弃牌堆）；没有外层结算就不动，交给内容侧
 ---@async
 function M:onAnswered()
-    local card  = self.card
-    local owner = self.parent
-    if card and owner then
-        self.game:moveCard(card, owner:getTempZone())
+    local card = self.card
+    if card and self.parent then
+        self.game:moveCard(card, self:getTempZone())
     end
 end
 
