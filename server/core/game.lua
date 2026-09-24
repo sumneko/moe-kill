@@ -8,6 +8,8 @@
 ---@field private limits table<string, integer> # 每个阶段最多用几次
 ---@field private kinds string[] # 分类（可多条，按声明顺序）
 ---@field private kindSet table<string, true> # 分类去重用
+---@field private values table<string, any> # 这张牌自带的数据（内核只存不解释）
+---@field private noTargetFlag? boolean # 不指定目标
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 local CardDef = Class 'CardDef'
 
@@ -28,6 +30,7 @@ function CardDef:__init(game, name, owner, source)
     self.limits   = {}
     self.kinds    = {}
     self.kindSet  = {}
+    self.values   = {}
 end
 
 ---@param event string
@@ -109,6 +112,35 @@ function CardDef:getKinds()
     return snapshot
 end
 
+--- 声明这张牌上的一条数据（内核只存不解释；同一个名字重复写，后写的为准）
+---@param name string
+---@param value any
+---@return CardDef
+function CardDef:value(name, value)
+    self.values[name] = value
+    return self
+end
+
+--- 这张牌上的数据
+---@param name string
+---@return any # 没声明过就是「不存在」
+function CardDef:getValue(name)
+    return self.values[name]
+end
+
+--- 声明这张牌不指定目标（官方装备牌）：`canUse` 不再要求合法目标
+---@return CardDef
+function CardDef:noTarget()
+    self.noTargetFlag = true
+    return self
+end
+
+--- 这张牌是不是不指定目标
+---@return boolean
+function CardDef:getNoTarget()
+    return self.noTargetFlag == true
+end
+
 --- 声明这张牌必须从哪个牌区用（重复调以后写的为准）
 ---@param zone string # 牌区名（内容侧约定，内核不解释）
 ---@return CardDef
@@ -149,6 +181,12 @@ function CardDef:extends(name)
     end
     for phase, count in pairs(base.limits) do
         self.limits[phase] = count
+    end
+    for name, value in pairs(base.values) do
+        self.values[name] = value
+    end
+    if base.noTargetFlag then
+        self.noTargetFlag = true
     end
     return self
 end
@@ -221,6 +259,7 @@ end
 ---@field private packages string[] # 包的加载顺序（首次出现的顺序）
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
 ---@field private values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
+---@field private slots table<string, string[]> # 每个牌区声明的槽位名（内容侧加载期声明）
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
 ---@field turnPlayer? Player # 当前回合角色（由流程维护；挪牌按名字找牌区时先找它身上）
@@ -263,6 +302,7 @@ function M:resetContent()
     self.packages    = {}
     self.meta        = {}
     self.values      = {}
+    self.slots       = {}
     self.loadedFiles = {}
     self.flow        = nil
     self.turnPlayer  = nil
@@ -313,6 +353,41 @@ function M:getValues()
         result[name] = value
     end
     return result
+end
+
+--- 声明某个牌区的槽位（加载期由内容侧声明；内核只存不解释；同一个区名重复声明，后写的为准）
+---@param zone string # 牌区名
+---@param slots string[] # 槽位名（按顺序）
+function M:setSlots(zone, slots)
+    if type(zone) ~= 'string' or zone == '' then
+        error('牌区名必须是非空字符串', 2)
+    end
+    if type(slots) ~= 'table' then
+        error('槽位名表必须是一张字符串列表', 2)
+    end
+    ---@type string[]
+    local copied = {}
+    for i, name in ipairs(slots) do
+        if type(name) ~= 'string' or name == '' then
+            error('槽位名必须是非空字符串', 2)
+        end
+        copied[i] = name
+    end
+    self.slots[zone] = copied
+end
+
+--- 某个牌区声明了哪些槽位
+---@param zone string # 牌区名
+---@return string[]? # 没声明过就是「不存在」
+function M:getSlots(zone)
+    local slots = self.slots[zone]
+    if not slots then
+        return nil
+    end
+    ---@type string[]
+    local snapshot = {}
+    table.move(slots, 1, #slots, 1, snapshot)
+    return snapshot
 end
 
 ---@param name string
@@ -696,13 +771,13 @@ local function collectLegalTargets(def, user, card)
     return legal
 end
 
---- 这张牌此刻能不能用；能用就给合法目标
+--- 这张牌此刻能不能用；能用就给合法目标（无目标牌不给）
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
 ---@param targets? Player|Player[] # 要校验的目标（省略 = 只判「此刻能不能用」）
 ---@return boolean # 能用吗
 ---@return any # 不能用的原因
----@return Player[]? # 能用时的合法目标
+---@return Player[]? # 能用时的合法目标（无目标牌没有）
 function M:canUse(user, card, targets)
     local name = card:getLabel()
     if type(name) ~= 'string' then
@@ -720,21 +795,33 @@ function M:canUse(user, card, targets)
     if useZone and zone ~= user:getZone(useZone) then
         return false, '「{}」只能从「{}」里用' % { def.fullName, useZone }
     end
-    local legal, reason = collectLegalTargets(def, user, card)
-    if not legal then
-        return false, reason
-    end
 
-    ---@type Player[]?
+    ---@type Player[]? # 调用方给的目标（省略 = 只判「此刻能不能用」；无目标牌给了就只能是空表）
     local list = nil
-    if targets ~= nil then
-        list = moe.util.toList(targets)
-        if #list == 0 then
-            return false, '「{}」至少要指定一个目标' % { def.fullName }
+    ---@type Player[]? # 能用时的合法目标（无目标牌没有）
+    local legal = nil
+    if def:getNoTarget() then
+        if targets ~= nil then
+            list = moe.util.toList(targets)
+            if #list > 0 then
+                return false, '「{}」不需要指定目标' % { def.fullName }
+            end
         end
-        for _, target in ipairs(list) do
-            if not moe.util.arrayHas(legal, target) then
-                return false, '「{}」不能以这个角色为目标' % { def.fullName }
+    else
+        local reason
+        legal, reason = collectLegalTargets(def, user, card)
+        if not legal then
+            return false, reason
+        end
+        if targets ~= nil then
+            list = moe.util.toList(targets)
+            if #list == 0 then
+                return false, '「{}」至少要指定一个目标' % { def.fullName }
+            end
+            for _, target in ipairs(list) do
+                if not moe.util.arrayHas(legal, target) then
+                    return false, '「{}」不能以这个角色为目标' % { def.fullName }
+                end
             end
         end
     end
@@ -760,7 +847,7 @@ end
 ---@async
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
----@param targets Player|Player[] # 目标：单个或列表（空表 = 没指定目标）
+---@param targets? Player|Player[] # 目标：单个或列表（无目标牌给空表或省略）
 ---@return UseCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
 function M:useCard(user, card, targets)
     local effect = moe.useCard.create {

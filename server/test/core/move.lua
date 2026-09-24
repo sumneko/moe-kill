@@ -159,6 +159,54 @@ lt.test('归属：清空后不再属于任何牌区', function ()
     lt.assertEquals('第二张没有归属了', nil, cards[2]:getZone())
 end)
 
+lt.test('随区容器：牌离开牌区时撤销挂在它上面的东西', function ()
+    local from = moe.zone.create()
+    local to   = moe.zone.create()
+    local card = lt.card('甲')
+    from:put(card)
+
+    ---@type integer
+    local times = 0
+    card:bindZoneGC(function () times = times + 1 end)
+
+    from:move(card, to)
+    lt.assertEquals('换区就跑了一次', 1, times)
+
+    to:take(1)
+    lt.assertEquals('再取出来不会重复跑（容器已经扔掉）', 1, times)
+
+    to:put(card)
+    to:clear()
+    lt.assertEquals('清空也算离开区', 1, times)
+end)
+
+lt.test('随区容器：同区内部调序不算离开区', function ()
+    local zone  = moe.zone.create()
+    local cards = fill(zone, { '甲', '乙' })
+
+    ---@type integer
+    local times = 0
+    cards[1]:bindZoneGC(function () times = times + 1 end)
+
+    zone:move(cards[1], zone, 1)
+
+    lt.assertEquals('牌没出这个区 ⇒ 不撤销', 0, times)
+    lt.assertEquals('确实换了位置', '甲,乙', zoneLabels(zone))
+end)
+
+lt.test('随区容器：没挂过东西的牌不建容器（懒建）', function ()
+    local zone = moe.zone.create()
+    local card = lt.card('甲')
+    zone:put(card)
+
+    ---@diagnostic disable-next-line: invisible
+    lt.assertEquals('没挂过就没有容器', nil, card.zoneGCHost)
+
+    card:bindZoneGC(function () end)
+    ---@diagnostic disable-next-line: invisible
+    lt.assertEquals('挂过一次才有容器', true, card.zoneGCHost ~= nil)
+end)
+
 lt.test('归属：已经在牌区里的牌不能再放一次', function ()
     local first  = moe.zone.create()
     local second = moe.zone.create()

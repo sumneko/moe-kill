@@ -4,6 +4,7 @@
 ---@field suit? string # 花色（内容给的值，内核不解释）
 ---@field point? integer # 点数（1..13，内核不解释）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
+---@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
 local M = Class 'Card'
 
 ---@param label? any
@@ -38,9 +39,22 @@ function M:getZone()
     return self.zone
 end
 
+--- 把一件事的撤销函数挂在「这张牌在牌区里」这段上（牌离开牌区时会调它）
+---@param disposer function
+function M:bindZoneGC(disposer)
+    if not self.zoneGCHost then
+        self.zoneGCHost = moe.gc.host()
+    end
+    self.zoneGCHost:bindGC(disposer)
+end
+
 --- 记下这张牌所在的牌区（只有牌区自己用：放进 / 取出时维护）
 ---@param zone Zone?
 function M:bindZone(zone)
+    if self.zone ~= zone and self.zoneGCHost then
+        Delete(self.zoneGCHost)
+        self.zoneGCHost = nil
+    end
     self.zone = zone
 end
 

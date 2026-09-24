@@ -9,7 +9,7 @@ Card '杀'
         local range = target.user:getAttr('攻击范围')
         return table.filter(desk.alivePlayers, function (player)
             return player ~= target.user
-               and desk:getDistance(target.user, player) <= range
+               and distance(target.user, player) <= range
         end)
     end)
     : on('生效', function (cardEffect)

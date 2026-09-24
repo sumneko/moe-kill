@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-23 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **495 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **528 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -19,17 +19,18 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 | 包 | 文件 |
 | --- | --- |
-| `@基础` | 配置 / 体力 / 攻击范围 / 牌堆（**只按牌表造牌 + 洗牌 + 手牌标暗 + 洗回回调** —— 区由内核建）/ 使用 / 抽牌（一行 `game:drawCards`）/ 伤害 / 回复 / 濒死 / 判定 / 回合 / 基本牌（模板）/ **锦囊牌（模板）** / `meta.lua`（**`打出.lua` / `收尾.lua` 已删** —— 打出的牌由 `AskPlayCard:onAnswered` 交出、收尾改由内核做） |
-| `身份场` | 配置 / 开局 / 奖惩 / 胜负 / `meta.lua` |
-| `标准` | 牌表（**逐张 102 张**，每张带花色与点数；**草稿待核对**）/ 卡牌：杀 / 闪 / 桃 / **无中生有 · 南蛮入侵 · 万箭齐发 · 桃园结义 · 决斗 · 五谷丰登 · 过河拆桥 · 顺手牵羊（八张普通锦囊）** / `meta.lua` |
+| `@基础` | 配置 / 体力 / 攻击范围（**属性保留，加成由 `equip` 加、随牌离开装备区自动撤**）/ **距离（`distance`：座位距离 + 进攻 / 防御修正，最小 1）** / **装备（四条槽位的声明 + `equip`）** / 牌堆（**只按牌表造牌 + 洗牌 + 手牌标暗 + 洗回回调** —— 区由内核建）/ 使用 / 抽牌（一行 `game:drawCards`）/ 伤害 / 回复 / 濒死 / 判定 / 回合 / **卡牌目录（基本牌 / 锦囊牌 / 装备牌三个模板）** / `meta.lua`（**`打出.lua` / `收尾.lua` 已删** —— 打出的牌由 `AskPlayCard:onAnswered` 交出、收尾改由内核做） |
+| `身份场` | 配置 / 开局 / 奖惩（**主公杀忠臣 ⇒ 手牌与装备区的牌一起弃**）/ 胜负 / `meta.lua` |
+| `标准` | 牌表（**逐张 102 张**，每张带花色与点数；**草稿待核对**）/ 卡牌：杀 / 闪 / 桃 / **八张普通锦囊**（含【借刀杀人】）/ **八张武器 + 六张坐骑**（只有分类与数据；自带技能没做）/ `meta.lua` |
 | `@tools` | `table.lua` —— 给**内容侧**标准库加 `filter` / `map` / `contains` / `without` |
 
 **内核现状**（`server/core/`）
 
-- 对象：`Card` / `Zone` / `OrderedZone` / `Attributes` / `Random` / `Desk` / `Player` / `Game` / `Event` / `Phase`
+- 对象：`Card` / `Zone` / `OrderedZone` / **`SlotZone`** / `Attributes` / `Random` / `Desk` / `Player` / `Game` / `Event` / `Phase`
 - 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ `ask` / `ask-card` / **`ask-use-card`** / **`ask-play-card`** / `move-card` / `damage` / `heal` / `draw` / `dying` / `judge`；**嵌套上限 `Effect.MAX_DEPTH = 150`**（安全阀：超了那一层以「取消」收尾 + `warn`，不算失败；实测再深进程会直接没）
-- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目）/ `useCard` / `askCard` / **`askUseCard`** / **`askPlayCard`** / `ask` / `moveCard` / **`drawCards`** / `damage` / `heal` / `draw` / `judge` / `createCard` / `createZone` / `enterDying` / `getDying` / `endGame` / `runFlow` / `registerFlow`
-- **定义上的三件套**（2026-09-22；分类口径 2026-09-23 改成覆盖）：`CardDef:kind(名字)` / `isKind` / `getKinds`（分类，内核只记录；取值省略「牌」字；**入参 `string|string[]`、一次调用定下、重复调以后写的为准**）、`CardDef:zone(区名)` / `getZone`（**必须从哪个牌区用**，`canUse` 的内建条目；不声明 = 任一牌区都行）、`CardDef:extends(名字)`（把基类的钩子与字段**抄**过来，基类的钩子跑前面、分类也覆盖（基类没分类就不动）、抄完脱钩、支持限定名）；公共模板在 `package/@基础/基本牌.lua`（`kind '基本'` + `zone '手牌'`），【杀】用 `: extends '基本牌'`
+- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目；**声明了 `noTarget()` 的牌跳过两条目标判据、给了目标就不成立**）/ `useCard`（**允许零目标**）/ `askCard` / **`askUseCard`**（**无目标牌的选项不带 `targets`**）/ **`askPlayCard`** / `ask` / `moveCard` / **`drawCards`** / `damage` / `heal` / `draw` / `judge` / `createCard` / `createZone` / **`setSlots` / `getSlots`** / `enterDying` / `getDying` / `endGame` / `runFlow` / `registerFlow`
+- **定义上的三件套**（2026-09-22；分类口径 2026-09-23 改成覆盖；**本批多两个定义项**）：`CardDef:kind(名字)` / `isKind` / `getKinds`（分类，内核只记录；取值省略「牌」字；**入参 `string|string[]`、一次调用定下、重复调以后写的为准**）、`CardDef:zone(区名)` / `getZone`（**必须从哪个牌区用**，`canUse` 的内建条目；不声明 = 任一牌区都行）、`CardDef:extends(名字)`（把基类的钩子与字段**抄**过来，基类的钩子跑前面、分类也覆盖（基类没分类就不动）、抄完脱钩、支持限定名）、**`CardDef:noTarget()` / `getNoTarget()`**（不指定目标），**`CardDef:value(名字, 值)` / `getValue(名字)`**（牌自带的数据，内核只存不解释）；公共模板在 `package/@基础/卡牌/`（`基本牌` / `锦囊牌` / **`装备牌`** —— 装备牌基类自带「结算后置入装备区 + 加修正」），【杀】用 `: extends '基本牌'`
+- **装备与距离（2026-09-24，`add-equipment`）**：① **槽位区 `SlotZone`**（`moe.slotZone.create(局, 槽位名表)`）—— `slots` / `getSlot`（懒校验：牌被别的路径取走就地失效）/ `putInto(槽位名, 牌)`（同槽旧牌**内核同步送那个局的 `弃牌`**，不经 `MoveCard`）；槽位名由内容侧**加载期声明**（`game:setSlots('装备', { '武器', '防具', '进攻马', '防御马' })`，与规则数值同层、随重装清空），`Player:__init` 建 `装备` 区时带上 ⇒ 中途建的玩家也拿得到；② **`Card:bindZoneGC(撤销函数)`**（牌上懒建的私有容器 `zoneGCHost`，`bindZone` 发现区真变了就 `Delete` 掉 ⇒ **牌一离开那个区自动撤销**，不需要新时机、也不需要「卸下」）；③ **`Attributes:addModifier(名字, 增量)` ⇒ 撤销函数**（精确减掉这次加的量）；④ 内容侧：`@基础/装备.lua` 的 `equip(玩家, 牌)` 把数据加进属性并把撤销挂到牌上，`@基础/距离.lua` 的 `distance(from, to)` = 座位距离 + 自己的 `进攻修正` + 对方的 `防御修正`（最小 1），`@基础/卡牌/装备牌.lua` 在 `'结算后'` 里按分类找槽位。**验证：`--test rule.equip`；过河拆桥 / 顺手牵羊 / 奖惩一行不用改（修正自动撤）**
 - **号是局内发的**（2026-09-22）：`game:nextId()` —— 每次都递增、重装规则内容不重置、**牌与将来的技能共用同一串号**；牌实例自己不再取号（`Card:__init(label, id)` / `moe.card.create(label, id)` 的号都由调用方给），另一局从 1 重新开始
 - **阶段是内核一等对象**（2026-09-22）：`game:enterPhase(玩家, 阶段名)` 返回可 `<close>` 的 `Phase` 实例（`game.phase` = 当前阶段；可嵌套、离开要按嵌套顺序）；阶段事件改**由内核触发**，载荷 = 阶段实例（**BREAKING**：原先读 `phase` 的那个字段改叫 `name`）；实例上有**标签袋**与**两本账**：`addUseCount / getUseCount`（已用次数）、`addLimit / getLimitDelta`（上限增减）
 - **按次数的限制整套在内核**（2026-09-22）：限额写在**内容定义**上（`Card '杀' : limit('出牌', 1)`，没声明就是 1000 = 事实上不限）；`game:canUse` 多一条**内建条目**（阶段属于使用者时 `已用 < 限额 + 增减`，不通过就**不问内容侧**），`useCard` 校验通过后**内核自己记一次**（只在自己的阶段里记）—— 两种口径：`phase:addUseCount(名字, -1)`（此牌不计次数）、`phase:addLimit(名字, n)`（可以多用一次 / +1000 相当于不限）；**原来的 `@基础/使用限制.lua` 已删**（用户 2026-09-22 同意）
@@ -56,8 +57,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 | 候选 | 现状 / 前置 |
 | --- | --- |
 | **延时锦囊 + 判定区** | 判定与牌面都已就位（§3 的判定阶段仍不结算）；玩家「判定区」已建（空区）⇒ 缺置入 / 逆序结算与【乐不思蜀】【闪电】本身（这两张牌表里还没有） |
-| **剩余普通锦囊** | 已落地 8 张；剩【借刀杀人】（要装备 + 武器，还要「令别人使用【杀】」的入口）、【无懈可击】（要嵌套询问 `askSkill` / 全体询问窗口） |
-| **装备与距离修正** | `desk:getDistance` 已就位，缺修正来源（±1 马、武器改攻击范围）与装备区 |
+| **剩余普通锦囊** | 已落地 9 张（含【借刀杀人】）；剩【无懈可击】（已定「当打出 + 分层循环」，另批） |
+| **装备与距离修正** | **已做**：武器 + 坐骑 + 槽位区 + 距离修正 + 【借刀杀人】（`add-equipment`，2026-09-24）；**待做**：防具（八卦阵 / 仁王盾，要「替换 / 追加一次响应」的新能力）、**装备自带的技能**（诸葛连弩的无限【杀】等 8 项，各自是一个功能点）、装备区的协议层表达 |
 | **武将技能** | 前置是武将系统（选将 / 技能注册） |
 | **会话 / 协议** | 前端接线 —— 按用户节奏放最后；届时要写 JSON-RPC 规格（不设 `skip_specs`） |
 | **询问家族** | `timeout` + `askSkill`，timeout 与答复做 race；`Ask` 只剩弃牌阶段在用 |

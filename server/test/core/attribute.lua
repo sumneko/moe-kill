@@ -36,6 +36,26 @@ lt.test('属性：内核不预设任何属性名', function ()
     lt.assertError('未声明的名字不能增减', function () attrs:add('体力', 1) end)
 end)
 
+lt.test('属性：一条修正可以由撤销函数精确收回', function ()
+    local system = moe.attribute.create()
+    system:define('攻击范围', { min = 0, max = 99 })
+    local attrs = system:createInstance()
+    attrs:set('攻击范围', 1)
+
+    local undoA = attrs:addModifier('攻击范围', 4)
+    local undoB = attrs:addModifier('攻击范围', 1)
+    lt.assertEquals('两条修正叠在一起', 6, attrs:get('攻击范围'))
+
+    undoA()
+    lt.assertEquals('只减掉它自己那条', 2, attrs:get('攻击范围'))
+
+    undoA()
+    lt.assertEquals('重复撤销不再减（幂等）', 2, attrs:get('攻击范围'))
+
+    undoB()
+    lt.assertEquals('全撤回去就是原值', 1, attrs:get('攻击范围'))
+end)
+
 lt.test('属性：写入与增减都受上下限约束', function ()
     local system = createSystem()
     local attrs  = system:createInstance()

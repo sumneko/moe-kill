@@ -76,6 +76,22 @@ function Attributes:add(name, value)
     self.system:updateEvent()
 end
 
+--- 加一条修正（撤销函数精确减掉这次加的量）
+---@param name string
+---@param delta number
+---@return fun()
+function Attributes:addModifier(name, delta)
+    self:add(name, delta)
+    local removed = false
+    return function ()
+        if removed then
+            return
+        end
+        removed = true
+        self:add(name, -delta)
+    end
+end
+
 ---@param name string
 ---@param callback Attribute.EventCallback
 ---@return fun()

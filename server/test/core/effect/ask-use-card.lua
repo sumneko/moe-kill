@@ -16,6 +16,8 @@ Card '测试牌'
             return player ~= target.user
         end)
     end)
+Card '无目标牌'
+    : noTarget()
 ]])
     assert(ok, err)
 end
@@ -58,8 +60,7 @@ local function putInHand(player, cards)
     end
 end
 
-lt.test('要一次使用：只收能用的牌，选项带可用目标', function ()
-    local game, players = newGame(3)
+lt.test('要一次使用：只收能用的牌，选项带可用目标', function ()    local game, players = newGame(3)
     local usable = game:createCard('测试牌')
     local plain  = game:createCard('闪')
     putInHand(players[1], { usable, plain })
@@ -75,6 +76,32 @@ lt.test('要一次使用：只收能用的牌，选项带可用目标', function
     lt.assertEquals('选项带上了可用目标', 2, #assert(options[1].targets))
     lt.assertEquals('答复收下', usable, ask.card)
     lt.assertEquals('答复里的目标也收下', 1, #assert(ask.targets))
+end)
+
+lt.test('要一次使用：无目标牌的选项不带 targets，答复也不用给目标', function ()
+    local game, players = newGame(3)
+    local card = game:createCard('无目标牌')
+    putInHand(players[1], { card })
+
+    ---@type AskUseCard.Answer[] # 先给一个带目标的答复（该被拒收），再按不带目标答一次
+    local replies = {
+        { card = card, targets = { players[2] } },
+        { card = card },
+    }
+    local index = 0
+    game:on('卡牌-询问', function (ask)
+        index = index + 1
+        ask:answer(replies[index])
+    end)
+
+    local refused = game:askUseCard(players[1], '测试', { name = '无目标牌' })
+    lt.assertEquals('无目标牌的选项就是没有 targets', nil, assert(assert(refused.options)[1]).targets)
+    lt.assertEquals('多给目标 ⇒ 被拒收', nil, refused.card)
+    lt.assertEquals('原因', '这张牌不需要目标', refused.err)
+
+    local ask = game:askUseCard(players[1], '测试', { name = '无目标牌' })
+    lt.assertEquals('不带目标就收下', card, ask.card)
+    lt.assertEquals('答复里没有目标', nil, ask.targets)
 end)
 
 lt.test('要一次使用：条件的 target ⇒ 可用目标要与它至少有一个重合', function ()

@@ -201,6 +201,35 @@ lt.test('奖惩：主公杀死忠臣 ⇒ 主公弃掉所有手牌', function ()
     lt.assertEquals('牌都进了弃牌', before, pile:count())
 end)
 
+lt.test('奖惩：主公杀死忠臣 ⇒ 装备区的牌一起弃掉', function ()
+    local run    = startGame()
+    local master = run.players[1]
+    local hand   = assert(master:getZone('手牌'))
+    local equip  = assert(master:getZone('装备'))
+    local pile   = assert(run.game:getZone('弃牌'))
+
+    ---@type Card # 抽牌堆里挑一张武器给主公装上
+    local weapon = nil
+    local deck   = assert(run.game:getZone('抽牌'))
+    for _, card in ipairs(deck:list()) do
+        if card:getLabel() == '诸葛连弩' then
+            weapon = card
+            break
+        end
+    end
+    assert(weapon, '抽牌里没有诸葛连弩')
+    deck:move(weapon, hand)
+    run.game:useCard(master, weapon, {})
+
+    local before = hand:count()
+    kill(run, run.players[2])
+
+    lt.assertEquals('手牌清空', 0, hand:count())
+    lt.assertEquals('装备区也清空', 0, equip:count())
+    lt.assertEquals('手牌与装备区的牌都进了弃牌', before + 1, pile:count())
+    lt.assertEquals('攻击范围跟着回落', 1, master:getAttr('攻击范围'))
+end)
+
 lt.test('奖惩：凶手已阵亡时照发，但一张也摸不到', function ()
     local run    = startGame()
     local killer = run.players[4]         -- 内奸

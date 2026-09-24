@@ -39,6 +39,19 @@ lt.test('玩家：内核建好手牌 / 装备 / 判定三个区', function ()
     lt.assertEquals('归属记在持有者身上', false, player:getZone('手牌'):isVisibleTo(other))
 end)
 
+lt.test('玩家：装备区是槽位区，槽位名取自建玩家那一刻的声明', function ()
+    local system = newSystem()
+    local game   = moe.game.create { seats = 1, random = moe.random.create(1) }
+    game:setSlots('装备', { '武器', '防具' })
+
+    local player = moe.player.create(game, { attributes = system:createInstance() })
+
+    lt.assertEquals('装备区是槽位区', 'slotZone', player:getZone('装备').kind)
+    lt.assertEquals('槽位名跟着局上的声明走（中途建的玩家也拿得到）', '武器,防具',
+        table.concat(player:getZone('装备').slots, ','))
+    lt.assertEquals('判定区还是普通区（顺序将来用有序区表达）', 'zone', player:getZone('判定').kind)
+end)
+
 lt.test('玩家：牌区可增删', function ()
     local system = newSystem()
     local player = newPlayer(system)

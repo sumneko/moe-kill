@@ -24,7 +24,7 @@ function M:__init(game, attributes, name)
     self.tags       = {}
     self.alive      = true
     self:addZone('手牌')
-    self:addZone('装备')
+    self:addZone('装备', moe.slotZone.create(self.game, self.game:getSlots('装备') or {}))
     self:addZone('判定')
 end
 
@@ -87,7 +87,9 @@ function M:addZone(name, zone)
 end
 
 --- 玩家身上的牌区（`手牌` / `装备` / `判定` 由内核建好，包不得重建）
----@overload fun(self: Player, name: '手牌'|'装备'|'判定'): Zone
+---@overload fun(self: Player, name: '手牌'): Zone
+---@overload fun(self: Player, name: '装备'): SlotZone
+---@overload fun(self: Player, name: '判定'): Zone
 ---@param name string
 ---@return Zone?
 function M:getZone(name)

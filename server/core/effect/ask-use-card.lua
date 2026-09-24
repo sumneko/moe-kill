@@ -1,12 +1,12 @@
 require 'core.effect.ask-card'
 
---- 一次答复：给出哪张牌 + 打给谁（要一次使用就必须给目标）
+--- 一次答复：给出哪张牌 + 打给谁（要一次使用就得给目标；无目标牌不用）
 ---@class AskUseCard.Answer : AskCard.Answer
 ---@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）
 
 --- 一个合法选项：一张能用的牌 + 它的可用目标
 ---@class AskUseCard.Option : AskCard.Option
----@field targets Player[] # 这张牌的可用目标（恒非空）
+---@field targets? Player[] # 这张牌的可用目标（无目标牌没有这个字段）
 
 --- 要什么样的牌：`AskCard.Condition` 那些条件 + 一条 target
 ---@class AskUseCard.Condition : AskCard.Condition
@@ -21,7 +21,7 @@ require 'core.effect.ask-card'
 --- 要一次「使用」：候选逐张跑 canUse（用不了的牌不进选项），答复必须带目标
 ---@class AskUseCard : AskCard
 ---@field condition? AskUseCard.Condition # 要什么样的牌（比基类多一条 target）
----@field targets? Player[] # 答复指定的目标（= `.result.targets`；恒为一张列表）
+---@field targets? Player[] # 答复指定的目标（= `.result.targets`；无目标牌是「不存在」）
 local M = Class 'AskUseCard'
 
 Extends('AskUseCard', 'AskCard')
@@ -35,8 +35,11 @@ end
 ---@return AskUseCard.Option?
 function M:makeOption(card)
     local ok, _, legal = self.game:canUse(self.to, card)
-    if not ok or not legal then
+    if not ok then
         return nil
+    end
+    if not legal then
+        return { card = card }
     end
     local window = self.condition?.target
     if not window then
@@ -56,28 +59,35 @@ function M:makeOption(card)
     return { card = card, targets = targets }
 end
 
---- 答复要给出目标，且落在这个选项的可用目标里
+--- 答复要给出目标，且落在这个选项的可用目标里；无目标牌不要给目标
 ---@param option AskCard.Option
 ---@param value AskCard.Answer
 ---@return any # 通过就是空
 function M:checkOption(option, value)
     ---@cast option AskUseCard.Option
+    local targets = option.targets
+    if not targets then
+        if value.targets ~= nil and #moe.util.toList(value.targets) > 0 then
+            return '这张牌不需要目标'
+        end
+        return nil
+    end
     if value.targets == nil then
         return '这次答复要给出目标'
     end
-    local targets = moe.util.toList(value.targets)
-    if #targets == 0 then
+    local list = moe.util.toList(value.targets)
+    if #list == 0 then
         return '这次答复要给出目标'
     end
-    for _, target in ipairs(targets) do
-        if not moe.util.arrayHas(option.targets, target) then
+    for _, target in ipairs(list) do
+        if not moe.util.arrayHas(targets, target) then
             return '答复的目标不在可选项里'
         end
     end
     return nil
 end
 
---- 答复指定的目标（恒为一张列表）
+--- 答复指定的目标（无目标牌是「不存在」）
 ---@param self AskUseCard
 ---@return Player[]?
 M.__getter.targets = function (self)

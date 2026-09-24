@@ -690,3 +690,129 @@ Card '测试杀'
     lt.assertEquals('被取消的那个没生效，其余的照常', '3', user:getTag('顺序'))
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
+
+lt.test('使用：声明了 noTarget 就不需要目标', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '无目标牌'
+    : noTarget()
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('生效过', true)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('无目标牌')
+    hand:put(card)
+
+    local ok, reason, legal = game:canUse(user, card)
+    lt.assertEquals('不用给目标就能用', true, ok)
+    lt.assertEquals('没有原因', nil, reason)
+    lt.assertEquals('不给出合法目标（本来就没有）', nil, legal)
+
+    local noTargets = game:useCard(user, card, {})
+    lt.assertEquals('零目标也用出去了', nil, noTargets.err)
+    lt.assertEquals('牌离开手牌', 0, hand:count())
+
+    lt.assertFailed('给了目标反而不成立', game:useCard(user, card, { target }))
+end)
+
+lt.test('使用：无目标牌给目标时给出的原因', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '无目标牌'
+    : noTarget()
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('无目标牌')
+    hand:put(card)
+
+    local ok, reason = game:canUse(user, card, { target })
+    lt.assertEquals('给了目标就不成立', false, ok)
+    lt.assertEquals('原因点明不需要目标', '「探针.无目标牌」不需要指定目标', reason)
+    lt.assertEquals('牌没被拿走', 1, hand:count())
+end)
+
+lt.test('使用：没声明 noTarget 的牌照旧要求非空目标', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '有目标牌'
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, _, hand = newGame()
+    local card = game:createCard('有目标牌')
+    hand:put(card)
+
+    lt.assertFailed('fail-closed：不给目标就用不了', game:useCard(user, card, {}))
+    lt.assertEquals('牌还留在手上', 1, hand:count())
+end)
+
+lt.test('使用：零目标也跑完两个时机与收尾', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '无目标牌'
+    : noTarget()
+    : on('结算前', function (useCard)
+        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '结算前')
+    end)
+    : on('结算后', function (useCard)
+        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '结算后')
+    end)
+]])
+
+    local game, user, _, hand = newGame()
+    local card = game:createCard('无目标牌')
+    hand:put(card)
+
+    ---@type string[]
+    local events = {}
+    game:on('卡牌-结算前', function () events[#events + 1] = '卡牌-结算前' end)
+    game:on('卡牌-结算后', function () events[#events + 1] = '卡牌-结算后' end)
+
+    local useCard = game:useCard(user, card, {})
+
+    lt.assertEquals('牌自己的两个时机都跑了', '结算前结算后', user:getTag('顺序'))
+    lt.assertEquals('用牌级两个时机也跑了', '卡牌-结算前,卡牌-结算后', table.concat(events, ','))
+    lt.assertEquals('这次用牌没有目标', 0, #useCard.targets)
+    lt.assertEquals('牌离开手牌', 0, hand:count())
+    -- 探针环境里没有 @基础（来源只指探针目录）⇒ 没人把牌安置进临时区，收尾也就无牌可收
+    lt.assertEquals('没被安置（安置是 @基础/使用.lua 的事）', nil, card:getZone())
+end)
+
+lt.test('定义：数据袋读得回来，重复写以后写的为准', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '有数据的牌'
+    : value('攻击范围', 3)
+    : value('攻击范围', 4)
+    : value('花色名', '红桃')
+]])
+
+    local game = select(1, newGame())
+    local def  = assert(game:getCard('有数据的牌'))
+
+    lt.assertEquals('后写的覆盖前面的', 4, def:getValue('攻击范围'))
+    lt.assertEquals('别的名字各存各的', '红桃', def:getValue('花色名'))
+    lt.assertEquals('没声明过的是「不存在」', nil, def:getValue('没有这条'))
+end)
+
+lt.test('定义：基类的数据被抄过来，抄完就脱钩', function ()
+    local guard <close> = useProbe()
+    write('探针/基类.lua', "Card '基类牌' : value('攻击范围', 2) : value('距离修正', -1)")
+    write('探针/子类.lua', "Card '子类牌' : extends '基类牌' : value('攻击范围', 5)")
+
+    local game    = select(1, newGame())
+    local base    = assert(game:getCard('基类牌'))
+    local derived = assert(game:getCard('子类牌'))
+
+    lt.assertEquals('基类的数据抄到了子类', -1, derived:getValue('距离修正'))
+    lt.assertEquals('子类自己的数据覆盖基类的', 5, derived:getValue('攻击范围'))
+    lt.assertEquals('基类不受影响', 2, base:getValue('攻击范围'))
+
+    derived:value('新加的一条', true)
+    lt.assertEquals('抄完就脱钩：子类后加的不会跑到基类', nil, base:getValue('新加的一条'))
+end)

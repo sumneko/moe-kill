@@ -18,8 +18,7 @@ local function labels(zone)
     return table.concat(result, ',')
 end
 
-lt.test('局：持一张桌子与一个随机源', function ()
-    local random = moe.random.create(1)
+lt.test('局：持一张桌子与一个随机源', function ()    local random = moe.random.create(1)
     local game   = moe.game.create { seats = 4, random = random }
 
     lt.assertEquals('桌子按给的座位数建好', 4, game.desk:getCount())
@@ -63,6 +62,35 @@ lt.test('局：默认建无序牌区，ordered 建有序牌区', function ()
 
     lt.assertEquals('默认是无序的', 'zone', game:createZone('备牌').kind)
     lt.assertEquals('ordered 是有序的', 'orderedZone', game:createZone('备牌堆', true).kind)
+end)
+
+lt.test('局：槽位名由内容侧声明，随重装清空', function ()
+    local game = newGame()
+
+    lt.assertEquals('@基础 已经声明了装备区的四条槽位', '武器,防具,进攻马,防御马',
+        table.concat(assert(game:getSlots('装备'), '装备区的槽位没声明'), ','))
+    lt.assertEquals('没声明过的区读不到', nil, game:getSlots('没有这个区'))
+
+    game:setSlots('储物', { '第一格' })
+    lt.assertEquals('声明后读得回来', '第一格', table.concat(assert(game:getSlots('储物')), ','))
+
+    game:setSlots('储物', { '第一格', '第二格' })
+    lt.assertEquals('同一个区名重复声明以后写的为准', '第一格,第二格',
+        table.concat(assert(game:getSlots('储物')), ','))
+
+    lt.assertError('区名必须是非空字符串', function () game:setSlots('', { '甲' }) end)
+    lt.assertError('槽位名必须是非空字符串', function () game:setSlots('储物', { '' }) end)
+    lt.assertError('槽位名表必须是一张列表', function ()
+        ---@type any
+        local notList = '武器'
+        game:setSlots('储物', notList)
+    end)
+
+    moe.loader.install(game, { packages = {} })
+
+    lt.assertEquals('重装规则后自己声明的没了', nil, game:getSlots('储物'))
+    lt.assertEquals('内容侧重新声明回来的照旧在', '武器,防具,进攻马,防御马',
+        table.concat(assert(game:getSlots('装备')), ','))
 end)
 
 lt.test('局：建牌带牌名与牌面', function ()

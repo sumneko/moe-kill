@@ -20,7 +20,7 @@ Card '顺手牵羊'
         return table.filter(game.desk.alivePlayers, function (player)
             return player ~= user
                 and hasCard(player)
-                and game.desk:getDistance(user, player) <= 1
+                and distance(user, player) <= 1
         end)
     end)
     : on('生效', function (cardEffect)

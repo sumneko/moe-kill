@@ -29,11 +29,10 @@ end
 ---@param run Test.RuleSupport
 ---@param player Player
 ---@param name string
----@return Card # 已经摆进该玩家装备区的牌
+---@return Card # 已经用出去、装在自己装备区的牌
 local function equipCard(run, player, name)
-    local card, deck = findCard(run.game, name)
-    local equip = assert(player:getZone('装备'), '没有装备区')
-    deck:move(card, equip)
+    local card = takeCard(run, player, name)
+    run.game:useCard(player, card, {})
     return card
 end
 
@@ -358,6 +357,140 @@ lt.test('过河拆桥：合法目标是「区域里有牌」的其他角色', fu
     lt.assertEquals('只有身上有牌的 2 号位', 1, #targets)
     lt.assertEquals('就是 2 号位', run.players[2], targets[1])
     lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
+end)
+
+lt.test('借刀杀人：被借刀者用出【杀】，武器留在自己身上', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local holder = run.players[2]
+    local victim = run.players[3]
+    local card   = takeCard(run, user, '借刀杀人')
+    local weapon = equipCard(run, holder, '诸葛连弩')
+    local slash  = takeCard(run, holder, '杀')
+
+    ---@type any # 这次问使用者的问法（内容侧自己解释：候选名单在里面）
+    local question = nil
+    ---@type Player? # 这次问的是谁
+    local asked = nil
+    run.game:on('决策-询问', function (ask)
+        asked    = ask.to
+        question = ask.question
+        ask:answer(victim)
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '借刀杀人' then
+            ask:answer { card = slash, targets = { victim } }
+        end
+    end)
+
+    run.game:useCard(user, card, { holder })
+
+    lt.assertEquals('指定谁问的是使用者', user, asked)
+    lt.assertEquals('候选就是被借刀者能打到的人', true,
+        moe.util.arrayHas(assert(question).candidates, victim))
+    lt.assertEquals('打出的【杀】结算了：目标挨 1 点', 4, victim:getAttr('体力'))
+    lt.assertEquals('武器还在他装备区', weapon, assert(holder:getZone('装备')):getSlot('武器'))
+    lt.assertEquals('使用者没拿到武器', 0, assert(user:getZone('手牌')):count())
+    lt.assertEquals('用过的【杀】与【借刀杀人】都进了弃牌堆', 2,
+        assert(run.game:getZone('弃牌')):count())
+end)
+
+lt.test('借刀杀人：被借刀者手上没【杀】⇒ 武器交给使用者', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local holder = run.players[2]
+    local victim = run.players[3]
+    local card   = takeCard(run, user, '借刀杀人')
+    local weapon = equipCard(run, holder, '诸葛连弩')
+    local hand   = assert(user:getZone('手牌'), '没有手牌区')
+
+    run.game:on('决策-询问', function (ask)
+        ask:answer(victim)
+    end)
+
+    run.game:useCard(user, card, { holder })
+
+    lt.assertEquals('武器进使用者手牌', hand, weapon:getZone())
+    lt.assertEquals('手上就这一张', 1, hand:count())
+    lt.assertEquals('装备区空了', 0, assert(holder:getZone('装备')):count())
+    lt.assertEquals('被借刀者的攻击范围回落', 1, holder:getAttr('攻击范围'))
+    lt.assertEquals('使用者的攻击范围没被带跑', 1, user:getAttr('攻击范围'))
+end)
+
+lt.test('借刀杀人：这阶段已经用过【杀】⇒ 也用不出来，武器照交', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local holder = run.players[2]
+    local victim = run.players[3]
+    local card   = takeCard(run, user, '借刀杀人')
+    local weapon = equipCard(run, holder, '诸葛连弩')
+    takeCard(run, holder, '杀')
+
+    local phase <close> = run.game:enterPhase(holder, '出牌')
+    phase:addUseCount('杀', 1)
+
+    run.game:on('决策-询问', function (ask)
+        ask:answer(victim)
+    end)
+
+    run.game:useCard(user, card, { holder })
+
+    lt.assertEquals('【杀】用不出来 ⇒ 武器到了使用者手上',
+        assert(user:getZone('手牌')), weapon:getZone())
+    lt.assertEquals('那把【杀】还捏在手上', 1, assert(holder:getZone('手牌')):count())
+end)
+
+lt.test('借刀杀人：合法目标要有武器、且他攻击范围内还有别人', function ()
+    local run   = support.start { count = 4, packages = { '标准' } }
+    local user  = run.players[1]
+    local card  = takeCard(run, user, '借刀杀人')
+    local bare  = run.players[2]
+    local armed = run.players[3]
+
+    local ok = run.game:canUse(user, card, { bare })
+    lt.assertEquals('装备区没武器的不能当目标', false, ok)
+
+    equipCard(run, armed, '诸葛连弩')
+    local targets = assert(select(3, run.game:canUse(user, card)), '有武器的该能当目标')
+    lt.assertEquals('装武器的那个合法', true, moe.util.arrayHas(targets, armed))
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
+
+    run.players[2]:setAlive(false)
+    run.players[4]:setAlive(false)
+    local around = run.game:canUse(user, card, { armed })
+    lt.assertEquals('他攻击范围内没人了 ⇒ 也不合法', false, around)
+end)
+
+lt.test('借刀杀人：使用者没指定角色（答复不在候选里）⇒ 按没指定处理，武器照交', function ()
+    local run    = support.start { count = 4, packages = { '标准' } }
+    local user   = run.players[1]
+    local holder = run.players[2]
+    local out    = run.players[4]
+    local card   = takeCard(run, user, '借刀杀人')
+    local weapon = equipCard(run, holder, '诸葛连弩')
+
+    run.game:on('决策-询问', function (ask)
+        ask:answer(out)   -- 距离 2，不在他攻击范围内
+    end)
+
+    run.game:useCard(user, card, { holder })
+
+    lt.assertEquals('答复不在候选里 ⇒ 按没指定处理，武器交给使用者',
+        assert(user:getZone('手牌')), weapon:getZone())
+    lt.assertEquals('装备区空了', 0, assert(holder:getZone('装备')):count())
+end)
+
+lt.test('借刀杀人：没人应答「指定谁」⇒ 同样按没指定处理', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local holder = run.players[2]
+    local card   = takeCard(run, user, '借刀杀人')
+    local weapon = equipCard(run, holder, '诸葛连弩')
+
+    run.game:useCard(user, card, { holder })
+
+    lt.assertEquals('没有答复 ⇒ 武器交给使用者',
+        assert(user:getZone('手牌')), weapon:getZone())
 end)
 
 lt.test('顺手牵羊：挑中目标哪张，就把哪张拿进自己的手牌', function ()
