@@ -528,7 +528,7 @@ function M:createZone(name, ordered)
     if self.zoneMap[name] then
         error('局上已经有叫 {} 的牌区了' % { name }, 2)
     end
-    local zone = ordered and New 'OrderedZone' (self.random) or New 'Zone' ()
+    local zone = ordered and New 'OrderedZone' (self, self.random) or New 'Zone' (self)
     self.zoneMap[name] = zone
     self.zoneList[#self.zoneList+1] = zone
     return zone

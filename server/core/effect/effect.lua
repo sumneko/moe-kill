@@ -68,7 +68,7 @@ end
 function M:createTempZone()
     local zone = self.tempZone
     if not zone then
-        zone = moe.zone.create()
+        zone = moe.zone.create(self.game)
         self.tempZone = zone
     end
     return zone

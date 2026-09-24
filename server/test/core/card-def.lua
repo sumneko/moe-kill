@@ -278,28 +278,25 @@ Card '甲'
         player:getTag('记录'))
 end)
 
-lt.test('定义：公共区与没定义的牌不发「进入区域」', function ()
+lt.test('定义：公共区也发「进入区域」，没局的区与没定义的牌不发', function ()
     local guard <close> = useProbe()
     local game, player = newGame([[
 Card '甲'
     : on('进入区域', function (card, zone, slot)
-        local owner = assert(zone.owner, '发钩子的时候应该读得到归属者')
-        owner:setTag('记录', (owner:getTag('记录') or '') .. tostring(slot) .. ';')
+        local seat = zone.game.desk.seats[1]
+        seat:setTag('记录', (seat:getTag('记录') or '')
+            .. tostring(zone.owner ~= nil) .. '/' .. tostring(slot) .. ';')
     end)
 ]])
 
     local discard = assert(game:getZone('弃牌'), '没有弃牌区')
     discard:put(game:createCard('甲'))
-    lt.assertEquals('公共区没有归属者，不发', nil, player:getTag('记录'))
+    lt.assertEquals('公共区也发，只是没有归属者', 'false/nil;', player:getTag('记录'))
 
-    local hand = assert(player:getZone('手牌'), '没有手牌区')
-    hand:put(game:createCard('没有定义'))
-    lt.assertEquals('牌在局里但没有定义，也不发', nil, player:getTag('记录'))
+    discard:put(game:createCard('没有定义'))
+    lt.assertEquals('牌在局里但没有定义，不发', 'false/nil;', player:getTag('记录'))
 
-    hand:put(game:createCard('甲'))
-    lt.assertEquals('玩家自己的区照常发', 'nil;', player:getTag('记录'))
-
-    local equipped = hand:list()[2]
-    hand:move(equipped, discard)
-    lt.assertEquals('从玩家的区挪去公共区不会再发', 'nil;', player:getTag('记录'))
+    local loose = moe.zone.create()
+    loose:put(game:createCard('甲'))
+    lt.assertEquals('自己造的区不带局，不发', 'false/nil;', player:getTag('记录'))
 end)
