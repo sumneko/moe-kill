@@ -58,6 +58,7 @@ function CardDef:getHandlers(event)
     end
     return snapshot
 end
+
 --- 声明这个阶段里最多用几次（可以多次调；同一个阶段重复写，后写的为准）
 ---@param phase string # 阶段名（取值由你定）
 ---@param count integer
@@ -750,38 +751,32 @@ end
 ---@param def CardDef
 ---@param user Player
 ---@param card Card
+---@param targets? Player[] # 期望的目标
 ---@return Player[]? # 各声明取交集后的合法目标
----@return any # 不成立的原因
-local function collectLegalTargets(def, user, card)
+---@return string? # 不成立的原因
+local function collectLegalTargets(def, user, card, targets)
     local handlers = def:getHandlers('获取目标')
     if #handlers == 0 then
         return nil, '「{}」没有声明「获取目标」，现在用不了' % { def.fullName }
     end
-    local ctx = { user = user, card = card }
-    ---@type Player[]?
-    local legal = nil
+    ---@type CardDef.Target
+    local ctx = {
+        user = user,
+        card = card,
+        targets = targets
+    }
+    ---@type Player[][]
+    local lists = {}
     for _, handler in ipairs(handlers) do
         local list = handler(ctx)
         if type(list) ~= 'table' then
             return nil, '「{}」的「获取目标」必须返回合法目标列表' % { def.fullName }
         end
-        if legal then
-            ---@type Player[]
-            local narrowed = {}
-            for _, player in ipairs(legal) do
-                if moe.util.arrayHas(list, player) then
-                    narrowed[#narrowed + 1] = player
-                end
-            end
-            legal = narrowed
-        else
-            ---@type Player[]
-            local copied = {}
-            table.move(list, 1, #list, 1, copied)
-            legal = copied
-        end
+        lists[#lists + 1] = list
     end
-    if not legal or #legal == 0 then
+    ---@type Player[]
+    local legal = moe.util.arrayIntersect(lists)
+    if #legal == 0 then
         return nil, '「{}」现在没有合法目标' % { def.fullName }
     end
     return legal
@@ -822,49 +817,54 @@ end
 
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
----@param targets? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
+---@param target? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
 ---@return boolean # 能这样用吗
 ---@return any # 不能的原因
 ---@return Player[]? # 能用时的合法目标（无目标牌没有）
-function M:canUse(user, card, targets)
+function M:canUse(user, card, target)
     local def, problem = checkCardItself(self, user, card)
     if not def then
         return false, problem
     end
 
+    ---@type Player[]?
+    local targets = target and moe.util.toList(target)
+
     -- 目标：给了目标才判（无目标牌给了非空目标就是不成立）
-    ---@type Player[]? # 调用方给的目标（没给 = 不判目标这条）
-    local list = nil
     ---@type Player[]? # 能用时的合法目标（无目标牌没有）
     local legal = nil
     if def:isNoTarget() then
-        if targets ~= nil then
-            list = moe.util.toList(targets)
-            if #list > 0 then
-                return false, '「{}」不需要指定目标' % { def.fullName }
-            end
+        if targets and #targets > 0 then
+            return false, '「{}」不需要指定目标' % { def.fullName }
         end
     else
         local reason
-        legal, reason = collectLegalTargets(def, user, card)
+        legal, reason = collectLegalTargets(def, user, card, targets)
         if not legal then
             return false, reason
         end
-        if targets ~= nil then
-            list = moe.util.toList(targets)
-            if #list == 0 then
+        if targets then
+            if #targets == 0 then
                 return false, '「{}」至少要指定一个目标' % { def.fullName }
             end
-            for _, target in ipairs(list) do
-                if not moe.util.arrayHas(legal, target) then
+            ---@type Player[]
+            local wanted = {}
+            for _, player in ipairs(targets) do
+                if not moe.util.arrayHas(legal, player) then
                     return false, '「{}」不能以这个角色为目标' % { def.fullName }
                 end
+                wanted[#wanted + 1] = player
             end
+            legal = wanted
         end
     end
 
     -- 内容侧有没有异议
-    local refusal = self:fire('卡牌-能否使用', { user = user, card = card, targets = list })
+    local refusal = self:fire('卡牌-能否使用', {
+        user = user,
+        card = card,
+        targets = targets
+    })
     if refusal ~= nil then
         if refusal == false then
             refusal = '这张牌现在不能使用'

@@ -26,6 +26,7 @@ Depends = nil
 ---@class CardDef.Target
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
+---@field targets? Player[] # 期望的目标
 
 --- 目前没有事件参数：触发时给空表，环境对象从 game 取
 ---@class Game.Event.游戏开始

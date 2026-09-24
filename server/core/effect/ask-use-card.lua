@@ -30,33 +30,18 @@ function M:__init()
     self.kind = 'askUseCard'
 end
 
---- 能把这张牌用出去才进选项；给了 `target` 就把可用目标收窄成交集
+--- 能把这张牌用出去才进选项（条件里给了 `target` 的话，合法目标已由 `canUse` 收窄）
 ---@param card Card
 ---@return AskUseCard.Option?
 function M:makeOption(card)
-    local ok, _, legal = self.game:canUse(self.to, card)
+    local ok, _, legal = self.game:canUse(self.to, card, self.condition?.target)
     if not ok then
         return nil
     end
     if not legal then
         return { card = card }
     end
-    local window = self.condition?.target
-    if not window then
-        return { card = card, targets = legal }
-    end
-    local wanted = moe.util.toList(window)
-    ---@type Player[]
-    local targets = {}
-    for _, player in ipairs(legal) do
-        if moe.util.arrayHas(wanted, player) then
-            targets[#targets + 1] = player
-        end
-    end
-    if #targets == 0 then
-        return nil
-    end
-    return { card = card, targets = targets }
+    return { card = card, targets = legal }
 end
 
 --- 答复要给出目标，且落在这个选项的可用目标里；无目标牌不要给目标

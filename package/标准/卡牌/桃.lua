@@ -15,6 +15,7 @@ Card '桃'
                 targets[#targets + 1] = player
             end
         end
+
         return targets
     end)
     : on('生效', function (cardEffect)
