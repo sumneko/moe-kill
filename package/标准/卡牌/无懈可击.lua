@@ -22,6 +22,7 @@ local function tookEffect(use)
 end
 
 --- 问一圈：有没有人对这张牌使用【无懈可击】
+--- 一圈里每人只有一次机会；只有「这张牌被抵消」才终止这一圈 ⇒ 谁的无懈自己又被抵掉了，就接着问下一个人
 ---@param card Card # 要抵消的那张牌
 ---@return boolean # 这张牌有没有被抵消
 local function nullified(card)
@@ -30,8 +31,10 @@ local function nullified(card)
         local condition = { name = '无懈可击', target = card }
         local used = game:askUseCardToCard(player, card.name, condition).card
         if used then
-            -- 用出去的那张无懈自己也走一遍「生效前」：它没生效，就说明它没抵掉 card
-            return tookEffect(game:useCardToCard(player, used, card))
+            -- 用出去的那张无懈自己也走一遍「生效前」：它生效了就抵掉了 card，没生效就接着问下一个人
+            if tookEffect(game:useCardToCard(player, used, card)) then
+                return true
+            end
         end
     end
     return false
@@ -47,7 +50,8 @@ end
 
 --- 两种「生效」都在这里问：锦囊对某个角色的生效、以及无懈对一张牌的生效（= 抵消另一张【无懈可击】产生的效果）
 game:on('效果-即将生效', function (effect)
-    if effect.kind == 'cardEffect' or effect.kind == 'cardEffectToCard' then
+    if effect.kind == 'cardEffect'
+    or effect.kind == 'cardEffectToCard' then
         ---@cast effect CardEffect|CardEffectToCard
         nullify(effect)
     end

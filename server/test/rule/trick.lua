@@ -681,6 +681,46 @@ lt.test('无懈可击：它自己也能被抵消 ⇒ 原锦囊照常生效', fun
     lt.assertEquals('它自己那次使用是成的', nil, firstNullify.err)
 end)
 
+lt.test('无懈可击：那张无懈自己又被抵消 ⇒ 这一圈没走完，接着问下一个人', function ()
+    local run  = support.start { count = 4, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '无中生有')
+    local nullify1 = takeCard(run, run.players[2], '无懈可击')
+    local nullify2 = takeCard(run, run.players[3], '无懈可击')
+    local nullify3 = takeCard(run, run.players[4], '无懈可击')
+
+    --- 谁、对哪张牌、给出哪张无懈（第二条把第一条抵掉，于是这一圈继续走到第三条）
+    local script = {
+        { player = run.players[2], target = card,     card = nullify1, used = false },
+        { player = run.players[3], target = nullify1, card = nullify2, used = false },
+        { player = run.players[4], target = card,     card = nullify3, used = false },
+    }
+    run.game:on('卡牌-询问', function (ask)
+        if not isNullifyAsk(ask) then
+            return
+        end
+        local condition = assert(ask.condition)
+        for _, step in ipairs(script) do
+            if not step.used and step.player == ask.to and step.target == condition.target then
+                step.used = true
+                ask:answer { card = step.card }
+                return
+            end
+        end
+    end)
+
+    run.game:useCard(user, card, { user })
+
+    lt.assertEquals('第一张无懈没生效 ⇒ 这一圈接着问，第三个人把它抵掉了 ⇒ 锦囊不生效', 0,
+        assert(user:getZone('手牌')):count())
+
+    local discard = assert(run.game:getZone('弃牌')):list()
+    lt.assertEquals('三张无懈都进弃牌堆', true,
+        moe.util.arrayHas(discard, nullify1)
+        and moe.util.arrayHas(discard, nullify2)
+        and moe.util.arrayHas(discard, nullify3))
+end)
+
 lt.test('无懈可击：多目标锦囊可以对某一个目标单独抵消', function ()
     local run     = support.start { count = 3, packages = { '标准' } }
     local user    = run.players[1]
