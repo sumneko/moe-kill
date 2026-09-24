@@ -152,14 +152,15 @@ end)
 lt.test('要一次使用：答复的目标给单个或一张列表都行', function ()
     local game, players = newGame(3)
     local card = game:createCard('测试牌')
-    putInHand(players[1], { card })
+    local another = game:createCard('测试牌')
+    putInHand(players[1], { card, another })
     local order = 1
     game:on('卡牌-询问', function (ask)
         if order == 1 then
             order = 2
             ask:answer { card = card, targets = players[2] }
         else
-            ask:answer { card = card, targets = { players[2], players[3] } }
+            ask:answer { card = another, targets = { players[2], players[3] } }
         end
     end)
 
@@ -186,4 +187,36 @@ lt.test('要一次使用：没人应答时没有答复，也不算失败', funct
     lt.assertEquals('没有答复', nil, ask.card)
     lt.assertEquals('不算失败', nil, ask.err)
     lt.assertEquals('没有记下错误', 0, #lt.errors)
+end)
+
+lt.test('要一次使用：答复到手就自动用出去，那次使用记在询问上', function ()
+    local game, players = newGame(3)
+    local card = game:createCard('测试牌')
+    putInHand(players[1], { card })
+    local hand = assert(players[1]:getZone('手牌'))
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = card, targets = { players[2] } }
+    end)
+
+    local ask = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+
+    local useCard = assert(ask.useCard, '入口应该把它用出去')
+    lt.assertEquals('就是一次使用', 'useCard', useCard.kind)
+    lt.assertEquals('用出去的那张就是答复的牌', card, useCard.card)
+    lt.assertEquals('目标就是答复的目标', players[2], assert(useCard.targets)[1])
+    lt.assertEquals('牌已经离开手牌', 0, hand:count())
+    lt.assertEquals('再调一次不会用第二遍', useCard, ask:use())
+end)
+
+lt.test('要一次使用：没人应答就没有那次使用', function ()
+    local game, players = newGame(2)
+    putInHand(players[1], { game:createCard('测试牌') })
+    game:on('卡牌-询问', function (ask)
+        ask:answer(nil)
+    end)
+
+    local ask = game:askUseCard(players[1], '测试', { name = '测试牌' })
+
+    lt.assertEquals('没有答复', nil, ask.card)
+    lt.assertEquals('也没有那次使用', nil, ask.useCard)
 end)

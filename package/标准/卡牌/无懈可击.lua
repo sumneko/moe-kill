@@ -26,13 +26,10 @@ local function nullified(card)
     for player in game.desk:actionOrder(game.desk.alivePlayers) do
         ---@type AskUseCardToCard.Condition
         local condition = { name = '无懈可击', target = card }
-        local used = game:askUseCardToCard(player, card.name, condition).card
-        if used then
-            local effect = game:useCardToCard(player, used, card).cardEffectToCard
-            -- 刚用出去的那张无懈自己也会被问一遍「能否生效」：它没生效，就说明它没抵掉 card
-            if effect?.success then
-                return true
-            end
+        local useCard = game:askUseCardToCard(player, card.name, condition).useCardToCard
+        -- 刚用出去的那张无懈自己也会被问一遍「能否生效」：它没生效，就说明它没抵掉 card
+        if useCard?.cardEffectToCard?.success then
+            return true
         end
     end
     return false

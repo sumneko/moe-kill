@@ -6,11 +6,7 @@ game:on('濒死-进入', function (dying)
     while player:getAttr('体力') < 1 do
         ---@type AskUseCard.Condition # 只要能救他的【桃】
         local condition = { name = '桃', target = player }
-        ---@type Card?
-        local card = game:askUseCard(current, '濒死', condition).card
-        if card then
-            game:useCard(current, card, { player })
-        else
+        if not game:askUseCard(current, '濒死', condition).useCard then
             current = assert(game.desk:getNext(current))
             if current == start then
                 break

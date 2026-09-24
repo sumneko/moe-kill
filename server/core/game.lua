@@ -588,12 +588,12 @@ function M:askCard(to, reason, condition)
     return ask
 end
 
---- 要一张牌（要一次使用：能用的牌 + 目标）
+--- 要一张牌（要一次使用：能用的牌 + 目标）—— 答复到手后**直接把它用出去**（结果读 `ask.useCard`）
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不做限制）
----@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
+---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，那次使用读 `.useCard`，失败读 `.err`）
 function M:askUseCard(to, reason, condition)
     local ask = moe.askUseCard.create {
         game      = self,
@@ -602,15 +602,16 @@ function M:askUseCard(to, reason, condition)
         condition = condition,
     }
     ask:apply():await()
+    ask:use()
     return ask
 end
 
---- 要一张牌（要一次「对一张牌的使用」：能对目标牌使用的牌才进选项）
+--- 要一张牌（要一次「对一张牌的使用」：能对目标牌使用的牌才进选项）—— 答复到手后**直接把它用出去**（结果读 `ask.useCardToCard`）
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition AskUseCardToCard.Condition # 要什么样的牌（`target` = 要用在哪张牌上）
----@return AskUseCardToCard # 这次询问（已经结完：答复读 `.card`，失败读 `.err`）
+---@return AskUseCardToCard # 这次询问（已经结完：答复读 `.card`，那次使用读 `.useCardToCard`，失败读 `.err`）
 function M:askUseCardToCard(to, reason, condition)
     local ask = moe.askUseCardToCard.create {
         game      = self,
@@ -619,6 +620,7 @@ function M:askUseCardToCard(to, reason, condition)
         condition = condition,
     }
     ask:apply():await()
+    ask:use()
     return ask
 end
 

@@ -11,12 +11,10 @@ local PLAY_PHASE_CONDITION = { zone = '手牌' }
 ---@param player Player
 local function playPhase(player)
     for _ = 1, MAX_PLAY_COUNT do
-        local ask  = game:askUseCard(player, '出牌', PLAY_PHASE_CONDITION)
-        local card = ask.card
-        if not card then
+        local ask = game:askUseCard(player, '出牌', PLAY_PHASE_CONDITION)
+        if not ask.useCard then
             return
         end
-        game:useCard(player, card, ask.targets or {})
     end
 end
 

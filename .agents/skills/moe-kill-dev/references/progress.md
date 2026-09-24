@@ -8,7 +8,7 @@
 ```
 moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属性 / 分身份）
   → game:runFlow()（回合流程：准备→判定→摸牌→出牌→弃牌→结束）
-  → 出牌阶段：game:askUseCard(player, '出牌', { zone = '手牌' })（「使用」的语义由类型携带：候选逐张跑 canUse，用不了的牌不进选项；选项带各自的可用目标）
+  → 出牌阶段：game:askUseCard(player, '出牌', { zone = '手牌' })（「使用」的语义由类型携带：候选逐张跑 canUse，用不了的牌不进选项；选项带各自的可用目标；答复到手内核直接把它用出去）
   → game:useCard（canUse 二次校验（含次数）→ 记一次账 → 取出牌 → 逐目标 CardEffect 生效）
   → 伤害 / 回复（内核只发时机，扣血 / 回血写在 @基础）
   → 濒死求桃（早于 '伤害-后'）→ 死亡 → 奖惩（先）→ 身份场胜负判定（后）→ game:endGame 收掉流程
@@ -28,7 +28,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - 对象：`Card` / `Zone` / `OrderedZone` / **`SlotZone`** / `Attributes` / `Random` / `Desk` / `Player` / `Game` / `Event` / `Phase`
 - 效果族（`core/effect/`）：`Effect` + `use-card`（含 `CardEffect`）/ **`use-card-to-card`（含 `CardEffectToCard`）** / `ask` / `ask-card` / **`ask-use-card`** / **`ask-use-card-to-card`** / **`ask-play-card`** / `move-card` / `damage` / `heal` / `draw` / `dying` / `judge`；**嵌套上限 `Effect.MAX_DEPTH = 150`**（安全阀：超了那一层以「取消」收尾 + `warn`，不算失败；实测再深进程会直接没）
-- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目；**声明了 `noTarget()` 的牌跳过两条目标判据、给了目标就不成立**）/ **`canUseToCard`（合法性 = 定义声明了 `'获取卡牌目标'` 且各声明取交集后仍认下那张目标牌；目标牌由发起方给定）** / `useCard`（**允许零目标**）/ **`useCardToCard`** / `askCard` / **`askUseCard`**（**无目标牌的选项不带 `targets`**）/ **`askUseCardToCard`** / **`askPlayCard`** / `ask` / `moveCard` / **`drawCards`** / `damage` / `heal` / `draw` / `judge` / `createCard` / `createZone` / `enterDying` / `getDying` / `endGame` / `runFlow` / `registerFlow`
+- 局上的入口：`game:canUse`（**用牌校验**：内建条目 + `'卡牌-能否使用'` 内容侧条目；**声明了 `noTarget()` 的牌跳过两条目标判据、给了目标就不成立**）/ **`canUseToCard`（合法性 = 定义声明了 `'获取卡牌目标'` 且各声明取交集后仍认下那张目标牌；目标牌由发起方给定）** / `useCard`（**允许零目标**）/ **`useCardToCard`** / `askCard` / **`askUseCard`**（**无目标牌的选项不带 `targets`；答复到手直接用出去，读 `.useCard`**）/ **`askUseCardToCard`**（同上，读 `.useCardToCard`） / **`askPlayCard`** / `ask` / `moveCard` / **`drawCards`** / `damage` / `heal` / `draw` / `judge` / `createCard` / `createZone` / `enterDying` / `getDying` / `endGame` / `runFlow` / `registerFlow`
 - **定义上的三件套**（2026-09-22；分类口径 2026-09-23 改成覆盖；**本批多两个定义项**）：`CardDef:kind(名字)` / `addKind(名字)` / `isKind` / `getKinds`（分类，内核只记录；取值省略「牌」字；**入参 `string|string[]`、一次调用定下、重复调以后写的为准**；**`addKind` 2026-09-24 补上：只往里加** —— 类基类带了分类、具体牌再补一个就用它，写 `kind` 会把基类那份覆盖掉）、`CardDef:zone(区名)` / `getZone`（**必须从哪个牌区用**，`canUse` 的内建条目；不声明 = 任一牌区都行）、`CardDef:extends(名字)`（把基类的钩子与字段**抄**过来，基类的钩子跑前面、分类也覆盖（基类没分类就不动）、抄完脱钩、支持限定名）、**`CardDef:noTarget()` / `isNoTarget()`**（不指定目标），**`CardDef:value(名字, 值)` / `getValue(名字)`**（牌自带的数据，内核只存不解释）；公共模板在 `package/@基础/卡牌/`（`基本牌` / `锦囊牌` / `装备牌` / **`武器牌`** / **`坐骑牌`** + 两个坐骑定义 **`进攻马` / `防御马`** —— `装备牌` 负责「结算后置入装备区」，类别定义各自用 `'进入区域'` 钩子把数据写进属性；两种马功能一模一样，所以共性（钩子与那两条分类）写在 `坐骑牌`，**逐张不变的距离修正也写在这两个定义上**，具体马一条 `: extends '进攻马'` 就够、连数据都不用写），【杀】用 `: extends '基本牌'`
 - **装备与距离（2026-09-24，`add-equipment`；当天改成类别基类带钩子）**：① **槽位区 `SlotZone`**（`moe.slotZone.create(局)`）—— `slots` / `setSlots` / `getSlot`（懒校验：牌被别的路径取走就地失效）/ `putInto(槽位名, 牌)`（同槽旧牌**内核同步送那个局的 `弃牌`**，不经 `MoveCard`）/ `slotOf(牌)`（哪个槽里，`@protected`）；**槽位名由内容侧设**（`@基础/装备.lua` 在 `'游戏-开始'` 里遍历每个玩家的装备区 `setSlots` —— 内核只把 `装备` 区建成**空槽位区**）；② **`Card:withZone(撤销函数)`**（牌上懒建的私有容器 `zoneGCHost`，`bindZone` 发现区真变了就 `Delete` 掉 ⇒ **牌一离开那个区自动撤销**，不需要新时机、也不需要「卸下」）；③ **`Attributes:addModifier(名字, 增量)` ⇒ 撤销函数**（精确减掉这次加的量；**内容侧直接用 `player:addAttr(名字, 增减)` —— 它就是同一条，不用再绕 `getAttributes()`**）；④ 内容侧：**加成改由类别基类的 `'进入区域'` 钩子加**（`@基础/卡牌/武器牌.lua` / `坐骑牌.lua` —— 原来那个全局 `equip(玩家, 牌)` 已删），`@基础/距离.lua` 的 `distance(from, to)` = 座位距离 + 自己的 `进攻修正` + 对方的 `防御修正`（最小 1），`@基础/卡牌/装备牌.lua` 在 `'结算后'` 里按分类找槽位。**验证：`--test rule.equip`（用例一行没改、依旧全绿 ⇒ 行为等价）；过河拆桥 / 顺手牵羊 / 奖惩一行不用改（修正自动撤）**
 
@@ -72,7 +72,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 ## 3 用户已表态、还没做的方向
 
 - ~~**`'对卡牌生效'` 的声明形状**~~ —— **已实施（2026-09-24）**：改成 `'获取卡牌目标'`（载荷 `CardDef.CardTargetPlan`：`targets` = 发起方要对的那批牌；**返回你认下的那批** `Card[]`，内核取交集、发起方那张不在里面就不能用），`'对卡牌生效'` 删除、`CardEffectToCard` 不再跑内容钩子（只作身份与处理区归属者）。两个钩子的载荷同形 —— 参数都叫 `plan`、字段都叫 `targets`（角色支 `CardDef.TargetPlan` 是 `Player[]`、牌支 `CardDef.CardTargetPlan` 是 `Card[]`）。
-- **`askUse*` 成功后自动接上 `useCard*`**（用户 2026-09-24 提，**待定**）：用户问「askUse 成功后能不能自动 use」。现在**三个**调点都是两步手写：`@基础/回合.lua` 出牌阶段（`askUseCard` → `useCard(player, ask.card, ask.targets or {})`）、`标准/卡牌/借刀杀人.lua`（同样两步）、`@基础/濒死.lua`（`askUseCard` 的 `.card` → `useCard(current, card, { player })`）。**要定的**：自动接在哪一层（询问实例上一个「交出即用出去」的读法，还是在 `game:askUseCard` 之外再给一个组合入口）；**没答上 / 被拒收**（`.err`）时怎么回报（别把「没答」变成一次失败的使用，或反过来把「用不了」吞掉）；「使用一张牌」与「打出一张牌」两类**不能混**（`askPlayCard` 的牌是交进处理区、不是使用）；另外 `useCard` 会对答复**再校验一次** `canUse`（答复在选项里已经过一次）。
+- ~~**`askUse*` 成功后自动接上 `useCard*`**~~ —— **已实施（2026-09-24）**：两个 `askUse*` 入口在询问结完后**直接把它用出去**（`AskUseCard:use()` / `AskUseCardToCard:use()`，幂等、只发一次），那次使用记在询问上（`ask.useCard` / `ask.useCardToCard`，没答复 ⇒ 空、不发起使用）。四个调用点改成读这个字段（出牌阶段 / 借刀杀人 / 濒死求桃 / 无懈窗口）。「打出的牌」那一类不受影响（`askPlayCard` 上是没有这个方法的）。
 - **询问家族**：将来加 `timeout` 与 `askSkill`，**timeout 与答复做 race**。`Ask`（通用决策询问，答复是 `any`）现在只剩弃牌阶段在用，用户认为它"意义不明" —— 等那批到位再谈去留（**不要擅自删**）。
 - **回合时限**：真游戏靠它兜住"玩家不答"与"误选"，还没实现。用户给的形状：
 

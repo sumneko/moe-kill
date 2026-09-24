@@ -146,3 +146,20 @@ lt.test('要对牌使用：缘由与被问者原样带到应答方', function ()
     lt.assertEquals('缘由原样带到', '没声明牌', assert(seen).reason)
     lt.assertEquals('答复收下', usable, ask.card)
 end)
+
+lt.test('要对牌使用：答复到手就自动用出去，那次使用记在询问上', function ()
+    local game, players = newGame(3)
+    local usable = game:createCard('抵消牌')
+    putInHand(players[1], { usable })
+    local target = game:createCard('没声明牌')
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = usable }
+    end)
+
+    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
+
+    local useCard = assert(ask.useCardToCard, '入口应该把它用出去')
+    lt.assertEquals('就是一次对牌使用', 'useCardToCard', useCard.kind)
+    lt.assertEquals('对的就是那张目标牌', target, useCard.targetCard)
+    lt.assertEquals('牌已经离开手牌', 0, assert(players[1]:getZone('手牌')):count())
+end)

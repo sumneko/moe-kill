@@ -49,9 +49,8 @@ Card '借刀杀人'
         end
 
         if chosen then
-            local use = game:askUseCard(holder, '借刀杀人', { name = '杀', target = chosen })
-            if use.card then
-                game:useCard(holder, use.card, use.targets or {})
+            local ask = game:askUseCard(holder, '借刀杀人', { name = '杀', target = chosen })
+            if ask.useCard then
                 return
             end
         end

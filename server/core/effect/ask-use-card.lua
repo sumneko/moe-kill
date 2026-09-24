@@ -22,6 +22,7 @@ require 'core.effect.ask-card'
 ---@class AskUseCard : AskCard
 ---@field condition? AskUseCard.Condition # 要什么样的牌（比基类多一条 target）
 ---@field targets? Player[] # 答复指定的目标（= `.result.targets`；无目标牌是「不存在」）
+---@field useCard? UseCard # 把这次答复用出去得到的那次使用（没答复 / 还没用过就是空）
 local M = Class 'AskUseCard'
 
 Extends('AskUseCard', 'AskCard')
@@ -77,6 +78,21 @@ end
 ---@return Player[]?
 M.__getter.targets = function (self)
     return self.result?.targets
+end
+
+--- 把答复的牌用出去（没有答复就什么都不做；重复调给的是同一次）
+---@async
+---@return UseCard? # 那次使用（没答复就是空；用不出去时读它的 `.err`）
+function M:use()
+    if self.useCard then
+        return self.useCard
+    end
+    local card = self.card
+    if not card then
+        return nil
+    end
+    self.useCard = self.game:useCard(self.to, card, self.targets)
+    return self.useCard
 end
 
 ---@class AskUseCard.API
