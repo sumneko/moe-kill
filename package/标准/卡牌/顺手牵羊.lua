@@ -15,8 +15,8 @@ end
 
 Card '顺手牵羊'
     : extends '锦囊牌'
-    : on('获取目标', function (target)
-        local user = target.user
+    : on('获取目标', function (plan)
+        local user = plan.user
         return table.filter(game.desk.alivePlayers, function (player)
             return player ~= user
                 and hasCard(player)

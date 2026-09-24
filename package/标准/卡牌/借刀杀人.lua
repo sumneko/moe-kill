@@ -27,9 +27,9 @@ end
 
 Card '借刀杀人'
     : extends '锦囊牌'
-    : on('获取目标', function (target)
+    : on('获取目标', function (plan)
         return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= target.user
+            return player ~= plan.user
                 and weaponOf(player) ~= nil
                 and #reachable(player) > 0
         end)

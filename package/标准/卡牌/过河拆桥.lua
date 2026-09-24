@@ -15,9 +15,9 @@ end
 
 Card '过河拆桥'
     : extends '锦囊牌'
-    : on('获取目标', function (target)
+    : on('获取目标', function (plan)
         return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= target.user and hasCard(player)
+            return player ~= plan.user and hasCard(player)
         end)
     end)
     : on('生效', function (cardEffect)

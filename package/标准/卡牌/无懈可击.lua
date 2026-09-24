@@ -14,11 +14,8 @@ end
 --- 声明「获取卡牌目标」= 它能被「对一张牌使用」（真抵消由下面那个窗口回报给内核）
 Card '无懈可击'
     : extends '锦囊牌'
-    : on('获取卡牌目标', function (target)
-        local card = target.target
-        if card and canNullify(card) then
-            return card
-        end
+    : on('获取卡牌目标', function (plan)
+        return table.filter(plan.targets, canNullify)
     end)
 
 --- 问一圈：有没有人对这张牌使用【无懈可击】

@@ -759,7 +759,7 @@ local function collectLegalTargets(def, user, card, targets)
     if #handlers == 0 then
         return nil, '「{}」没有声明「获取目标」，现在用不了' % { def.fullName }
     end
-    ---@type CardDef.Target
+    ---@type CardDef.TargetPlan
     local ctx = {
         user = user,
         card = card,
@@ -890,12 +890,19 @@ function M:canUseToCard(user, card, targetCard)
         return false, '「{}」没有声明「获取卡牌目标」，不能对牌使用' % { def.fullName }
     end
     if targetCard then
-        ---@type CardDef.Target
-        local ctx = { user = user, card = card, target = targetCard }
+        ---@type CardDef.CardTargetPlan
+        local ctx = { user = user, card = card, targets = { targetCard } }
+        ---@type Card[][]
+        local lists = {}
         for _, handler in ipairs(handlers) do
-            if not handler(ctx) then
-                return false, '「{}」不能对这张牌使用' % { def.fullName }
+            local list = handler(ctx)
+            if type(list) ~= 'table' then
+                return false, '「{}」的「获取卡牌目标」必须返回合法目标列表' % { def.fullName }
             end
+            lists[#lists + 1] = list
+        end
+        if not moe.util.arrayHas(moe.util.arrayIntersect(lists), targetCard) then
+            return false, '「{}」不能对这张牌使用' % { def.fullName }
         end
     end
 

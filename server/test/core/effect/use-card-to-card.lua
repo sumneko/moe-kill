@@ -10,19 +10,18 @@ do
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '抵消牌'
-    : on('获取卡牌目标', function (target)
-        return target.target
+    : on('获取卡牌目标', function (plan)
+        return plan.targets
     end)
 Card '受检牌'
-    : on('获取卡牌目标', function (target)
-        return target.target
+    : on('获取卡牌目标', function (plan)
+        return plan.targets
     end)
 Card '挑目标牌'
-    : on('获取卡牌目标', function (target)
-        local card = target.target
-        if card and card.name == '受检牌' then
-            return card
-        end
+    : on('获取卡牌目标', function (plan)
+        return table.filter(plan.targets, function (card)
+            return card.name == '受检牌'
+        end)
     end)
 Card '没声明牌'
 ]])

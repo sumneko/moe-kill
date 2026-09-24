@@ -4,7 +4,7 @@
 
 Card '五谷丰登'
     : extends '锦囊牌'
-    : on('获取目标', function (target)
+    : on('获取目标', function (plan)
         return game.desk.alivePlayers
     end)
     : on('结算前', function (useCard)

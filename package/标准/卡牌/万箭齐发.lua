@@ -3,9 +3,9 @@
 
 Card '万箭齐发'
     : extends '锦囊牌'
-    : on('获取目标', function (target)
+    : on('获取目标', function (plan)
         return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= target.user
+            return player ~= plan.user
         end)
     end)
     : on('生效', function (cardEffect)

@@ -3,7 +3,7 @@
 
 Card '桃园结义'
     : extends '锦囊牌'
-    : on('获取目标', function (target)
+    : on('获取目标', function (plan)
         return game.desk.alivePlayers
     end)
     : on('生效', function (cardEffect)

@@ -4,12 +4,12 @@
 Card '杀'
     : extends '基本牌'
     : limit('出牌', 1)
-    : on('获取目标', function (target)
+    : on('获取目标', function (plan)
         local desk  = game.desk
-        local range = target.user:getAttr('攻击范围')
+        local range = plan.user:getAttr('攻击范围')
         return table.filter(desk.alivePlayers, function (player)
-            return player ~= target.user
-               and distance(target.user, player) <= range
+            return player ~= plan.user
+               and distance(plan.user, player) <= range
         end)
     end)
     : on('生效', function (cardEffect)

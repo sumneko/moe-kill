@@ -3,8 +3,8 @@
 
 Card '桃'
     : extends '基本牌'
-    : on('获取目标', function (target)
-        local user = target.user
+    : on('获取目标', function (plan)
+        local user = plan.user
         ---@type Player[]
         local targets = {}
         if user:getAttr('体力') > 0 and user:getAttr('体力') < user:getAttr('体力上限') then
