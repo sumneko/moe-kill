@@ -28,34 +28,38 @@ function M:__init(game, attributes, name)
     self:addZone('判定')
 end
 
----@return Attributes
+---@return Attributes # 他的属性实例
 function M:getAttributes()
     return self.attributes
 end
 
+--- 写入一个属性
 ---@param name string
 ---@param value number
 function M:setAttr(name, value)
     self.attributes:set(name, value)
 end
 
+--- 读一个属性
 ---@param name string
 ---@return number
 function M:getAttr(name)
     return self.attributes:get(name)
 end
 
+--- 增减一个属性
 ---@param name string
 ---@param value number
 function M:addAttr(name, value)
     self.attributes:add(name, value)
 end
 
----@return string?
+---@return string? # 名字（建玩家时可以不给）
 function M:getName()
     return self.name
 end
 
+--- 加一个牌区（返回撤销这次添加的函数）
 ---@param name string
 ---@param zone? Zone # 省略时新建一个普通牌区
 ---@return function # 撤销这次添加（移除该牌区）
@@ -96,7 +100,7 @@ function M:getZone(name)
     return self.zoneMap[name]
 end
 
----@return Zone[] # 按加入顺序
+---@return Zone[] # 他身上的牌区（按加入顺序）
 function M:getZones()
     ---@type Zone[]
     local zones = {}
@@ -104,6 +108,7 @@ function M:getZones()
     return zones
 end
 
+--- 这张牌在他哪个牌区里、第几位
 ---@param card Card
 ---@return Zone? # 这张牌所在的牌区
 ---@return integer? # 牌在牌区里的位置
@@ -152,6 +157,7 @@ function M:isAlive()
     return self.alive
 end
 
+--- 置存活状态（从活变死会触发「玩家-死亡」）
 ---@param value boolean
 function M:setAlive(value)
     local alive = value and true or false
@@ -167,6 +173,7 @@ end
 ---@class Player.API
 moe.player = {}
 
+--- 建一个玩家
 ---@param game Game
 ---@param options Player.CreateOptions
 ---@return Player

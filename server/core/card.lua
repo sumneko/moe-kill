@@ -1,6 +1,6 @@
 ---@class Card
----@field private id integer
----@field private label? any
+---@field private id integer # 号（这一局发的）
+---@field private label? any # 牌名
 ---@field suit? string # 花色
 ---@field point? integer # 点数（1..13）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
@@ -18,17 +18,18 @@ function M:__init(label, id, suit, point)
     self.point = point
 end
 
----@return integer
+---@return integer # 牌的号（这一局发的）
 function M:getId()
     return self.id
 end
 
----@return any
+---@return any # 牌名
 function M:getLabel()
     return self.label
 end
 
----@param label? any
+--- 改这张牌的牌名
+---@param label? any # 新牌名
 function M:setLabel(label)
     self.label = label
 end
@@ -67,7 +68,8 @@ end
 ---@class Card.API
 moe.card = {}
 
----@param label? any
+--- 建一张牌
+---@param label? any # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数

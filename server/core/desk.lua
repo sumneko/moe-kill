@@ -12,11 +12,12 @@ function M:__init(game, count)
     self.count = count
 end
 
----@return integer
+---@return integer # 总共几个座位
 function M:getCount()
     return self.count
 end
 
+--- 让某个玩家坐到某个座位上
 ---@param index integer
 ---@param player Player
 function M:sit(index, player)
@@ -29,6 +30,7 @@ function M:sit(index, player)
     self.seats[index] = player
 end
 
+--- 这个座位上坐着谁
 ---@param index integer
 ---@return Player?
 function M:getPlayer(index)
@@ -67,6 +69,7 @@ M.__getter.alivePlayers = function (self)
     return players
 end
 
+--- 他坐在几号位
 ---@param player Player
 ---@return integer?
 function M:getIndex(player)
@@ -78,6 +81,7 @@ function M:getIndex(player)
     return nil
 end
 
+--- 下一个参与行动的人
 ---@param player Player
 ---@return Player? # 下一个参与行动的玩家，没有则返回「不存在」
 function M:getNext(player)
@@ -95,6 +99,7 @@ function M:getNext(player)
     return nil
 end
 
+--- 按行动顺序依次给出下一个角色（迭代器）
 ---@param allowed Player[]? # 允许参与的角色，不传表示都允许
 ---@param from Player? # 从谁开始，不传表示从顺序锚点开始（当前回合角色，回合结束后是上一个）
 ---@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
@@ -133,6 +138,7 @@ function M:actionOrder(allowed, from)
     end
 end
 
+--- 两个座位的距离
 ---@param from Player
 ---@param to Player
 ---@return integer # 两个方向取较小值，最小为 1
@@ -153,6 +159,7 @@ end
 ---@class Desk.API
 moe.desk = {}
 
+--- 建一张桌子
 ---@param game Game
 ---@param count integer
 ---@return Desk

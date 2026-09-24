@@ -36,12 +36,15 @@ function M:__init()
     self.visible = true
 end
 
+--- 没启用这个牌区就报错
+---@param action string # 要做什么（拼进报错里）
 function M:checkEnabled(action)
     if not self.enabled then
         error('牌区已被禁用，无法{}' % { action }, 3)
     end
 end
 
+--- 序号超出范围就报错
 ---@param index integer
 function M:checkIndex(index)
     assert(math.type(index) == 'integer', '牌的序号必须是整数')
@@ -50,6 +53,7 @@ function M:checkIndex(index)
     end
 end
 
+--- 放一张牌进来（已经在别的牌区里的牌要用 `move`）
 ---@param card Card
 ---@return Card
 function M:put(card)
@@ -62,6 +66,7 @@ function M:put(card)
     return card
 end
 
+--- 取出第几张（取出来后不在任何牌区里）
 ---@param index integer
 ---@return Card
 function M:take(index)
@@ -72,6 +77,7 @@ function M:take(index)
     return card
 end
 
+--- 这张牌在第几位
 ---@private
 ---@param card Card
 ---@return integer?
@@ -84,6 +90,7 @@ function M:indexOf(card)
     return nil
 end
 
+--- 把一张牌挪到另一个牌区（可以先直接给目标区对象）
 ---@param card Card
 ---@param to Zone
 ---@param position? integer
@@ -106,6 +113,7 @@ function M:move(card, to, position)
     return card
 end
 
+--- 看第几张（不取出来）
 ---@param index integer
 ---@return Card
 function M:peek(index)
@@ -113,17 +121,18 @@ function M:peek(index)
     return self.cards[index]
 end
 
----@return integer
+---@return integer # 里面几张牌
 function M:count()
     return #self.cards
 end
 
----@return Card[]
+---@return Card[] # 快照（改它不影响牌区）
 function M:list()
     local snapshot = {}
     return table.move(self.cards, 1, #self.cards, 1, snapshot)
 end
 
+--- 清空整个牌区（返回被清掉几张）
 ---@return integer
 function M:clear()
     self:checkEnabled('清空牌区')
@@ -135,6 +144,7 @@ function M:clear()
     return count
 end
 
+--- 禁用这个牌区（不能放进 / 取出 / 清空；重复禁用返回 false）
 ---@return boolean
 function M:disable()
     if not self.enabled then
@@ -144,6 +154,7 @@ function M:disable()
     return true
 end
 
+--- 重新启用这个牌区（重复启用返回 false）
 ---@return boolean
 function M:enable()
     if self.enabled then
@@ -153,7 +164,7 @@ function M:enable()
     return true
 end
 
----@return boolean
+---@return boolean # 现在能不能放进 / 取出
 function M:isEnabled()
     return self.enabled
 end
@@ -180,6 +191,7 @@ end
 ---@class Zone.API
 moe.zone = {}
 
+--- 建一个牌区
 ---@return Zone
 function moe.zone.create()
     return New 'Zone' ()

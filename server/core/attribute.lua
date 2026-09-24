@@ -18,6 +18,7 @@ function System:__init()
     self.system = attribute.create()
 end
 
+--- 定义一个属性（加载期声明；建过实例之后不能再定义）
 ---@param name string
 ---@param spec? AttributeSpec
 ---@return AttributeSystem
@@ -28,11 +29,12 @@ function System:define(name, spec)
 end
 
 ---@param customData? any
----@return Attributes
+---@return Attributes # 一个玩家的属性实例
 function System:createInstance(customData)
     return New 'Attributes' (self.system, self.system:instance(customData))
 end
 
+--- 把改动的通知分发出去
 function System:updateEvents()
     self.system:updateEvent()
 end
@@ -44,24 +46,28 @@ function Attributes:__init(system, instance)
     self.instance = instance
 end
 
+--- 读一个属性
 ---@param name string
 ---@return number
 function Attributes:get(name)
     return self.instance:get(name)
 end
 
+--- 读一个属性的下限
 ---@param name string
 ---@return number
 function Attributes:getMin(name)
     return self.instance:getMin(name)
 end
 
+--- 读一个属性的上限
 ---@param name string
 ---@return number
 function Attributes:getMax(name)
     return self.instance:getMax(name)
 end
 
+--- 写入一个属性
 ---@param name string
 ---@param value number
 function Attributes:set(name, value)
@@ -69,6 +75,7 @@ function Attributes:set(name, value)
     self.system:updateEvent()
 end
 
+--- 增减一个属性
 ---@param name string
 ---@param value number
 function Attributes:add(name, value)
@@ -92,6 +99,7 @@ function Attributes:addModifier(name, delta)
     end
 end
 
+--- 订阅某个属性的改动
 ---@param name string
 ---@param callback Attribute.EventCallback
 ---@return fun()
@@ -102,6 +110,7 @@ end
 ---@class AttributeSystem.API
 moe.attribute = {}
 
+--- 建一套属性系统（一局一份）
 ---@return AttributeSystem
 function moe.attribute.create()
     return New 'AttributeSystem' ()

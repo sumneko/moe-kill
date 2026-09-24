@@ -13,6 +13,7 @@ function M:__init(random)
     self.random = random
 end
 
+--- 取区顶那张
 ---@return Card
 function M:takeTop()
     return self:take(1)
@@ -43,6 +44,7 @@ function M:setShortageHandler(handler)
     self.shortage = handler
 end
 
+--- 就地洗牌
 ---@param random? Random # 省略时用创建时绑定的随机源
 ---@return OrderedZone
 function M:shuffle(random)
@@ -58,6 +60,7 @@ end
 ---@class OrderedZone.API
 moe.orderedZone = {}
 
+--- 建一个有序牌区
 ---@param random? Random
 ---@return OrderedZone
 function moe.orderedZone.create(random)

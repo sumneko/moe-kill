@@ -19,6 +19,7 @@ function M:__init(game, player, name)
     self.limitDeltas = {}
 end
 
+--- 挂一个标签（内容侧自己解释）
 ---@param key string
 ---@param value any
 function M:setTag(key, value)
@@ -28,12 +29,14 @@ function M:setTag(key, value)
     self.tags[key] = value
 end
 
+--- 读一个标签
 ---@param key string
 ---@return any
 function M:getTag(key)
     return self.tags[key]
 end
 
+--- 去掉一个标签
 ---@param key string
 function M:removeTag(key)
     self.tags[key] = nil

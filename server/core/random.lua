@@ -45,6 +45,7 @@ function M:__init(seed)
     self.state = state
 end
 
+--- 区间内的随机整数（两端都含）
 ---@param min integer
 ---@param max integer
 ---@return integer
@@ -72,6 +73,7 @@ function M:nextInt(min, max)
     return min + value
 end
 
+--- 从序列里随机挑一个
 ---@generic T
 ---@param list T[]
 ---@return T
@@ -80,6 +82,7 @@ function M:pick(list)
     return list[self:nextInt(1, #list)]
 end
 
+--- 就地洗牌
 ---@generic T
 ---@param list T[]
 ---@return T[]
@@ -94,6 +97,7 @@ end
 ---@class Random.API
 moe.random = {}
 
+--- 建一个随机源（同种子出同序列）
 ---@param seed integer
 ---@return Random
 function moe.random.create(seed)

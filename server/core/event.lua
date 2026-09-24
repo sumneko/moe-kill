@@ -6,6 +6,7 @@ function M:__init()
     self.events = {}
 end
 
+--- 订阅一个时机
 ---@param name string
 ---@param callback fun(...)
 ---@return function # 撤销这次注册
@@ -18,6 +19,7 @@ function M:on(name, callback)
     return instance:on(callback)
 end
 
+--- 触发一个时机
 ---@param name string
 ---@param ... any
 ---@return any # 第一个回调明确给出的返回值（快速返回）；没人给就是空
@@ -32,7 +34,7 @@ function M:fire(name, ...)
 end
 
 ---@param name string
----@return boolean
+---@return boolean # 这个时机有人订阅吗
 function M:has(name)
     return self.events[name] ~= nil
 end
@@ -48,6 +50,7 @@ function M:getNames()
     return names
 end
 
+--- 清掉所有订阅
 function M:clear()
     self.events = {}
 end
@@ -55,6 +58,7 @@ end
 ---@class Event.API
 moe.event = {}
 
+--- 建一个时机表
 ---@return Event
 function moe.event.create()
     return New 'Event' ()

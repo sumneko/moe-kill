@@ -33,6 +33,7 @@ function CardDef:__init(game, name, owner, source)
     self.values   = {}
 end
 
+--- 登记这张牌的一个钩子
 ---@param event string
 ---@param handler function
 ---@return CardDef
@@ -47,7 +48,7 @@ function CardDef:on(event, handler)
 end
 
 ---@param event string
----@return function[]
+---@return function[] # 这个钩子上的所有回调（快照）
 function CardDef:getHandlers(event)
     ---@type function[]
     local snapshot = {}
@@ -296,6 +297,7 @@ function M:__init(seats, random)
     self:resetContent()
 end
 
+--- 清空这一局的规则内容（重装规则集时用）
 function M:resetContent()
     self.cards       = {}
     self.packages    = {}
@@ -309,12 +311,13 @@ function M:resetContent()
     self.events:clear()
 end
 
----@return AttributeSystem
+---@return AttributeSystem # 这一局的属性系统（没建过就现建）
 function M:getAttributeSystem()
     self.attributeSystem = self.attributeSystem or moe.attribute.create()
     return self.attributeSystem
 end
 
+--- 设一条规则数值
 ---@param name string
 ---@param value any
 function M:setValue(name, value)
@@ -324,6 +327,7 @@ function M:setValue(name, value)
     self.values[name] = value
 end
 
+--- 一次设一批规则数值
 ---@param values table<string, any>
 function M:setValues(values)
     if type(values) ~= 'table' then
@@ -334,6 +338,7 @@ function M:setValues(values)
     end
 end
 
+--- 读一条规则数值
 ---@param name string
 ---@return any # 没设置过就是「不存在」
 function M:getValue(name)
@@ -343,7 +348,7 @@ function M:getValue(name)
     return self.values[name]
 end
 
----@return table<string, any>
+---@return table<string, any> # 规则数值快照
 function M:getValues()
     ---@type table<string, any>
     local result = {}
@@ -353,6 +358,7 @@ function M:getValues()
     return result
 end
 
+--- 订阅一个时机
 ---@param name string
 ---@param callback fun(context: table)
 ---@return function # 撤销这次注册
@@ -366,6 +372,7 @@ function M:on(name, callback)
     return self.events:on(name, callback)
 end
 
+--- 触发一个时机
 ---@param name string
 ---@param ... any
 ---@return any # 第一个回调明确给出的返回值（快速返回）；没人给就是空
@@ -412,6 +419,7 @@ function M:getUsePhase(user)
     end
 end
 
+--- 声明一张牌（只能写在加载期加载的那个包里）
 ---@param name string
 ---@return CardDef
 function M:declareCard(name)
@@ -440,7 +448,7 @@ function M:declareCard(name)
 end
 
 ---@param name string
----@return CardDef?
+---@return CardDef? # 按名字找内容定义
 function M:getCard(name)
     local owner, entry = splitName(name)
     if owner then
@@ -467,7 +475,7 @@ function M:getCard(name)
 end
 
 ---@param name string
----@return Loader.PackageMeta?
+---@return Loader.PackageMeta? # 这个包的元信息
 function M:getPackageMeta(name)
     local meta = self.meta[name]
     if not meta then
@@ -476,7 +484,7 @@ function M:getPackageMeta(name)
     return copyMeta(meta)
 end
 
----@return table<string, Loader.PackageMeta>
+---@return table<string, Loader.PackageMeta> # 所有包的元信息
 function M:getMetas()
     ---@type table<string, Loader.PackageMeta>
     local result = {}
@@ -486,6 +494,7 @@ function M:getMetas()
     return result
 end
 
+--- 局上再建一个公共牌区
 ---@overload fun(self: Game, name: string, ordered: true): OrderedZone
 ---@param name string
 ---@param ordered? boolean # 需要有顺序能力（抽牌 / 弃牌之类）时传 true
@@ -539,6 +548,7 @@ function M:createCard(name, suit, point)
     return moe.card.create(name, self:nextId(), suit, point)
 end
 
+--- 要一张牌
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
@@ -622,6 +632,7 @@ function M:moveCard(card, zone)
     return effect
 end
 
+--- 造成一次伤害
 ---@async
 ---@param from Player # 伤害来源
 ---@param to Player # 承受者
@@ -638,6 +649,7 @@ function M:damage(from, to, amount)
     return damage
 end
 
+--- 回复一次体力
 ---@async
 ---@param to Player # 谁回复体力
 ---@param amount integer # 点数
@@ -652,6 +664,7 @@ function M:heal(to, amount)
     return heal
 end
 
+--- 摸一次牌
 ---@async
 ---@param player Player # 谁摸牌（已阵亡的不摸）
 ---@param count integer # 摸几张
@@ -680,6 +693,7 @@ function M:drawCards(player, count, to)
     return cards
 end
 
+--- 让某个人判定
 ---@async
 ---@param player Player # 谁的判定
 ---@param reason? string # 为什么判（内容由发起方定）
@@ -826,6 +840,7 @@ function M:useCard(user, card, targets)
     return effect
 end
 
+--- 记一条根效果（只有内核自己用）
 ---@param effect Effect
 function M:addEffect(effect)
     self.effects[#self.effects + 1] = effect
@@ -910,7 +925,7 @@ function M:runFlow()
     return task
 end
 
--- 这一局的结果（还没结束就是「不存在」）
+--- 这一局的结果（还没结束就是「不存在」）
 ---@return Game.Result?
 function M:getResult()
     return self.result
@@ -930,6 +945,7 @@ end
 ---@class Game.API
 moe.game = {}
 
+--- 建一局（建完就把规则集装好）
 ---@param options Game.CreateOptions
 ---@return Game
 function moe.game.create(options)
