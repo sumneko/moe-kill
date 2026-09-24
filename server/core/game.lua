@@ -759,8 +759,7 @@ function M:canUse(user, card, targets)
         return false, '「{}」只能从「{}」里用' % { def.fullName, useZone }
     end
 
-    -- ② 目标配不配（与牌本身能不能用无关；给了目标才判）：无目标牌给了非空目标就是不成立；
-    -- 有目标牌要给出非空、且落在合法目标里的目标
+    -- 目标：给了目标才判（无目标牌给了非空目标就是不成立）
     ---@type Player[]? # 调用方给的目标（没给 = 不判目标这条）
     local list = nil
     ---@type Player[]? # 能用时的合法目标（无目标牌没有）
@@ -791,7 +790,7 @@ function M:canUse(user, card, targets)
         end
     end
 
-    -- 牌本身（接着判）：次数用满没有
+    -- 次数用满没有
     local phase = self:getUsePhase(user)
     if phase then
         local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
@@ -800,7 +799,7 @@ function M:canUse(user, card, targets)
         end
     end
 
-    -- 牌本身（再接着判）：内容侧有没有异议
+    -- 内容侧有没有异议
     local refusal = self:fire('卡牌-能否使用', { user = user, card = card, targets = list })
     if refusal ~= nil then
         if refusal == false then
