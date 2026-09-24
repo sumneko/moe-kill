@@ -4,4 +4,4 @@
 
 Card '麒麟弓'
     : extends '武器牌'
-    : value('攻击范围', 4)
+    : value('攻击范围', 5)

@@ -4,4 +4,4 @@
 
 Card '青紅剑'
     : extends '武器牌'
-    : value('攻击范围', 1)
+    : value('攻击范围', 2)

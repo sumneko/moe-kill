@@ -176,7 +176,7 @@ lt.test('装备：牌表里 14 张装备都定义好了，各自进对了槽', f
 
     ---@class Test.EquipExpect
     ---@field slot string # 该进的槽位名
-    ---@field range? integer # 官方攻击范围（数据存的是在默认 1 之上的增量）
+    ---@field range? integer # 官方攻击范围（牌上写的就是这个值）
     ---@field delta? integer # 距离修正
 
     ---@type table<string, Test.EquipExpect>
@@ -212,7 +212,7 @@ lt.test('装备：牌表里 14 张装备都定义好了，各自进对了槽', f
         lt.assertEquals(name .. '：是装备', true, def:isKind('装备'))
         lt.assertEquals(name .. '：分类里有槽位名（内核按它找槽）', true, def:isKind(want.slot))
         if want.range then
-            lt.assertEquals(name .. '：攻击范围增量', want.range - 1, def:getValue('攻击范围'))
+            lt.assertEquals(name .. '：攻击范围与描述一致', want.range, def:getValue('攻击范围'))
         end
         if want.delta then
             lt.assertEquals(name .. '：距离修正', want.delta, def:getValue('距离修正'))

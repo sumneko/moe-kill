@@ -4,4 +4,4 @@
 
 Card '贯石斧'
     : extends '武器牌'
-    : value('攻击范围', 2)
+    : value('攻击范围', 3)
