@@ -205,11 +205,11 @@ end
 
 | 读法 | 用在哪 | 例子 |
 | ---- | ---- | ---- |
-| **字段** | 存下来的数据 | `card.suit` / `card.point`、`game.desk`、`player.game` |
-| **`__getter`** | 算出来的（每次现算，不缓存） | `desk.players`、`desk.alivePlayers`、`player.acting` |
+| **字段** | 存下来的数据 | `card.name` / `card.suit` / `card.point`、`game.desk`、`player.game` |
+| **`__getter`** | 算出来的（每次现算，不缓存） | `desk.players`、`desk.alivePlayers`、`player.acting`、`card.fullName` |
 | **`getXxx(参数)`** | 要传参的读取 | `player:getAttr('体力')`、`game:getZone('抽牌')`、`attrs:get(name)` |
 
-- 理由：`player:getAttr('体力')` 与方法（会做事的东西）一眼可分；而 `card:getLabel()` 这种**没有参数**的方法，读起来像「可能要做点什么」，实际只是取个字段 —— 调用方平白多一层，也让人误以为背后有逻辑。**算出来的值**用 `__getter` 的好处是：调用方不必知道「这是存的还是算的」（`desk.players` 与 `desk.alivePlayers` 读法一致），将来把字段改成派生（或反过来）**调用点一行不改**。
+- 理由：`player:getAttr('体力')` 与方法（会做事的东西）一眼可分；而 `card:getId()` 这种**没有参数**的方法，读起来像「可能要做点什么」，实际只是取个字段 —— 调用方平白多一层，也让人误以为背后有逻辑。**算出来的值**用 `__getter` 的好处是：调用方不必知道「这是存的还是算的」（`desk.players` 与 `desk.alivePlayers` 读法一致），将来把字段改成派生（或反过来）**调用点一行不改**。
 - **不缓存派生值**：`__getter` 每次现算（`desk.alivePlayers` 就是这么做的，理由见 `architecture.md` 第 12 节 —— 局的事件表每次装载都清空，挂在它上面的内核缓存会静默失效）。
-- **存量不动**：已经有的一批无参 `getXxx()`（`Card:getLabel` / `getId`、`Game:getResult` / `getEffects` / `getZones`、`Player:getZones` …）**不主动清理**（改它们是纯噪音改动、还会碰到别人的代码）；顺手遇到相关代码时再单独提。
+- **存量不动**：已经有的一批无参 `getXxx()`（`Card:getId`、`Game:getResult` / `getEffects` / `getZones`、`Player:getZones` …）**不主动清理**（改它们是纯噪音改动、还会碰到别人的代码）；顺手遇到相关代码时再单独提。**例外**：`Card:getLabel` / `setLabel` 已经在 2026-09-24 的顺手清理里去掉了 —— 牌名改成公开字段 `card.name`（写用 `setName`），与 `card.suit` / `card.point` 一致；`CardDef` 上本来就叫 `name`，两边现在同名。
 - 边界：**这不是「字段都公开」**—— 需要封装的（如 `Zone` 内部的 `cards`、`Game` 内部的 `events`）照样用 `private` + 方法；本节的只是「**只读、无参**」这类接口的形状选择。

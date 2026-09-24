@@ -35,7 +35,7 @@ function M:settle()
         self:reject(reason)
     end
 
-    local name = self.card:getLabel()
+    local name = self.card.name
     ---@cast name string
     local phase = self.game:getUsePhase(self.user)
     if phase then

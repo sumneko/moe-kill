@@ -277,7 +277,7 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
                 ---@type string[]
                 local names = {}
                 for _, option in ipairs(assert(ask.options)) do
-                    names[#names + 1] = assert(option.card:getLabel())
+                    names[#names + 1] = assert(option.card.name)
                 end
                 offered[#offered + 1] = table.concat(names, ',')
             end)

@@ -11,7 +11,7 @@
 ## 2. 内容：【无懈可击】
 
 - [x] 2.1 `package/标准/卡牌/无懈可击.lua`（新）：顶部写官方描述（使用时机 / 使用目标 / 作用效果）；`Card '无懈可击' : extends '锦囊牌' : on('对卡牌生效', function () end)` —— 声明壳（真正抵消由下面的窗口落地，因为内核的取消只能由被取消的效果自己的执行体发起）
-- [x] 2.2 同文件顶层写窗口：`game:on('效果-即将生效', …)` 只认 `effect.kind == 'cardEffect'`（`---@cast effect CardEffect`）且 `effect.card:isKind('锦囊')`；`askNullify(card)` 用 `game.desk:actionOrder(game.desk.alivePlayers)` 走一圈、`game:askUseCardToCard(player, card:getLabel(), { name = '无懈可击', target = card })` 问、问到就用 `game:useCardToCard` 用出去并递归（`return not askNullify(used)`）；净结果是被抵消就 `effect:remove()`
+- [x] 2.2 同文件顶层写窗口：`game:on('效果-即将生效', …)` **只认 `cardEffect` 与 `cardEffectToCard` 两种 `kind`**（+ `isKind('锦囊')`），不认 `useCard` / `useCardToCard`；`nullified(card)` 用 `game.desk:actionOrder(game.desk.alivePlayers)` 走一圈、`game:askUseCardToCard(player, card.name, { name = '无懈可击', target = card })` 问、问到就用 `game:useCardToCard` 真用出去（那张无懈自己也会走一遍窗口 ⇒ 嵌套由事件产生）；净结果是被抵消就 `effect:remove()`；判决直接读那次使用的 `childs` 里 `cardEffectToCard` 的 `.err`（空 = 它生效了 = 上层被抵消），不另设标记
 - [x] 2.3 牌表里那 4 张【无懈可击】已存在，不动
 
 ## 3. 用例
@@ -19,7 +19,7 @@
 - [x] 3.1 `server/test/rule/trick.lua`：既有的 5 个应答脚本加护栏 —— 遇到无懈询问（`ask.kind == 'askUseCardToCard'`）直接跳过，避免询问次数 / 顺序变化误伤；加 `isNullifyAsk` / `pendingEffect`（读 `ask.parent`）两个辅助
 - [x] 3.2 同上：**没人响应** ⇒ 一圈询问照发（`'1,2,3'`）且锦囊照常结算
 - [x] 3.3 同上：**一层抵消** ⇒ 该目标不生效，打出的【无懈可击】与原锦囊都进了弃牌堆
-- [x] 3.4 同上：**两层互相抵消** ⇒ 第二张【无懈可击】把第一张抵消掉，原锦囊照常生效
+- [x] 3.4 同上：**两层互相抵消** ⇒ 第二张【无懈可击】把第一张抵消掉，原锦囊照常生效；并沿效果树断言**中层那次「对牌生效」被真的取消**（`err == canceled`），它不是只把最外层取消掉
 - [x] 3.5 同上：**多目标只抵消一个**（靠 `ask.parent` 认出这次问的是哪个目标的生效）
 - [x] 3.6 同上：**非锦囊不触发**（【杀】结算里没有无懈询问，缘由为 `'杀'`）
 - [x] 3.7 同上：**它主动用不出去**（出牌阶段候选里只有别的锦囊；`canUse(user, card, {})` 报「没有声明『获取目标』，现在用不了」）

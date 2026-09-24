@@ -112,7 +112,7 @@ lt.test('基础：按牌表建出牌堆', function ()
 
     local deck = assert(run.game:getZone('抽牌'), '没有建出抽牌')
     lt.assertEquals('张数等于牌表总数', totalCards(run.game), deck:count())
-    lt.assertEquals('每张牌都带牌名标签', '杀', deck:list()[1]:getLabel())
+    lt.assertEquals('每张牌都带牌名', '杀', deck:list()[1].name)
     lt.assertEquals('弃牌也建好了', true, run.game:getZone('弃牌') ~= nil)
 end)
 
@@ -124,7 +124,7 @@ lt.test('基础：洗牌可复现', function ()
         ---@type string[]
         local result = {}
         for i, card in ipairs(deck:list()) do
-            result[i] = card:getLabel()
+            result[i] = card.name
         end
         return result
     end
@@ -142,8 +142,8 @@ lt.test('基础：牌堆里各种牌的张数与牌表一致', function ()
     ---@type table<string, integer>
     local counts = {}
     for _, card in ipairs(assert(run.game:getZone('抽牌')):list()) do
-        local label = card:getLabel()
-        counts[label] = (counts[label] or 0) + 1
+        local name = card.name
+        counts[name] = (counts[name] or 0) + 1
     end
 
     lt.assertEquals('杀 30 张', 30, counts['杀'])

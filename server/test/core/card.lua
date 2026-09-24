@@ -1,23 +1,23 @@
 local lt = require 'test.ltest'
 
-lt.test('牌：标识与标签都由调用方给出', function ()
+lt.test('牌：标识与牌名都由调用方给出', function ()
     local card = moe.card.create('杀', 7)
 
     lt.assertEquals('标识就是给进来的号', 7, card:getId())
-    lt.assertEquals('标签就是给进来的名', '杀', card:getLabel())
+    lt.assertEquals('牌名就是给进来的那个值', '杀', card.name)
 
     local plain = moe.card.create(nil, 8)
-    lt.assertEquals('可以不要标签', nil, plain:getLabel())
+    lt.assertEquals('可以不要牌名', nil, plain.name)
     lt.assertEquals('两张牌各自用各自的号', false, card:getId() == plain:getId())
 end)
 
-lt.test('牌：改标签不动标识', function ()
+lt.test('牌：改牌名不动标识', function ()
     local card = lt.card('杀')
     local id   = card:getId()
 
-    card:setLabel('闪')
+    card:setName('闪')
 
-    lt.assertEquals('标签可修改', '闪', card:getLabel())
+    lt.assertEquals('牌名可修改', '闪', card.name)
     lt.assertEquals('标识不变', id, card:getId())
 end)
 
@@ -31,7 +31,7 @@ lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', fu
         end
     end
     table.sort(keys)
-    lt.assertEquals('没给牌面时只有标识与标签两类字段', 'id,label', table.concat(keys, ','))
+    lt.assertEquals('没给牌面时只有标识与牌名两类字段', 'id,name', table.concat(keys, ','))
 
     ---@type any
     local raw = card

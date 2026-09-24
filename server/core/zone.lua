@@ -67,11 +67,11 @@ end
 --- 牌进来了：把它定义上的「进入区域」钩子各跑一次（牌没定义就什么都不做）
 ---@param card Card
 function M:notifyEnter(card)
-    local label = card:getLabel()
-    if type(label) ~= 'string' or label == '' then
+    local name = card.name
+    if type(name) ~= 'string' or name == '' then
         return
     end
-    local def = self.game:getCard(label)
+    local def = self.game:getCard(name)
     if not def then
         return
     end

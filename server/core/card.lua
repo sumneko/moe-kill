@@ -1,6 +1,6 @@
 ---@class Card: Class.Base
 ---@field private id integer # 号（这一局发的）
----@field private label? any # 牌名
+---@field name? any # 牌名（内容侧给的值，内核只存不解释）
 ---@field suit? string # 花色
 ---@field point? integer # 点数（1..13）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
@@ -8,14 +8,14 @@
 ---@field private game? Game # 属于哪一局（读自己的内容定义时用）
 local M = Class 'Card'
 
----@param label? any # 牌名
+---@param name? any # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数
 ---@param game? Game # 属于哪一局（测试里自己造的牌可以不给）
-function M:__init(label, id, suit, point, game)
+function M:__init(name, id, suit, point, game)
     self.id    = id
-    self.label = label
+    self.name  = name
     self.suit  = suit
     self.point = point
     self.game  = game
@@ -26,15 +26,10 @@ function M:getId()
     return self.id
 end
 
----@return any # 牌名
-function M:getLabel()
-    return self.label
-end
-
 --- 改这张牌的牌名
----@param label? any # 新牌名
-function M:setLabel(label)
-    self.label = label
+---@param name? any # 新牌名
+function M:setName(name)
+    self.name = name
 end
 
 ---@return CardDef? # 这张牌的内容定义（不在任何一局里就没有）
@@ -43,7 +38,7 @@ function M:getDef()
     if not game then
         return nil
     end
-    return game:getCard(self.label)
+    return game:getCard(self.name)
 end
 
 --- 这张牌是不是这个分类
@@ -107,12 +102,12 @@ end
 moe.card = {}
 
 --- 建一张牌
----@param label? any # 牌名
+---@param name? any # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数
 ---@param game? Game # 属于哪一局（读自己的内容定义时用）
 ---@return Card
-function moe.card.create(label, id, suit, point, game)
-    return New 'Card' (label, id, suit, point, game)
+function moe.card.create(name, id, suit, point, game)
+    return New 'Card' (name, id, suit, point, game)
 end

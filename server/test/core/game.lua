@@ -13,7 +13,7 @@ local function labels(zone)
     ---@type string[]
     local result = {}
     for i, card in ipairs(zone:list()) do
-        result[i] = card:getLabel()
+        result[i] = card.name
     end
     return table.concat(result, ',')
 end
@@ -67,7 +67,7 @@ end)
 lt.test('局：建牌带牌名与牌面', function ()
     local game = newGame()
 
-    lt.assertEquals('牌名写进不透明标签', '杀', game:createCard('杀'):getLabel())
+    lt.assertEquals('牌名原样存下来', '杀', game:createCard('杀').name)
     lt.assertEquals('每次建出的是新实例', false, game:createCard('杀') == game:createCard('杀'))
     lt.assertError('牌名不能为空', function ()
         game:createCard('')

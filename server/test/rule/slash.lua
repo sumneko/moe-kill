@@ -8,7 +8,7 @@ local support = require 'test.rule.support'
 local function findCard(game, name)
     local deck = assert(game:getZone('抽牌'), '没有抽牌')
     for _, card in ipairs(deck:list()) do
-        if card:getLabel() == name then
+        if card.name == name then
             return card, deck
         end
     end

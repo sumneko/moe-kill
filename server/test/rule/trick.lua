@@ -8,7 +8,7 @@ local support = require 'test.rule.support'
 local function findCard(game, name)
     local deck = assert(game:getZone('抽牌'), '没有抽牌')
     for _, card in ipairs(deck:list()) do
-        if card:getLabel() == name then
+        if card.name == name then
             return card, deck
         end
     end
@@ -51,6 +51,19 @@ local function pendingEffect(ask)
     if effect and effect.kind == 'cardEffect' then
         ---@cast effect CardEffect
         return effect
+    end
+    return nil
+end
+
+--- 某个效果下面第一个这种子效果（同级还有询问，所以按种类找）
+---@param effect Effect
+---@param kind string
+---@return Effect?
+local function childOf(effect, kind)
+    for _, child in ipairs(effect.childs) do
+        if child.kind == kind then
+            return child
+        end
     end
     return nil
 end
@@ -656,11 +669,16 @@ lt.test('无懈可击：它自己也能被抵消 ⇒ 原锦囊照常生效', fun
         end
     end)
 
-    run.game:useCard(user, card, { user })
+    local spell = run.game:useCard(user, card, { user })
 
     lt.assertEquals('两层互相抵消 ⇒ 原锦囊照常生效', 2, assert(user:getZone('手牌')):count())
     lt.assertEquals('两张无懈都进弃牌堆', true,
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), hand[run.players[3]]))
+
+    local firstNullify = assert(childOf(assert(childOf(spell, 'cardEffect')), 'useCardToCard'))
+    local firstEffect  = assert(childOf(firstNullify, 'cardEffectToCard'))
+    lt.assertEquals('第一张无懈对那张无懈的生效被真的取消（不是只把最外层取消掉）', moe.task.CANCELED, firstEffect.err)
+    lt.assertEquals('它自己那次使用是成的', nil, firstNullify.err)
 end)
 
 lt.test('无懈可击：多目标锦囊可以对某一个目标单独抵消', function ()
@@ -720,7 +738,7 @@ lt.test('无懈可击：主动用不出去（只在「生效前」被问到时�
 
     local options = run.game:askUseCard(user, '出牌', { zone = '手牌' }).options
     lt.assertEquals('出牌阶段的候选里只有那张锦囊', 1, #(options or {}))
-    lt.assertEquals('就是【无中生有】', '无中生有', (options or {})[1].card:getLabel())
+    lt.assertEquals('就是【无中生有】', '无中生有', (options or {})[1].card.name)
 
     local ok, reason = run.game:canUse(user, card, {})
     lt.assertEquals('直接问也用不了', false, ok)

@@ -20,11 +20,11 @@ M.errors         = {}
 M.cardId         = 0
 
 --- 造一张只给用例用的牌（号是测试自己发的，用例不关心具体值）
----@param label? any
+---@param name? any
 ---@return Card
-function M.card(label)
+function M.card(name)
     M.cardId = M.cardId + 1
-    return moe.card.create(label, M.cardId)
+    return moe.card.create(name, M.cardId)
 end
 
 --- 用例共用的一个局：牌区必须有个局才建得起来，但只测牌区本身的用例不关心这局是什么

@@ -9,28 +9,46 @@ Card '无懈可击'
     : extends '锦囊牌'
     : on('对卡牌生效', function () end)
 
---- 问一圈：有没有人对这张牌使用【无懈可击】（它自己还能被再抵消 ⇒ 递归）
----@param card Card # 当前待抵消的那张牌
----@return boolean # 它有没有被抵消
-local function askNullify(card)
-    for player in game.desk:actionOrder(game.desk.alivePlayers) do
-        ---@type AskUseCardToCard.Condition
-        local condition = { name = '无懈可击', target = card }
-        local used = game:askUseCardToCard(player, card:getLabel(), condition).card
-        if used then
-            game:useCardToCard(player, used, card)
-            return not askNullify(used)
+--- 这次使用用出去的那张牌生效了吗（它那次「对牌生效」被取消 / 不成立，就是没生效）
+---@param use UseCardToCard
+---@return boolean
+local function tookEffect(use)
+    for _, child in ipairs(use.childs) do
+        if child.kind == 'cardEffectToCard' then
+            return child.err == nil
         end
     end
     return false
 end
 
-game:on('效果-即将生效', function (effect)
-    if effect.kind ~= 'cardEffect' then
-        return
+--- 问一圈：有没有人对这张牌使用【无懈可击】
+---@param card Card # 要抵消的那张牌
+---@return boolean # 这张牌有没有被抵消
+local function nullified(card)
+    for player in game.desk:actionOrder(game.desk.alivePlayers) do
+        ---@type AskUseCardToCard.Condition
+        local condition = { name = '无懈可击', target = card }
+        local used = game:askUseCardToCard(player, card.name, condition).card
+        if used then
+            -- 用出去的那张无懈自己也走一遍「生效前」：它没生效，就说明它没抵掉 card
+            return tookEffect(game:useCardToCard(player, used, card))
+        end
     end
-    ---@cast effect CardEffect
-    if effect.card:isKind('锦囊') and askNullify(effect.card) then
+    return false
+end
+
+--- 一次「生效前」：问一圈要不要抵消，要就取消这一次生效
+---@param effect CardEffect|CardEffectToCard
+local function nullify(effect)
+    if effect.card:isKind('锦囊') and nullified(effect.card) then
         effect:remove()
+    end
+end
+
+--- 两种「生效」都在这里问：锦囊对某个角色的生效、以及无懈对一张牌的生效（= 抵消另一张【无懈可击】产生的效果）
+game:on('效果-即将生效', function (effect)
+    if effect.kind == 'cardEffect' or effect.kind == 'cardEffectToCard' then
+        ---@cast effect CardEffect|CardEffectToCard
+        nullify(effect)
     end
 end)

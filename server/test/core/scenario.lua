@@ -6,7 +6,7 @@ local function zoneLabels(zone)
     local list  = zone:list()
     local names = {}
     for i = 1, #list do
-        names[i] = tostring(list[i]:getLabel())
+        names[i] = tostring(list[i].name)
     end
     return table.concat(names, ',')
 end
@@ -23,7 +23,7 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
     local top3 = {}
     for i = 1, 3 do
         local card = pile:takeTop()
-        top3[i] = tostring(card:getLabel())
+        top3[i] = tostring(card.name)
         hand:put(card)
     end
 

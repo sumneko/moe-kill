@@ -212,7 +212,7 @@ lt.test('奖惩：主公杀死忠臣 ⇒ 装备区的牌一起弃掉', function 
     local weapon = nil
     local deck   = assert(run.game:getZone('抽牌'))
     for _, card in ipairs(deck:list()) do
-        if card:getLabel() == '诸葛连弩' then
+        if card.name == '诸葛连弩' then
             weapon = card
             break
         end

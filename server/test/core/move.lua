@@ -18,7 +18,7 @@ local function zoneLabels(zone)
     local list  = zone:list()
     local names = {}
     for i = 1, #list do
-        names[i] = tostring(list[i]:getLabel())
+        names[i] = tostring(list[i].name)
     end
     return table.concat(names, ',')
 end
@@ -229,10 +229,10 @@ lt.test('移动：手牌放进有序牌区顶部后即可被取顶', function ()
 
     hand:move(handCards[1], pile, 1)
 
-    lt.assertEquals('牌堆顶是刚移入的牌', '闪', pile:peek(1):getLabel())
+    lt.assertEquals('牌堆顶是刚移入的牌', '闪', pile:peek(1).name)
     lt.assertEquals('牌堆容量增加', 4, pile:count())
     lt.assertEquals('手牌清空', 0, hand:count())
-    lt.assertEquals('取顶拿到的就是它', '闪', pile:takeTop():getLabel())
+    lt.assertEquals('取顶拿到的就是它', '闪', pile:takeTop().name)
     lt.assertEquals('取顶后剩余顺序不变', '甲,乙,丙', zoneLabels(pile))
     lt.assertNotEquals('原来的牌都还在', nil, pileCards[1])
 end)

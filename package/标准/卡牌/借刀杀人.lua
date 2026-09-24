@@ -8,7 +8,7 @@
 local function weaponOf(player)
     local equip = assert(player:getZone('装备'), '装备区由内核建好')
     for _, card in ipairs(equip:list()) do
-        local def = game:getCard(card:getLabel())
+        local def = game:getCard(card.name)
         if def and def:isKind('武器') then
             return card
         end

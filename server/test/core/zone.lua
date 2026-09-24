@@ -19,7 +19,7 @@ end
 local function labels(list)
     local names = {}
     for i = 1, #list do
-        names[i] = tostring(list[i]:getLabel())
+        names[i] = tostring(list[i].name)
     end
     return table.concat(names, ',')
 end
@@ -124,7 +124,7 @@ lt.test('有序牌区：依次取顶与洗牌后顺序一致', function ()
     local expected = zoneLabels(zone)
     local drawn    = {}
     while zone:count() > 0 do
-        drawn[#drawn + 1] = tostring(zone:takeTop():getLabel())
+        drawn[#drawn + 1] = tostring(zone:takeTop().name)
     end
 
     lt.assertEquals('取顶顺序与洗牌后一致', expected, table.concat(drawn, ','))

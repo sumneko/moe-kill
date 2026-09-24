@@ -794,7 +794,7 @@ end
 ---@return CardDef? # 能用时给出定义
 ---@return any # 不能时的原因
 local function checkCardItself(game, user, card)
-    local name = card:getLabel()
+    local name = card.name
     if type(name) ~= 'string' then
         return nil, '这张牌没有牌名，查不到内容定义'
     end

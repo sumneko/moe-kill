@@ -259,7 +259,7 @@ Card '甲'
     : on('进入区域', function (card, zone, slot)
         local owner = assert(zone.owner, '发钩子的时候应该读得到归属者')
         owner:setTag('记录', (owner:getTag('记录') or '')
-            .. card:getLabel() .. '@' .. tostring(slot) .. ';')
+            .. card.name .. '@' .. tostring(slot) .. ';')
     end)
 ]])
 

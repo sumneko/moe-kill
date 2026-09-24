@@ -100,7 +100,7 @@ function M:collectOptions()
     ---@type AskCard.Option[]
     local options = {}
     for _, card in ipairs(cards) do
-        if not names or moe.util.arrayHas(names, card:getLabel()) then
+        if not names or moe.util.arrayHas(names, card.name) then
             local option = self:makeOption(card)
             if option then
                 options[#options + 1] = option
