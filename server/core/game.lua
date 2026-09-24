@@ -58,7 +58,7 @@ function CardDef:getHandlers(event)
     return snapshot
 end
 --- 声明这个阶段里最多用几次（可以多次调；同一个阶段重复写，后写的为准）
----@param phase string # 阶段名（内核不解释取值）
+---@param phase string # 阶段名（取值由你定）
 ---@param count integer
 ---@return CardDef
 function CardDef:limit(phase, count)
@@ -74,7 +74,7 @@ function CardDef:getLimit(phase)
 end
 
 --- 声明这张牌的分类（一次调用就把分类定下来；重复调以后写的为准；要多个就给一张列表）
----@param name string|string[] # 分类名（内核不解释取值）
+---@param name string|string[] # 分类名（取值由你定）
 ---@return CardDef
 function CardDef:kind(name)
     ---@type string[]
@@ -112,23 +112,23 @@ function CardDef:getKinds()
     return snapshot
 end
 
---- 声明这张牌上的一条数据（内核只存不解释；同一个名字重复写，后写的为准）
----@param name string
----@param value any
+--- 声明这张牌上的一条数据（名字与取值都由写牌的人定；同一个名字重复写，后写的为准）
+---@param name string # 数据的名字
+---@param value any # 数据本身
 ---@return CardDef
 function CardDef:value(name, value)
     self.values[name] = value
     return self
 end
 
---- 这张牌上的数据
----@param name string
+--- 读这张牌上的一条数据
+---@param name string # 数据的名字
 ---@return any # 没声明过就是「不存在」
 function CardDef:getValue(name)
     return self.values[name]
 end
 
---- 声明这张牌不指定目标（官方装备牌）：`canUse` 不再要求合法目标
+--- 声明这张牌不指定目标（装备牌这类）：用牌时不再要求给目标
 ---@return CardDef
 function CardDef:noTarget()
     self.noTargetFlag = true
@@ -137,12 +137,12 @@ end
 
 --- 这张牌是不是不指定目标
 ---@return boolean
-function CardDef:getNoTarget()
+function CardDef:isNoTarget()
     return self.noTargetFlag == true
 end
 
 --- 声明这张牌必须从哪个牌区用（重复调以后写的为准）
----@param zone string # 牌区名（内容侧约定，内核不解释）
+---@param zone string # 牌区名（由内容侧定）
 ---@return CardDef
 function CardDef:zone(zone)
     self.useZone = zone
@@ -259,7 +259,6 @@ end
 ---@field private packages string[] # 包的加载顺序（首次出现的顺序）
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
 ---@field private values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
----@field private slots table<string, string[]> # 每个牌区声明的槽位名（内容侧加载期声明）
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
 ---@field loading? Loader.Context # 装载期上下文（装载器写、查询读；装完置空）
 ---@field turnPlayer? Player # 当前回合角色（由流程维护；挪牌按名字找牌区时先找它身上）
@@ -302,7 +301,6 @@ function M:resetContent()
     self.packages    = {}
     self.meta        = {}
     self.values      = {}
-    self.slots       = {}
     self.loadedFiles = {}
     self.flow        = nil
     self.turnPlayer  = nil
@@ -353,41 +351,6 @@ function M:getValues()
         result[name] = value
     end
     return result
-end
-
---- 声明某个牌区的槽位（加载期由内容侧声明；内核只存不解释；同一个区名重复声明，后写的为准）
----@param zone string # 牌区名
----@param slots string[] # 槽位名（按顺序）
-function M:setSlots(zone, slots)
-    if type(zone) ~= 'string' or zone == '' then
-        error('牌区名必须是非空字符串', 2)
-    end
-    if type(slots) ~= 'table' then
-        error('槽位名表必须是一张字符串列表', 2)
-    end
-    ---@type string[]
-    local copied = {}
-    for i, name in ipairs(slots) do
-        if type(name) ~= 'string' or name == '' then
-            error('槽位名必须是非空字符串', 2)
-        end
-        copied[i] = name
-    end
-    self.slots[zone] = copied
-end
-
---- 某个牌区声明了哪些槽位
----@param zone string # 牌区名
----@return string[]? # 没声明过就是「不存在」
-function M:getSlots(zone)
-    local slots = self.slots[zone]
-    if not slots then
-        return nil
-    end
-    ---@type string[]
-    local snapshot = {}
-    table.move(slots, 1, #slots, 1, snapshot)
-    return snapshot
 end
 
 ---@param name string
@@ -564,7 +527,7 @@ function M:nextId()
     return self.idCounter
 end
 
---- 按牌名建一张牌（号由这一局发；花色与点数由内容侧给，内核不解释）
+--- 按牌名建一张牌（号由这一局发；花色与点数由调用方给）
 ---@param name string
 ---@param suit? string # 花色
 ---@param point? integer # 点数
@@ -577,7 +540,7 @@ function M:createCard(name, suit, point)
 end
 
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（内核据此在被问者的牌区里算出 `ask.options`；省略 = 不做限制）
 ---@return AskCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
 ---@async
@@ -595,7 +558,7 @@ end
 --- 要一张牌（要一次使用：能用的牌 + 目标）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；内核据此在被问者的牌区里算出 `ask.options`）
 ---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
 function M:askUseCard(to, reason, condition)
@@ -612,7 +575,7 @@ end
 --- 要一张打出的牌（答复的牌当场交出来，进发起这次结算的临时处理区）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（内核据此在被问者的牌区里算出 `ask.options`）
 ---@return AskPlayCard # 这次询问（已经结完：答复读 `.card`，失败读 `.err`）
 function M:askPlayCard(to, reason, condition)
@@ -629,7 +592,7 @@ end
 --- 要一个决策（问什么、答什么都由发起方解释）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定，内核不解释）
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param question any # 问什么（内容由发起方定，应答方自己解释）
 ---@return Ask # 这次询问（已经结完：答复读 `.reply`，失败读 `.err`）
 function M:ask(to, reason, question)
@@ -719,7 +682,7 @@ end
 
 ---@async
 ---@param player Player # 谁的判定
----@param reason? string # 为什么判（内容由发起方定，内核不解释）
+---@param reason? string # 为什么判（内容由发起方定）
 ---@return Judge # 这次判定（已经结完：结果读 `.card`，失败读 `.err`）
 function M:judge(player, reason)
     local judge = moe.judge.create {
@@ -771,14 +734,15 @@ local function collectLegalTargets(def, user, card)
     return legal
 end
 
---- 这张牌此刻能不能用；能用就给合法目标（无目标牌不给）
+--- 这张牌此刻能不能这样用：① 牌本身能不能用、② 给的目标配不配（两件事分开判，原因也分开）
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
----@param targets? Player|Player[] # 要校验的目标（省略 = 只判「此刻能不能用」）
----@return boolean # 能用吗
----@return any # 不能用的原因
+---@param targets? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
+---@return boolean # 能这样用吗
+---@return any # 不能的原因
 ---@return Player[]? # 能用时的合法目标（无目标牌没有）
 function M:canUse(user, card, targets)
+    -- ① 牌本身能不能用：找得到牌名与定义、牌在使用者身上、在它声明的牌区里
     local name = card:getLabel()
     if type(name) ~= 'string' then
         return false, '这张牌没有牌名，查不到内容定义'
@@ -796,11 +760,13 @@ function M:canUse(user, card, targets)
         return false, '「{}」只能从「{}」里用' % { def.fullName, useZone }
     end
 
-    ---@type Player[]? # 调用方给的目标（省略 = 只判「此刻能不能用」；无目标牌给了就只能是空表）
+    -- ② 目标配不配（与牌本身能不能用无关；给了目标才判）：无目标牌给了非空目标就是不成立；
+    -- 有目标牌要给出非空、且落在合法目标里的目标
+    ---@type Player[]? # 调用方给的目标（没给 = 不判目标这条）
     local list = nil
     ---@type Player[]? # 能用时的合法目标（无目标牌没有）
     local legal = nil
-    if def:getNoTarget() then
+    if def:isNoTarget() then
         if targets ~= nil then
             list = moe.util.toList(targets)
             if #list > 0 then
@@ -826,6 +792,7 @@ function M:canUse(user, card, targets)
         end
     end
 
+    -- ① 牌本身能不能用（接着判）：次数用满没有
     local phase = self:getUsePhase(user)
     if phase then
         local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
@@ -834,6 +801,7 @@ function M:canUse(user, card, targets)
         end
     end
 
+    -- ① 牌本身能不能用（再接着判）：内容侧有没有异议
     local refusal = self:fire('卡牌-能否使用', { user = user, card = card, targets = list })
     if refusal ~= nil then
         if refusal == false then
@@ -880,7 +848,7 @@ end
 
 --- 让某人进入濒死：当场结算（规则侧在 `'濒死-进入'` 里求桃、回正时喊 `leave()`）
 ---@param player Player
----@param damage? Damage # 把它打到濒死的这次伤害（内核只搬运，不解释）
+---@param damage? Damage # 把它打到濒死的这次伤害
 ---@return Dying # 新起的已经结完；他已经在濒死中就直接返回那一次（致死伤害换成这一次）
 ---@async
 function M:enterDying(player, damage)

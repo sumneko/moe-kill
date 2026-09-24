@@ -36,6 +36,15 @@ local function equipCard(run, player, name)
     return card
 end
 
+lt.test('装备：游戏开始时给每个玩家的装备区设好四条槽位', function ()
+    local run = support.start { count = 3, packages = { '标准' } }
+
+    for _, player in ipairs(run.players) do
+        lt.assertEquals('槽位名按声明顺序', '武器,防具,进攻马,防御马',
+            table.concat(assert(player:getZone('装备'), '没有装备区').slots, ','))
+    end
+end)
+
 lt.test('装备：装备牌没有目标，出牌阶段能选中它并用出去', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]

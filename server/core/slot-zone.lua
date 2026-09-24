@@ -1,26 +1,43 @@
 require 'core.zone'
 
---- 按槽位寻址的牌区：每个槽位至多一张牌（槽位名由内容侧在加载期声明，内核只认名字）
+--- 按槽位寻址的牌区：每个槽位至多一张牌
 ---@class SlotZone : Zone
----@field slots string[] # 这个区声明了哪些槽位（按声明顺序）
+---@field slots string[] # 这个区有哪些槽位（按声明顺序）
 ---@field private slotMap table<string, Card> # 每个槽位里那张牌
----@field private game? Game # 换下来的牌送进哪个局的弃牌堆（建区时给）
+---@field private game? Game # 换下来的牌送进哪个局的弃牌堆
 local M = Class 'SlotZone'
 
 Extends('SlotZone', 'Zone')
 
----@param game? Game
----@param slots? string[] # 槽位名（省略 = 没有槽位）
-function M:__init(game, slots)
+---@param game? Game # 换下来的牌送进哪个局的弃牌堆（要替换槽里的牌就得给）
+function M:__init(game)
     self.kind    = 'slotZone'
     self.game    = game
     self.slots   = {}
     self.slotMap = {}
-    if slots then
-        table.move(slots, 1, #slots, 1, self.slots)
-    end
 end
 
+--- 设置这个区有哪些槽位（重复设以后写的为准，槽位里的牌跟着清掉）
+---@param slots string[] # 槽位名（按顺序）
+---@return SlotZone
+function M:setSlots(slots)
+    if type(slots) ~= 'table' then
+        error('槽位名表必须是一张字符串列表', 2)
+    end
+    ---@type string[]
+    local copied = {}
+    for i, name in ipairs(slots) do
+        if type(name) ~= 'string' or name == '' then
+            error('槽位名必须是非空字符串', 2)
+        end
+        copied[i] = name
+    end
+    self.slots   = copied
+    self.slotMap = {}
+    return self
+end
+
+--- 要求这个槽位是声明过的
 ---@param slot string
 function M:checkSlot(slot)
     if not moe.util.arrayHas(self.slots, slot) then
@@ -71,9 +88,9 @@ end
 ---@class SlotZone.API
 moe.slotZone = {}
 
----@param game? Game
----@param slots? string[] # 槽位名
+--- 建一个槽位区（槽位名由内容侧用 `setSlots` 设）
+---@param game? Game # 换下来的牌送进哪个局的弃牌堆（要替换槽里的牌就得给）
 ---@return SlotZone
-function moe.slotZone.create(game, slots)
-    return New 'SlotZone' (game, slots)
+function moe.slotZone.create(game)
+    return New 'SlotZone' (game)
 end

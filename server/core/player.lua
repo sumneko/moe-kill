@@ -24,7 +24,7 @@ function M:__init(game, attributes, name)
     self.tags       = {}
     self.alive      = true
     self:addZone('手牌')
-    self:addZone('装备', moe.slotZone.create(self.game, self.game:getSlots('装备') or {}))
+    self:addZone('装备', moe.slotZone.create(self.game))
     self:addZone('判定')
 end
 

@@ -167,7 +167,7 @@ lt.test('随区容器：牌离开牌区时撤销挂在它上面的东西', funct
 
     ---@type integer
     local times = 0
-    card:bindZoneGC(function () times = times + 1 end)
+    card:withZone(function () times = times + 1 end)
 
     from:move(card, to)
     lt.assertEquals('换区就跑了一次', 1, times)
@@ -186,7 +186,7 @@ lt.test('随区容器：同区内部调序不算离开区', function ()
 
     ---@type integer
     local times = 0
-    cards[1]:bindZoneGC(function () times = times + 1 end)
+    cards[1]:withZone(function () times = times + 1 end)
 
     zone:move(cards[1], zone, 1)
 
@@ -202,7 +202,7 @@ lt.test('随区容器：没挂过东西的牌不建容器（懒建）', function
     ---@diagnostic disable-next-line: invisible
     lt.assertEquals('没挂过就没有容器', nil, card.zoneGCHost)
 
-    card:bindZoneGC(function () end)
+    card:withZone(function () end)
     ---@diagnostic disable-next-line: invisible
     lt.assertEquals('挂过一次才有容器', true, card.zoneGCHost ~= nil)
 end)

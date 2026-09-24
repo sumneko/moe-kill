@@ -242,7 +242,7 @@ end
 
 lt.test('槽位区：放进空槽、同槽换新时旧牌进弃牌堆', function ()
     local game = newGame()
-    local zone = moe.slotZone.create(game, { '武器', '防具' })
+    local zone = moe.slotZone.create(game):setSlots({ '武器', '防具' })
     local slot = assert(game:getZone('弃牌'), '局上有弃牌区')
 
     lt.assertEquals('kind 只用来区分子类', 'slotZone', zone.kind)
@@ -265,7 +265,7 @@ end)
 
 lt.test('槽位区：牌不必先在本区，可以从别的区搬进来', function ()
     local game  = newGame()
-    local zone  = moe.slotZone.create(game, { '武器' })
+    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
     local other = moe.zone.create()
     local card  = lt.card('甲')
     other:put(card)
@@ -278,7 +278,7 @@ end)
 
 lt.test('槽位区：牌被别的路径取走后槽位就地失效', function ()
     local game = newGame()
-    local zone = moe.slotZone.create(game, { '武器' })
+    local zone = moe.slotZone.create(game):setSlots({ '武器' })
     local card = lt.card('甲')
     zone:putInto('武器', card)
 
@@ -295,7 +295,7 @@ end)
 
 lt.test('槽位区：清空后槽位全空', function ()
     local game = newGame()
-    local zone = moe.slotZone.create(game, { '武器', '防具' })
+    local zone = moe.slotZone.create(game):setSlots({ '武器', '防具' })
     zone:putInto('武器', lt.card('甲'))
     zone:putInto('防具', lt.card('乙'))
 
@@ -309,7 +309,7 @@ end)
 
 lt.test('槽位区：未声明的槽位名明确失败', function ()
     local game = newGame()
-    local zone = moe.slotZone.create(game, { '武器' })
+    local zone = moe.slotZone.create(game):setSlots({ '武器' })
 
     lt.assertError('放进去时', function () zone:putInto('防具', lt.card('甲')) end)
     lt.assertError('读的时候', function () zone:getSlot('防具') end)
@@ -321,7 +321,7 @@ lt.test('槽位区：未声明的槽位名明确失败', function ()
 end)
 
 lt.test('槽位区：没记着局时替换不了槽里的牌', function ()
-    local zone = moe.slotZone.create(nil, { '武器' })
+    local zone = moe.slotZone.create(nil):setSlots({ '武器' })
     local card = lt.card('甲')
 
     zone:putInto('武器', card)

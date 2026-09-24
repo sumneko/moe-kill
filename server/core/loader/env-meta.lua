@@ -27,8 +27,8 @@ Depends = nil
 ---@field zone fun(self: CardDef, zone: string): CardDef # 必须从哪个牌区用（不声明 = 使用者任一牌区都行）
 ---@field getZone fun(self: CardDef): string?
 ---@field noTarget fun(self: CardDef): CardDef # 声明这张牌不指定目标（官方装备牌；给了目标就不成立）
----@field getNoTarget fun(self: CardDef): boolean
----@field value fun(self: CardDef, name: string, value: any): CardDef # 声明这张牌上的一条数据（内核只存不解释）
+---@field isNoTarget fun(self: CardDef): boolean
+---@field value fun(self: CardDef, name: string, value: any): CardDef # 声明这张牌上的一条数据（名字与取值都由写牌的人定）
 ---@field getValue fun(self: CardDef, name: string): any
 ---@field extends fun(self: CardDef, name: string): CardDef # 把基类定义的钩子与字段抖过来（基类的钩子跑在前面）
 
