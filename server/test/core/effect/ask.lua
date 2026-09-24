@@ -32,6 +32,7 @@ lt.test('决策询问：一次往返', function ()
     ---@type Ask?
     local asked = nil
     game:on('决策-询问', function (ask)
+        ---@cast ask Ask
         asked = ask
         ask:answer { card = card, targets = {} }
     end)
@@ -95,6 +96,7 @@ lt.test('决策询问：自己不动任何状态', function ()
     hand:put(card)
 
     game:on('决策-询问', function (ask)
+        ---@cast ask Ask
         ask:answer { cards = { card } }
     end)
 

@@ -48,6 +48,7 @@ local function startTurn(options)
         ask:answer(options.answer(ask, run))
     end)
     run.game:on('决策-询问', function (ask)
+        ---@cast ask Ask
         if not options.discard then
             return
         end

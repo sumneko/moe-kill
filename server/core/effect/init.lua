@@ -1,6 +1,7 @@
 include 'core.effect.effect'
 include 'core.effect.ask'
 include 'core.effect.ask-card'
+include 'core.effect.ask-player'
 include 'core.effect.ask-use-card'
 include 'core.effect.ask-use-card-to-card'
 include 'core.effect.ask-play-card'

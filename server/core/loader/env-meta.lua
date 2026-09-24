@@ -101,10 +101,10 @@ Depends = nil
 ---@field fire fun(self: Game, name: '阶段-开始', phase: Phase): any
 ---@field on fun(self: Game, name: '阶段-结束', callback: fun(phase: Phase): any): function
 ---@field fire fun(self: Game, name: '阶段-结束', phase: Phase): any
----@field on fun(self: Game, name: '决策-询问', callback: fun(ask: Ask): any): function
----@field fire fun(self: Game, name: '决策-询问', ask: Ask): any
----@field on fun(self: Game, name: '决策-答复', callback: fun(ask: Ask): any): function
----@field fire fun(self: Game, name: '决策-答复', ask: Ask): any
+---@field on fun(self: Game, name: '决策-询问', callback: fun(ask: Ask|AskPlayer): any): function
+---@field fire fun(self: Game, name: '决策-询问', ask: Ask|AskPlayer): any
+---@field on fun(self: Game, name: '决策-答复', callback: fun(ask: Ask|AskPlayer): any): function
+---@field fire fun(self: Game, name: '决策-答复', ask: Ask|AskPlayer): any
 ---@field on fun(self: Game, name: '游戏-结束', callback: fun(result: Game.Result): any): function
 ---@field fire fun(self: Game, name: '游戏-结束', result: Game.Result): any
 ---@field on fun(self: Game, name: string, callback: fun(payload: any): any): function

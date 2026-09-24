@@ -641,6 +641,23 @@ function M:askPlayCard(to, reason, condition)
     return ask
 end
 
+--- 要一名角色（候选名单由内核摆好，答复必须是里面的一个）
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param condition? AskPlayer.Condition # 要什么样的角色（省略 = 不做限制）
+---@return AskPlayer # 这次询问（已经结完：答复读 `.player`，失败读 `.err`）
+function M:askPlayer(to, reason, condition)
+    local ask = moe.askPlayer.create {
+        game      = self,
+        to        = to,
+        reason    = reason,
+        condition = condition,
+    }
+    ask:apply():await()
+    return ask
+end
+
 --- 要一个决策（问什么、答什么都由发起方解释）
 ---@async
 ---@param to Player # 被问者

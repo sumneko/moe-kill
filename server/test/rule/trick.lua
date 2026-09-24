@@ -412,13 +412,14 @@ lt.test('借刀杀人：被借刀者用出【杀】，武器留在自己身上',
     local weapon = equipCard(run, holder, '诸葛连弩')
     local slash  = takeCard(run, holder, '杀')
 
-    ---@type any # 这次问使用者的问法（内容侧自己解释：候选名单在里面）
-    local question = nil
+    ---@type Player[]? # 这次给的候选名单
+    local candidates = nil
     ---@type Player? # 这次问的是谁
     local asked = nil
     run.game:on('决策-询问', function (ask)
-        asked    = ask.to
-        question = ask.question
+        ---@cast ask AskPlayer
+        asked      = ask.to
+        candidates = ask.options
         ask:answer(victim)
     end)
     run.game:on('卡牌-询问', function (ask)
@@ -431,7 +432,7 @@ lt.test('借刀杀人：被借刀者用出【杀】，武器留在自己身上',
 
     lt.assertEquals('指定谁问的是使用者', user, asked)
     lt.assertEquals('候选就是被借刀者能打到的人', true,
-        moe.util.arrayHas(assert(question).candidates, victim))
+        moe.util.arrayHas(assert(candidates), victim))
     lt.assertEquals('打出的【杀】结算了：目标挨 1 点', 4, victim:getAttr('体力'))
     lt.assertEquals('武器还在他装备区', weapon, assert(holder:getZone('装备')):getSlot('武器'))
     lt.assertEquals('使用者没拿到武器', 0, assert(user:getZone('手牌')):count())
@@ -449,6 +450,7 @@ lt.test('借刀杀人：被借刀者手上没【杀】⇒ 武器交给使用者'
     local hand   = assert(user:getZone('手牌'), '没有手牌区')
 
     run.game:on('决策-询问', function (ask)
+        ---@cast ask AskPlayer
         ask:answer(victim)
     end)
 
@@ -474,6 +476,7 @@ lt.test('借刀杀人：这阶段已经用过【杀】⇒ 也用不出来，武�
     phase:addUseCount('杀', 1)
 
     run.game:on('决策-询问', function (ask)
+        ---@cast ask AskPlayer
         ask:answer(victim)
     end)
 
@@ -505,7 +508,7 @@ lt.test('借刀杀人：合法目标要有武器、且他攻击范围内还有�
     lt.assertEquals('他攻击范围内没人了 ⇒ 也不合法', false, around)
 end)
 
-lt.test('借刀杀人：使用者没指定角色（答复不在候选里）⇒ 按没指定处理，武器照交', function ()
+lt.test('借刀杀人：使用者没指定角色（答复不在候选里）⇒ 内核拒收，按没指定处理，武器照交', function ()
     local run    = support.start { count = 4, packages = { '标准' } }
     local user   = run.players[1]
     local holder = run.players[2]
@@ -514,6 +517,7 @@ lt.test('借刀杀人：使用者没指定角色（答复不在候选里）⇒ �
     local weapon = equipCard(run, holder, '诸葛连弩')
 
     run.game:on('决策-询问', function (ask)
+        ---@cast ask AskPlayer
         ask:answer(out)   -- 距离 2，不在他攻击范围内
     end)
 
