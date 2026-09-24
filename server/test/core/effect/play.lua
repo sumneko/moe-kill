@@ -678,7 +678,7 @@ Card '测试杀'
     hand:put(card)
 
     local blocked = players[2]
-    game:on('即将生效', function (cardEffect)
+    game:on('效果-即将生效', function (cardEffect)
         ---@cast cardEffect CardEffect
         if cardEffect.kind == 'cardEffect' and cardEffect.target == blocked then
             cardEffect:remove()

@@ -604,6 +604,23 @@ function M:askUseCard(to, reason, condition)
     return ask
 end
 
+--- 要一张牌（要一次「对一张牌的使用」：能对目标牌使用的牌才进选项）
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param condition AskUseCardToCard.Condition # 要什么样的牌（`target` = 要用在哪张牌上）
+---@return AskUseCardToCard # 这次询问（已经结完：答复读 `.card`，失败读 `.err`）
+function M:askUseCardToCard(to, reason, condition)
+    local ask = moe.askUseCardToCard.create {
+        game      = self,
+        to        = to,
+        reason    = reason,
+        condition = condition,
+    }
+    ask:apply():await()
+    return ask
+end
+
 --- 要一张打出的牌（答复的牌当场交出来，进发起这次结算的临时处理区）
 ---@async
 ---@param to Player # 被问者
@@ -770,6 +787,39 @@ local function collectLegalTargets(def, user, card)
     return legal
 end
 
+--- 牌本身能不能用（两条入口共用）：牌名 / 定义 / 在使用者身上 / 在声明的牌区 / 次数
+---@param game Game
+---@param user Player
+---@param card Card
+---@return CardDef? # 能用时给出定义
+---@return any # 不能时的原因
+local function checkCardItself(game, user, card)
+    local name = card:getLabel()
+    if type(name) ~= 'string' then
+        return nil, '这张牌没有牌名，查不到内容定义'
+    end
+    local def = game:getCard(name)
+    if not def then
+        return nil, '没有叫「{}」的内容定义' % { name }
+    end
+    local zone = user:findCard(card)
+    if not zone then
+        return nil, '使用者手上没有这张牌'
+    end
+    local useZone = def:getZone()
+    if useZone and zone ~= user:getZone(useZone) then
+        return nil, '「{}」只能从「{}」里用' % { def.fullName, useZone }
+    end
+    local phase = game:getUsePhase(user)
+    if phase then
+        local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
+        if phase:getUseCount(name) >= limit then
+            return nil, '本阶段已经用过「{}」了' % { name }
+        end
+    end
+    return def, nil
+end
+
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
 ---@param targets? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
@@ -777,22 +827,9 @@ end
 ---@return any # 不能的原因
 ---@return Player[]? # 能用时的合法目标（无目标牌没有）
 function M:canUse(user, card, targets)
-    -- 牌本身：找得到牌名与定义、牌在使用者身上、在它声明的牌区里
-    local name = card:getLabel()
-    if type(name) ~= 'string' then
-        return false, '这张牌没有牌名，查不到内容定义'
-    end
-    local def = self:getCard(name)
+    local def, problem = checkCardItself(self, user, card)
     if not def then
-        return false, '没有叫「{}」的内容定义' % { name }
-    end
-    local zone = user:findCard(card)
-    if not zone then
-        return false, '使用者手上没有这张牌'
-    end
-    local useZone = def:getZone()
-    if useZone and zone ~= user:getZone(useZone) then
-        return false, '「{}」只能从「{}」里用' % { def.fullName, useZone }
+        return false, problem
     end
 
     -- 目标：给了目标才判（无目标牌给了非空目标就是不成立）
@@ -826,15 +863,6 @@ function M:canUse(user, card, targets)
         end
     end
 
-    -- 次数用满没有
-    local phase = self:getUsePhase(user)
-    if phase then
-        local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
-        if phase:getUseCount(name) >= limit then
-            return false, '本阶段已经用过「{}」了' % { name }
-        end
-    end
-
     -- 内容侧有没有异议
     local refusal = self:fire('卡牌-能否使用', { user = user, card = card, targets = list })
     if refusal ~= nil then
@@ -844,6 +872,32 @@ function M:canUse(user, card, targets)
         return false, refusal
     end
     return true, nil, legal
+end
+
+--- 这张牌此刻能不能「对一张牌使用」（合法性由「声明了『对卡牌生效』」表达；目标牌由发起方给定）
+---@param user Player # 使用者
+---@param card Card # 要用的牌
+---@param targetCard? Card # 要用在哪张牌上（省略 = 只判「此刻能不能对牌使用」）
+---@return boolean # 能这样用吗
+---@return any # 不能的原因
+function M:canUseToCard(user, card, targetCard)
+    local def, problem = checkCardItself(self, user, card)
+    if not def then
+        return false, problem
+    end
+    if #def:getHandlers('对卡牌生效') == 0 then
+        return false, '「{}」没有声明「对卡牌生效」，不能对牌使用' % { def.fullName }
+    end
+
+    -- 内容侧有没有异议
+    local refusal = self:fire('卡牌-能否使用', { user = user, card = card, target = targetCard })
+    if refusal ~= nil then
+        if refusal == false then
+            refusal = '这张牌现在不能使用'
+        end
+        return false, refusal
+    end
+    return true, nil
 end
 
 ---@async
@@ -857,6 +911,22 @@ function M:useCard(user, card, targets)
         user    = user,
         card    = card,
         targets = moe.util.toList(targets),
+    }
+    effect:apply():await()
+    return effect
+end
+
+---@async
+---@param user Player # 使用者
+---@param card Card # 被使用的牌
+---@param targetCard Card # 目标：一张牌（例如【无懈可击】要对的那张锦囊）
+---@return UseCardToCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
+function M:useCardToCard(user, card, targetCard)
+    local effect = moe.useCardToCard.create {
+        game       = self,
+        user       = user,
+        card       = card,
+        targetCard = targetCard,
     }
     effect:apply():await()
     return effect

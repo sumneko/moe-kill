@@ -209,7 +209,7 @@ lt.test('询问：被取消的询问以「没有答复」结束，结算其余�
 
     ---@type string[]
     local trace = {}
-    game:on('即将生效', function (effect)
+    game:on('效果-即将生效', function (effect)
         ---@cast effect AskCard
         if effect.kind == 'askCard' then
             effect:remove()

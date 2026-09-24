@@ -17,9 +17,10 @@ Depends = nil
 ---@class CardDef
 ---@field on fun(self: CardDef, event: '进入区域', handler: fun(card: Card, zone: Zone, slot: string?): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发；槽位区额外给槽位名）
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(target: CardDef.Target): Player[]): CardDef
----@field on fun(self: CardDef, event: '结算前', handler: fun(useCard: UseCard)): CardDef # 使用结算开始时跑一次（逐目标之前）
+---@field on fun(self: CardDef, event: '结算前', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard)): CardDef
----@field on fun(self: CardDef, event: '结算后', handler: fun(useCard: UseCard)): CardDef # 所有目标结算完之后跑一次
+---@field on fun(self: CardDef, event: '对卡牌生效', handler: fun(cardEffectToCard: CardEffectToCard, useCard: UseCardToCard)): CardDef # 对一张牌使用时的生效（声明它 = 这张牌能「对牌使用」）
+---@field on fun(self: CardDef, event: '结算后', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 所有目标结算完之后跑一次
 
 --- 「获取目标」的上下文：这次想用哪张牌（还没定目标）
 ---@class CardDef.Target
@@ -37,25 +38,28 @@ Depends = nil
 ---@class Game.Event.卡牌能否使用
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
----@field targets? Player[] # 要校验的目标（省略 = 只判「此刻能不能用」）
+---@field targets? Player[] # 要校验的角色目标（省略 = 只判「此刻能不能用」）
+---@field target? Card # 要校验的牌目标（对牌使用这一支才有）
 
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function
 ---@field fire fun(self: Game, name: '游戏-开始', event: Game.Event.游戏开始): any
+---@field on fun(self: Game, name: '效果-即将生效', callback: fun(effect: Effect): any): function # 执行自己的结算之前发一次；订阅者可以在这里取消这一次生效
+---@field fire fun(self: Game, name: '效果-即将生效', effect: Effect): any
 ---@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function # 只发给区的归属者（结完时自己建过临时处理区的那次结算）
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
----@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskPlayCard): any): function
----@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskPlayCard): any
----@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskUseCard|AskPlayCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskUseCard|AskPlayCard): any
----@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskUseCard|AskPlayCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskUseCard|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard): any
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
----@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard): any): function
----@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard): any
----@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard): any): function
----@field fire fun(self: Game, name: '卡牌-结算后', useCard: UseCard): any
+---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function
+---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
+---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function
+---@field fire fun(self: Game, name: '卡牌-结算后', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '伤害-前', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Game, name: '伤害-前', damage: Damage): any
 ---@field on fun(self: Game, name: '伤害-生效', callback: fun(damage: Damage): any): function
@@ -68,8 +72,8 @@ Depends = nil
 ---@field fire fun(self: Game, name: '回复-生效', heal: Heal): any
 ---@field on fun(self: Game, name: '回复-后', callback: fun(heal: Heal): any): function
 ---@field fire fun(self: Game, name: '回复-后', heal: Heal): any
----@field on fun(self: Game, name: '摸牌', callback: fun(draw: Draw): any): function
----@field fire fun(self: Game, name: '摸牌', draw: Draw): any
+---@field on fun(self: Game, name: '摸牌-生效', callback: fun(draw: Draw): any): function
+---@field fire fun(self: Game, name: '摸牌-生效', draw: Draw): any
 ---@field on fun(self: Game, name: '判定-亮牌', callback: fun(judge: Judge): any): function
 ---@field fire fun(self: Game, name: '判定-亮牌', judge: Judge): any
 ---@field on fun(self: Game, name: '判定-前', callback: fun(judge: Judge): any): function

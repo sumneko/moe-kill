@@ -38,7 +38,7 @@ local function newBareGame()
     return game, players
 end
 
-lt.test('摸牌：内核不碰牌区，只触发「摸牌」时机', function ()
+lt.test('摸牌：内核不碰牌区，只触发「摸牌-生效」时机', function ()
     local bare <close> = useBareSources()
     local game, players = newBareGame()
     local deck = game:getZone('抽牌')
@@ -48,13 +48,13 @@ lt.test('摸牌：内核不碰牌区，只触发「摸牌」时机', function ()
 
     ---@type Draw?
     local seen = nil
-    game:on('摸牌', function (draw)
+    game:on('摸牌-生效', function (draw)
         seen = draw
     end)
 
     local draw = game:draw(players[1], 2)
 
-    local payload = assert(seen, '「摸牌」没有触发')
+    local payload = assert(seen, '「摸牌-生效」没有触发')
     lt.assertEquals('上下文就是这次摸牌', draw, payload)
     lt.assertEquals('种类标识', 'draw', draw.kind)
     lt.assertEquals('摸牌的人可读', players[1], payload.player)
@@ -82,7 +82,7 @@ lt.test('摸牌：已阵亡的不摸、不触发时机', function ()
 
     ---@type integer
     local fired = 0
-    game:on('摸牌', function () fired = fired + 1 end)
+    game:on('摸牌-生效', function () fired = fired + 1 end)
 
     players[1]:setAlive(false)
     local draw = game:draw(players[1], 1)

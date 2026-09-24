@@ -19,13 +19,13 @@ function M:__init(game, player, count)
     self.count  = count
 end
 
---- 摸牌结算：规则侧在 `'摸牌'` 里真的取牌（用 `game:drawCards`）；已阵亡的不摸
+--- 摸牌结算：规则侧在 `'摸牌-生效'` 里真的取牌（用 `game:drawCards`）；已阵亡的不摸
 ---@async
 function M:settle()
     if not self.player:isAlive() then
         return
     end
-    self.game:fire('摸牌', self)
+    self.game:fire('摸牌-生效', self)
 end
 
 ---@class Draw.API

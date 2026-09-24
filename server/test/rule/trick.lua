@@ -36,6 +36,25 @@ local function equipCard(run, player, name)
     return card
 end
 
+--- 是不是「无懈可击」那个窗口的问（它在每张锦囊生效前问一圈；下面这些用例不关心它）
+---@param ask AskCard
+---@return boolean
+local function isNullifyAsk(ask)
+    return ask.kind == 'askUseCardToCard'
+end
+
+--- 这次询问是冲着哪次生效来的（看它的父效果 —— 询问里不带"对谁"，只有这次生效带着）
+---@param ask AskCard
+---@return CardEffect? # 父效果是「一张牌对某角色的一次生效」时给出
+local function pendingEffect(ask)
+    local effect = ask.parent
+    if effect and effect.kind == 'cardEffect' then
+        ---@cast effect CardEffect
+        return effect
+    end
+    return nil
+end
+
 lt.test('无中生有：用出去就摸两张', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]
@@ -160,6 +179,9 @@ lt.test('决斗：由目标先打出杀，先不出的挨 1 点', function ()
     ---@type Player[] # 被问过的人（按被问顺序）
     local asked = {}
     run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) then
+            return
+        end
         local to = assert(ask.to)
         asked[#asked + 1] = to
         local cards = script[to]
@@ -254,6 +276,9 @@ lt.test('五谷丰登：从顺序锚点起依次选牌', function ()
     ---@type string[] # 被问的座位号（按被问顺序）
     local asked = {}
     run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) then
+            return
+        end
         local to = assert(ask.to)
         asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
         local answer = support.pickFirst(ask)
@@ -276,6 +301,9 @@ lt.test('五谷丰登：起点是顺序锚点，不是使用者', function ()
     ---@type string[] # 被问的座位号（按被问顺序）
     local asked = {}
     run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) then
+            return
+        end
         local to = assert(ask.to)
         asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
         local answer = support.pickFirst(ask)
@@ -334,6 +362,9 @@ lt.test('过河拆桥：目标只有手牌时，候选就是那几张手牌', fu
     ---@type AskCard.Option[]
     local options = {}
     run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) then
+            return
+        end
         options = assert(ask.options)
         ask:answer { card = options[2].card }
     end)
@@ -526,6 +557,9 @@ lt.test('顺手牵羊：手牌也在候选里，挑中就直接拿走', function
     local hand   = assert(target:getZone('手牌'), '没有手牌区')
 
     run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) then
+            return
+        end
         local option = assert(assert(ask.options)[1])
         lt.assertEquals('候选带的是牌（不是区）', true, option.card ~= nil)
         ask:answer { card = option.card }
@@ -553,12 +587,179 @@ lt.test('顺手牵羊：合法目标要距离 1 以内且区域里有牌', funct
     lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
 end)
 
+lt.test('无懈可击：没人用它 ⇒ 锦囊照常结算，但一圈里每个存活角色都被问过', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '无中生有')
+
+    ---@type string[] # 被问无懈的座位号（按被问顺序）
+    local asked = {}
+    run.game:on('卡牌-询问', function (ask)
+        if not isNullifyAsk(ask) then
+            return
+        end
+        asked[#asked + 1] = tostring(assert(run.desk:getIndex(assert(ask.to))))
+    end)
+
+    run.game:useCard(user, card, { user })
+
+    lt.assertEquals('从顺序锚点起问了一圈', '1,2,3', table.concat(asked, ','))
+    lt.assertEquals('锦囊照常生效（摸到两张）', 2, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('无懈可击：有人用它 ⇒ 那张锦囊对这个目标不生效', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local user    = run.players[1]
+    local card    = takeCard(run, user, '无中生有')
+    local nullify = takeCard(run, run.players[2], '无懈可击')
+
+    ---@type boolean
+    local answered = false
+    run.game:on('卡牌-询问', function (ask)
+        if answered or not isNullifyAsk(ask) then
+            return
+        end
+        if ask.to == run.players[2] then
+            answered = true
+            ask:answer { card = nullify }
+        end
+    end)
+
+    run.game:useCard(user, card, { user })
+
+    lt.assertEquals('一张也没摸到', 0, assert(user:getZone('手牌')):count())
+    local discard = assert(run.game:getZone('弃牌')):list()
+    lt.assertEquals('用掉的无懈进了弃牌堆', true, moe.util.arrayHas(discard, nullify))
+    lt.assertEquals('被抵消的锦囊也进了弃牌堆', true, moe.util.arrayHas(discard, card))
+end)
+
+lt.test('无懈可击：它自己也能被抵消 ⇒ 原锦囊照常生效', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '无中生有')
+
+    ---@type table<Player, Card>
+    local hand = {
+        [run.players[2]] = takeCard(run, run.players[2], '无懈可击'),
+        [run.players[3]] = takeCard(run, run.players[3], '无懈可击'),
+    }
+    ---@type table<Player, true> # 每人只答一次
+    local done = {}
+    run.game:on('卡牌-询问', function (ask)
+        if not isNullifyAsk(ask) then
+            return
+        end
+        local to = assert(ask.to)
+        if hand[to] and not done[to] then
+            done[to] = true
+            ask:answer { card = hand[to] }
+        end
+    end)
+
+    run.game:useCard(user, card, { user })
+
+    lt.assertEquals('两层互相抵消 ⇒ 原锦囊照常生效', 2, assert(user:getZone('手牌')):count())
+    lt.assertEquals('两张无懈都进弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), hand[run.players[3]]))
+end)
+
+lt.test('无懈可击：多目标锦囊可以对某一个目标单独抵消', function ()
+    local run     = support.start { count = 3, packages = { '标准' } }
+    local user    = run.players[1]
+    local card    = takeCard(run, user, '南蛮入侵')
+    local nullify = takeCard(run, run.players[3], '无懈可击')
+
+    ---@type boolean
+    local answered = false
+    run.game:on('卡牌-询问', function (ask)
+        if answered or not isNullifyAsk(ask) then
+            return
+        end
+        local pending = pendingEffect(ask)
+        if ask.to == run.players[3] and pending and pending.target == run.players[2] then
+            answered = true
+            ask:answer { card = nullify }
+        end
+    end)
+
+    run.game:useCard(user, card, { run.players[2], run.players[3] })
+
+    lt.assertEquals('被抵消的那个不受伤', 5, run.players[2]:getAttr('体力'))
+    lt.assertEquals('另一个照常结算', 4, run.players[3]:getAttr('体力'))
+end)
+
+lt.test('无懈可击：非锦囊不问（【杀】照旧只问【闪】）', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local user  = run.players[1]
+    local slash = takeCard(run, user, '杀')
+
+    ---@type boolean
+    local askedNullify = false
+    ---@type string[]
+    local reasons = {}
+    run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) then
+            askedNullify = true
+            return
+        end
+        reasons[#reasons + 1] = ask.reason
+    end)
+
+    run.game:useCard(user, slash, { run.players[2] })
+
+    lt.assertEquals('没出现要无懈的询问', false, askedNullify)
+    lt.assertEquals('只问了那一次【闪】', 1, #reasons)
+    lt.assertEquals('缘由是【杀】', '杀', reasons[1])
+end)
+
+lt.test('无懈可击：主动用不出去（只在「生效前」被问到时才用）', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '无懈可击')
+    takeCard(run, user, '无中生有')
+
+    local options = run.game:askUseCard(user, '出牌', { zone = '手牌' }).options
+    lt.assertEquals('出牌阶段的候选里只有那张锦囊', 1, #(options or {}))
+    lt.assertEquals('就是【无中生有】', '无中生有', (options or {})[1].card:getLabel())
+
+    local ok, reason = run.game:canUse(user, card, {})
+    lt.assertEquals('直接问也用不了', false, ok)
+    lt.assertEquals('原因是它没有「对角色使用」这一支', '「标准.无懈可击」没有声明「获取目标」，现在用不了', reason)
+end)
+
+lt.test('无懈可击：答复的牌不在选项里 ⇒ 按没用处理，锦囊照常生效', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeCard(run, user, '无中生有')
+    local other  = takeCard(run, target, '杀')
+
+    ---@type boolean
+    local answered = false
+    run.game:on('卡牌-询问', function (ask)
+        if answered or not isNullifyAsk(ask) then
+            return
+        end
+        if ask.to == target then
+            answered = true
+            ask:answer { card = other }   -- 手里没无懈可击，给一张别的
+        end
+    end)
+
+    run.game:useCard(user, card, { user })
+
+    lt.assertEquals('确实问过他', true, answered)
+    lt.assertEquals('锦囊照常生效（摸到两张）', 2, assert(user:getZone('手牌')):count())
+    lt.assertEquals('那张牌还在他手上', true,
+        moe.util.arrayHas(assert(target:getZone('手牌')):list(), other))
+end)
+
 lt.test('锦囊：已落地的都归类为锦囊与非延时锦囊', function ()
     local run = support.start { count = 2, packages = { '标准' } }
 
     for _, name in ipairs({
         '无中生有', '南蛮入侵', '万箭齐发', '桃园结义', '决斗', '五谷丰登',
-        '过河拆桥', '顺手牵羊',
+        '过河拆桥', '顺手牵羊', '无懈可击',
     }) do
         local def = assert(run.game:getCard(name), '没有这张牌的定义')
 

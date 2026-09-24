@@ -124,7 +124,7 @@ function M:apply()
         else
             self.game:addEffect(self)
         end
-        self.game:fire('即将生效', self)
+        self.game:fire('效果-即将生效', self)
         return self:settle()
     end)
 

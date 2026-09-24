@@ -296,19 +296,19 @@ lt.test('效果：结算中抛错也退栈', function ()
     lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):match(':%d+:') ~= nil)
 end)
 
-lt.test('效果：即将生效的订阅者能取消这一次生效', function ()
+lt.test('效果：效果-即将生效的订阅者能取消这一次生效', function ()
     local game, players = newGame(2)
 
     ---@type string[]
     local trace = {}
 
-    game:on('即将生效', function (effect)
+    game:on('效果-即将生效', function (effect)
         trace[#trace + 1] = '{} {}' % { effect.kind, game:getEffect() == effect }
         ---@cast effect Effect
         effect:remove()
         trace[#trace + 1] = '取消之后这一行不该执行'
     end)
-    game:on('即将生效', function ()
+    game:on('效果-即将生效', function ()
         trace[#trace + 1] = '后面的订阅者也不该执行'
     end)
 
@@ -334,7 +334,7 @@ lt.test('效果：取消只作用于这一个效果，外层照常结算完', fu
             outerDone = true
         end
     end)
-    game:on('即将生效', function (effect)
+    game:on('效果-即将生效', function (effect)
         ---@cast effect Damage
         if effect.amount == 2 then
             effect:remove()
@@ -355,7 +355,7 @@ lt.test('效果：被取消后它自己的结算不再执行', function ()
     ---@type string[]
     local trace = {}
 
-    game:on('即将生效', function (effect)
+    game:on('效果-即将生效', function (effect)
         ---@cast effect Effect
         effect:remove()
     end)
@@ -445,7 +445,7 @@ lt.test('效果：自动失败交给任务的错误处理器，取消不交', fu
     lt.assertEquals('处理器收到一次', 1, #lt.errors)
     lt.assertEquals('收到的是这个失败', true, tostring(lt.errors[1]):find('故意报错', 1, true) ~= nil)
 
-    game:on('即将生效', function (effect)
+    game:on('效果-即将生效', function (effect)
         ---@cast effect Effect
         effect:remove()
     end)
@@ -539,7 +539,7 @@ lt.test('效果：取消也收尾（牌不能留在已经死掉的效果里）',
     local game = newGame(1)
     local finished = 0
     game:on('效果-收尾', function () finished = finished + 1 end)
-    game:on('即将生效', function (effect)
+    game:on('效果-即将生效', function (effect)
         ---@cast effect Effect
         effect:remove()
     end)
