@@ -45,4 +45,4 @@
 ## 5. 收尾
 
 - [x] 5.1 `openspec validate add-nullification` 通过（本批带 `core-play` 规格增量，**不设** `skip_specs`）
-- [ ] 5.2 提交（`【AI】` 前缀）；问过用户后再 archive（archive 会把增量同步进 `openspec/specs/core-play/spec.md`）
+- [x] 5.2 提交（`【AI】` 前缀）；问过用户后再 archive（archive 会把增量同步进 `openspec/specs/core-play/spec.md`）
