@@ -11,7 +11,7 @@
 ## 2. 内容：【无懈可击】
 
 - [x] 2.1 `package/标准/卡牌/无懈可击.lua`（新）：顶部写官方描述（使用时机 / 使用目标 / 作用效果）；`Card '无懈可击' : extends '锦囊牌' : on('对卡牌生效', function () end)` —— 声明壳（真正抵消由下面的窗口落地，因为内核的取消只能由被取消的效果自己的执行体发起）
-- [x] 2.2 同文件顶层写窗口：`game:on('效果-即将生效', …)` **只认 `cardEffect` 与 `cardEffectToCard` 两种 `kind`**（+ `isKind('锦囊')`），不认 `useCard` / `useCardToCard`；`nullified(card)` 用 `game.desk:actionOrder(game.desk.alivePlayers)` 走一圈、`game:askUseCardToCard(player, card.name, { name = '无懈可击', target = card })` 问、问到就用 `game:useCardToCard` 真用出去（那张无懈自己也会走一遍窗口 ⇒ 嵌套由事件产生）；净结果是被抵消就 `effect:remove()`；判决直接读那次使用的 `childs` 里 `cardEffectToCard` 的 `.err`（空 = 它生效了 = 上层被抵消），不另设标记
+- [x] 2.2 同文件顶层写窗口：`game:on('效果-能否生效', …)` **只认 `cardEffect` 与 `cardEffectToCard` 两种 `kind`**（+ `isKind('锦囊')`），不认 `useCard` / `useCardToCard`；`nullified(card)` 用 `game.desk:actionOrder(game.desk.alivePlayers)` 走一圈、`game:askUseCardToCard(player, card.name, { name = '无懈可击', target = card })` 问、问到就用 `game:useCardToCard` 真用出去（那张无懈自己也会被问一遍 ⇒ 嵌套由事件产生）；要抵消就**返回 `'无懈可击'`**（返回值即阻止的原因，内核据此不结算）；判决直接读那次使用的 `childs` 里 `cardEffectToCard` 的 `.err`（空 = 它生效了 = 上层被抵消），不另设标记
 - [x] 2.3 牌表里那 4 张【无懈可击】已存在，不动
 
 ## 3. 用例
@@ -28,10 +28,17 @@
 - [x] 3.10 跑 `server/bin/moe-kill.exe --test` 全量 0 失败（基线 533 → 552）；问题面板 information 及以上 0 条
 - [x] 3.11 新增两个内核套件（与既有「每个效果类一套」的惯例对齐）：`server/test/core/effect/use-card-to-card.lua`（对牌使用：目标是一张牌 / 钩子拿得到这次用牌 / 没声明就用不了 / 不在手上不成立 / 内容侧否决带 `target` / 记在出牌阶段上）与 `ask-use-card-to-card.lua`（候选逐张跑校验且选项带目标牌 / 答复多给目标就拒收 / 答复不在选项里就拒收且牌不动 / 没人应答 / 缘由与被问者带到应答方）；在 `server/test.lua` 里登记
 
+## 1.5 阻止生效改成疑问式（2026-09-24 追加）
+
+- [x] 1.5.1 `server/core/effect/effect.lua`：`apply()` 里把 `'效果-即将生效'` 改成疑问式的 **`'效果-能否生效'`** —— 内核读回调的返回值，非 nil 即阻止（`false` 归一成「这次生效被阻止」），这次生效 `reject(原因)` 收尾（不 `settle()`、没有结果、不算失败、收尾照跑）；**删掉 `Effect:remove()`**（全仓无调用点，跨层取消本来也停不住对方），内核自己要停就用 `task:cancel()`
+- [x] 1.5.2 `server/core/effect/use-card-to-card.lua`：`UseCardToCard` 记下它产生的那次生效（字段 `cardEffectToCard`）—— 内容侧靠它读「刚用出去的那张无懈生效没有」，不必翻 `childs`
+- [x] 1.5.2 `env-meta`：`'效果-能否生效'` 的 on / fire 声明（注释写明「返回值就是那条阻止的原因」）
+- [x] 1.5.3 内容与用例统一：无懈的窗口改成返回原因；`ask-card` / `play` / `init` 里原有的「订阅者 `remove()`」用例改成「返回原因」并补两条（返回值语义 / 只给 `false` 的归一）
+
 ## 4. 文档
 
-- [x] 4.1 `.agents/skills/sanguosha-rules/SKILL.md` §9.10：补【无懈可击】的口径（官方原文：使用时机 / 使用目标 / 作用效果；「抵消」= 对该目标不生效）+ 我们的落点（「对一张牌使用」这一支 + `'效果-即将生效'` + `remove()`，逐目标、分层循环、每层一圈）；标注【闪】目前仍在【杀】自己的 `'生效'` 里，两者位置不同
-- [x] 4.2 `.agents/skills/moe-kill-dev/references/architecture.md` §12：在 `'效果-即将生效'` 那行写明它**就是官方的「生效前」**；补「对一张牌使用」这一支的类与入口（`UseCardToCard` / `CardEffectToCard` / `AskUseCardToCard` / `canUseToCard` / `useCardToCard` / `askUseCardToCard` / `'对卡牌生效'`）；测试清单补 `--test rule.trick` 与两个新内核套件
+- [x] 4.1 `.agents/skills/sanguosha-rules/SKILL.md` §9.10：补【无懈可击】的口径（官方原文：使用时机 / 使用目标 / 作用效果；「抵消」= 对该目标不生效）+ 我们的落点（「对一张牌使用」这一支 + `'效果-能否生效'` 返回原因阻止，逐目标、每层一圈）；标注【闪】目前仍在【杀】自己的 `'生效'` 里，两者位置不同
+- [x] 4.2 `.agents/skills/moe-kill-dev/references/architecture.md` §12：把「取消」那条改成「**阻止**」（疑问式 + 返回值即原因）并写明「它就是官方的生效前」；补「对一张牌使用」这一支的类与入口（`UseCardToCard` / `CardEffectToCard` / `AskUseCardToCard` / `canUseToCard` / `useCardToCard` / `askUseCardToCard` / `'对卡牌生效'`）；测试清单补 `--test rule.trick` 与两个新内核套件
 - [x] 4.3 `.agents/skills/moe-kill-dev/references/code-style.md` 命名表补 `cardEffectToCard` / `useCardToCard`
 - [x] 4.4 `.agents/skills/moe-kill-dev/references/progress.md`：记本批（新增 / 改动文件、验收基线 551、§2 候选表把「剩余普通锦囊」标成已做完）
 

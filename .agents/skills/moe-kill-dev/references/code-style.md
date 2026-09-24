@@ -174,7 +174,7 @@ end
 - 包目录名可以带一个 `@` 前缀（表示该包默认加载，见 `architecture.md` 第 9 节），包内文件名不带。
 - **注入环境给的「函数」用 PascalCase，给的「对象 / 命名空间」小写**（用户 2026-09-19 定）：`Card` / `Depends` 是框架入口（与既有的 `Class` / `New` / `Extends` 同类），`game`（与 `moe` 同类）是环境给的对象。理由：包文件里 `local card = game:createCard('杀')` 这类局部变量很自然，小写入口一遮就没了；大写既躲开遮蔽，又能一眼区分「加载期 DSL」与「普通 API」。
   - **给标准库加助手就用库名本身**（用户 2026-09-21 定）：`table.filter` / 将来的 `string.trim`，**不要**另起 `Table` / `util` 这类全局 —— 名字自己说明了「这是对标准库的扩充」（做法与边界见 `architecture.md` 9.6）。
-- **回调参数按「载荷的具体类型」起名，别叫 `ctx`**（用户 2026-09-23 定）：载荷是内核某个类的实例就用它的小驼峰类名 —— `useCard`（`'卡牌-结算前'` / `'卡牌-结算后'` / 牌的 `'结算前'` / `'结算后'`；对牌使用那一支的载荷类型变了，名字照旧）、`cardEffect`（牌的 `'生效'`）、**`cardEffectToCard`**（牌的 `'对卡牌生效'`，不能省成 `cardEffect` —— 两者是不同类）、`askCard` / `askUseCard` / `askUseCardToCard` / `askPlayCard`（`'卡牌-询问'` / `'卡牌-答复'` / `'卡牌-答复后'` —— 载荷按实际是哪个类起名）、`damage` / `heal` / `dying` / `draw` / `judge` / `phase` / `player` / `ask` / `effect`（`'效果-即将生效'` 与 `'效果-收尾'`）、`result`（`'游戏-结束'`，类型是 `Game.Result`）；**没有类实例的载荷用描述性短名** —— `target`（牌的 `'获取目标'`，类型 `CardDef.Target`）、`check`（`'卡牌-能否使用'`）、`turn`（`'回合-开始'` / `'回合-结束'`）、`event`（`'游戏-开始'`，空表）、`card` / `zone` / `slot`（牌的 `'进入区域'`，用户 2026-09-24 定的形状 —— `slot` 只有槽位区给得出）、`payload`（`game:on` 的 `string` 兜底签名）。**用不上载荷就干脆不接参数**（`function ()`）；`env-meta.lua` 的 `fun(...)` 签名里也照这个起名。
+- **回调参数按「载荷的具体类型」起名，别叫 `ctx`**（用户 2026-09-23 定）：载荷是内核某个类的实例就用它的小驼峰类名 —— `useCard`（`'卡牌-结算前'` / `'卡牌-结算后'` / 牌的 `'结算前'` / `'结算后'`；对牌使用那一支的载荷类型变了，名字照旧）、`cardEffect`（牌的 `'生效'`）、**`cardEffectToCard`**（牌的 `'对卡牌生效'`，不能省成 `cardEffect` —— 两者是不同类）、`askCard` / `askUseCard` / `askUseCardToCard` / `askPlayCard`（`'卡牌-询问'` / `'卡牌-答复'` / `'卡牌-答复后'` —— 载荷按实际是哪个类起名）、`damage` / `heal` / `dying` / `draw` / `judge` / `phase` / `player` / `ask` / `effect`（`'效果-能否生效'` 与 `'效果-收尾'`）、`result`（`'游戏-结束'`，类型是 `Game.Result`）；**没有类实例的载荷用描述性短名** —— `target`（牌的 `'获取目标'`，类型 `CardDef.Target`）、`check`（`'卡牌-能否使用'`）、`turn`（`'回合-开始'` / `'回合-结束'`）、`event`（`'游戏-开始'`，空表）、`card` / `zone` / `slot`（牌的 `'进入区域'`，用户 2026-09-24 定的形状 —— `slot` 只有槽位区给得出）、`payload`（`game:on` 的 `string` 兜底签名）。**用不上载荷就干脆不接参数**（`function ()`）；`env-meta.lua` 的 `fun(...)` 签名里也照这个起名。
 
 ## 9. 防御性检查的边界
 
@@ -195,7 +195,7 @@ end
 **`error` 只有一个语义：报错；禁止用 `error` 做跳出**（用户 2026-09-20 定）。
 
 - 不要用 `error` 做控制流（「取消这次生效」「提前结束这次结算」这类）：错误处理器（`moe.task.setErrorHandler` 接的日志）与测试的错误日志计数都会把它当故障，调用方也分不清"失败"与"正常结束"。
-- 需要**中断**当前执行体时：让出（`coroutine.yield()`）暂停自己，由持有者（`Task`）收尾并关闭执行体 —— `Effect:remove()` 取消一次生效就是这么做的（`task:reject(CANCELED)` + 让出；`Task:execute` 发现「任务已结完但执行体还挂着」就 `coroutine.close` 收掉它 —— 于是它再也跑不下去）。
+- 需要**中断**当前执行体时：让出（`coroutine.yield()`）暂停自己，由持有者（`Task`）收尾并关闭执行体 —— 内核里的 `Effect:reject(原因)` 就是这么停住结算体的（`task:reject` + 让出；`Task:execute` 发现「任务已结完但执行体还挂着」就 `coroutine.close` 收掉它 —— 于是它再也跑不下去）。**内容侧不用这套**：要阻止一次生效就**返回原因**（见 `architecture.md` §12 的「能否生效」），不要自己去停别人的执行体。
 - 需要表达"这次任务因为什么结束"时用 `task:reject(原因)`（如 `Task.TIMEOUT`、内核的取消信号），不要抛错让上层去猜。
 - 于是**只有真故障**才会走到 `Task` 的错误处理器。
 
@@ -206,7 +206,7 @@ end
 | 读法 | 用在哪 | 例子 |
 | ---- | ---- | ---- |
 | **字段** | 存下来的数据 | `card.name` / `card.suit` / `card.point`、`game.desk`、`player.game` |
-| **`__getter`** | 算出来的（每次现算，不缓存） | `desk.players`、`desk.alivePlayers`、`player.acting`、`card.fullName` |
+| **`__getter`** | 算出来的（每次现算，不缓存） | `desk.players`、`desk.alivePlayers`、`player.acting`、`card.fullName`、`effect.success` |
 | **`getXxx(参数)`** | 要传参的读取 | `player:getAttr('体力')`、`game:getZone('抽牌')`、`attrs:get(name)` |
 
 - 理由：`player:getAttr('体力')` 与方法（会做事的东西）一眼可分；而 `card:getId()` 这种**没有参数**的方法，读起来像「可能要做点什么」，实际只是取个字段 —— 调用方平白多一层，也让人误以为背后有逻辑。**算出来的值**用 `__getter` 的好处是：调用方不必知道「这是存的还是算的」（`desk.players` 与 `desk.alivePlayers` 读法一致），将来把字段改成派生（或反过来）**调用点一行不改**。

@@ -96,6 +96,7 @@ lt.test('对牌使用：钩子拿得到这次用牌', function ()
     lt.assertEquals('校验时告诉内容侧目标牌', target, checkedTarget)
     lt.assertEquals('结算后拿得到目标牌', target, seenTarget)
     lt.assertEquals('结算后拿到这次用牌', true, seenUseCard ~= nil)
+    lt.assertEquals('这次使用记下了它产生的那次生效', 'cardEffectToCard', assert(seenUseCard).cardEffectToCard.kind)
 end)
 
 lt.test('对牌使用：没声明「对卡牌生效」就用不了', function ()

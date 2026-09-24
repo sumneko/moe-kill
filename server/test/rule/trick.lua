@@ -676,8 +676,10 @@ lt.test('无懈可击：它自己也能被抵消 ⇒ 原锦囊照常生效', fun
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), hand[run.players[3]]))
 
     local firstNullify = assert(childOf(assert(childOf(spell, 'cardEffect')), 'useCardToCard'))
-    local firstEffect  = assert(childOf(firstNullify, 'cardEffectToCard'))
-    lt.assertEquals('第一张无懈对那张无懈的生效被真的取消（不是只把最外层取消掉）', moe.task.CANCELED, firstEffect.err)
+    ---@cast firstNullify UseCardToCard
+    local firstEffect  = assert(firstNullify.cardEffectToCard)
+    lt.assertEquals('第一张无懈对那张无懈的生效被真的阻止（不是只把最外层阻止掉），原因也记着', '无懈可击',
+        firstEffect.err)
     lt.assertEquals('它自己那次使用是成的', nil, firstNullify.err)
 end)
 

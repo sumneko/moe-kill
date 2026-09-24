@@ -103,20 +103,22 @@ lt.test('决策询问：自己不动任何状态', function ()
     lt.assertEquals('答复原样交给发起方', card, ask.reply.cards[1])
 end)
 
-lt.test('决策询问：被取消 ⇒ 没有答复', function ()
+lt.test('决策询问：被阻止 ⇒ 没有答复', function ()
     local game, players = newGame(2)
     local fired = 0
 
     game:on('决策-答复', function ()
         fired = fired + 1
     end)
-    game:on('决策-询问', function (ask)
-        ask:remove()
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'ask' then
+            return '不让这次询问生效'
+        end
     end)
 
     local ask = game:ask(players[1], '出牌', {})
 
     lt.assertEquals('没有答复', nil, ask.reply)
-    lt.assertFailed('以取消结束', ask)
-    lt.assertEquals('取消不触发答复时机', 0, fired)
+    lt.assertEquals('原因记在 err 上', '不让这次询问生效', ask.err)
+    lt.assertEquals('被阻止不触发答复时机', 0, fired)
 end)

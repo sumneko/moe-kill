@@ -296,30 +296,48 @@ lt.test('效果：结算中抛错也退栈', function ()
     lt.assertEquals('错误信息里带出错位置', true, tostring(damage.err):match(':%d+:') ~= nil)
 end)
 
-lt.test('效果：效果-即将生效的订阅者能取消这一次生效', function ()
+lt.test('效果：订阅者在「能否生效」里返回原因 ⇒ 这一次生效不结算', function ()
     local game, players = newGame(2)
+    lt.clearErrors()
 
     ---@type string[]
     local trace = {}
 
-    game:on('效果-即将生效', function (effect)
+    game:on('效果-能否生效', function (effect)
         trace[#trace + 1] = '{} {}' % { effect.kind, game:getEffect() == effect }
-        ---@cast effect Effect
-        effect:remove()
-        trace[#trace + 1] = '取消之后这一行不该执行'
+        return '我不让它生效'
     end)
-    game:on('效果-即将生效', function ()
-        trace[#trace + 1] = '后面的订阅者也不该执行'
+    game:on('效果-能否生效', function ()
+        trace[#trace + 1] = '第一个松了口就不该轮到我'
     end)
 
-    game:damage(players[1], players[2], 1)
+    local damage = game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('订阅者拿到的是这个效果，且此刻它是根', 'damage true', table.concat(trace, ','))
-    lt.assertEquals('被取消 ⇒ 没有造成伤害', 4, players[2]:getAttr('体力'))
-    lt.assertEquals('被取消也记在记牌器上', 1, #game:getEffects())
+    lt.assertEquals('订阅者拿到的是这个效果，且此刻它是根；第一个给了原因就快速返回', 'damage true',
+        table.concat(trace, ','))
+    lt.assertEquals('被阻止 ⇒ 没有结果', nil, damage.result)
+    lt.assertEquals('原因记在 err 上', '我不让它生效', damage.err)
+    lt.assertEquals('被阻止 ⇒ 不算成立', false, damage.success)
+    lt.assertEquals('被阻止 ⇒ 没有造成伤害', 4, players[2]:getAttr('体力'))
+    lt.assertEquals('被阻止也记在记牌器上', 1, #game:getEffects())
+    lt.assertEquals('阻止不算失败，不交给错误处理器', 0, #lt.errors)
 end)
 
-lt.test('效果：取消只作用于这一个效果，外层照常结算完', function ()
+lt.test('效果：订阅者只返回 false ⇒ 归一成一句通用原因', function ()
+    local game, players = newGame(2)
+
+    game:on('效果-能否生效', function ()
+        return false
+    end)
+
+    local damage = game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('没有结果', nil, damage.result)
+    lt.assertEquals('原因', '这次生效被阻止', damage.err)
+    lt.assertEquals('没有造成伤害', 4, players[2]:getAttr('体力'))
+end)
+
+lt.test('效果：阻止只作用于这一个效果，外层照常结算完', function ()
     local game, players = newGame(3)
 
     ---@type boolean
@@ -334,30 +352,29 @@ lt.test('效果：取消只作用于这一个效果，外层照常结算完', fu
             outerDone = true
         end
     end)
-    game:on('效果-即将生效', function (effect)
+    game:on('效果-能否生效', function (effect)
         ---@cast effect Damage
         if effect.amount == 2 then
-            effect:remove()
+            return '不让这一下生效'
         end
     end)
 
     game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('内层被取消 ⇒ 内层目标没掉血', 4, players[3]:getAttr('体力'))
+    lt.assertEquals('内层被阻止 ⇒ 内层目标没掉血', 4, players[3]:getAttr('体力'))
     lt.assertEquals('外层照常走完', true, outerDone)
     lt.assertEquals('外层目标照常掉血', 3, players[2]:getAttr('体力'))
-    lt.assertEquals('被取消也记在记牌器上', 1, #game:getEffects())
+    lt.assertEquals('被阻止也记在记牌器上', 1, #game:getEffects())
 end)
 
-lt.test('效果：被取消后它自己的结算不再执行', function ()
+lt.test('效果：被阻止后它自己的结算不再执行', function ()
     local game, players = newGame(2)
 
     ---@type string[]
     local trace = {}
 
-    game:on('效果-即将生效', function (effect)
-        ---@cast effect Effect
-        effect:remove()
+    game:on('效果-能否生效', function ()
+        return '拦下'
     end)
 
     local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
@@ -373,25 +390,6 @@ lt.test('效果：被取消后它自己的结算不再执行', function ()
     lt.assertEquals('体力没变', 4, players[2]:getAttr('体力'))
 end)
 
-lt.test('效果：不在结算中或已经结束的效果不能取消', function ()
-    local game, players = newGame(2)
-    local fresh = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
-    local damage = game:damage(players[1], players[2], 1)
-    lt.clearErrors()
-
-    local before = #game:getEffects()
-
-    fresh:remove()
-
-    lt.assertEquals('还没开始结算 ⇒ 取消是空操作', before, #game:getEffects())
-
-    damage:remove()
-
-    lt.assertEquals('已经结束 ⇒ 取消是空操作', nil, damage.err)
-    lt.assertEquals('正常结算照常掉血', 3, players[2]:getAttr('体力'))
-    lt.assertEquals('没有产生错误', 0, #lt.errors)
-end)
-
 lt.test('效果：失败记在 err 上，不抛', function ()
     local game = newGame(1)
     local probe = New 'ProbeEffect' (game, {})
@@ -405,6 +403,22 @@ lt.test('效果：失败记在 err 上，不抛', function ()
     lt.assertEquals('错误被收到', 1, #lt.errors)
     lt.assertEquals('再等也不抛', probe, probe:await())
     lt.assertEquals('错误不会被清掉', true, probe.err ~= nil)
+end)
+
+lt.test('效果：成败读 .success，它就是「没成立的原因为空」', function ()
+    local game, players = newGame(2)
+
+    local damage = game:damage(players[1], players[2], 1)
+    lt.assertEquals('结算完 = 成立', true, damage.success)
+
+    lt.clearErrors()
+    local probe = New 'ProbeEffect' (game, {})
+    probe.settle = function ()
+        error('故意报错', 0)
+    end
+    probe:apply()
+
+    lt.assertEquals('出错 = 不成立', false, probe.success)
 end)
 
 lt.test('效果：结算体给出的值就是这次结算的结果', function ()
@@ -430,7 +444,7 @@ lt.test('效果：入口返回已经结完的效果', function ()
     lt.assertEquals('没有失败', nil, damage.err)
 end)
 
-lt.test('效果：自动失败交给任务的错误处理器，取消不交', function ()
+lt.test('效果：自动失败交给任务的错误处理器，阻止不交', function ()
     local game, players = newGame(2)
 
     local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
@@ -445,14 +459,13 @@ lt.test('效果：自动失败交给任务的错误处理器，取消不交', fu
     lt.assertEquals('处理器收到一次', 1, #lt.errors)
     lt.assertEquals('收到的是这个失败', true, tostring(lt.errors[1]):find('故意报错', 1, true) ~= nil)
 
-    game:on('效果-即将生效', function (effect)
-        ---@cast effect Effect
-        effect:remove()
+    game:on('效果-能否生效', function ()
+        return '不让你生效'
     end)
     game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('取消不算失败，不交给处理器', 1, #lt.errors)
-    lt.assertEquals('被取消 ⇒ 没有造成伤害', 4, players[2]:getAttr('体力'))
+    lt.assertEquals('阻止不算失败，不交给处理器', 1, #lt.errors)
+    lt.assertEquals('被阻止 ⇒ 没有造成伤害', 4, players[2]:getAttr('体力'))
 end)
 
 ---@async
@@ -535,13 +548,12 @@ lt.test('效果：不成立也收尾', function ()
     lt.assertEquals('照样收尾', 1, finished)
 end)
 
-lt.test('效果：取消也收尾（牌不能留在已经死掉的效果里）', function ()
+lt.test('效果：被阻止也收尾（牌不能留在已经死掉的效果里）', function ()
     local game = newGame(1)
     local finished = 0
     game:on('效果-收尾', function () finished = finished + 1 end)
-    game:on('效果-即将生效', function (effect)
-        ---@cast effect Effect
-        effect:remove()
+    game:on('效果-能否生效', function ()
+        return '不让它生效'
     end)
 
     local probe = New 'ProbeEffect' (game, nil)

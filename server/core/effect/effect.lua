@@ -3,7 +3,8 @@
 ---@field game Game # 这次效果所属的局
 ---@field parent? Effect # 外层效果：这个效果是在哪个效果的结算里被结算的（栈空时结算则为「不存在」）
 ---@field result? any # 结果：这次结算给出的那个值（子类可在结算中途就定下）
----@field err? any # 失败：出错时记在这儿（等它的人也会收到这个错误）
+---@field err? any # 没成立的原因（空 = 成立）：出错 / 不成立 / 被阻止 / 取消
+---@field success boolean # 这次结算成不成立（= 没成立的原因为空）
 ---@field package task? Task # 这次结算的任务：驱动、完成、叫醒等待者都归它
 ---@field tempZone? Zone # 自己建的那块临时处理区（没建过为空 —— 要一块区请用 getTempZone）
 ---@field private tags table<string, any> # 标签袋（内容侧挂这次结算的临时数据）
@@ -124,7 +125,15 @@ function M:apply()
         else
             self.game:addEffect(self)
         end
-        self.game:fire('效果-即将生效', self)
+        local refusal = self.game:fire('效果-能否生效', self)
+        if refusal ~= nil then
+            -- 订阅者给了原因 ⇒ 这一次生效被阻止：不结算、没有结果、不算失败
+            if refusal == false then
+                refusal = '这次生效被阻止'
+            end
+            self:reject(refusal)
+            return
+        end
         return self:settle()
     end)
 
@@ -154,6 +163,12 @@ M.__getter.err = function (self)
     return self.task.err
 end
 
+---@param self Effect
+---@return boolean
+M.__getter.success = function (self)
+    return self.err == nil
+end
+
 --- 等它结完；结果读 `.result`，失败读 `.err`
 ---@async
 ---@return Effect # 它自己
@@ -167,11 +182,6 @@ function M:await()
     self.task:await()
 
     return self
-end
-
---- 取消这次生效。如果移除的是当前效果，那么之后的代码再也不会被执行。
-function M:remove()
-    Delete(self)
 end
 
 --- 让这次生效以「不成立」收尾：原因记进 `.err`（不是报错），并就地停住执行体

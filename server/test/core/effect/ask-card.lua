@@ -201,7 +201,7 @@ lt.test('询问：应答方可以让出，稍后再答复', function ()
     lt.assertEquals('答复照旧拿到', jink, game:askCard(players[2], nil, { name = '闪' }).card)
 end)
 
-lt.test('询问：被取消的询问以「没有答复」结束，结算其余部分照常', function ()
+lt.test('询问：被阻止的询问以「没有答复」结束，结算其余部分照常', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
@@ -209,10 +209,10 @@ lt.test('询问：被取消的询问以「没有答复」结束，结算其余�
 
     ---@type string[]
     local trace = {}
-    game:on('效果-即将生效', function (effect)
+    game:on('效果-能否生效', function (effect)
         ---@cast effect AskCard
         if effect.kind == 'askCard' then
-            effect:remove()
+            return '不让这次询问生效'
         end
     end)
     game:on('伤害-前', function ()

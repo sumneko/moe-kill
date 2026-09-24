@@ -44,8 +44,8 @@ Depends = nil
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function
 ---@field fire fun(self: Game, name: '游戏-开始', event: Game.Event.游戏开始): any
----@field on fun(self: Game, name: '效果-即将生效', callback: fun(effect: Effect): any): function # 执行自己的结算之前发一次；订阅者可以在这里取消这一次生效
----@field fire fun(self: Game, name: '效果-即将生效', effect: Effect): any
+---@field on fun(self: Game, name: '效果-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效：返回非 nil 即阻止（返回值就是原因）
+---@field fire fun(self: Game, name: '效果-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function # 只发给区的归属者（结完时自己建过临时处理区的那次结算）
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
 ---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard): any): function

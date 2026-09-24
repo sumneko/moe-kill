@@ -8,6 +8,7 @@ require 'core.effect.effect'
 
 --- 一次「对一张牌使用」（与 `UseCard` 同形，只是目标是牌不是角色）
 ---@class UseCardToCard : Effect
+---@field cardEffectToCard? CardEffectToCard # 这次使用对那张牌产生的那次生效（还没走到那一步就是空）
 local M = Class 'UseCardToCard'
 
 Extends('UseCardToCard', 'Effect')
@@ -54,6 +55,7 @@ function M:settle()
         handler(self)
     end
     local effect = New 'CardEffectToCard' (self.game, self, def, self.targetCard)
+    self.cardEffectToCard = effect
     effect:apply()
     for _, handler in ipairs(def:getHandlers('结算后')) do
         handler(self)

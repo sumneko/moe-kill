@@ -52,7 +52,7 @@ end
 function M:settle()
     self.game:fire('决策-询问', self)
 
-    if self.task.err or self.reply == nil then
+    if not self.success or self.reply == nil then
         return
     end
 

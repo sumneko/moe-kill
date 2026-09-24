@@ -678,16 +678,16 @@ Card '测试杀'
     hand:put(card)
 
     local blocked = players[2]
-    game:on('效果-即将生效', function (cardEffect)
+    game:on('效果-能否生效', function (cardEffect)
         ---@cast cardEffect CardEffect
         if cardEffect.kind == 'cardEffect' and cardEffect.target == blocked then
-            cardEffect:remove()
+            return '不让这一次生效'
         end
     end)
 
     game:useCard(user, card, { players[2], players[3] })
 
-    lt.assertEquals('被取消的那个没生效，其余的照常', '3', user:getTag('顺序'))
+    lt.assertEquals('被阻止的那个没生效，其余的照常', '3', user:getTag('顺序'))
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
