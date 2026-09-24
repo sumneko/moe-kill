@@ -7,7 +7,7 @@ local M = Class 'OrderedZone'
 
 Extends('OrderedZone', 'Zone')
 
----@param game? Game # 属于哪一局（有局才会发「进入区域」）
+---@param game Game # 属于哪一局
 ---@param random? Random # 绑定后 shuffle 可以不带参数
 function M:__init(game, random)
     self.kind   = 'orderedZone'
@@ -62,7 +62,7 @@ end
 moe.orderedZone = {}
 
 --- 建一个有序牌区
----@param game? Game # 属于哪一局（有局才会发「进入区域」）
+---@param game Game # 属于哪一局
 ---@param random? Random
 ---@return OrderedZone
 function moe.orderedZone.create(game, random)

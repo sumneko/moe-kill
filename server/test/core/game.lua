@@ -230,7 +230,7 @@ lt.test('抽牌：给了去向就抽到那里（处理区这类）', function ()
     game.desk:sit(1, lord)
     deck:put(game:createCard('杀'))
 
-    local stash = moe.zone.create()
+    local stash = moe.zone.create(game)
     local cards = game:drawCards(lord, 1, stash)
 
     lt.assertEquals('抽到 1 张', 1, #cards)
@@ -251,7 +251,7 @@ lt.test('抽牌：牌堆不够时照实返回（不报错）', function ()
 end)
 
 lt.test('牌区：没绑定随机源的有序牌区洗牌要传随机源', function ()
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
     zone:put(lt.card('甲'))
 
     lt.assertError('省略随机源报错', function ()

@@ -4,15 +4,13 @@ require 'core.zone'
 ---@class SlotZone : Zone
 ---@field slots string[] # 这个区有哪些槽位（按声明顺序）
 ---@field private slotMap table<string, Card> # 每个槽位里那张牌
----@field private game? Game # 换下来的牌送进哪个局的弃牌堆
 local M = Class 'SlotZone'
 
 Extends('SlotZone', 'Zone')
 
----@param game? Game # 换下来的牌送进哪个局的弃牌堆（要替换槽里的牌就得给）
+---@param game Game # 换下来的牌送进哪个局的弃牌堆
 function M:__init(game)
     self.kind    = 'slotZone'
-    self.game    = game
     self.slots   = {}
     self.slotMap = {}
 end
@@ -81,11 +79,7 @@ function M:putInto(slot, card)
     self:checkSlot(slot)
     local old = self:getSlot(slot)
     if old and old ~= card then
-        local game = self.game
-        if not game then
-            error('槽位区得记着自己在哪一局，才能把换下来的牌置入弃牌堆', 2)
-        end
-        self:move(old, game:getZone('弃牌'))
+        self:move(old, self.game:getZone('弃牌'))
     end
     local from = card:getZone()
     self.slotMap[slot] = card
@@ -101,7 +95,7 @@ end
 moe.slotZone = {}
 
 --- 建一个槽位区（槽位名由内容侧用 `setSlots` 设）
----@param game? Game # 换下来的牌送进哪个局的弃牌堆（要替换槽里的牌就得给）
+---@param game Game # 换下来的牌送进哪个局的弃牌堆
 ---@return SlotZone
 function moe.slotZone.create(game)
     return New 'SlotZone' (game)

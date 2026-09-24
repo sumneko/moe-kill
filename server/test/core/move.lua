@@ -24,8 +24,8 @@ local function zoneLabels(zone)
 end
 
 lt.test('移动：跨区移动改变两边的计数与顺序', function ()
-    local from  = moe.zone.create()
-    local to    = moe.zone.create()
+    local from  = lt.zone()
+    local to    = lt.zone()
     local cards = fill(from, { '甲', '乙', '丙' })
     fill(to, { '一', '二' })
 
@@ -38,8 +38,8 @@ lt.test('移动：跨区移动改变两边的计数与顺序', function ()
 end)
 
 lt.test('移动：位置 1 是顶、-1 与省略是底', function ()
-    local from  = moe.zone.create()
-    local to    = moe.zone.create()
+    local from  = lt.zone()
+    local to    = lt.zone()
     local cards = fill(from, { '甲', '乙', '丙' })
     fill(to, { '一', '二' })
 
@@ -54,8 +54,8 @@ lt.test('移动：位置 1 是顶、-1 与省略是底', function ()
 end)
 
 lt.test('移动：其它下标按从顶部数或从底部数解释', function ()
-    local from  = moe.zone.create()
-    local to    = moe.zone.create()
+    local from  = lt.zone()
+    local to    = lt.zone()
     local cards = fill(from, { '甲', '乙', '丙', '丁' })
     fill(to, { '一', '二', '三' })
 
@@ -67,7 +67,7 @@ lt.test('移动：其它下标按从顶部数或从底部数解释', function ()
 end)
 
 lt.test('移动：同一牌区内移动就是重排', function ()
-    local zone  = moe.zone.create()
+    local zone  = lt.zone()
     local cards = fill(zone, { '甲', '乙', '丙' })
 
     zone:move(cards[3], zone, 1)
@@ -80,8 +80,8 @@ lt.test('移动：同一牌区内移动就是重排', function ()
 end)
 
 lt.test('移动：牌不在源区时报错且两边不变', function ()
-    local from    = moe.zone.create()
-    local to      = moe.zone.create()
+    local from    = lt.zone()
+    local to      = lt.zone()
     local stranger = lt.card('丙')
     fill(from, { '甲', '乙' })
     fill(to, { '一' })
@@ -92,8 +92,8 @@ lt.test('移动：牌不在源区时报错且两边不变', function ()
 end)
 
 lt.test('移动：任一端被禁用都失败', function ()
-    local from  = moe.zone.create()
-    local to    = moe.zone.create()
+    local from  = lt.zone()
+    local to    = lt.zone()
     local cards = fill(from, { '甲' })
     fill(to, { '一' })
 
@@ -109,8 +109,8 @@ lt.test('移动：任一端被禁用都失败', function ()
 end)
 
 lt.test('移动：位置越界或不是整数时报错', function ()
-    local from  = moe.zone.create()
-    local to    = moe.zone.create()
+    local from  = lt.zone()
+    local to    = lt.zone()
     local cards = fill(from, { '甲' })
 
     lt.assertError('位置 0', function () from:move(cards[1], to, 0) end)
@@ -126,7 +126,7 @@ lt.test('移动：位置越界或不是整数时报错', function ()
 end)
 
 lt.test('归属：放进牌区就记得住自己在哪里', function ()
-    local zone = moe.zone.create()
+    local zone = lt.zone()
     local card = lt.card('甲')
 
     lt.assertEquals('一开始不属于任何牌区', nil, card:getZone())
@@ -139,8 +139,8 @@ lt.test('归属：放进牌区就记得住自己在哪里', function ()
 end)
 
 lt.test('归属：移动后跟着到目标区', function ()
-    local from = moe.zone.create()
-    local to   = moe.zone.create()
+    local from = lt.zone()
+    local to   = lt.zone()
     local card = lt.card('甲')
     from:put(card)
 
@@ -151,7 +151,7 @@ lt.test('归属：移动后跟着到目标区', function ()
 end)
 
 lt.test('归属：清空后不再属于任何牌区', function ()
-    local zone  = moe.zone.create()
+    local zone  = lt.zone()
     local cards = fill(zone, { '甲', '乙' })
 
     lt.assertEquals('清掉两张', 2, zone:clear())
@@ -160,8 +160,8 @@ lt.test('归属：清空后不再属于任何牌区', function ()
 end)
 
 lt.test('随区容器：牌离开牌区时撤销挂在它上面的东西', function ()
-    local from = moe.zone.create()
-    local to   = moe.zone.create()
+    local from = lt.zone()
+    local to   = lt.zone()
     local card = lt.card('甲')
     from:put(card)
 
@@ -181,7 +181,7 @@ lt.test('随区容器：牌离开牌区时撤销挂在它上面的东西', funct
 end)
 
 lt.test('随区容器：同区内部调序不算离开区', function ()
-    local zone  = moe.zone.create()
+    local zone  = lt.zone()
     local cards = fill(zone, { '甲', '乙' })
 
     ---@type integer
@@ -195,7 +195,7 @@ lt.test('随区容器：同区内部调序不算离开区', function ()
 end)
 
 lt.test('随区容器：没挂过东西的牌不建容器（懒建）', function ()
-    local zone = moe.zone.create()
+    local zone = lt.zone()
     local card = lt.card('甲')
     zone:put(card)
 
@@ -208,8 +208,8 @@ lt.test('随区容器：没挂过东西的牌不建容器（懒建）', function
 end)
 
 lt.test('归属：已经在牌区里的牌不能再放一次', function ()
-    local first  = moe.zone.create()
-    local second = moe.zone.create()
+    local first  = lt.zone()
+    local second = lt.zone()
     local card   = lt.card('甲')
     first:put(card)
 
@@ -222,8 +222,8 @@ lt.test('归属：已经在牌区里的牌不能再放一次', function ()
 end)
 
 lt.test('移动：手牌放进有序牌区顶部后即可被取顶', function ()
-    local pile  = moe.orderedZone.create()
-    local hand  = moe.zone.create()
+    local pile  = lt.orderedZone()
+    local hand  = lt.zone()
     local pileCards = fill(pile, { '甲', '乙', '丙' })
     local handCards = fill(hand, { '闪' })
 

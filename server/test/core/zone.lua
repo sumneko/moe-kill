@@ -33,14 +33,14 @@ end
 ---@param seed integer
 ---@return string
 local function shuffledLabels(seed)
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
     fill(zone, DECK)
     zone:shuffle(moe.random.create(seed))
     return zoneLabels(zone)
 end
 
 lt.test('牌区：放入与取出后计数正确', function ()
-    local zone  = moe.zone.create()
+    local zone  = lt.zone()
     local cards = fill(zone, { '甲', '乙', '丙' })
 
     lt.assertEquals('放入后计数', 3, zone:count())
@@ -54,7 +54,7 @@ lt.test('牌区：放入与取出后计数正确', function ()
 end)
 
 lt.test('牌区：列举返回副本，清空清掉全部', function ()
-    local zone = moe.zone.create()
+    local zone = lt.zone()
     fill(zone, { '甲', '乙' })
 
     local snapshot = zone:list()
@@ -69,7 +69,7 @@ lt.test('牌区：列举返回副本，清空清掉全部', function ()
 end)
 
 lt.test('牌区：空区取牌与越界取牌明确失败', function ()
-    local zone = moe.zone.create()
+    local zone = lt.zone()
 
     lt.assertError('空区取牌', function () zone:take(1) end)
     lt.assertError('空区查看', function () zone:peek(1) end)
@@ -86,12 +86,12 @@ lt.test('牌区：空区取牌与越界取牌明确失败', function ()
 end)
 
 lt.test('牌区：kind 只用来区分子类', function ()
-    lt.assertEquals('基类的 kind', 'zone', moe.zone.create().kind)
-    lt.assertEquals('有序子类的 kind', 'orderedZone', moe.orderedZone.create().kind)
+    lt.assertEquals('基类的 kind', 'zone', lt.zone().kind)
+    lt.assertEquals('有序子类的 kind', 'orderedZone', lt.orderedZone().kind)
 end)
 
 lt.test('牌区：禁用后不可放入取出，启用后恢复', function ()
-    local zone = moe.zone.create()
+    local zone = lt.zone()
     fill(zone, { '甲' })
 
     lt.assertEquals('初始为启用', true, zone:isEnabled())
@@ -117,7 +117,7 @@ lt.test('有序牌区：相同随机源洗出相同顺序', function ()
 end)
 
 lt.test('有序牌区：依次取顶与洗牌后顺序一致', function ()
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
     fill(zone, DECK)
     zone:shuffle(moe.random.create(7))
 
@@ -133,7 +133,7 @@ lt.test('有序牌区：依次取顶与洗牌后顺序一致', function ()
 end)
 
 lt.test('有序牌区：从顶取 n 张，不够就少给', function ()
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
     fill(zone, { '甲', '乙', '丙' })
 
     local two = zone:draw(2)
@@ -149,8 +149,8 @@ lt.test('有序牌区：从顶取 n 张，不够就少给', function ()
 end)
 
 lt.test('有序牌区：取空了会调不足回调，补到就接着取', function ()
-    local zone  = moe.orderedZone.create()
-    local stock = moe.zone.create()
+    local zone  = lt.orderedZone()
+    local stock = lt.zone()
     fill(stock, { '甲', '乙', '丙' })
 
     ---@type integer
@@ -171,7 +171,7 @@ lt.test('有序牌区：取空了会调不足回调，补到就接着取', funct
 end)
 
 lt.test('有序牌区：回调补不到牌就少给', function ()
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
 
     ---@type integer
     local times = 0
@@ -186,13 +186,13 @@ lt.test('有序牌区：回调补不到牌就少给', function ()
 end)
 
 lt.test('有序牌区：没挂回调时取空就少给', function ()
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
 
     lt.assertEquals('要 3 张拿到 0 张', 0, #zone:draw(3))
 end)
 
 lt.test('有序牌区：洗牌必须传入随机源', function ()
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
     fill(zone, DECK)
 
     ---@type any
@@ -207,7 +207,7 @@ lt.test('有序牌区：洗牌必须传入随机源', function ()
 end)
 
 lt.test('有序牌区：禁用后不能洗牌', function ()
-    local zone = moe.orderedZone.create()
+    local zone = lt.orderedZone()
     fill(zone, DECK)
     zone:disable()
 
@@ -221,7 +221,7 @@ lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看�
     local mine   = moe.player.create(game, { attributes = system:createInstance() })
     local other  = moe.player.create(game, { attributes = system:createInstance() })
 
-    local open = moe.zone.create()
+    local open = moe.zone.create(game)
     lt.assertEquals('默认对所有人可见', true, open:isVisibleTo(other))
 
     local hand = mine:getZone('手牌')
@@ -230,7 +230,7 @@ lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看�
     lt.assertEquals('持有者自己看得见', true, hand:isVisibleTo(mine))
     lt.assertEquals('别人看不见', false, hand:isVisibleTo(other))
 
-    local nobody = moe.zone.create()
+    local nobody = moe.zone.create(game)
     nobody:setVisible(false)
     lt.assertEquals('没有归属的暗区：谁都看不见', false, nobody:isVisibleTo(mine))
 end)
@@ -266,7 +266,7 @@ end)
 lt.test('槽位区：牌不必先在本区，可以从别的区搬进来', function ()
     local game  = newGame()
     local zone  = moe.slotZone.create(game):setSlots({ '武器' })
-    local other = moe.zone.create()
+    local other = moe.zone.create(game)
     local card  = lt.card('甲')
     other:put(card)
 
@@ -318,15 +318,4 @@ lt.test('槽位区：未声明的槽位名明确失败', function ()
     local bare = moe.slotZone.create(game)
     lt.assertEquals('不声明就没有槽位', 0, #bare.slots)
     lt.assertError('没有槽位也放不进去', function () bare:putInto('武器', lt.card('甲')) end)
-end)
-
-lt.test('槽位区：没记着局时替换不了槽里的牌', function ()
-    local zone = moe.slotZone.create(nil):setSlots({ '武器' })
-    local card = lt.card('甲')
-
-    zone:putInto('武器', card)
-    lt.assertEquals('空槽还是能放', card, zone:getSlot('武器'))
-    lt.assertError('要替换就得知道弃牌堆在哪一局', function ()
-        zone:putInto('武器', lt.card('乙'))
-    end)
 end)

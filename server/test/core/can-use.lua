@@ -224,7 +224,7 @@ lt.test('校验：声明了牌区 ⇒ 必须从那个区里用', function ()
 
     lt.assertEquals('在声明的手牌区里就能用', true, (run.game:canUse(run.user, card, run.target)))
 
-    local other = moe.zone.create()
+    local other = moe.zone.create(run.game)
     run.user:addZone('别处', other)
     other:put(run.hand:take(1))
 
@@ -249,7 +249,7 @@ lt.test('校验：没声明牌区 ⇒ 在使用者任一牌区里都能用', fun
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
     local card = run.game:createCard('测试杀')
-    local other = moe.zone.create()
+    local other = moe.zone.create(run.game)
     run.user:addZone('别处', other)
     other:put(card)
 

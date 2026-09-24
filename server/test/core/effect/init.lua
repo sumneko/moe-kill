@@ -590,7 +590,7 @@ lt.test('效果：内容侧在收尾里先搬走的牌，内核不再动它', fu
     game:moveCard(kept, zone)
     game:moveCard(left, zone)
 
-    local stash = moe.zone.create()
+    local stash = lt.zone()
     game:on('效果-收尾', function (effect)
         game:moveCard(kept, stash)
     end)

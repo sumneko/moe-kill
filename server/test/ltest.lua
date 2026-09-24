@@ -5,6 +5,7 @@
 ---@field expectedErrors integer # 当前用例声明预期的错误日志条数
 ---@field errors any[] # 收到的错误（用例自己清）
 ---@field currentName? string # 正在跑的用例名（看门狗报告卡住时用）
+---@field gameInstance? Game # 用例共用的那个局（懒建）
 local M = {}
 
 ---@class LTest.Case
@@ -24,6 +25,30 @@ M.cardId         = 0
 function M.card(label)
     M.cardId = M.cardId + 1
     return moe.card.create(label, M.cardId)
+end
+
+--- 用例共用的一个局：牌区必须有个局才建得起来，但只测牌区本身的用例不关心这局是什么
+---@return Game
+function M.game()
+    if not M.gameInstance then
+        M.gameInstance = moe.game.create {
+            seats  = 2,
+            random = moe.random.create(1),
+        }
+    end
+    return M.gameInstance
+end
+
+--- 造一个只给用例用的普通牌区
+---@return Zone
+function M.zone()
+    return moe.zone.create(M.game())
+end
+
+--- 造一个只给用例用的有序牌区
+---@return OrderedZone
+function M.orderedZone()
+    return moe.orderedZone.create(M.game())
 end
 
 --- 清掉攒下来的错误

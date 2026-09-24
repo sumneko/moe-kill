@@ -4,7 +4,7 @@
 ---@field private enabled boolean
 ---@field private visible boolean # 是否对所有人可见（默认可见；不可见时只有持有者看得见）
 ---@field owner? Player # 这个区属于谁（公共区没有归属者）
----@field game? Game # 属于哪一局（公共区由局给；玩家建区时顺归属者拿；测试自己造的可以没有）
+---@field game Game # 属于哪一局
 local M = Class 'Zone'
 
 ---@param count integer
@@ -30,7 +30,7 @@ local function resolvePosition(count, position)
     return index
 end
 
----@param game? Game # 属于哪一局
+---@param game Game # 属于哪一局
 function M:__init(game)
     self.kind    = 'zone'
     self.cards   = {}
@@ -64,15 +64,14 @@ function M:slotOf(card)
     return nil
 end
 
---- 牌进来了：把它定义上的「进入区域」钩子各跑一次（没局 / 没定义就什么都不做）
+--- 牌进来了：把它定义上的「进入区域」钩子各跑一次（牌没定义就什么都不做）
 ---@param card Card
 function M:notifyEnter(card)
-    local game  = self.game
     local label = card:getLabel()
-    if not game or type(label) ~= 'string' or label == '' then
+    if type(label) ~= 'string' or label == '' then
         return
     end
-    local def = game:getCard(label)
+    local def = self.game:getCard(label)
     if not def then
         return
     end
@@ -224,7 +223,7 @@ end
 moe.zone = {}
 
 --- 建一个牌区
----@param game? Game # 属于哪一局（有局才会发「进入区域」）
+---@param game Game # 属于哪一局
 ---@return Zone
 function moe.zone.create(game)
     return New 'Zone' (game)

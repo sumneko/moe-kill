@@ -12,8 +12,8 @@ local function zoneLabels(zone)
 end
 
 lt.test('场景：调用方自己组合出「发牌」', function ()
-    local pile = moe.orderedZone.create()
-    local hand = moe.zone.create()
+    local pile = lt.orderedZone()
+    local hand = lt.zone()
 
     for i = 1, 10 do
         pile:put(lt.card('第{}张' % { i }))
@@ -33,8 +33,8 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
 end)
 
 lt.test('场景：用移动一次把牌送进牌区', function ()
-    local pile  = moe.orderedZone.create()
-    local hand  = moe.zone.create()
+    local pile  = lt.orderedZone()
+    local hand  = lt.zone()
     local cards = {}
 
     for i = 1, 5 do
