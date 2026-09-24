@@ -177,23 +177,6 @@ function M:isVisibleTo(viewer)
     return self.visible or self.owner == viewer
 end
 
----@return Card
-function M:takeTop()
-    error('该牌区不具备有序能力，无法取顶', 2)
-end
-
----@param count integer
----@return Card[]
-function M:draw(count)
-    error('该牌区不具备有序能力，无法从顶取牌', 2)
-end
-
----@param random? Random
----@return Zone
-function M:shuffle(random)
-    error('该牌区不具备有序能力，无法洗牌', 2)
-end
-
 ---@class Zone.API
 moe.zone = {}
 

@@ -132,16 +132,6 @@ lt.test('有序牌区：依次取顶与洗牌后顺序一致', function ()
     lt.assertError('取空后继续取顶失败', function () zone:takeTop() end)
 end)
 
-lt.test('无序牌区：取顶与洗牌明确失败', function ()
-    local zone = moe.zone.create()
-    fill(zone, DECK)
-
-    lt.assertError('取顶失败', function () zone:takeTop() end)
-    lt.assertError('从顶取牌失败', function () zone:draw(1) end)
-    lt.assertError('洗牌失败', function () zone:shuffle(moe.random.create(1)) end)
-    lt.assertEquals('失败后顺序不变', table.concat(DECK, ','), zoneLabels(zone))
-end)
-
 lt.test('有序牌区：从顶取 n 张，不够就少给', function ()
     local zone = moe.orderedZone.create()
     fill(zone, { '甲', '乙', '丙' })

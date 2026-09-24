@@ -13,14 +13,6 @@ local function hasCard(player)
     return false
 end
 
----@param player Player
----@return Zone[] # 身上有牌的那些区
-local function cardZones(player)
-    return table.filter(player:getZones(), function (zone)
-        return zone:count() > 0
-    end)
-end
-
 Card '顺手牵羊'
     : extends '锦囊牌'
     : on('获取目标', function (target)
@@ -32,7 +24,7 @@ Card '顺手牵羊'
         end)
     end)
     : on('生效', function (cardEffect)
-        local card = game:askCard(cardEffect.user, '顺手牵羊', { zone = cardZones(cardEffect.target) }).card
+        local card = game:askCard(cardEffect.user, '顺手牵羊', { zone = cardEffect.target:getZones() }).card
         if not card then
             return
         end
