@@ -10,6 +10,9 @@ do
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '闪'
+Card '杀'
+Card '桃'
+Card '随便'
 Card '测试牌'
     : on('获取目标', function (target)
         return table.filter(game.desk.alivePlayers, function (player)

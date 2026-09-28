@@ -306,14 +306,11 @@ end)
 lt.test('使用：牌没有内容定义时报错', function ()
     local guard <close> = useProbe()
     write('探针/占位.lua', "Card '占位'")
+    local game = newGame()
 
-    local game, user, target, hand = newGame()
-    local card = game:createCard('没有这张牌')
-    hand:put(card)
-
-    lt.assertFailed('没有定义就用不了', game:useCard(user, card, { target }))
-
-    lt.assertEquals('牌还留在手上', 1, hand:count())
+    lt.assertError('建牌时就报错', function ()
+        game:createCard('没有这张牌')
+    end)
 end)
 
 lt.test('使用：给出的目标必须是合法目标的子集', function ()
@@ -727,8 +724,42 @@ Card '测试杀'
 
     lt.assertEquals('时机拿到这张牌', card, seen[1])
     lt.assertEquals('只触发一次', 1, #seen)
-    lt.assertEquals('此刻牌已经离开手牌，可以被内容侧安置', 0, user:getTag('取出时还在手上吗'))
+    lt.assertEquals('此刻牌已经离开手牌（内核已把它放进这次用牌的临时区）', 0, user:getTag('取出时还在手上吗'))
     lt.assertEquals('顺序：取出 → 生效 → 收尾', '取出生效收尾', user:getTag('顺序'))
+end)
+
+lt.test('使用：上一个生效结完（哪怕它让出）才轮到下一个', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (target)
+        return game.desk.players
+    end)
+    : on('生效', function (cardEffect)
+        local user = cardEffect.user
+        local seat = tostring(game.desk:getIndex(cardEffect.target))
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '开始' .. seat)
+        game:askCard(cardEffect.target, '测试杀', {})
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '结束' .. seat)
+    end)
+]])
+
+    local game, players = newWideGame(3)
+    local card = game:createCard('测试杀')
+    local user = players[1]
+    local hand = assert(user:getZone('手牌'))
+    hand:put(card)
+
+    game:on('卡牌-询问', function ()
+        moe.await.sleep(0)
+    end)
+    game:on('卡牌-结算后', function ()
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '收尾')
+    end)
+
+    game:useCard(user, card, { players[2], players[3] })
+
+    lt.assertEquals('前一个结完才开下一个，收尾在最后', '开始2结束2开始3结束3收尾', user:getTag('顺序'))
 end)
 
 lt.test('使用：每个目标的生效可以被单独取消', function ()
@@ -849,8 +880,8 @@ Card '无目标牌'
     lt.assertEquals('用牌级两个时机也跑了', '卡牌-结算前,卡牌-结算后', table.concat(events, ','))
     lt.assertEquals('这次用牌没有目标', 0, #useCard.targets)
     lt.assertEquals('牌离开手牌', 0, hand:count())
-    -- 探针环境里没有 @基础（来源只指探针目录）⇒ 没人把牌安置进临时区，收尾也就无牌可收
-    lt.assertEquals('没被安置（安置是 @基础/使用.lua 的事）', nil, card:getZone())
+    -- 内核自己把用过的牌放进这次用牌的临时区，收尾时统一送弃牌（探针局里没有 @基础 也一样）
+    lt.assertEquals('收尾后落在弃牌堆', game:getZone('弃牌'), card:getZone())
 end)
 
 lt.test('定义：数据袋读得回来，重复写以后写的为准', function ()

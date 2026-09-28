@@ -5,8 +5,9 @@ local lt = require 'test.ltest'
 ---@return Player[] # 按座位号升序
 local function newGame(count)
     local game = moe.game.create {
-        seats  = count,
-        random = moe.random.create(1),
+        seats   = count,
+        random  = moe.random.create(1),
+        sources = { './package/*', lt.cardSource },
     }
     local desk = game.desk
     local attributeSystem = game:getAttributeSystem()

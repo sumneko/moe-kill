@@ -748,7 +748,7 @@ local function collectLegalTargets(def, user, card, targets)
     return legal
 end
 
---- 牌本身能不能用（两条入口共用）：定义 / 在使用者身上 / 在声明的牌区 / 次数
+--- 牌本身能不能用（两条入口共用）：在使用者身上 / 在声明的牌区 / 次数
 ---@param game Game
 ---@param user Player
 ---@param card Card
@@ -756,10 +756,7 @@ end
 ---@return any # 不能时的原因
 local function checkCardItself(game, user, card)
     local name = card.name
-    local def = game:getCard(name)
-    if not def then
-        return nil, '没有叫「{}」的内容定义' % { name }
-    end
+    local def  = card.def
     local zone = user:findCard(card)
     if not zone then
         return nil, '使用者手上没有这张牌'

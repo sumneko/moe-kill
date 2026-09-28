@@ -5,8 +5,8 @@
 ---@field point? integer # 点数（1..13）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
----@field private game Game # 属于哪一局（读自己的内容定义时用）
----@field private def? CardDef # 内容定义（创建这张牌时就定格）
+---@field game Game # 属于哪一局（读自己的内容定义时用）
+---@field def CardDef # 内容定义（建牌时查一次就定格；查不到直接报错）
 local M = Class 'Card'
 
 ---@param game Game # 属于哪一局（读自己的内容定义时用）
@@ -20,7 +20,11 @@ function M:__init(game, name, id, suit, point)
     self.name  = name
     self.suit  = suit
     self.point = point
-    self.def   = game:getCard(name)
+    local def = game:getCard(name)
+    if not def then
+        error('没有叫「{}」的内容定义' % { name }, 2)
+    end
+    self.def = def
 end
 
 ---@return integer # 牌的号（这一局发的）
@@ -28,20 +32,11 @@ function M:getId()
     return self.id
 end
 
----@return CardDef? # 这张牌的内容定义（查不到就是空）
-function M:getDef()
-    return self.def
-end
-
 --- 跑这张牌这条钩子的所有处理器
 ---@param event string
 ---@param ... any
 function M:fireHandlers(event, ...)
-    local def = self.def
-    if not def then
-        return
-    end
-    for _, handler in ipairs(def:getHandlers(event)) do
+    for _, handler in ipairs(self.def:getHandlers(event)) do
         handler(...)
     end
 end
@@ -58,26 +53,23 @@ end
 ---@param name string
 ---@return boolean
 function M:isKind(name)
-    local def = self:getDef()
-    return def?:isKind(name)
+    return self.def:isKind(name)
 end
 
 --- 读这张牌上的一条数据
 ---@param name string # 数据的名字
----@return any # 没声明过（或没有定义 / 不在局里）就是「不存在」
+---@return any # 没声明过就是「不存在」
 function M:getValue(name)
-    local def = self:getDef()
-    return def?:getValue(name)
+    return self.def:getValue(name)
 end
 
----@type string?
+---@type string
 M.fullName = nil
 
 ---@param self Card
----@return string? # 完整名（包名.名字）
+---@return string # 完整名（包名.名字）
 M.__getter.fullName = function (self)
-    local def = self:getDef()
-    return def?.fullName
+    return self.def.fullName
 end
 
 --- 这张牌现在在哪个牌区

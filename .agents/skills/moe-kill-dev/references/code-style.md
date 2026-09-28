@@ -53,7 +53,7 @@ Card '杀'
 ---@class AskCard.Answer
 ```
 - **例外二 = 内容侧定义文件顶部的官方描述**（用户 2026-09-20 定）：`package/` 里的**卡牌 / 技能**定义文件在**文件顶部**用 `--` 写该卡牌 / 技能的**官方描述**（名字 + 规则文字，注明口径来源）—— 将来技能同样适用。只写官方描述本身，实现边界与说明不写在这儿。见 `sanguosha-rules` 的 §9.3。
-- **例外三 = 装配目录各文件顶部的一行功能说明**（用户 2026-09-23 定）：`package/` 里的**装配目录**（`@基础` / `身份场` 这类「把内核机制接成一套规则」的目录）里的每个文件都在**顶部**用 `--` 写一行（至多两三行）「这个文件做了哪些功能」—— 这些文件名短（`使用.lua` / `胜负.lua`），光看名字与正文看不出它**订阅了哪些时机、建了哪些东西**，例如 `-- 效果收尾：把临时处理区里剩下的牌送进弃牌堆`。
+- **例外三 = 装配目录各文件顶部的一行功能说明**（用户 2026-09-23 定）：`package/` 里的**装配目录**（`@基础` / `身份场` 这类「把内核机制接成一套规则」的目录）里的每个文件都在**顶部**用 `--` 写一行（至多两三行）「这个文件做了哪些功能」—— 这些文件名短（`判定阶段.lua` / `胜负.lua`），光看名字与正文看不出它**订阅了哪些时机、建了哪些东西**，例如 `-- 判定阶段：结算判定区里的牌（后置入的先判）`。
 - **例外二与例外三的分工**：例外二写**内容定义**（卡牌 / 技能 / 牌表）的官方描述，例外三写**装配文件**的职责摘要。**纯类型声明文件（`meta.lua`）不写**。
 - 类型注解 `---@param` / `---@return` / `---@class` / `---@field` / `---@async` **是必须写的**，不属于「注释」。
 
@@ -231,7 +231,8 @@ end
 | `a?[k]` | 索引 | `t?[key]` |
 | `a?(args)` | 函数调用（接收者是个值、不带 `self`） | `handler?(self)` |
 
-- **首选写法**（照 `server/core/card.lua` 的 `isKind` / `server/core/effect/use-card.lua` 的 `skipsEffect` 读法改）：`def ~= nil and def:isKind(name)` ⇒ `def?:isKind(name)`；`local def = card:getDef(); if not (def and def.skipsEffect) then … end` ⇒ `if not card:getDef()?.skipsEffect then … end`。
+- **首选写法**（照 `server/core/card.lua` 的 `self:getZone()?.owner` / `server/core/attribute.lua` 的 `spec?.simple ~= false` 改）：`local owner = zone ~= nil and zone.owner or nil` ⇒ `local owner = zone?.owner`；`if def ~= nil and def:isKind(name) then … end` ⇒ `if def?:isKind(name) then … end`。
+- **必非空的字段不加 `?`**（2026-09-28）：`card.def` 建牌时就查过、查不到直接报错 ⇒ 就是 `card.def.skipsEffect`，别再写成 `card.def?.skipsEffect`（见 `architecture.md` 的 `Card` 行）。
 - **坑（踩过）**：方法调用必须写 **`?:`** —— `a?.b()` 是「字段访问 + 普通调用」，**不带 `self`**（实测报 `attempt to index a nil value (local 'self')`）；`?.` / `?[` / `?()` 分别对应字段 / 索引 / 函数调用。
 - **返回值可能变「空」**：`def?:isKind(name)` 在 `def` 为空时给的是 **`nil` 而不是 `false`** —— 判真假照旧（`nil` 是假），但**精确比较**（`== false`、断言、`assertNotEquals`）时得自己 `== true` 收一下。`a?.b` 同理：链上任何一环为空，结果都是空。
 - **它不是「到处加防御」**：可选链只是把「本来就允许为空、且空了就该跳过」的地方写短，判断标准仍按 §9（**这一步真的会缺吗**）。别为了"看着安全"给不该空的字段加 `?`。

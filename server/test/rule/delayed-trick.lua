@@ -44,7 +44,7 @@ end
 local function decide(run, name, suit, point)
     run.game:on('判定-前', function (judge)
         if judge.reason == name then
-            judge:replace(run.game:createCard('测试牌', suit, point))
+            judge:replace(run.game:createCard('杀', suit, point))
         end
     end)
 end

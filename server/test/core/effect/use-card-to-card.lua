@@ -108,6 +108,33 @@ lt.test('对牌使用：结算后拿得到目标牌与这次用牌', function ()
     lt.assertEquals('这次使用记下了它产生的那次生效', 'cardEffectToCard', assert(seenUseCard).cardEffectToCard.kind)
 end)
 
+lt.test('对牌使用：窗口里让出时，父结算也等它结完', function ()
+    local game, players = newGame(2)
+    local user = players[1]
+    local watcher = players[2]
+    local hand = assert(user:getZone('手牌'))
+    local card = game:createCard('抵消牌')
+    hand:put(card)
+    local target = game:createCard('没声明牌')
+
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'cardEffectToCard' then
+            return
+        end
+        moe.await.sleep(0)
+        watcher:setTag('顺序', '窗口给出原因')
+        return '不让生效'
+    end)
+    game:on('卡牌-结算后', function ()
+        watcher:setTag('顺序', (watcher:getTag('顺序') or '') .. '卡牌-结算后')
+    end)
+
+    local useCard = game:useCardToCard(user, card, target)
+
+    lt.assertEquals('窗口先给出原因，父结算才收尾', '窗口给出原因卡牌-结算后', watcher:getTag('顺序'))
+    lt.assertEquals('那次生效被拒绝', '不让生效', assert(useCard.cardEffectToCard).err)
+end)
+
 lt.test('对牌使用：没声明「获取卡牌目标」就用不了', function ()
     local game, players = newGame(2)
     local user = players[1]

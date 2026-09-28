@@ -37,12 +37,13 @@ function M:settle()
     ---@cast zone Zone
     ---@cast index integer
     zone:take(index)
+    self.game:moveCard(self.card, self:getTempZone())
     self.game:fire('卡牌-结算前', self)
     self.card:fireHandlers('使用', self)
-    if not self.card:getDef()?.skipsEffect then
+    if not self.card.def.skipsEffect then
         for target in self.game.desk:actionOrder(self.targets) do
             local effect = New 'CardEffect' (self.game, self.card, target, self)
-            effect:apply()
+            effect:apply():await()
         end
     end
     self.game:fire('卡牌-结算后', self)

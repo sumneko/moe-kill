@@ -117,16 +117,13 @@ lt.test('校验：没给目标时只判「能不能用」，给了目标就连�
     lt.assertEquals('目标不合法 ⇒ 用不了', false, (run.game:canUse(run.user, card, { run.user })))
 end)
 
-lt.test('校验：没有内容定义 ⇒ 用不了', function ()
+lt.test('校验：没有内容定义 ⇒ 建牌时就报错', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
-    local card = run.game:createCard('没有这张牌')
-    run.hand:put(card)
 
-    local ok, reason = run.game:canUse(run.user, card)
-
-    lt.assertEquals('用不了', false, ok)
-    lt.assertEquals('原因里有牌名', '没有叫「没有这张牌」的内容定义', reason)
+    lt.assertError('没有这张牌的内容定义', function ()
+        run.game:createCard('没有这张牌')
+    end)
 end)
 
 lt.test('校验：牌不在使用者手上 ⇒ 用不了', function ()

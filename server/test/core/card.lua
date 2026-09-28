@@ -26,7 +26,7 @@ lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', fu
         end
     end
     table.sort(keys)
-    lt.assertEquals('没给牌面时的字段就是这三样', 'game,id,name', table.concat(keys, ','))
+    lt.assertEquals('没给牌面时的字段就是这几样', 'def,game,id,name', table.concat(keys, ','))
 
     ---@type any
     local raw = card

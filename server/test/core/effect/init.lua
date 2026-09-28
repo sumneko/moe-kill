@@ -100,7 +100,11 @@ end
 ---@return Player[] # 按座位号升序
 local function newGame(count)
     local random = moe.random.create(1)
-    local game   = moe.game.create { seats = count, random = random }
+    local game   = moe.game.create {
+        seats   = count,
+        random  = random,
+        sources = { './package/*', lt.cardSource },
+    }
     local desk   = game.desk
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {

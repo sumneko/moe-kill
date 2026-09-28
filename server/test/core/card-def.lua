@@ -278,7 +278,7 @@ Card '甲'
         player:getTag('记录'))
 end)
 
-lt.test('定义：公共区也发「进入区域」，没定义的牌不发；定义跟着牌走', function ()
+lt.test('定义：公共区也发「进入区域」，定义跟着牌走', function ()
     local guard <close> = useProbe()
     local game, player = newGame([[
 Card '甲'
@@ -292,9 +292,6 @@ Card '甲'
     local discard = assert(game:getZone('弃牌'), '没有弃牌区')
     discard:put(game:createCard('甲'))
     lt.assertEquals('公共区也发，只是没有归属者', 'false/nil;', player:getTag('记录'))
-
-    discard:put(game:createCard('没有定义'))
-    lt.assertEquals('牌在局里但没有定义，不发', 'false/nil;', player:getTag('记录'))
 
     local loose = lt.zone()
     loose:put(game:createCard('甲'))

@@ -4,7 +4,11 @@ local lt = require 'test.ltest'
 ---@return Game
 local function newGame(seed)
     local random = moe.random.create(seed or 1)
-    return moe.game.create { seats = 4, random = random }
+    return moe.game.create {
+        seats   = 4,
+        random  = random,
+        sources = { './package/*', lt.cardSource },
+    }
 end
 
 ---@param zone Zone
@@ -92,6 +96,7 @@ lt.test('局：发号给牌，将来也给技能', function ()
     lt.assertEquals('取号也推着建牌往下走', 5, game:createCard('桃'):getId())
 
     game:resetContent()
+    moe.loader.install(game)
     lt.assertEquals('重装规则内容不重置号源', 6, game:createCard('桃'):getId())
 
     lt.assertEquals('另一局从头开始', 1, newGame():createCard('桃'):getId())

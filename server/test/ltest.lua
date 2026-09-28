@@ -1,3 +1,5 @@
+local fs = require 'bee.filesystem'
+
 ---@class LTest
 ---@field registry LTest.Case[]
 ---@field cardId integer # 用例造牌时自己发的号（只管别撞上）
@@ -6,7 +8,36 @@
 ---@field errors any[] # 收到的错误（用例自己清）
 ---@field currentName? string # 正在跑的用例名（看门狗报告卡住时用）
 ---@field gameInstance? Game # 用例共用的那个局（懒建）
+---@field cardSource string # 公共牌定义来源（用例建局时加进 sources 就有下面这批牌）
 local M = {}
+
+local fixtureDir = moe.env.ROOT_PATH / 'tmp' / 'lt-fixture'
+do
+    fs.remove_all(fixtureDir)
+    local file = fixtureDir / '@测试' / '牌.lua'
+    fs.create_directories(file:parent_path())
+    ---@type string[]
+    local lines = {}
+    ---@param name string
+    local function declare(name)
+        lines[#lines + 1] = "Card '{}'" % { name }
+    end
+    for _, name in ipairs {
+        '甲', '乙', '丙', '丁', '戊', '己', '庚', '辛',
+        '一', '二', '三', '四', '五', '六', '子', '素', '基',
+        '回收牌', '测试牌', '留下的牌', '剩下的牌', '随便',
+        '杀', '闪', '桃',
+    } do
+        declare(name)
+    end
+    for i = 1, 40 do
+        declare('牌' .. i)
+        declare('第' .. i .. '张')
+    end
+    local ok, err = moe.util.saveFile(file:string(), table.concat(lines, '\n'))
+    assert(ok, err)
+    M.cardSource = fixtureDir:string() .. '/*'
+end
 
 ---@class LTest.Case
 ---@field name string
@@ -32,8 +63,9 @@ end
 function M.game()
     if not M.gameInstance then
         M.gameInstance = moe.game.create {
-            seats  = 2,
-            random = moe.random.create(1),
+            seats   = 2,
+            random  = moe.random.create(1),
+            sources = { './package/*', M.cardSource },
         }
     end
     return M.gameInstance
