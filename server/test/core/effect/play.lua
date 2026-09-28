@@ -459,11 +459,13 @@ Card '测试杀'
     ---@type Damage?
     local damageSeen = nil
 
-    ---@param damage Damage
-    local function onBefore(damage)
-        damageSeen = damage
-    end
-    game:on('伤害-前', onBefore)
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'damage' then
+            return
+        end
+        ---@cast effect Damage
+        damageSeen = effect
+    end)
 
     game:useCard(user, card, { target })
 

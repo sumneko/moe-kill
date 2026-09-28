@@ -295,7 +295,6 @@ end
 ---@field private idCounter integer # 发号器（牌与将来的技能共用；重装内容也不重置）
 ---@field phase? Phase # 当前阶段（没进阶段就是空）
 ---@field private phaseStack Phase[] # 阶段栈（阶段可以嵌套：将来的「额外的一个出牌阶段」）
----@field private dyingMap table<Player, Dying> # 每个玩家当前那次濒死（1:1：一次只有一个濒死状态）
 ---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
 ---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
@@ -314,7 +313,6 @@ function M:__init(seats, random)
     self.list     = {}
     self.idCounter = 0
     self.phaseStack = {}
-    self.dyingMap = {}
     self:createZone('抽牌', true)
     self:createZone('弃牌')
     self:resetContent()
@@ -691,53 +689,6 @@ function M:moveCard(card, zone)
     return effect
 end
 
---- 造成一次伤害
----@async
----@param from Player # 伤害来源
----@param to Player # 承受者
----@param amount integer # 点数
----@return Damage # 这次伤害（已经结完：结果读 `.result`，失败读 `.err`）
-function M:damage(from, to, amount)
-    local damage = moe.damage.create {
-        game   = self,
-        from   = from,
-        to     = to,
-        amount = amount,
-    }
-    damage:apply():await()
-    return damage
-end
-
---- 回复一次体力
----@async
----@param to Player # 谁回复体力
----@param amount integer # 点数
----@return Heal # 这次回复（已经结完：失败读 `.err`）
-function M:heal(to, amount)
-    local heal = moe.heal.create {
-        game   = self,
-        to     = to,
-        amount = amount,
-    }
-    heal:apply():await()
-    return heal
-end
-
---- 摸一次牌
----@async
----@param player Player # 谁摸牌（已阵亡的不摸）
----@param count integer # 摸几张
----@return Draw # 这次摸牌（已经结完：失败读 `.err`）
-function M:draw(player, count)
-    local draw = moe.draw.create {
-        game   = self,
-        player = player,
-        count  = count,
-    }
-    draw:apply():await()
-    return draw
-end
-
 --- 抽牌：从抽牌堆顶抽 count 张（省略去向 = 抽进这个玩家的手牌；给了就用它，例如抽到某块处理区）
 ---@async
 ---@param player Player # 谁抽
@@ -970,42 +921,6 @@ function M:getEffects()
     local snapshot = {}
     table.move(self.effects, 1, #self.effects, 1, snapshot)
     return snapshot
-end
-
---- 让某人进入濒死：当场结算（规则侧在 `'濒死-进入'` 里求桃、回正时喊 `leave()`）
----@param player Player
----@param damage? Damage # 把它打到濒死的这次伤害
----@return Dying # 新起的已经结完；他已经在濒死中就直接返回那一次（致死伤害换成这一次）
----@async
-function M:enterDying(player, damage)
-    local current = self.dyingMap[player]
-    if current and not current:hasLeft() then
-        current.damage = damage
-        return current
-    end
-    local dying = moe.dying.create {
-        game   = self,
-        player = player,
-        damage = damage,
-    }
-    self.dyingMap[player] = dying
-    dying:apply():await()
-    return dying
-end
-
---- 他现在正在濒死中的那次结算（没有就是空）
----@param player Player
----@return Dying?
-function M:getDying(player)
-    return self.dyingMap[player]
-end
-
---- 清掉这个玩家当前的濒死账（那次结算自己用）
----@param dying Dying
-function M:clearDying(dying)
-    if self.dyingMap[dying.player] == dying then
-        self.dyingMap[dying.player] = nil
-    end
 end
 
 --- 登记这一局的流程（加载期由内容登记，每局只能一个）

@@ -1,4 +1,4 @@
--- 判定：一次结算（亮牌 → 改判窗口 → 结束）
+-- 判定：一次结算
 -- 判定牌从抽牌堆顶翻出、进这次判定自己的临时处理区；改判只能在「判定-前」里做，换下的牌也进临时区。
 -- 收尾由内核做（`Effect` 基类）：把临时区里剩下的牌送弃牌。
 
@@ -40,14 +40,17 @@ local function fireReplaceWindow(judge)
     judge.game:fire('判定-前', judge)
 end
 
---- 判定结算：亮牌 → 改判窗口 → 结束
+--- 判定结算
 ---@async
 function Judge:settle()
+    -- 亮牌
     local cards = self.game:drawCards(self.player, 1, self:getTempZone())
     if #cards > 0 then
         self.card = cards[1]
     end
+    -- 改判窗口
     fireReplaceWindow(self)
+    -- 结束
     self.game:fire('判定-后', self)
 end
 

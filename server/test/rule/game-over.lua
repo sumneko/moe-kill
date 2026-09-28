@@ -110,7 +110,7 @@ lt.test('平局：摸牌时抽牌堆与弃牌堆都没牌 ⇒ 平局', function 
     local run = startGame()
     emptyBothPiles(run)
 
-    local draw = run.game:draw(run.players[1], 1)
+    local draw = run.players[1]:draw(1)
 
     lt.assertEquals('一张都没摸到', 0, assert(run.players[1]:getZone('手牌')):count())
     lt.assertEquals('摸牌本身不算失败', nil, draw.err)
@@ -137,7 +137,7 @@ lt.test('平局：抽牌堆空但弃牌还有牌 ⇒ 洗回照常取，不算耗
         deck:move(card, discard)
     end
 
-    local draw = run.game:draw(run.players[1], 2)
+    local draw = run.players[1]:draw(2)
 
     lt.assertEquals('洗回后摸到 2 张', 2, assert(run.players[1]:getZone('手牌')):count())
     lt.assertEquals('摸牌没失败', nil, draw.err)

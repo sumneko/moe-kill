@@ -53,8 +53,10 @@ lt.test('打出：答复的牌当场交出来，进发起那次结算的临时�
         local card   = askCard.card
         inTemp = parent ~= nil and card ~= nil and card:getZone() == parent:getTempZone()
     end)
-    game:on('伤害-前', function ()
-        asked = game:askPlayCard(players[2], '测试', { name = '闪' })
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            asked = game:askPlayCard(players[2], '测试', { name = '闪' })
+        end
     end)
 
     game:damage(players[1], players[2], 1)

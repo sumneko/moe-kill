@@ -7,5 +7,5 @@ Card '无中生有'
         return { plan.user }
     end)
     : on('生效', function (cardEffect)
-        game:draw(cardEffect.target, 2)
+        cardEffect.target:draw(2)
     end)

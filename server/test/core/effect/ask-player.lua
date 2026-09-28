@@ -130,8 +130,10 @@ lt.test('询问：被问者与父效果挂在询问上', function ()
         ask:answer(players[2])
     end)
 
-    game:on('伤害-前', function ()
-        game:askPlayer(players[1], '测试', { players = { players[2] } })
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            game:askPlayer(players[1], '测试', { players = { players[2] } })
+        end
     end)
 
     game:damage(players[1], players[3], 1)

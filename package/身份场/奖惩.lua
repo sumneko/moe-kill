@@ -2,7 +2,7 @@
 
 game:on('玩家-死亡', function (player)
     -- 死亡时机里那次濒死的账还在
-    local dying  = game:getDying(player)
+    local dying  = player.dying
     local damage = dying and dying.damage
     local killer = damage and damage.from
     if not killer or killer == player then
@@ -10,7 +10,7 @@ game:on('玩家-死亡', function (player)
     end
 
     if player:getTag('身份') == '反贼' then
-        game:draw(killer, 3)
+        killer:draw(3)
         return
     end
 

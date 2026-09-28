@@ -35,39 +35,9 @@ lt.test('回复：回复后体力上升', function ()
     lt.assertEquals('入口返回已经结完的效果', nil, heal.err)
 end)
 
-lt.test('回复：三个时机的先后与上下文，改体力发生在「生效」里', function ()
-    local game, players = newGame(2)
-    local target = players[2]
-
-    ---@type string[]
-    local trace = {}
-    ---@type Heal?
-    local seen   = nil
-
-    game:on('回复-前', function (heal)
-        trace[#trace + 1] = '前 {}' % { target:getAttr('体力') }
-    end)
-    game:on('回复-生效', function (heal)
-        trace[#trace + 1] = '生效 {}' % { target:getAttr('体力') }
-        seen = heal
-    end)
-    game:on('回复-后', function (heal)
-        trace[#trace + 1] = '后 {}' % { target:getAttr('体力') }
-    end)
-
-    game:heal(target, 2)
-
-    lt.assertEquals('前还没加、生效与后已经加了', '前 4,生效 6,后 6', table.concat(trace, ','))
-    lt.assertEquals('上下文就是这次回复', target, assert(seen).to)
-end)
-
 lt.test('回复：建实例先不结算就不回血', function ()
     local game, players = newGame(2)
-    local heal = moe.heal.create {
-        game   = game,
-        to     = players[2],
-        amount = 2,
-    }
+    local heal = New 'Heal' (game, players[2], 2)
 
     lt.assertEquals('实例带目标', players[2], heal.to)
     lt.assertEquals('实例带点数', 2, heal.amount)

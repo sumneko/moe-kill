@@ -173,16 +173,18 @@ lt.test('效果：结算期间是根，结束就清掉', function ()
     ---@type string[]
     local trace = {}
 
-    game:on('伤害-前', function (damage)
-        trace[#trace + 1] = '前 {}' % { tostring(game:getEffect() == damage) }
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            trace[#trace + 1] = '发起时是根 {}' % { tostring(game:getEffect() == effect) }
+        end
     end)
-    game:on('伤害-后', function (damage)
-        trace[#trace + 1] = '后 {}' % { tostring(game:getEffect() == damage) }
+    game:on('伤害-结束', function (damage)
+        trace[#trace + 1] = '结束时是根 {}' % { tostring(game:getEffect() == damage) }
     end)
 
     game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('两个时机都看到这次伤害是根', '前 true,后 true', table.concat(trace, ','))
+    lt.assertEquals('发起与结束时它都是最近发起的根', '发起时是根 true,结束时是根 true', table.concat(trace, ','))
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
@@ -194,9 +196,12 @@ lt.test('效果：嵌套结算会压深，结束后回到外层', function ()
     ---@type boolean
     local nested = false
 
-    game:on('伤害-前', function (damage)
-        ---@cast damage Damage
-        trace[#trace + 1] = '进入 {} 层 {}' % { damage.deep, damage.to == players[2] and '外层' or '内层' }
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'damage' then
+            return
+        end
+        ---@cast effect Damage
+        trace[#trace + 1] = '进入 {} 层 {}' % { effect.deep, effect.to == players[2] and '外层' or '内层' }
         if not nested then
             nested = true
             game:damage(players[2], players[3], 1)
@@ -223,15 +228,17 @@ lt.test('效果：内层的父是外层，根效果没有父', function ()
     ---@type boolean
     local nested = false
 
-    game:on('伤害-前', function (damage)
-        ---@cast damage Effect
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'damage' then
+            return
+        end
         if not nested then
             nested    = true
-            outerSeen = damage
+            outerSeen = effect
             game:damage(players[2], players[3], 1)
         else
-            innerSeen  = damage
-            parentSeen = damage.parent
+            innerSeen  = effect
+            parentSeen = effect.parent
         end
     end)
 
@@ -252,9 +259,10 @@ lt.test('效果：根效果的父不存在，也不报错', function ()
     ---@type Effect?
     local topSeen = nil
 
-    game:on('伤害-前', function (damage)
-        ---@cast damage Effect
-        topSeen = damage
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            topSeen = effect
+        end
     end)
 
     game:damage(players[1], players[2], 1)
@@ -269,9 +277,11 @@ lt.test('效果：沿父效果能还原整条结算链', function ()
     ---@type Effect[] # 按进入顺序
     local entered = {}
 
-    game:on('伤害-前', function (damage)
-        ---@cast damage Effect
-        entered[#entered + 1] = damage
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'damage' then
+            return
+        end
+        entered[#entered + 1] = effect
         if #entered < 3 then
             game:damage(players[1], players[#entered + 2], 1)
         end
@@ -297,12 +307,7 @@ end)
 
 lt.test('效果：结算中抛错也退栈', function ()
     local game, players = newGame(2)
-    local damage = moe.damage.create {
-        game   = game,
-        from   = players[1],
-        to     = players[2],
-        amount = 1,
-    }
+    local damage = New 'Damage' (game, players[1], players[2], 1)
     damage.settle = function ()
         error('故意报错')
     end
@@ -366,12 +371,13 @@ lt.test('效果：阻止只作用于这一个效果，外层照常结算完', fu
     ---@type boolean
     local nested = false
 
-    game:on('伤害-前', function ()
-        if not nested then
-            nested = true
-            game:damage(players[2], players[3], 2)
-            outerDone = true
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'damage' or nested then
+            return
         end
+        nested = true
+        game:damage(players[2], players[3], 2)
+        outerDone = true
     end)
     game:on('效果-能否生效', function (effect)
         ---@cast effect Damage
@@ -398,7 +404,7 @@ lt.test('效果：被阻止后它自己的结算不再执行', function ()
         return '拦下'
     end)
 
-    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    local damage = New 'Damage' (game, players[1], players[2], 1)
     local settle = damage.settle
     damage.settle = function (self)
         settle(self)
@@ -468,7 +474,7 @@ end)
 lt.test('效果：自动失败交给任务的错误处理器，阻止不交', function ()
     local game, players = newGame(2)
 
-    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 1 }
+    local damage = New 'Damage' (game, players[1], players[2], 1)
     damage.settle = function ()
         error('故意报错', 0)
     end

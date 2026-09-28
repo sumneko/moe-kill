@@ -122,8 +122,10 @@ lt.test('询问：被问者与选项挂在询问上，父效果是发起它的�
         ask:answer { card = jink }
     end)
 
-    game:on('伤害-前', function ()
-        game:askCard(players[2], '测试', { name = '闪' })
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            game:askCard(players[2], '测试', { name = '闪' })
+        end
     end)
 
     game:damage(players[1], players[2], 1)
@@ -147,7 +149,10 @@ lt.test('询问：同一结算里问多次互不串', function ()
 
     ---@type table<integer, Card>
     local answers = {}
-    game:on('伤害-前', function ()
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'damage' then
+            return
+        end
         answers[#answers + 1] = game:askCard(players[2], nil, { name = '闪' }).card
         answers[#answers + 1] = game:askCard(players[3], nil, { name = '闪' }).card
     end)
@@ -215,7 +220,10 @@ lt.test('询问：被阻止的询问以「没有答复」结束，结算其余�
             return '不让这次询问生效'
         end
     end)
-    game:on('伤害-前', function ()
+    game:on('效果-能否生效', function (effect)
+        if effect.kind ~= 'damage' then
+            return
+        end
         trace[#trace + 1] = '前'
         local card = game:askCard(players[2], nil, { name = '闪' }).card
         trace[#trace + 1] = '答复 {}' % { tostring(card) }

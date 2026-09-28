@@ -69,8 +69,7 @@ lt.test('游戏结束：结束后起的结算以取消收尾', function ()
 
     game:endGame { side = '主公方', reason = '反贼与内奸全部阵亡' }
 
-    local damage = moe.damage.create { game = game, from = players[1], to = players[2], amount = 2 }
-    damage:apply():await()
+    local damage = game:damage(players[1], players[2], 2)
 
     lt.assertEquals('以取消收尾', moe.task.CANCELED, damage.err)
     lt.assertEquals('没有结果', nil, damage.result)
@@ -81,15 +80,17 @@ end)
 lt.test('游戏结束：结束后不再起新的濒死', function ()
     local game, players = newGame(2)
 
-    ---@type integer
-    local dyingFired = 0
-    game:on('濒死-进入', function () dyingFired = dyingFired + 1 end)
-    game:on('伤害-前', function ()
-        game:endGame { side = '反贼', reason = '测试' }
-        game:enterDying(players[2])
+    ---@type Dying?
+    local dying = nil
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            game:endGame { side = '反贼', reason = '测试' }
+            dying = players[2]:enterDying()
+        end
     end)
 
     game:damage(players[1], players[2], 1)
 
-    lt.assertEquals('濒死没有起', 0, dyingFired)
+    lt.assertEquals('濒死以取消收尾（结算体没跑）', moe.task.CANCELED, assert(dying).err)
+    lt.assertEquals('没死', true, players[2]:isAlive())
 end)

@@ -52,35 +52,6 @@ lt.test('伤害：连续伤害逐次减去', function ()
     lt.assertEquals('两次伤害累计', 1, players[2]:getAttr('体力'))
 end)
 
-lt.test('伤害：伤害前与伤害后时机的先后与上下文', function ()
-    local game, players = newGame(2)
-    local source, target = players[1], players[2]
-
-    ---@type string[]
-    local trace = {}
-    ---@type Player?
-    local seenTo = nil
-
-    ---@param damage Damage
-    local function onBefore(damage)
-        trace[#trace + 1] = '前 {} {}' % { target:getAttr('体力'), damage.amount }
-    end
-
-    ---@param damage Damage
-    local function onAfter(damage)
-        trace[#trace + 1] = '后 {} {}' % { target:getAttr('体力'), damage.amount }
-        seenTo = damage.to
-    end
-
-    game:on('伤害-前', onBefore)
-    game:on('伤害-后', onAfter)
-
-    game:damage(source, target, 2)
-
-    lt.assertEquals('前：体力还没变；后：已经变了', '前 4 2,后 2 2', table.concat(trace, ','))
-    lt.assertEquals('上下文里的目标就是被打的那个', target, seenTo)
-end)
-
 lt.test('伤害：没有订阅者时照常', function ()
     local game, players = newGame(2)
 
@@ -91,12 +62,7 @@ end)
 
 lt.test('伤害：建实例先不结算就不掉血', function ()
     local game, players = newGame(2)
-    local damage = moe.damage.create {
-        game   = game,
-        from   = players[1],
-        to     = players[2],
-        amount = 2,
-    }
+    local damage = New 'Damage' (game, players[1], players[2], 2)
 
     lt.assertEquals('实例带来源', players[1], damage.from)
     lt.assertEquals('实例带目标', players[2], damage.to)
@@ -113,42 +79,11 @@ lt.test('伤害：便利入口与手写两步等价', function ()
     local game, players = newGame(3)
 
     game:damage(players[1], players[2], 2)
-    moe.damage.create {
-        game   = game,
-        from   = players[1],
-        to     = players[3],
-        amount = 2,
-    }:apply()
+    local other = New 'Damage' (game, players[1], players[3], 2)
+    other:apply()
 
     lt.assertEquals('两条路的结果一样', players[2]:getAttr('体力'), players[3]:getAttr('体力'))
     lt.assertEquals('结果确实是 2', 2, players[3]:getAttr('体力'))
-end)
-
-lt.test('伤害：两个时机收到同一个实例', function ()
-    local game, players = newGame(2)
-
-    ---@type Damage?
-    local before = nil
-    ---@type Damage?
-    local after = nil
-
-    ---@param damage Damage
-    local function onBefore(damage)
-        before = damage
-    end
-
-    ---@param damage Damage
-    local function onAfter(damage)
-        after = damage
-    end
-
-    game:on('伤害-前', onBefore)
-    game:on('伤害-后', onAfter)
-
-    game:damage(players[1], players[2], 1)
-
-    lt.assertEquals('前后是同一个对象', before, after)
-    lt.assertEquals('就是这次伤害（点数对得上）', 1, after and after.amount)
 end)
 
 lt.test('伤害：结算期间在栈上', function ()
@@ -158,21 +93,15 @@ lt.test('伤害：结算期间在栈上', function ()
     local damageSeen = nil
     ---@type Effect?
     local topSeen = nil
-    ---@type string?
-    local kindSeen = nil
 
-    ---@param damage Damage
-    local function onAfter(damage)
+    game:on('伤害-结束', function (damage)
         damageSeen = damage
         topSeen    = game:getEffect()
-        kindSeen   = damage.kind
-    end
-
-    game:on('伤害-后', onAfter)
+    end)
 
     game:damage(players[1], players[2], 1)
 
     lt.assertEquals('触发时栈顶就是这次伤害', damageSeen, topSeen)
-    lt.assertEquals('种类标识', 'damage', kindSeen)
+    lt.assertEquals('种类标识', 'damage', assert(damageSeen).kind)
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)

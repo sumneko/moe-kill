@@ -133,36 +133,31 @@ lt.test('濒死：一圈都没人给桃时就真死，并且触发玩家-死亡'
     lt.assertEquals('「玩家-死亡」的上下文是这个玩家', target, dead)
 end)
 
-lt.test('濒死：判死发生在「伤害-后」之前', function ()
+lt.test('濒死：判死发生在「伤害-结束」之前', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local target = run.players[2]
 
     ---@type boolean?
-    local aliveAtAfter = nil
-    run.game:on('伤害-后', function ()
-        aliveAtAfter = target:isAlive()
+    local aliveAtEnd = nil
+    run.game:on('伤害-结束', function ()
+        aliveAtEnd = target:isAlive()
     end)
 
     run.game:damage(run.players[1], target, 5)
 
-    lt.assertEquals('伤害收尾时人已经死了（濒死排在它之前）', false, aliveAtAfter)
+    lt.assertEquals('伤害结束时人已经死了（濒死排在它前面）', false, aliveAtEnd)
     lt.assertEquals('阵亡', false, target:isAlive())
 end)
 
-lt.test('濒死：被救活 ⇒ 脱离时机当场发，且账清掉', function ()
+lt.test('濒死：被救活 ⇒ 当场脱离，账清掉', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local target = run.players[2]
     local peach  = takeCard(run, target, '桃')
 
     ---@type Dying?
     local seen = nil
-    ---@type integer
-    local leftTimes = 0
-    run.game:on('濒死-进入', function (dying)
-        seen = dying
-    end)
-    run.game:on('濒死-离开', function () leftTimes = leftTimes + 1 end)
     run.game:on('卡牌-询问', function (ask)
+        seen = target.dying                                  -- 求桃那一刻他正在濒死中
         if ask.to == target then
             ask:answer { card = peach, targets = { target } }
         end
@@ -173,8 +168,8 @@ lt.test('濒死：被救活 ⇒ 脱离时机当场发，且账清掉', function 
 
     lt.assertEquals('带着那次伤害', damage, dying.damage)
     lt.assertEquals('活下来了', true, target:isAlive())
-    lt.assertEquals('体力回正 ⇒ 当场发过一次脱离', 1, leftTimes)
-    lt.assertEquals('账已经清掉了', nil, run.game:getDying(target))
+    lt.assertEquals('体力回正 ⇒ 脱离标记为真', true, dying:hasLeft())
+    lt.assertEquals('账已经清掉了', nil, target.dying)
 end)
 
 lt.test('濒死：阵亡时，死亡时机里读得到致死伤害', function ()
@@ -184,7 +179,7 @@ lt.test('濒死：阵亡时，死亡时机里读得到致死伤害', function ()
     ---@type Damage?
     local lethal = nil
     run.game:on('玩家-死亡', function (player)
-        local dying = run.game:getDying(player)
+        local dying = player.dying
         lethal = dying and dying.damage
     end)
 
@@ -192,7 +187,7 @@ lt.test('濒死：阵亡时，死亡时机里读得到致死伤害', function ()
 
     lt.assertEquals('就是那次伤害', damage, lethal)
     lt.assertEquals('凶手是打他的那个', run.players[1], assert(lethal).from)
-    lt.assertEquals('结算完账就清了', nil, run.game:getDying(target))
+    lt.assertEquals('结算完账就清了', nil, target.dying)
 end)
 
 lt.test('濒死：濒死中再受伤，致死伤害与凶手都换最后一次', function ()
@@ -204,13 +199,13 @@ lt.test('濒死：濒死中再受伤，致死伤害与凶手都换最后一次',
     ---@type Damage?
     local lethal  = nil
 
-    run.game:on('濒死-进入', function (dying)
+    run.game:on('卡牌-询问', function ()
         if not second then
-            second = run.game:damage(run.players[3], dying.player, 3)   -- 濒死中再挨一下
+            second = run.game:damage(run.players[3], target, 3)         -- 濒死中再挨一下
         end
     end)
     run.game:on('玩家-死亡', function (player)
-        local dying = run.game:getDying(player)
+        local dying = player.dying
         lethal = dying and dying.damage
     end)
 

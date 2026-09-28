@@ -20,3 +20,8 @@
 ---@field fire fun(self: Game, name: '判定-前', judge: 判定): any # 改判窗口：只能在这里面换牌
 ---@field on fun(self: Game, name: '判定-后', callback: fun(judge: 判定): any): function
 ---@field fire fun(self: Game, name: '判定-后', judge: 判定): any
+
+--- 伤害的收尾时机也由本包提供：按名收窄 `on` / `fire` 的载荷
+---@class Game
+---@field on fun(self: Game, name: '伤害-结束', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Game, name: '伤害-结束', damage: Damage): any

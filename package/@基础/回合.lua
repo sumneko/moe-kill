@@ -43,7 +43,7 @@ local function runTurn(player)
     for _, name in ipairs(PHASES) do
         local _ <close> = game:enterPhase(player, name)
         if name == '摸牌' then
-            game:draw(player, DRAW_COUNT)
+            player:draw(DRAW_COUNT)
         elseif name == '出牌' then
             playPhase(player)
         elseif name == '弃牌' then

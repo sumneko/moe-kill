@@ -61,10 +61,12 @@ lt.test('判定：嵌在别的结算里，判定牌在该次判定结束时就�
     ---@type boolean?
     local flushed = nil
 
-    run.game:on('伤害-前', function ()
-        judge = run.game:judge(run.players[2], '测试')
+    run.game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            judge = run.game:judge(run.players[2], '测试')
+        end
     end)
-    run.game:on('伤害-后', function ()
+    run.game:on('伤害-结束', function ()
         flushed = judge ~= nil and judge.card ~= nil and judge.card:getZone() == discard
     end)
 
