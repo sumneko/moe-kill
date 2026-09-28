@@ -87,7 +87,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
   **再一条（用户定）**：「put 是不是不太好，putInto 或者 give 如何」⇒ 列了四个候选与各自的问题（`putInto` 与被删的「占槽」同名且参数顺序反着、`give` 施动者反了、`put` 地点换主语有点歪），用户**选 `accept`**（收方视角最准，「接受」自带先检查再收的意味，与 `boolean + 原因`、`canEnter` 配成一对）⇒ `M:put` → `M:accept`、`SlotZone:put` → `SlotZone:accept`（LuaLS 重命名没覆盖子类覆写与带类型收窄的调用点，手工补了 10 处），`MoveCard:settle` 与内核收尾跟着改。**基线 584（不变）**。
 
-  **再一条（用户定）**：「感觉 take 和 takeTop 可以直接删掉。我看了下目前的用法本质是 peek」⇒ ① **删 `Zone:take(index)` 与 `OrderedZone:takeTop()`**（对外只剩 `accept` / `peek` / `draw`）；② **新增保护方法 `Zone:remove(牌)`**（摘掉 + `unbindZone` + 发「离开区域」，返回牌或空）充当内核内部的「拿出来」收口点 —— `clear` 改成遍历快照后逐个 `remove`、`OrderedZone:draw` 改成看 `self.cards[1]` 再 `remove`；③ **用牌流程少两步**：`UseCard:settle` / `UseCardToCard:settle` 里的 `findCard` + `zone:take(index)` 删了 —— `accept` 本来就能跨区收，直接用后面的 `moveCard` 搬进处理区（`findCard` 只剩 `canUse` 在用）；④ 用例里的 `take` / `takeTop` 改成 `peek` / `clear` / `draw(1)`（`core/{zone,move,can-use,scenario}`）。**基线 584（不变）**。待定：`@基础/使用.lua` 里那条 `'卡牌-结算前'` 搬牌钩子与内核 `UseCard:settle` 里那句重复（同一张牌搬两次临时区）。
+  **再一条（用户定）**：「感觉 take 和 takeTop 可以直接删掉。我看了下目前的用法本质是 peek」⇒ ① **删 `Zone:take(index)` 与 `OrderedZone:takeTop()`**（对外只剩 `accept` / `peek` / `draw`）；② **新增保护方法 `Zone:remove(牌)`**（摘掉 + `unbindZone` + 发「离开区域」，返回牌或空）充当内核内部的「拿出来」收口点 —— `clear` 改成遍历快照后逐个 `remove`、`OrderedZone:draw` 改成看 `self.cards[1]` 再 `remove`；③ **用牌流程少两步**：`UseCard:settle` / `UseCardToCard:settle` 里的 `findCard` + `zone:take(index)` 删了 —— `accept` 本来就能跨区收，直接用后面的 `moveCard` 搬进处理区（`findCard` 只剩 `canUse` 在用）；④ 用例里的 `take` / `takeTop` 改成 `peek` / `clear` / `draw(1)`（`core/{zone,move,can-use,scenario}`）。**基线 584（不变）**。**复核**：`package/@基础/使用.lua` 已在 `717fe7b`（用过的牌归内核那批）删除、不在工作区里 ⇒ 用过的牌只由内核 `UseCard:settle` 搬一次，没有重复（当天一度以为它还在，是编辑器缓存）。
 
 ## 2 下一步：待用户挑（**尚未开工**）
 
