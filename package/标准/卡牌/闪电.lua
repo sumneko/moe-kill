@@ -12,10 +12,10 @@ local HIT_MAX = 9
 local function isHit(judge)
     local card = judge?.card
     return card ~= nil
-        and card.suit == '黑桃'
-        and card.point ~= nil
-        and card.point >= HIT_MIN
-        and card.point <= HIT_MAX
+       and card.suit == '黑桃'
+       and card.point ~= nil
+       and card.point >= HIT_MIN
+       and card.point <= HIT_MAX
 end
 
 -- 他的判定区里有没有同名牌
@@ -34,15 +34,13 @@ end
 -- 往下家挪：从下家起找第一个合法目标（存活、判定区里没有闪电）并把自己移过去；找不到就送弃牌堆
 ---@param resolution 延时锦囊结算
 local function passToNext(resolution)
-    local card    = resolution.card
-    local player  = resolution.player
-    local current = game.desk:getNext(player)
-    while current and current ~= player do
-        if not hasSameName(current, card.name) then
+    local card   = resolution.card
+    local player = resolution.player
+    for current in game.desk:actionOrder(nil, player) do
+        if current ~= player and not hasSameName(current, card.name) then
             game:moveCard(card, current:getZone('判定'))
             return
         end
-        current = game.desk:getNext(current)
     end
     game:moveCard(card, '弃牌')
 end
