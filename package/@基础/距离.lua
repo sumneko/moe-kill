@@ -5,14 +5,15 @@ local attributeSystem = game:getAttributeSystem()
 attributeSystem:define('进攻修正', { simple = true })
 attributeSystem:define('防御修正', { simple = true })
 
--- 距离（谁到谁）
----@param from Player
+---@class Player
+local M = Class 'Player'
+
+--- 距离（谁到谁）
 ---@param to Player
 ---@return integer
----@diagnostic disable-next-line: lowercase-global
-function distance(from, to)
-    local value = game.desk:getDistance(from, to)
-                + from:getAttr('进攻修正')
+function M:distance(to)
+    local value = self.game.desk:getDistance(self, to)
+                + self:getAttr('进攻修正')
                 + to:getAttr('防御修正')
     if value < 1 then
         return 1

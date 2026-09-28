@@ -20,7 +20,7 @@ end
 local function reachable(player)
     local range = player:getAttr('攻击范围')
     return table.filter(game.desk.alivePlayers, function (other)
-        return other ~= player and distance(player, other) <= range
+        return other ~= player and player:distance(other) <= range
     end)
 end
 

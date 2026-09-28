@@ -298,6 +298,29 @@ lt.test('规则集：拿不到内核门面，但能从 game 上建属性系统',
     lt.assertEquals('属性系统可用', 3, card('测'):getHandlers('跑')[1]())
 end)
 
+lt.test('规则集：拿到 Class 可以给内核类加方法，但拿不到 New / Extends 等类表工具', function ()
+    local guard <close> = prepare()
+    write('a.lua', 'local M = Class("Player")\n'
+        .. 'function M:probeMark() return "来自内容侧" end\n'
+        .. 'Card("甲")')
+
+    load(list('a'))
+
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    ---@diagnostic disable-next-line: undefined-field
+    lt.assertEquals('类表拿到手、方法装上了', '来自内容侧', player:probeMark())
+
+    write('b.lua', 'local x = New("Player")')
+    lt.assertError('拿不到 New', function ()
+        load(list('b'))
+    end)
+
+    write('c.lua', 'local x = Extends("Player", "Player")')
+    lt.assertError('拿不到 Extends', function ()
+        load(list('c'))
+    end)
+end)
+
 ---@param items string[] # 工具包（`@tools`）在项目自己的 package 目录里，所以这两个用例要把它也当来源
 ---@return string[] # 这一次实际执行过的文件
 local function loadWithContent(items)
