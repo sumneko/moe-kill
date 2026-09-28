@@ -53,9 +53,9 @@ function OuterEffect:settle()
     inner:apply():await()
 end
 
---- 测试用：结算里先要一块临时区，再嵌一个内层效果（记下内层，供断言继承）
+--- 测试用：结算里先要一块临时区，再嵌一个内层效果（记下内层，供断言取区）
 ---@class ZoneProbeEffect : Effect
----@field inner? Effect # 结算里嵌的那个内层效果
+---@field inner? InnerProbeEffect # 结算里嵌的那个内层效果
 local ZoneProbeEffect = Class 'ZoneProbeEffect'
 
 Extends('ZoneProbeEffect', 'Effect')
@@ -68,10 +68,31 @@ end
 ---@async
 function ZoneProbeEffect:settle()
     self:getTempZone()
-    local inner = New 'ProbeEffect' (self.game, nil)
-    inner.kind  = 'inner'
+    local inner = New 'InnerProbeEffect' (self.game)
     inner:apply():await()
     self.inner = inner
+end
+
+--- 测试用：内层效果 —— 要一块自己的区，并把点名向外层借到的那块也记下来
+---@class InnerProbeEffect : Effect
+---@field own Zone # 自己那块
+---@field borrowed? Zone # 点名向外层借到的那块（没有外层就是空）
+local InnerProbeEffect = Class 'InnerProbeEffect'
+
+Extends('InnerProbeEffect', 'Effect')
+
+---@param game Game
+function InnerProbeEffect:__init(game)
+    self.kind = 'innerProbe'
+end
+
+---@async
+function InnerProbeEffect:settle()
+    self.own = self:getTempZone()
+    local parent = self.parent
+    if parent then
+        self.borrowed = parent:getTempZone()
+    end
 end
 
 ---@param count integer
@@ -495,28 +516,35 @@ lt.test('效果：临时处理区按需建，顶层效果各自一块', function
     lt.assertEquals('另一个效果是另一块', true, other:getTempZone() ~= zone)
 end)
 
-lt.test('效果：内层效果沿父层拿到同一块区，归属者身上才有区', function ()
+lt.test('效果：内层效果要区就自己一块，不向外层取', function ()
     local game = newGame(1)
     local outer = New 'ZoneProbeEffect' (game)
     outer:apply():await()
 
     local inner = assert(outer.inner, '内层没跑')
     local zone  = assert(outer.tempZone, '外层没建区')
-    lt.assertEquals('内层自己身上没有区', nil, inner.tempZone)
-    lt.assertEquals('内层拿到的是外层那块', zone, inner:getTempZone())
+    lt.assertEquals('内层要到自己一块', inner.own, inner.tempZone)
+    lt.assertEquals('不是外层那块', true, inner.own ~= zone)
+    lt.assertEquals('外层那块还是外层的', zone, outer.tempZone)
 end)
 
-lt.test('效果：没建过区的效果不发收尾（继承来的由归属者清）', function ()
+lt.test('效果：点名向外层借区，借到的就是外层那块', function ()
     local game = newGame(1)
-    ---@type string[]
-    local finished = {}
-    game:on('效果-收尾', function (effect)
-        finished[#finished+1] = effect.kind
-    end)
+    local outer = New 'ZoneProbeEffect' (game)
+    outer:apply():await()
 
-    New 'ZoneProbeEffect' (game):apply():await()
+    local inner = assert(outer.inner, '内层没跑')
+    lt.assertEquals('借到的就是外层那块', assert(outer.tempZone, '外层没建区'), inner.borrowed)
+end)
 
-    lt.assertEquals('只有归属者收到收尾', 'zoneProbe', table.concat(finished, ','))
+lt.test('效果：没要过区的效果不发收尾', function ()
+    local game = newGame(1)
+    local finished = 0
+    game:on('效果-收尾', function () finished = finished + 1 end)
+
+    New 'ProbeEffect' (game, nil):apply():await()
+
+    lt.assertEquals('没要过区就不发收尾', 0, finished)
 end)
 
 lt.test('效果：结完时收尾一次', function ()

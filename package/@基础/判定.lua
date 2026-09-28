@@ -18,12 +18,6 @@ function Judge:__init(game, player, reason)
     self.replacing = false
 end
 
---- 这次判定就是一次结算：临时区自己建，不向父层取
----@return Zone
-function Judge:getTempZone()
-    return self:createTempZone()
-end
-
 --- 换掉当前判定牌：只能在「判定-前」里调；新牌进这次判定的临时区，被换下的那张记进 `replaced`
 ---@param card Card
 function Judge:replace(card)
