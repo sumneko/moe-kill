@@ -1,57 +1,59 @@
--- 回合流程：六个阶段 + 摸牌 + 出牌阶段的驱动（问牌 / 用牌）+ 弃牌阶段
+-- 回合流程：一个「回合」对象 + 六个阶段（进出各发一个时机）；各阶段业务见「阶段」目录
 local PHASES = { '准备', '判定', '摸牌', '出牌', '弃牌', '结束' }
-local DRAW_COUNT = 2
 
----@type integer # 一个出牌阶段最多出这么多次（规则上可能有能无限用牌的技能，这里是终止条件）
-local MAX_PLAY_COUNT = 1000
+---@class Turn
+---@field player Player # 这个回合属于谁
+---@field private skippedPhases table<string, true> # 这个回合里要跳过的阶段
+local Turn = Class 'Turn'
 
----@type AskUseCard.Condition # 手牌里那些能用的牌（选项带各自的可用目标）
-local PLAY_PHASE_CONDITION = { zone = '手牌' }
-
+---@param game Game
 ---@param player Player
-local function playPhase(player)
-    for _ = 1, MAX_PLAY_COUNT do
-        local ask = game:askUseCard(player, '出牌', PLAY_PHASE_CONDITION)
-        if not ask.useCard then
-            return
-        end
-    end
+function Turn:__init(game, player)
+    self.game          = game
+    self.player        = player
+    self.skippedPhases = {}
 end
 
----@param player Player
-local function discardPhase(player)
-    local hand  = player:getZone('手牌')
-    local extra = hand:count() - player:getAttr('体力')
-    if extra <= 0 then
-        return
-    end
-
-    local ask   = game:ask(player, '弃牌', { count = extra })
-    local reply = ask.reply
-    local cards = reply and reply.cards
-    if not cards or #cards ~= extra then
-        error('弃牌阶段要弃 {} 张，答复的是 {} 张' % { extra, cards and #cards or 0 }, 2)
-    end
-    game:moveCard(cards, '弃牌')
+-- 记一笔：这个回合里「name」阶段跳过
+---@param name string
+function Turn:skipPhase(name)
+    self.skippedPhases[name] = true
 end
+
+-- 读掉一笔跳过：有就清掉并回真
+---@param name string
+---@return boolean
+function Turn:takePhaseSkip(name)
+    if not self.skippedPhases[name] then
+        return false
+    end
+    self.skippedPhases[name] = nil
+    return true
+end
+
+---@class Player
+---@field turn? Turn # 他正在进行的那个回合（不在他的回合就是空）
 
 ---@param player Player
 local function runTurn(player)
+    local turn = New 'Turn' (game, player)
+    player.turn         = turn
     game.turnPlayer     = player
     game.lastTurnPlayer = player
     game:fire('回合-开始', { player = player })
     for _, name in ipairs(PHASES) do
-        local _ <close> = game:enterPhase(player, name)
-        if name == '摸牌' then
-            player:draw(DRAW_COUNT)
-        elseif name == '出牌' then
-            playPhase(player)
-        elseif name == '弃牌' then
-            discardPhase(player)
+        if not player:isAlive() then
+            break
         end
+        if turn:takePhaseSkip(name) then
+            goto continue
+        end
+        local _ <close> = game:enterPhase(player, name)
+        ::continue::
     end
     game:fire('回合-结束', { player = player })
     game.turnPlayer = nil
+    player.turn     = nil
 end
 
 game:registerFlow(function ()

@@ -70,6 +70,37 @@ lt.test('桌子：按行动顺序依次给出角色，轮到自己就结束', fu
     end)
 end)
 
+lt.test('桌子：行动顺序里没有阵亡者', function ()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
+    local c    = newPlayer(game)
+    desk:sit(1, a)
+    desk:sit(2, b)
+    desk:sit(3, c)
+
+    ---@param allowed Player[]?
+    ---@return string # 座位号连起来
+    local function seats(allowed)
+        ---@type string[]
+        local list = {}
+        for player in desk:actionOrder(allowed, a) do
+            list[#list + 1] = tostring(desk:getIndex(player))
+        end
+        return table.concat(list, ',')
+    end
+
+    lt.assertEquals('都在：三位各一次', '1,2,3', seats(nil))
+
+    b:setAlive(false)
+    lt.assertEquals('阵亡者不再出现', '1,3', seats(nil))
+    lt.assertEquals('点名也拿不到阵亡者', '', seats({ b }))
+
+    b:setAlive(true)
+    lt.assertEquals('复活后又排进来', '1,2,3', seats(nil))
+end)
+
 lt.test('桌子：不给起点就用顺序锚点', function ()
     local game = newGame(3)
     local desk = game.desk
@@ -98,9 +129,7 @@ lt.test('桌子：不给起点就用顺序锚点', function ()
     lt.assertEquals('回合结束后：从上一个回合角色起绕一圈', '3,1,2', seats())
 
     game.lastTurnPlayer = nil
-    lt.assertError('没人开过回合、又没给起点 ⇒ 报错', function ()
-        desk:actionOrder()
-    end)
+    lt.assertEquals('都没开过回合 ⇒ 从 1 号位起', '1,2,3', seats())
 end)
 
 lt.test('桌子：同一名角色占两个座位也只给一次', function ()

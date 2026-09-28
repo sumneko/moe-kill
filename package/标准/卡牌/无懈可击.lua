@@ -1,5 +1,5 @@
 -- 【无懈可击】（标准版）
--- 使用时机：一张锦囊牌对一个目标生效前。
+-- 使用时机：一张锦囊牌对一个目标生效前（含判定阶段结算延时锦囊时）。
 -- 使用目标：一张对一个目标生效前的锦囊牌。
 -- 作用效果：抵消此锦囊牌。
 -- 它不能主动使用（没有「对角色使用」这一支），只由「生效前」的询问发起
@@ -23,7 +23,7 @@ Card '无懈可击'
 ---@param card Card # 要抵消的那张牌
 ---@return boolean # 这张牌有没有被抵消
 local function nullified(card)
-    for player in game.desk:actionOrder(game.desk.alivePlayers) do
+    for player in game.desk:actionOrder() do
         ---@type AskUseCardToCard.Condition
         local condition = { name = '无懈可击', target = card }
         local useCard = game:askUseCardToCard(player, card.name, condition).useCardToCard
@@ -35,8 +35,9 @@ local function nullified(card)
     return false
 end
 
---- 一次「生效前」：问一圈要不要抵消
----@param effect CardEffect|CardEffectToCard
+--- 三种「生效」都在这里问：锦囊对某个角色的生效、无懈对一张牌的生效（= 抵消另一张【无懈可击】产生的效果）、
+--- 以及判定阶段结算延时锦囊的生效
+---@param effect CardEffect|CardEffectToCard|延时锦囊结算
 ---@return string? # 要抵消就给原因（这次生效被阻止）
 local function nullify(effect)
     if canNullify(effect.card) and nullified(effect.card) then
@@ -44,11 +45,11 @@ local function nullify(effect)
     end
 end
 
---- 两种「生效」都在这里问：锦囊对某个角色的生效、以及无懈对一张牌的生效（= 抵消另一张【无懈可击】产生的效果）
 game:on('效果-能否生效', function (effect)
     if effect.kind == 'cardEffect'
-    or effect.kind == 'cardEffectToCard' then
-        ---@cast effect CardEffect|CardEffectToCard
+    or effect.kind == 'cardEffectToCard'
+    or effect.kind == '延时锦囊结算' then
+        ---@cast effect CardEffect|CardEffectToCard|延时锦囊结算
         return nullify(effect)
     end
 end)

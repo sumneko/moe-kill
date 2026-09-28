@@ -165,7 +165,7 @@ lt.test('回合：抽牌抽空时把弃牌洗回来', function ()
             rest[#rest]   = nil
             run.game:moveCard(rest, '弃牌')
             lt.assertEquals('抽牌只剩 1 张', 1, deck:count())
-            lt.assertEquals('其余都在弃牌里', 101, discard:count())
+            lt.assertEquals('其余都在弃牌里', 106, discard:count())
         end,
         stopAfter = 1,
         answer    = endPhase(),
@@ -239,6 +239,43 @@ lt.test('回合：弃牌阶段弃到体力值', function ()
 
     lt.assertEquals('弃到体力值', lord:getAttr('体力'), hand:count())
     lt.assertEquals('弃掉的牌进了弃牌', 2, game:getZone('弃牌'):count())
+end)
+
+lt.test('回合：弃牌答复不对就由服务器从前往后替他弃', function ()
+    ---@type Card[]
+    local added = {}
+    local need  = 0
+    local state = startTurn {
+        setup = function (run)
+            local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
+            for i = 1, 6 do
+                added[i] = hand:put(run.game:createCard('闪'))
+            end
+        end,
+        answer  = endPhase(),
+        discard = function (ask)
+            need = ask.question.count
+            -- 故意答得不对：只给一张，而且不是服务器该弃的那几张
+            return { cards = { added[5] } }
+        end,
+        stopAfter = 1,
+    }
+    local run     = state.run
+    local game    = run.game
+    local lord    = run.players[1]
+    local hand    = assert(lord:getZone('手牌'), '没有手牌区')
+    local discard = assert(game:getZone('弃牌'))
+
+    advance(state, 1)
+
+    lt.assertEquals('要弃几张就问几张', 2, need)
+    lt.assertEquals('弃到体力值', lord:getAttr('体力'), hand:count())
+    local cards = discard:list()
+    lt.assertEquals('弃的张数按要弃的数来', need, #cards)
+    for i = 1, #cards do
+        lt.assertEquals('第 {} 张弃的是手牌最前面的' % { i }, added[i], cards[i])
+    end
+    lt.assertEquals('答复里那张没被采纳，还在手上', true, moe.util.arrayHas(hand:list(), added[5]))
 end)
 
 lt.test('回合：阵亡的角色不再得到回合', function ()
@@ -401,4 +438,48 @@ lt.test('回合：别人的回合里用【杀】不计数也不受限', function
     run.game:useCard(user, card, { target })
 
     lt.assertEquals('也不记在别人的阶段上', 5, phase:getUseCount('杀'))
+end)
+
+lt.test('回合：玩家的「回合」对象挂上又摘掉，跳过记在它身上、不带去下一个回合', function ()
+    ---@type Turn?
+    local firstTurn = nil
+    ---@type Turn?
+    local nextTurn = nil
+    ---@type Player?
+    local user = nil
+    local otherTurnSeen = false
+    local duringOther
+    local state = startTurn {
+        count     = 4,
+        stopAfter = 5,   -- 4 人局，第 5 个回合又是 1 号位
+        answer    = endPhase(),
+        setup     = function (run)
+            user = run.players[1]
+            run.game:on('阶段-开始', function (phase)
+                if phase.name ~= '准备' then
+                    return
+                end
+                if phase.player == user then
+                    if not firstTurn then
+                        firstTurn = phase.player.turn
+                        -- 记一个已经过去的阶段（这一回合不会再读它），看它会不会漏到下一个回合
+                        assert(firstTurn):skipPhase('准备')
+                    else
+                        nextTurn = phase.player.turn
+                    end
+                else
+                    otherTurnSeen = true
+                    duringOther = user.turn
+                end
+            end)
+        end,
+    }
+
+    advance(state, 5)
+
+    lt.assertEquals('第 1 个回合里对象挂上了', true, firstTurn ~= nil)
+    lt.assertEquals('对象认识自己属于谁', user, assert(firstTurn).player)
+    lt.assertEquals('到过别人的回合', true, otherTurnSeen)
+    lt.assertEquals('别人的回合里它已经摘掉', nil, duringOther)
+    lt.assertEquals('第 2 个回合换了个新对象（没被旧跳过漏过来）', true, nextTurn ~= nil and nextTurn ~= firstTurn)
 end)

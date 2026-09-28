@@ -16,12 +16,16 @@
 
 --- 判定是本包提供的时机（内核不再认识它们）：按名收窄 `on` / `fire` 的载荷
 ---@class Game
----@field on fun(self: Game, name: '判定-前', callback: fun(judge: 判定): any): function
----@field fire fun(self: Game, name: '判定-前', judge: 判定): any # 改判窗口：只能在这里面换牌
----@field on fun(self: Game, name: '判定-后', callback: fun(judge: 判定): any): function
----@field fire fun(self: Game, name: '判定-后', judge: 判定): any
+---@field on fun(self: Game, name: '判定-前', callback: fun(judge: Judge): any): function
+---@field fire fun(self: Game, name: '判定-前', judge: Judge): any # 改判窗口：只能在这里面换牌
+---@field on fun(self: Game, name: '判定-后', callback: fun(judge: Judge): any): function
+---@field fire fun(self: Game, name: '判定-后', judge: Judge): any
 
 --- 伤害的收尾时机也由本包提供：按名收窄 `on` / `fire` 的载荷
 ---@class Game
 ---@field on fun(self: Game, name: '伤害-结束', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Game, name: '伤害-结束', damage: Damage): any
+
+--- 延时锦囊的结算钩子（判定结果已定、由牌自己处理）：按名收窄 `CardDef` 侧的 `on` 载荷
+---@class CardDef
+---@field on fun(self: CardDef, event: '判定结果', handler: fun(resolution: 延时锦囊结算)): CardDef

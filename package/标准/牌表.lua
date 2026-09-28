@@ -1,6 +1,5 @@
 -- 标准版牌表（逐张）：一张牌一条，花色与点数都写在这儿
 -- 草稿：张数与牌面待按官方标准版核对（花色取值：黑桃 / 红桃 / 梅花 / 方块；点数 1..13，A=1 … K=13）
--- 还没有延时锦囊（乐不思蜀 / 闪电）—— 它们属于判定区那一批
 game:setValue('牌表', {
     { name = '杀', suit = '黑桃', point = 7 },
     { name = '杀', suit = '黑桃', point = 8 },
@@ -71,7 +70,7 @@ game:setValue('牌表', {
     { name = '无中生有', suit = '红桃', point = 9 },
     { name = '无中生有', suit = '红桃', point = 11 },
     { name = '无懈可击', suit = '黑桃', point = 11 },
-    { name = '无懈可击', suit = '红桃', point = 12 },
+    { name = '无懈可击', suit = '梅花', point = 13 },
     { name = '无懈可击', suit = '梅花', point = 12 },
     { name = '无懈可击', suit = '方块', point = 12 },
     { name = '决斗', suit = '黑桃', point = 1 },
@@ -86,6 +85,11 @@ game:setValue('牌表', {
     { name = '借刀杀人', suit = '梅花', point = 13 },
     { name = '万箭齐发', suit = '红桃', point = 1 },
     { name = '桃园结义', suit = '红桃', point = 1 },
+    { name = '乐不思蜀', suit = '黑桃', point = 6 },
+    { name = '乐不思蜀', suit = '红桃', point = 6 },
+    { name = '乐不思蜀', suit = '梅花', point = 6 },
+    { name = '闪电', suit = '黑桃', point = 1 },
+    { name = '闪电', suit = '红桃', point = 12 },
     { name = '诸葛连弩', suit = '梅花', point = 1 },
     { name = '诸葛连弩', suit = '方块', point = 1 },
     { name = '青紅剑', suit = '黑桃', point = 6 },

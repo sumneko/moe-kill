@@ -38,7 +38,7 @@ Depends = nil
 ---@class Game.Event.游戏开始
 
 --- 回合级时机：谁是回合角色
----@class Game.Event.回合
+---@class Game.Event.Turn
 ---@field player Player # 回合角色
 
 --- 这张牌此刻能不能用：返回非 nil 值即否决（返回值就是原因）
@@ -69,10 +69,10 @@ Depends = nil
 ---@field fire fun(self: Game, name: '卡牌-结算后', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(player: Player): any): function
 ---@field fire fun(self: Game, name: '玩家-死亡', player: Player): any
----@field on fun(self: Game, name: '回合-开始', callback: fun(turn: Game.Event.回合): any): function
----@field fire fun(self: Game, name: '回合-开始', turn: Game.Event.回合): any
----@field on fun(self: Game, name: '回合-结束', callback: fun(turn: Game.Event.回合): any): function
----@field fire fun(self: Game, name: '回合-结束', turn: Game.Event.回合): any
+---@field on fun(self: Game, name: '回合-开始', callback: fun(turn: Game.Event.Turn): any): function
+---@field fire fun(self: Game, name: '回合-开始', turn: Game.Event.Turn): any
+---@field on fun(self: Game, name: '回合-结束', callback: fun(turn: Game.Event.Turn): any): function
+---@field fire fun(self: Game, name: '回合-结束', turn: Game.Event.Turn): any
 ---@field on fun(self: Game, name: '阶段-开始', callback: fun(phase: Phase): any): function
 ---@field fire fun(self: Game, name: '阶段-开始', phase: Phase): any
 ---@field on fun(self: Game, name: '阶段-结束', callback: fun(phase: Phase): any): function

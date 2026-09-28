@@ -168,7 +168,7 @@ lt.test('基础：牌表里每张都有合法的花色与点数', function ()
     end
 
     lt.assertEquals('牌面全都是合法取值', 0, bad)
-    lt.assertEquals('草稿牌表共 102 张', 102, #cardTable)
+    lt.assertEquals('草稿牌表共 107 张', 107, #cardTable)
 
     local deck = assert(run.game:getZone('抽牌'), '没有建出抽牌')
     local card = deck:list()[1]

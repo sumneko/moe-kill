@@ -7,11 +7,11 @@ Card '装备牌'
     : on('结算后', function (useCard)
         local card = useCard.card
         local zone = useCard.user:getZone('装备')
+        -- 按分类找槽位：找到就装，没有对应槽位就不装（牌随收尾进弃牌堆）
         for _, slot in ipairs(zone.slots) do
             if card:isKind(slot) then
                 zone:putInto(slot, card)
                 return
             end
         end
-        error('「{}」的分类没有对应的槽位' % { card.fullName }, 2)
     end)

@@ -2,10 +2,7 @@
 game:on('游戏-开始', function ()
     local seats  = game.desk.players
     local config = game:getValue('身份配置')
-    local entries = config and config[#seats]
-    if not entries then
-        error('身份配置里没有 {} 人局' % { #seats })
-    end
+    local entries = assert(config and config[#seats], '身份配置里没有 {} 人局' % { #seats })
 
     local pool = {}
     for _, entry in ipairs(entries) do
@@ -14,9 +11,7 @@ game:on('游戏-开始', function ()
             pool[#pool + 1] = entry.identity
         end
     end
-    if #pool ~= #seats - 1 then
-        error('身份配置与 {} 人局对不上：除了主公还差 {} 个人' % { #seats, #pool })
-    end
+    assert(#pool == #seats - 1, '身份配置与 {} 人局对不上：除了主公还差 {} 个人' % { #seats, #pool })
     game.random:shuffle(pool)
 
     for i = 2, #seats do

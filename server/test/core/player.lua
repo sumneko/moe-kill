@@ -47,7 +47,7 @@ lt.test('玩家：装备区是槽位区，槽位由内容侧在游戏开始时�
     lt.assertEquals('装备区是槽位区', 'slotZone', player:getZone('装备').kind)
     lt.assertEquals('内核建出来时没有槽位（等内容侧在游戏开始时设）', 0,
         #player:getZone('装备').slots)
-    lt.assertEquals('判定区还是普通区（顺序将来用有序区表达）', 'zone', player:getZone('判定').kind)
+    lt.assertEquals('判定区是有序区（结算顺序 = 进入顺序，后入先出）', 'orderedZone', player:getZone('判定').kind)
 end)
 
 lt.test('玩家：牌区可增删', function ()

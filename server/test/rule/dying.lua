@@ -92,6 +92,48 @@ lt.test('濒死：从当前回合角色开始按行动顺序问，下家的桃�
     lt.assertEquals('还活着', true, target:isAlive())
 end)
 
+lt.test('濒死：还没人开始过回合就从 1 号位开始问', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local target = run.players[2]
+
+    run.game.turnPlayer     = nil
+    run.game.lastTurnPlayer = nil
+
+    ---@type Player[] # 被问过的人（按被问顺序）
+    local asked = {}
+    run.game:on('卡牌-询问', function (ask)
+        asked[#asked + 1] = assert(ask.to)
+    end)
+
+    run.game:damage(nil, target, 5)
+
+    lt.assertEquals('一圈里三家各问一次', 3, #asked)
+    lt.assertEquals('从 1 号位问起', run.players[1], asked[1])
+    lt.assertEquals('没人救 ⇒ 阵亡', false, target:isAlive())
+end)
+
+lt.test('濒死：锚点已经阵亡就从他的下家开始问', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local turn   = run.players[1]
+    local target = run.players[2]
+
+    turn:setAlive(false)
+    run.game.turnPlayer     = nil
+    run.game.lastTurnPlayer = turn
+
+    ---@type Player[] # 被问过的人（按被问顺序）
+    local asked = {}
+    run.game:on('卡牌-询问', function (ask)
+        asked[#asked + 1] = assert(ask.to)
+    end)
+
+    run.game:damage(nil, target, 5)
+
+    lt.assertEquals('活着的两家各问一次', 2, #asked)
+    lt.assertEquals('第一个问的是死锚点的下家', target, asked[1])
+    lt.assertEquals('阵亡的那个不会再被问', false, moe.util.arrayHas(asked, turn))
+end)
+
 lt.test('濒死：差 2 点时同一个人可以连给两张', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local target = run.players[2]

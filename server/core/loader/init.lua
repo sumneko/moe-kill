@@ -42,10 +42,11 @@ moe.loader = {}
 ---@type string[] # 默认来源：仓库根下项目自己的包容器
 moe.loader.DEFAULT_SOURCES = { './package/*' }
 
+-- 内容侧拿不到 error：要报告「该有却没有」就用 assert
 ---@type string[]
 local ALLOWED_GLOBALS = {
     '_VERSION',
-    'assert', 'error', 'getmetatable', 'ipairs', 'math', 'next', 'pairs', 'pcall',
+    'assert', 'getmetatable', 'ipairs', 'math', 'next', 'pairs', 'pcall',
     'print', 'rawequal', 'rawget', 'rawlen', 'rawset', 'select', 'setmetatable',
     'string', 'table', 'tonumber', 'tostring', 'type', 'utf8', 'xpcall',
 }

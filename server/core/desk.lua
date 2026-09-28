@@ -99,17 +99,12 @@ function M:getNext(player)
     return nil
 end
 
---- 按行动顺序依次给出下一个角色（迭代器）
----@param allowed Player[]? # 允许参与的角色，不传表示都允许
----@param from Player? # 从谁开始，不传表示从顺序锚点开始（当前回合角色，回合结束后是上一个）
+--- 按行动顺序依次给出下一个角色（迭代器）：只给参与行动的（阵亡者总是跳过）
+---@param allowed Player[]? # 再收窄到这批角色（不传表示不额外收窄）
+---@param from Player? # 从谁开始，不传表示从顺序锚点开始（当前回合角色，回合结束后是上一个；都没开过回合就从 1 号位起）
 ---@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
 function M:actionOrder(allowed, from)
-    if not from then
-        from = self.game.turnPlayer or self.game.lastTurnPlayer
-    end
-    if not from then
-        error('没有起点：还没有任何人开始过回合，得显式给出从谁开始', 2)
-    end
+    from = from or self.game.turnPlayer or self.game.lastTurnPlayer or self.players[1]
     local start = self:getIndex(from)
     if not start then
         error('这个玩家不在这张桌子上', 2)
@@ -129,7 +124,8 @@ function M:actionOrder(allowed, from)
         while step < self.count do
             local player = self.seats[(start - 1 + step) % self.count + 1]
             step = step + 1
-            if player and not visited[player] and (not allowedSet or allowedSet[player]) then
+            if player and player.acting and not visited[player]
+                and (not allowedSet or allowedSet[player]) then
                 visited[player] = true
                 return player
             end

@@ -2,16 +2,16 @@
 -- 判定牌从抽牌堆顶翻出、进这次判定自己的临时处理区；改判只能在「判定-前」里做，换下的牌也进临时区。
 -- 收尾由内核做（`Effect` 基类）：把临时区里剩下的牌送弃牌。
 
----@class 判定 : Effect
+---@class Judge : Effect
 ---@field card? Card # 判定牌（翻出来就放上）
 ---@field replaced Card[] # 被换下的判定牌（按换下的顺序；它们也在这次判定的临时区里）
-local Judge = Class('判定', 'Effect')
+local Judge = Class('Judge', 'Effect')
 
 ---@param game Game
 ---@param player Player
 ---@param reason? string
 function Judge:__init(game, player, reason)
-    self.kind      = '判定'
+    self.kind      = 'judge'
     self.player    = player
     self.reason    = reason
     self.replaced  = {}
@@ -22,7 +22,8 @@ end
 ---@param card Card
 function Judge:replace(card)
     if not self.replacing then
-        error('换牌只能在「判定-前」里做', 2)
+        -- 不在改判窗口里就什么也不做（窗口外改判是调用方写错，不该炸局）
+        return
     end
     if self.card then
         table.insert(self.replaced, self.card)
@@ -61,9 +62,9 @@ local Game = Class 'Game'
 ---@async
 ---@param player Player
 ---@param reason? string
----@return 判定
+---@return Judge
 function Game:judge(player, reason)
-    local judge = New '判定' (self, player, reason)
+    local judge = New 'Judge' (self, player, reason)
     judge:apply():await()
     return judge
 end

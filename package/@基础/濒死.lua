@@ -33,24 +33,25 @@ end
 --- 濒死结算
 ---@async
 function Dying:settle()
-    -- 求桃：从顺序锚点起绕一圈，同一个人可以连给多张
+    -- 求桃：从顺序锚点起绕一圈（阵亡者自动跳过），同一个人可以连给多张
     local player  = self.player
     local game    = self.game
-    local start   = assert(game.turnPlayer or game.lastTurnPlayer, '濒死结算要从顺序锚点起，但还没有任何人开始过回合')
-    local current = start
-    while player:getAttr('体力') < 1 do
-        ---@type AskUseCard.Condition # 只要能救他的【桃】
-        local condition = { name = '桃', target = player }
-        if not game:askUseCard(current, '濒死', condition).useCard then
-            current = assert(game.desk:getNext(current))
-            if current == start then
-                break
-            end
-        end
-    end
+    -- 已经脱离过的：不问也不杀
     if self.left then
         return
     end
+    ---@type AskUseCard.Condition # 只要能救他的【桃】
+    local condition = { name = '桃', target = player }
+    for asker in game.desk:actionOrder() do
+        -- 答了就接着问他，答不上来换下一位
+        while game:askUseCard(asker, '濒死', condition).useCard do
+            -- 救回来了就收工
+            if self.left then
+                return
+            end
+        end
+    end
+    -- 一圈都没人救 ⇒ 判死
     player:setAlive(false)
     -- 先死再清：'玩家-死亡' 里那次濒死的账还在（奖惩据此读凶手）
     player.dying = nil

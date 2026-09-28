@@ -226,7 +226,7 @@ end)
 lt.test('规则集：文件执行报错时明确失败', function ()
     local guard <close> = prepare()
     write('好的.lua', 'Card("甲")')
-    write('坏的.lua', 'error("规则集故意报错")')
+    write('坏的.lua', 'assert(false, "规则集故意报错")')
 
     local err = lt.assertError('加载以错误结束', function ()
         load(list('好的', '坏的'))
@@ -272,6 +272,15 @@ lt.test('规则集：文件里不需要 require，也拿不到 require', functio
     lt.assertError('拿不到 require', function ()
         load(list('b'))
     end)
+end)
+
+lt.test('规则集：拿不到 error（要断言用 assert）', function ()
+    local guard <close> = prepare()
+    write('a.lua', 'Card("测"):on("跑", function () return type(error) .. "/" .. type(assert) end)')
+
+    load(list('a'))
+
+    lt.assertEquals('error 不给、assert 给', 'nil/function', card('测'):getHandlers('跑')[1]())
 end)
 
 lt.test('规则集：拿不到内核门面，但能从 game 上建属性系统', function ()

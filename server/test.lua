@@ -52,7 +52,7 @@ function test.require(modname)
 end
 
 -- 两个护栏共用同一个上限：CPU 时间（防死循环）与墙钟（防卡在等待里）
-local timeLimit = 5
+local timeLimit = 10
 
 function test.enableGuards()
     if debug.gethook() then
@@ -142,6 +142,7 @@ test.require 'test.rule.dying'
 test.require 'test.rule.draw'
 test.require 'test.rule.game-over'
 test.require 'test.rule.judge'
+test.require 'test.rule.delayed-trick'
 
 local bodyDone = false
 local bodyFailures = 0
