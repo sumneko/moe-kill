@@ -7,27 +7,24 @@
 ---@field game Game # 属于哪一局
 local M = Class 'Zone'
 
----@param count integer
----@param position? integer
----@return integer
-local function resolvePosition(count, position)
-    if position == nil then
-        return count + 1
+--- 一次批量搬运里的一条记录
+---@class Zone.Move
+---@field card Card
+---@field from? Zone # 它原来在哪个区（本来就没有归属就是空）
+---@field fromSlot? string # 它原来在那个区的哪个槽位
+---@field to Zone # 它进了哪个区
+---@field slot? string # 它进了目标区的哪个槽位
+
+--- 这张牌在那个区的哪个槽位里（只有槽位区有槽位）
+---@param zone Zone
+---@param card Card
+---@return string?
+local function slotNameOf(zone, card)
+    if zone.kind ~= 'slotZone' then
+        return nil
     end
-    assert(math.type(position) == 'integer', '位置必须是整数')
-    local index = position
-    if index < 0 then
-        index = count + index + 2
-    end
-    if index < 1 or index > count + 1 then
-        error('位置 {} 超出可插入范围（共 {} 个位置：1..{} 或 -1..-{}）' % {
-            position,
-            count + 1,
-            count + 1,
-            count + 1,
-        }, 3)
-    end
-    return index
+    ---@cast zone SlotZone
+    return zone:slotOf(card)
 end
 
 ---@param game Game # 属于哪一局
@@ -39,60 +36,110 @@ function M:__init(game)
     self.game    = game
 end
 
---- 没启用这个牌区就报错
----@param action string # 要做什么（拼进报错里）
-function M:checkEnabled(action)
-    if not self.enabled then
-        error('牌区已被禁用，无法{}' % { action }, 3)
-    end
-end
-
---- 序号超出范围就报错
----@param index integer
-function M:checkIndex(index)
-    assert(math.type(index) == 'integer', '牌的序号必须是整数')
-    if not self.cards[index] then
-        error('牌区中没有第 {} 张牌（当前 {} 张）' % { index, #self.cards }, 3)
-    end
-end
-
---- 这张牌在这个区里的名字（只有槽位区有）
+--- 这个区收不收这张牌（进不去的在这里说，槽位区在这里要求先占槽）
 ---@protected
 ---@param card Card
----@return string? # 槽位名（不是槽位区就是空）
-function M:slotOf(card)
-    return nil
+---@return boolean
+function M:canEnter(card)
+    return true
 end
 
---- 牌进来了：把它定义上的「进入区域」钩子各跑一次（牌没定义就什么都不做）
+--- 牌进来了：跑它定义上的「进入区域」钩子
 ---@param card Card
-function M:notifyEnter(card)
-    local slot = self:slotOf(card)
+---@param slot? string # 进的是哪个槽位（只有槽位区有）
+function M:notifyEnter(card, slot)
     card:fireHandlers('进入区域', card, self, slot)
 end
 
---- 放一张牌进来（已经在别的牌区里的牌要用 `move`）
+--- 牌离开了：跑它定义上的「离开区域」钩子（发的时候牌已经不在本区里）
 ---@param card Card
----@return Card
-function M:put(card)
-    self:checkEnabled('放入牌')
-    if card:getZone() then
-        error('这张牌已经在某个牌区里了，要换区请用 move', 2)
-    end
-    self.cards[#self.cards + 1] = card
-    card:bindZone(self)
-    self:notifyEnter(card)
-    return card
+---@param slot? string # 离开的是哪个槽位（只有槽位区有）
+function M:notifyLeave(card, slot)
+    card:fireHandlers('离开区域', card, self, slot)
 end
 
---- 取出第几张（取出来后不在任何牌区里）
----@param index integer
----@return Card
-function M:take(index)
-    self:checkEnabled('取牌')
-    self:checkIndex(index)
-    local card = table.remove(self.cards, index)
-    card:bindZone(nil)
+--- 把这张牌从本区的列表里摘下来（不发事件、不动它的归属 —— 搬牌的人自己管）
+---@protected
+---@param card Card
+function M:detach(card)
+    local index = self:indexOf(card)
+    if index then
+        table.remove(self.cards, index)
+    end
+end
+
+--- 静默把这批牌收进本区（只摘、置、绑，不发任何事件）
+---@protected
+---@param cards Card[]
+---@param slots? string[] # 与 cards 一一对应的槽位名（不给就是没有）
+---@return Zone.Move[] # 这次搬动的记录（发事件时用）
+function M:takeIn(cards, slots)
+    ---@type Zone.Move[]
+    local moves = {}
+    for i, card in ipairs(cards) do
+        local from     = card:getZone()
+        local fromSlot = from and slotNameOf(from, card) or nil
+        if from then
+            from:detach(card)
+        end
+        card:unbindZone()
+        self.cards[#self.cards + 1] = card
+        card:bindZone(self)
+        moves[i] = {
+            card     = card,
+            from     = from,
+            fromSlot = fromSlot,
+            to       = self,
+            slot     = slots and slots[i] or nil,
+        }
+    end
+    return moves
+end
+
+--- 一起发这批搬动的事件（按每条记录自己的源区 / 目标区发）：先所有「离开区域」、再所有「进入区域」
+---@protected
+---@param moves Zone.Move[]
+function M:notifyMoved(moves)
+    for _, move in ipairs(moves) do
+        local from = move.from
+        if from then
+            from:notifyLeave(move.card, move.fromSlot)
+        end
+    end
+    for _, move in ipairs(moves) do
+        move.to:notifyEnter(move.card, move.slot)
+    end
+end
+
+--- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「离开区域」/「进入区域」）
+---@param cards Card|Card[] # 要收的牌（单张或一批）
+---@param slot? string # 收进哪个槽位（只有槽位区有槽位）
+---@return boolean # 收下了没有
+---@return string? # 没收下的原因
+function M:accept(cards, slot)
+    if slot then
+        return false, '这个牌区不是槽位区'
+    end
+    if not self.enabled then
+        return false, '这个牌区被禁用了'
+    end
+    self:notifyMoved(self:takeIn(moe.util.toList(cards)))
+    return true
+end
+
+--- 把这张牌从本区拿出来（摘掉、解绑、发「离开区域」；内核自己用：清空、取顶）
+---@protected
+---@param card Card
+---@return Card? # 本区没这张牌就是空
+function M:remove(card)
+    local index = self:indexOf(card)
+    if not index then
+        return nil
+    end
+    local slot = slotNameOf(self, card)
+    table.remove(self.cards, index)
+    card:unbindZone()
+    self:notifyLeave(card, slot)
     return card
 end
 
@@ -109,35 +156,10 @@ function M:indexOf(card)
     return nil
 end
 
---- 把一张牌挪到另一个牌区（可以先直接给目标区对象）
----@param card Card
----@param to Zone
----@param position? integer
----@return Card
-function M:move(card, to, position)
-    self:checkEnabled('移出牌')
-    to:checkEnabled('移入牌')
-    local index = self:indexOf(card)
-    if not index then
-        error('源牌区中没有这张牌', 3)
-    end
-    local count = #to.cards
-    if to == self then
-        count = count - 1
-    end
-    local target = resolvePosition(count, position)
-    table.remove(self.cards, index)
-    table.insert(to.cards, target, card)
-    card:bindZone(to)
-    to:notifyEnter(card)
-    return card
-end
-
 --- 看第几张（不取出来）
 ---@param index integer
----@return Card
+---@return Card? # 这个序号没牌就是空
 function M:peek(index)
-    self:checkIndex(index)
     return self.cards[index]
 end
 
@@ -152,18 +174,20 @@ function M:list()
     return table.move(self.cards, 1, #self.cards, 1, snapshot)
 end
 
---- 清空整个牌区（返回被清掉几张）
----@return integer
+--- 清空整个牌区（每张牌都发一次「离开区域」）
+---@return integer # 清掉几张（被禁用就是 0）
 function M:clear()
-    self:checkEnabled('清空牌区')
-    local count = #self.cards
-    for i = 1, count do
-        self.cards[i]:bindZone(nil)
+    if not self.enabled then
+        return 0
     end
-    self.cards = {}
-    return count
+    local cards = self:list()
+    for i = 1, #cards do
+        self:remove(cards[i])
+    end
+    return #cards
 end
 
+-- TODO: 以后改成计数（多个禁用者各自加一 / 减一，减到 0 才恢复；现在的 boolean 只够一个人禁）
 --- 禁用这个牌区（不能放进 / 取出 / 清空；重复禁用返回 false）
 ---@return boolean
 function M:disable()
@@ -189,17 +213,16 @@ function M:isEnabled()
     return self.enabled
 end
 
---- 记下这个区属于谁（只有玩家建时用；顺带记下它在哪一局）
+--- 记下这个区属于谁（玩家建区时用）
 ---@param player Player
 function M:bindOwner(player)
     self.owner = player
-    self.game  = player.game
 end
 
 --- 设置可见性
 ---@param value boolean
 function M:setVisible(value)
-    self.visible = value and true or false
+    self.visible = value
 end
 
 --- 这个区对某人是否可见

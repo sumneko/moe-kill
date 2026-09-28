@@ -56,7 +56,7 @@ end
 local function putInHand(player, cards)
     local hand = assert(player:getZone('手牌'), '这个玩家没有手牌区')
     for _, card in ipairs(cards) do
-        hand:put(card)
+        hand:accept(card)
     end
 end
 

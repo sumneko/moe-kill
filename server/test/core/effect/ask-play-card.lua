@@ -32,7 +32,7 @@ end
 local function putInHand(player, cards)
     local hand = assert(player:getZone('手牌'), '这个玩家没有手牌区')
     for _, card in ipairs(cards) do
-        hand:put(card)
+        hand:accept(card)
     end
 end
 
@@ -40,7 +40,7 @@ lt.test('打出：答复的牌当场交出来，进发起那次结算的临时�
     local game, players = newGame(2)
     local hand = assert(players[2]:getZone('手牌'))
     local jink = game:createCard('闪')
-    hand:put(jink)
+    hand:accept(jink)
     game:on('卡牌-询问', function (ask)
         ask:answer { card = jink }
     end)
@@ -74,7 +74,7 @@ lt.test('打出：没有父结算时不动那张牌（交给内容侧）', funct
     local game, players = newGame(2)
     local hand = assert(players[2]:getZone('手牌'))
     local jink = game:createCard('闪')
-    hand:put(jink)
+    hand:accept(jink)
     game:on('卡牌-询问', function (ask)
         ask:answer { card = jink }
     end)
@@ -90,8 +90,8 @@ lt.test('打出：候选按条件筛，答复多给目标会被拒收', function
     local hand = assert(players[1]:getZone('手牌'))
     local jink  = game:createCard('闪')
     local slash = game:createCard('杀')
-    hand:put(jink)
-    hand:put(slash)
+    hand:accept(jink)
+    hand:accept(slash)
     game:on('卡牌-询问', function (ask)
         ask:answer { card = jink, targets = { players[2] } }
     end)
@@ -108,7 +108,7 @@ lt.test('打出：答复的牌不在候选里就拒收', function ()
     local hand = assert(players[2]:getZone('手牌'))
     local jink  = game:createCard('闪')
     local other = game:createCard('闪')
-    hand:put(jink)
+    hand:accept(jink)
     game:on('卡牌-询问', function (ask)
         ask:answer { card = other }
     end)

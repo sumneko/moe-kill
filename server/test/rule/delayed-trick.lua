@@ -22,7 +22,7 @@ end
 local function takeCard(run, player, name)
     local card, deck = findCard(run.game, name)
     local hand = assert(player:getZone('手牌'), '没有手牌区')
-    deck:move(card, hand)
+    hand:accept(card)
     return card
 end
 
@@ -32,7 +32,7 @@ end
 ---@return Card # 已经摆进该玩家判定区的牌
 local function toJudgeZone(run, player, name)
     local card, deck = findCard(run.game, name)
-    deck:move(card, player:getZone('判定'))
+    player:getZone('判定'):accept(card)
     return card
 end
 

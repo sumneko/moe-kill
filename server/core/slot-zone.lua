@@ -1,4 +1,4 @@
---- 按槽位寻址的牌区：每个槽位至多一张牌
+--- 按槽位寻址的牌区：每个槽位至多一张牌，进本区的牌必须先在某个槽位里
 ---@class SlotZone : Zone
 ---@field slots string[] # 这个区有哪些槽位（按声明顺序）
 ---@field private slotMap table<string, Card> # 每个槽位里那张牌
@@ -33,15 +33,14 @@ function M:setSlots(slots)
     return self
 end
 
---- 要求这个槽位是声明过的
+--- 这个区有没有这个槽位
 ---@param slot string
+---@return boolean
 function M:checkSlot(slot)
-    if not moe.util.arrayHas(self.slots, slot) then
-        error('这个牌区没有「{}」这个槽位' % { slot }, 3)
-    end
+    return moe.util.arrayHas(self.slots, slot)
 end
 
---- 这张牌在哪个槽位里
+--- 这张牌在哪个槽位里（只有槽位区有；内核发「进入区域」钩子时用）
 ---@param card Card
 ---@return string?
 function M:slotOf(card)
@@ -55,9 +54,11 @@ end
 
 --- 这个槽位里现在那张牌
 ---@param slot string
----@return Card? # 空着 / 记的牌已经不在本区就是「不存在」
+---@return Card? # 空着 / 没这个槽位 / 记的牌已经不在本区都是「不存在」
 function M:getSlot(slot)
-    self:checkSlot(slot)
+    if not self:checkSlot(slot) then
+        return nil
+    end
     local card = self.slotMap[slot]
     if not card then
         return nil
@@ -69,24 +70,51 @@ function M:getSlot(slot)
     return card
 end
 
---- 把牌放进这个槽位（同槽已有的牌置入弃牌堆）
----@param slot string
+--- 进本区的牌必须先在某个槽位里（`slotMap` 里没有就进不去）
 ---@param card Card
----@return Card
-function M:putInto(slot, card)
-    self:checkSlot(slot)
-    local old = self:getSlot(slot)
-    if old and old ~= card then
-        self:move(old, self.game:getZone('弃牌'))
+---@return boolean
+function M:canEnter(card)
+    return self:slotOf(card) ~= nil
+end
+
+--- 收下这批牌（槽位区：必须给槽位名、一次只能一张；同槽已有的牌会一起送进弃牌堆）
+---@param cards Card|Card[]
+---@param slot? string
+---@return boolean # 收下了没有
+---@return string? # 没收下的原因
+function M:accept(cards, slot)
+    local list = moe.util.toList(cards)
+    if not slot then
+        return false, '槽位区必须指名收进哪个槽位'
     end
-    local from = card:getZone()
-    self.slotMap[slot] = card
-    if from then
-        from:move(card, self)
-    else
-        self:put(card)
+    if #list > 1 then
+        return false, '一个槽位只能收一张牌'
     end
-    return card
+    if not self:isEnabled() then
+        return false, '这个牌区被禁用了'
+    end
+    if not self:checkSlot(slot) then
+        return false, '这个牌区没有「{}」这个槽位' % { slot }
+    end
+    local old     = self:getSlot(slot)
+    local discard = self.game:getZone('弃牌')
+    if old and old ~= list[1] and not discard:isEnabled() then
+        return false, '弃牌堆被禁用了，换下来的牌没地方去'
+    end
+    ---@type Zone.Move[]
+    local moves = {}
+    if old and old ~= list[1] then
+        -- 旧牌先静默挪进弃牌堆（这时它的槽位还查得到；它的事件排在本次搬动的最前面）
+        for _, move in ipairs(discard:takeIn({ old })) do
+            moves[#moves + 1] = move
+        end
+    end
+    self.slotMap[slot] = list[1]
+    for _, move in ipairs(self:takeIn(list, { slot })) do
+        moves[#moves + 1] = move
+    end
+    self:notifyMoved(moves)
+    return true
 end
 
 ---@class SlotZone.API

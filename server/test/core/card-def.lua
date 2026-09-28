@@ -265,17 +265,14 @@ Card '甲'
 
     local card = game:createCard('甲')
     local hand = assert(player:getZone('手牌'), '没有手牌区')
-    hand:put(card)
+    hand:accept(card)
     lt.assertEquals('放手牌里发一次，普通区没有槽位名', '甲@nil;', player:getTag('记录'))
 
     local equipZone = assert(player:getZone('装备'), '没有装备区')
     equipZone:setSlots({ '武器' })
-    hand:move(card, equipZone)
-    lt.assertEquals('移进装备区还没占槽，槽位名仍是空', '甲@nil;甲@nil;', player:getTag('记录'))
-
-    equipZone:putInto('武器', card)
-    lt.assertEquals('占上槽位后再发一次，这次给得出槽位名', '甲@nil;甲@nil;甲@武器;',
-        player:getTag('记录'))
+    -- 一次收牌（占槽与进区一起做，所以发钩子时读得到槽位名）
+    equipZone:accept(card, '武器')
+    lt.assertEquals('进装备区时带上槽位名', '甲@nil;甲@武器;', player:getTag('记录'))
 end)
 
 lt.test('定义：公共区也发「进入区域」，定义跟着牌走', function ()
@@ -290,10 +287,64 @@ Card '甲'
 ]])
 
     local discard = assert(game:getZone('弃牌'), '没有弃牌区')
-    discard:put(game:createCard('甲'))
+    discard:accept(game:createCard('甲'))
     lt.assertEquals('公共区也发，只是没有归属者', 'false/nil;', player:getTag('记录'))
 
     local loose = lt.zone()
-    loose:put(game:createCard('甲'))
+    loose:accept(game:createCard('甲'))
     lt.assertEquals('别的局里也发，定义跟着牌走', 'false/nil;false/nil;', player:getTag('记录'))
+end)
+
+--- 一个钩子的源码（牌定义里用：game 是注入进去的）
+---@param label string # 记录里写的短标签（离 / 进）
+---@param event string # 钩子名（离开区域 / 进入区域）
+---@return string
+local function recordEvent(label, event)
+    return [[
+    : on(']] .. event .. [[', function (card, zone, slot)
+        local seat = game.desk.seats[1]
+        seat:setTag('记录', (seat:getTag('记录') or '')
+            .. ']] .. label .. [[' .. card.name .. '/' .. tostring(slot) .. ';')
+    end)]]
+end
+
+lt.test('定义：一起收一批牌时，先发完所有「离开区域」再发所有「进入区域」', function ()
+    local guard <close> = useProbe()
+    local game, player = newGame('Card \'甲\'' .. recordEvent('离', '离开区域') .. recordEvent('进', '进入区域'))
+
+    local seat   = player
+    local from   = moe.zone.create(game)
+    local to     = moe.zone.create(game)
+    local first  = game:createCard('甲')
+    local second = game:createCard('甲')
+    from:accept(first)
+    from:accept(second)
+
+    seat:setTag('记录', nil)
+    lt.assertEquals('一起收一批', true, to:accept({ first, second }))
+    lt.assertEquals('先两条离开、再两条进入（普通区没有槽位名）',
+        '离甲/nil;离甲/nil;进甲/nil;进甲/nil;', seat:getTag('记录'))
+end)
+
+lt.test('定义：同槽换新时，被挤掉的旧牌也在最后那批发（它最靠前）', function ()
+    local guard <close> = useProbe()
+    local game, player = newGame(
+        'Card \'牌子\'' .. recordEvent('离', '离开区域') .. recordEvent('进', '进入区域')
+        .. '\nCard \'甲\': extends \'牌子\''
+        .. '\nCard \'乙\': extends \'牌子\'')
+
+    local seat  = player
+    local equip = assert(player:getZone('装备'), '没有装备区')
+    equip:setSlots({ '武器' })
+    local old = game:createCard('甲')
+    equip:accept(old, '武器')
+    local loose = moe.zone.create(game)
+    local new   = game:createCard('乙')
+    loose:accept(new)
+
+    seat:setTag('记录', nil)
+    lt.assertEquals('新牌进槽成功', true, equip:accept(new, '武器'))
+    lt.assertEquals('旧牌被挤进弃牌堆', old, assert(game:getZone('弃牌')):list()[1])
+    lt.assertEquals('旧牌离开装备区在前，新牌进槽在最后（两边都带槽位名）',
+        '离甲/武器;离乙/nil;进甲/nil;进乙/武器;', seat:getTag('记录'))
 end)

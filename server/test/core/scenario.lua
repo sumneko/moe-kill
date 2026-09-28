@@ -16,15 +16,15 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
     local hand = lt.zone()
 
     for i = 1, 10 do
-        pile:put(lt.card('第{}张' % { i }))
+        pile:accept(lt.card('第{}张' % { i }))
     end
     pile:shuffle(moe.random.create(20260919))
 
     local top3 = {}
     for i = 1, 3 do
-        local card = pile:takeTop()
+        local card = assert(pile:draw(1)[1])
         top3[i] = tostring(card.name)
-        hand:put(card)
+        hand:accept(card)
     end
 
     lt.assertEquals('抽牌少三张', 7, pile:count())
@@ -32,20 +32,20 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
     lt.assertEquals('发到手里的就是取顶的那三张', table.concat(top3, ','), zoneLabels(hand))
 end)
 
-lt.test('场景：用移动一次把牌送进牌区', function ()
+lt.test('场景：用收牌一次把牌送进牌区', function ()
     local pile  = lt.orderedZone()
     local hand  = lt.zone()
     local cards = {}
 
     for i = 1, 5 do
         cards[i] = lt.card('第{}张' % { i })
-        pile:put(cards[i])
+        pile:accept(cards[i])
     end
 
-    pile:move(cards[3], hand, 1)
+    hand:accept(cards[3])
 
     lt.assertEquals('抽牌少一张', 4, pile:count())
-    lt.assertEquals('手牌区多一张且在顶部', '第3张', zoneLabels(hand))
+    lt.assertEquals('手牌区多一张', '第3张', zoneLabels(hand))
 end)
 
 lt.test('场景：属性名与取值全由调用方决定', function ()

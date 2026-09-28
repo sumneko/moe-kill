@@ -70,7 +70,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
@@ -111,7 +111,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     local useCard = game:useCard(user, card, { target })
 
@@ -138,7 +138,7 @@ Card '测试延时'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试延时')
-    hand:put(card)
+    hand:accept(card)
 
     game:useCard(user, card, { target })
 
@@ -162,7 +162,7 @@ Card '测试两段'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试两段')
-    hand:put(card)
+    hand:accept(card)
 
     game:useCard(user, card, { target })
 
@@ -181,7 +181,7 @@ Card '测试延时'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试延时')
-    hand:put(card)
+    hand:accept(card)
 
     local asked = false
     game:on('效果-能否生效', function (effect)
@@ -206,7 +206,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     local phase <close> = game:enterPhase(user, '出牌')
 
@@ -232,7 +232,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     local phase <close> = game:enterPhase(target, '出牌')   -- 阶段是 2 号位的
 
@@ -252,7 +252,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     local phase = game:enterPhase(user, '出牌')
     Delete(phase)
@@ -276,7 +276,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     game:useCard(user, card, target)
 
@@ -327,7 +327,7 @@ Card '测试杀'
 
     local game, user, _, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
@@ -348,7 +348,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
@@ -369,7 +369,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertFailed('拿不到列表就谁都不给用', game:useCard(user, card, { target }))
 
@@ -388,7 +388,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertFailed('没有合法目标就用不了', game:useCard(user, card, { target }))
 
@@ -406,7 +406,7 @@ Card '测试杀'
 
     local game, user, _, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertFailed('一个目标都不给就用不了', game:useCard(user, card, {}))
 
@@ -430,7 +430,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertFailed('被前一个钩子收窄掉的目标用不了', game:useCard(user, card, { user }))
     lt.assertEquals('牌还留在手上', 1, hand:count())
@@ -457,7 +457,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
@@ -480,7 +480,7 @@ Card '测试杀'
 
     local game, user, _, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertFailed('不能对自己用', game:useCard(user, card, { user }))
 
@@ -501,7 +501,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertEquals('探针牌定义已装好', true, game:getCard('测试杀') ~= nil)
 
@@ -526,7 +526,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     ---@type Damage?
     local damageSeen = nil
@@ -601,7 +601,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    hand:put(card)
+    hand:accept(card)
 
     game:useCard(user, card, { players[4], players[2], players[3] })
 
@@ -629,7 +629,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    hand:put(card)
+    hand:accept(card)
 
     game:useCard(user, card, { players[2], players[3] })
 
@@ -653,7 +653,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     local user = players[3]
     local hand = assert(user:getZone('手牌'))
-    hand:put(card)
+    hand:accept(card)
     game.turnPlayer = players[1]
 
     game:useCard(user, card, { players[4], players[2] })
@@ -678,7 +678,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    hand:put(card)
+    hand:accept(card)
 
     game:on('卡牌-结算后', function (useCard)
         ---@cast useCard UseCard
@@ -706,7 +706,7 @@ Card '测试杀'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('测试杀')
-    hand:put(card)
+    hand:accept(card)
 
     ---@type (Card?)[]
     local seen = {}
@@ -748,7 +748,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    hand:put(card)
+    hand:accept(card)
 
     game:on('卡牌-询问', function ()
         moe.await.sleep(0)
@@ -779,7 +779,7 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    hand:put(card)
+    hand:accept(card)
 
     local blocked = players[2]
     game:on('效果-能否生效', function (cardEffect)
@@ -807,7 +807,7 @@ Card '无目标牌'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('无目标牌')
-    hand:put(card)
+    hand:accept(card)
 
     local ok, reason, legal = game:canUse(user, card)
     lt.assertEquals('不用给目标就能用', true, ok)
@@ -830,7 +830,7 @@ Card '无目标牌'
 
     local game, user, target, hand = newGame()
     local card = game:createCard('无目标牌')
-    hand:put(card)
+    hand:accept(card)
 
     local ok, reason = game:canUse(user, card, { target })
     lt.assertEquals('给了目标就不成立', false, ok)
@@ -849,7 +849,7 @@ Card '有目标牌'
 
     local game, user, _, hand = newGame()
     local card = game:createCard('有目标牌')
-    hand:put(card)
+    hand:accept(card)
 
     lt.assertFailed('fail-closed：不给目标就用不了', game:useCard(user, card, {}))
     lt.assertEquals('牌还留在手上', 1, hand:count())
@@ -867,7 +867,7 @@ Card '无目标牌'
 
     local game, user, _, hand = newGame()
     local card = game:createCard('无目标牌')
-    hand:put(card)
+    hand:accept(card)
 
     ---@type string[]
     local events = {}

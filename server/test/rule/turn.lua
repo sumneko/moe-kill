@@ -187,7 +187,7 @@ lt.test('回合：出牌阶段用一张杀并结算', function ()
     local state = startTurn {
         setup = function (run)
             slash = run.game:createCard('杀')
-            run.players[1]:getZone('手牌'):put(slash)
+            run.players[1]:getZone('手牌'):accept(slash)
         end,
         answer = function (ask, run)
             if ask.reason ~= '出牌' or not slash then
@@ -216,7 +216,7 @@ lt.test('回合：弃牌阶段弃到体力值', function ()
         setup = function (run)
             local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
             for _ = 1, 6 do
-                hand:put(run.game:createCard('闪'))
+                hand:accept(run.game:createCard('闪'))
             end
         end,
         answer  = endPhase(),
@@ -249,7 +249,9 @@ lt.test('回合：弃牌答复不对就由服务器从前往后替他弃', funct
         setup = function (run)
             local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
             for i = 1, 6 do
-                added[i] = hand:put(run.game:createCard('闪'))
+                local card = run.game:createCard('闪')
+                hand:accept(card)
+                added[i] = card
             end
         end,
         answer  = endPhase(),
@@ -304,10 +306,10 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
         setup = function (run)
             local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
             for _ = 1, 3 do
-                hand:put(run.game:createCard('杀'))
+                hand:accept(run.game:createCard('杀'))
             end
             -- 【闪】没声明「获取目标」⇒ 用不了
-            hand:put(run.game:createCard('闪'))
+            hand:accept(run.game:createCard('闪'))
             run.game:on('卡牌-询问', function (ask)
                 if ask.reason ~= '出牌' then
                     return
@@ -348,7 +350,7 @@ lt.test('回合：答复不在选项里 ⇒ 拒收，阶段就此结束', functi
         setup = function (run)
             hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
             jink = run.game:createCard('闪')
-            hand:put(jink)
+            hand:accept(jink)
         end,
         answer = function ()
             -- 乱答一张不在选项里的
@@ -371,8 +373,8 @@ lt.test('回合：【杀】每出牌阶段限一次，阶段外不受限', funct
     local hand   = assert(user:getZone('手牌'), '没有手牌区')
     local first  = run.game:createCard('杀')
     local second = run.game:createCard('杀')
-    hand:put(first)
-    hand:put(second)
+    hand:accept(first)
+    hand:accept(second)
 
     do
         local _ <close> = run.game:enterPhase(user, '出牌')
@@ -398,7 +400,7 @@ lt.test('回合：【杀】的两种放宽度各走阶段实例的接口', funct
     local cards = {}
     for i = 1, 4 do
         cards[i] = run.game:createCard('杀')
-        hand:put(cards[i])
+        hand:accept(cards[i])
     end
 
     local phase <close> = run.game:enterPhase(user, '出牌')
@@ -428,7 +430,7 @@ lt.test('回合：别人的回合里用【杀】不计数也不受限', function
     local target = run.players[2]
     local hand   = assert(user:getZone('手牌'), '没有手牌区')
     local card   = run.game:createCard('杀')
-    hand:put(card)
+    hand:accept(card)
 
     local phase <close> = run.game:enterPhase(target, '出牌')   -- 阶段是 2 号位的
     phase:addUseCount('杀', 5)

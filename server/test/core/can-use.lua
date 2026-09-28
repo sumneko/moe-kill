@@ -96,7 +96,7 @@ lt.test('校验：能用的牌给出合法目标', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local ok, reason, legal = run.game:canUse(run.user, card)
 
@@ -109,7 +109,7 @@ lt.test('校验：没给目标时只判「能不能用」，给了目标就连�
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     lt.assertEquals('目标给单个也行', true, (run.game:canUse(run.user, card, run.target)))
     lt.assertEquals('目标给列表也行', true, (run.game:canUse(run.user, card, { run.target })))
@@ -141,7 +141,7 @@ lt.test('校验：没声明「获取目标」⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame("Card '测试杀'")
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local ok, reason = run.game:canUse(run.user, card)
 
@@ -153,7 +153,7 @@ lt.test('校验：本阶段用满额度 ⇒ 用不了，且不问内容侧', fun
     local guard <close> = useProbe()
     local run = newGame(LIMITED)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local asked = 0
     run.game:on('卡牌-能否使用', function ()
@@ -181,7 +181,7 @@ lt.test('校验：阶段不属于使用者 ⇒ 不按次数拦', function ()
     local guard <close> = useProbe()
     local run = newGame(LIMITED)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local phase <close> = run.game:enterPhase(run.target, '测试阶段')   -- 阶段是别人的
     phase:addUseCount('测试杀', 5)
@@ -194,7 +194,7 @@ lt.test('校验：不在任何阶段里 ⇒ 不按次数拦', function ()
     local guard <close> = useProbe()
     local run = newGame(LIMITED)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     lt.assertEquals('当前没有阶段', nil, run.game.phase)
     lt.assertEquals('阶段外不受次数限制', true, (run.game:canUse(run.user, card, run.target)))
@@ -204,13 +204,13 @@ lt.test('校验：声明了牌区 ⇒ 必须从那个区里用', function ()
     local guard <close> = useProbe()
     local run = newGame(FROM_HAND)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     lt.assertEquals('在声明的手牌区里就能用', true, (run.game:canUse(run.user, card, run.target)))
 
     local other = moe.zone.create(run.game)
     run.user:addZone('别处', other)
-    other:put(run.hand:take(1))
+    other:accept(assert(run.hand:peek(1)))
 
     local ok, reason = run.game:canUse(run.user, card, run.target)
     lt.assertEquals('挪到别的区就用不了', false, ok)
@@ -221,7 +221,7 @@ lt.test('校验：使用者没有声明里那个牌区 ⇒ 用不了', function 
     local guard <close> = useProbe()
     local run = newGame(NO_SUCH_ZONE)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local ok, reason = run.game:canUse(run.user, card, run.target)
 
@@ -235,7 +235,7 @@ lt.test('校验：没声明牌区 ⇒ 在使用者任一牌区里都能用', fun
     local card = run.game:createCard('测试杀')
     local other = moe.zone.create(run.game)
     run.user:addZone('别处', other)
-    other:put(card)
+    other:accept(card)
 
     lt.assertEquals('别的区里照样能用', true, (run.game:canUse(run.user, card, run.target)))
 end)
@@ -249,7 +249,7 @@ Card '测试杀'
     end)
 ]])
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local ok, reason = run.game:canUse(run.user, card)
 
@@ -267,7 +267,7 @@ Card '测试杀'
     end)
 ]])
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local ok, reason = run.game:canUse(run.user, card)
 
@@ -287,7 +287,7 @@ Card '测试杀'
     end)
 ]])
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local ok, _, legal = run.game:canUse(run.user, card)
     local list = assert(legal)
@@ -301,7 +301,7 @@ lt.test('校验：内容侧条目可以否决（返回值就是原因）', funct
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     ---@type Card[] # 条目看到的那些牌
     local seen = {}
@@ -323,7 +323,7 @@ lt.test('校验：条目只返回 false 时给一句通用原因', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
     run.game:on('卡牌-能否使用', function ()
         return false
     end)
@@ -338,7 +338,7 @@ lt.test('校验：跑校验不进记牌器、也不改状态', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
     local card = run.game:createCard('测试杀')
-    run.hand:put(card)
+    run.hand:accept(card)
 
     local ok = run.game:canUse(run.user, card, { run.target })
 

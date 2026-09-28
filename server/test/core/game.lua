@@ -109,8 +109,8 @@ lt.test('局：把牌挪进某个牌区', function ()
     local stage = game:createZone('暂存乙')
     local jink  = game:createCard('闪')
     local slash = game:createCard('杀')
-    hand:put(jink)
-    hand:put(slash)
+    hand:accept(jink)
+    hand:accept(slash)
 
     game:moveCard({ jink, slash }, '弃牌')
 
@@ -130,14 +130,14 @@ lt.test('局：挪牌时的几种失败记在效果上，且不改状态', funct
     local hand = game:createZone('暂存')
     local pile = game:getZone('弃牌')
     local card = game:createCard('闪')
-    hand:put(card)
+    hand:accept(card)
     lt.clearErrors()
 
-    lt.assertFailed('局上没有这个牌区', game:moveCard(card, '没有这个区'))
-    lt.assertFailed('没给目标区', game:moveCard(card, nil))
+    lt.assertEquals('局上没有这个牌区', '局上没有叫 没有这个区 的牌区',
+        game:moveCard(card, '没有这个区').err)
+    lt.assertEquals('没给目标区', '没有指定目标牌区', game:moveCard(card, nil).err)
 
-    lt.assertEquals('失败都被收下', 2, #lt.errors)
-    lt.clearErrors()
+    lt.assertEquals('失败不算故障（不进错误处理器）', 0, #lt.errors)
     lt.assertEquals('失败后牌还在原处', 1, hand:count())
     lt.assertEquals('失败后归属没变', hand, card:getZone())
     lt.assertEquals('弃牌没被碰到', 0, pile:count())
@@ -159,12 +159,47 @@ lt.test('局：挪牌可以直接给牌区对象', function ()
     local hand = game:createZone('暂存')
     local pile = game:getZone('弃牌')
     local card = game:createCard('闪')
-    hand:put(card)
+    hand:accept(card)
 
     game:moveCard(card, pile)
 
     lt.assertEquals('进了给的那个牌区', pile, card:getZone())
     lt.assertEquals('源区空了', 0, hand:count())
+end)
+
+lt.test('局：挪进槽位用 moveCardWithSlot', function ()
+    local game = newGame()
+    local lord = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    game.desk:sit(1, lord)
+    local equip = assert(lord:getZone('装备'), '没有装备区')
+    equip:setSlots({ '武器', '防具' })
+    local hand = game:createZone('暂存')
+    local card = game:createCard('闪')
+    hand:accept(card)
+    local stray = game:createCard('杀')
+    lt.clearErrors()
+
+    game:moveCardWithSlot(card, equip, '武器')
+
+    lt.assertEquals('进了那个槽位', card, equip:getSlot('武器'))
+    lt.assertEquals('牌也进了装备区', equip, card:getZone())
+    lt.assertEquals('源区空了', 0, hand:count())
+    lt.assertEquals('槽位名没声明过 ⇒ 失败（也不动手）', '这个牌区没有「腰带」这个槽位',
+        game:moveCardWithSlot(card, equip, '腰带').err)
+    lt.assertEquals('还在原来那个槽位', card, equip:getSlot('武器'))
+    lt.assertEquals('不是槽位区却给槽位名 ⇒ 失败', '这个牌区不是槽位区', moe.moveCard.create {
+        game  = game,
+        cards = { stray },
+        zone  = '弃牌',
+        slot  = '武器',
+    }:apply():await().err)
+    lt.assertEquals('一次只能挪一张（工厂那条路）', '一个槽位只能收一张牌', moe.moveCard.create {
+        game  = game,
+        cards = { card, stray },
+        zone  = equip,
+        slot  = '防具',
+    }:apply():await().err)
+    lt.clearErrors()
 end)
 
 lt.test('局：牌区名先找当前回合角色，再找局上的牌区', function ()
@@ -174,15 +209,15 @@ lt.test('局：牌区名先找当前回合角色，再找局上的牌区', funct
     game.desk:sit(1, lord)
     local lordHand = lord:getZone('手牌')
     local card = game:createCard('闪')
-    gameHand:put(card)
+    gameHand:accept(card)
 
     game.turnPlayer = lord
     game:moveCard(card, '手牌')
     lt.assertEquals('优先落进当前回合角色的同名区', lordHand, card:getZone())
     lt.assertEquals('局上的同名区没被碰到', 0, gameHand:count())
 
-    game:moveCard(card, '装备')
-    lt.assertEquals('只有玩家身上有的区名也能落', lord:getZone('装备'), card:getZone())
+    game:moveCard(card, '判定')
+    lt.assertEquals('只有玩家身上有的区名也能落', lord:getZone('判定'), card:getZone())
 
     game.turnPlayer = nil
     game:moveCard(card, '手牌')
@@ -200,8 +235,8 @@ lt.test('局：有序牌区洗牌不用再传随机源', function ()
     local deckA = first:getZone('抽牌')
     local deckB = second:getZone('抽牌')
     for i = 1, 10 do
-        deckA:put(first:createCard('牌' .. i))
-        deckB:put(second:createCard('牌' .. i))
+        deckA:accept(first:createCard('牌' .. i))
+        deckB:accept(second:createCard('牌' .. i))
     end
 
     deckA:shuffle()
@@ -217,7 +252,7 @@ lt.test('抽牌：从抽牌堆顶抽给玩家（默认进手牌）', function ()
     local lord = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
     game.desk:sit(1, lord)
     for i = 1, 3 do
-        deck:put(game:createCard('牌' .. i))
+        deck:accept(game:createCard('牌' .. i))
     end
 
     local cards = game:drawCards(lord, 2)
@@ -233,7 +268,7 @@ lt.test('抽牌：给了去向就抽到那里（处理区这类）', function ()
     local deck = game:getZone('抽牌')
     local lord = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
     game.desk:sit(1, lord)
-    deck:put(game:createCard('杀'))
+    deck:accept(game:createCard('杀'))
 
     local stash = moe.zone.create(game)
     local cards = game:drawCards(lord, 1, stash)
@@ -257,7 +292,7 @@ end)
 
 lt.test('牌区：没绑定随机源的有序牌区洗牌要传随机源', function ()
     local zone = lt.orderedZone()
-    zone:put(lt.card('甲'))
+    zone:accept(lt.card('甲'))
 
     lt.assertError('省略随机源报错', function ()
         zone:shuffle()

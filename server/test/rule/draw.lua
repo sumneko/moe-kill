@@ -30,7 +30,7 @@ lt.test('抽牌：抽牌不够时把弃牌洗回来', function ()
 
     local cards = deck:list()
     for i = 2, #cards do
-        deck:move(cards[i], discard)
+        discard:accept(cards[i])
     end
     lt.assertEquals('抽牌里只剩 1 张', 1, deck:count())
 
@@ -47,7 +47,7 @@ lt.test('抽牌：牌堆和弃牌都空时能摸多少摸多少，不报错', fu
 
     local somewhere = run.game:createZone('别处')
     for _, card in ipairs(deck:list()) do
-        deck:move(card, somewhere)
+        somewhere:accept(card)
     end
 
     local draw = player:draw(2)

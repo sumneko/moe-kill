@@ -102,7 +102,7 @@ local function emptyBothPiles(run)
     local deck      = assert(run.game:getZone('抽牌'), '没有抽牌')
     local somewhere = run.game:createZone('别处')
     for _, card in ipairs(deck:list()) do
-        deck:move(card, somewhere)
+        somewhere:accept(card)
     end
 end
 
@@ -134,7 +134,7 @@ lt.test('平局：抽牌堆空但弃牌还有牌 ⇒ 洗回照常取，不算耗
     local deck    = assert(run.game:getZone('抽牌'), '没有抽牌')
     local discard = assert(run.game:getZone('弃牌'), '没有弃牌')
     for _, card in ipairs(deck:list()) do
-        deck:move(card, discard)
+        discard:accept(card)
     end
 
     local draw = run.players[1]:draw(2)
@@ -218,7 +218,7 @@ lt.test('奖惩：主公杀死忠臣 ⇒ 装备区的牌一起弃掉', function 
         end
     end
     assert(weapon, '抽牌里没有诸葛连弩')
-    deck:move(weapon, hand)
+    hand:accept(weapon)
     run.game:useCard(master, weapon, {})
 
     local before = hand:count()

@@ -32,7 +32,7 @@ lt.test('摸牌：把牌从抽牌堆顶抽进手牌', function ()
     local game, players = newGame(2)
     local deck = game:getZone('抽牌')
     for i = 1, 3 do
-        deck:put(game:createCard('杀', '黑桃', i))
+        deck:accept(game:createCard('杀', '黑桃', i))
     end
     local beforeDeck = deck:count()
     local beforeHand = players[1]:getZone('手牌'):count()
@@ -59,7 +59,7 @@ end)
 lt.test('摸牌：已阵亡的不摸', function ()
     local game, players = newGame(2)
     local deck = game:getZone('抽牌')
-    deck:put(game:createCard('杀'))
+    deck:accept(game:createCard('杀'))
     local beforeDeck = deck:count()
     local beforeHand = players[1]:getZone('手牌'):count()
 

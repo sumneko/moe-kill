@@ -7,7 +7,7 @@ local function fill(zone, source)
     local cards = {}
     for i = 1, #source do
         cards[i] = lt.card(source[i])
-        zone:put(cards[i])
+        zone:accept(cards[i])
     end
     return cards
 end
@@ -23,106 +23,16 @@ local function zoneLabels(zone)
     return table.concat(names, ',')
 end
 
-lt.test('移动：跨区移动改变两边的计数与顺序', function ()
+lt.test('收牌：跨区收进来时两边的计数与顺序都对', function ()
     local from  = lt.zone()
     local to    = lt.zone()
     local cards = fill(from, { '甲', '乙', '丙' })
     fill(to, { '一', '二' })
 
-    local moved = from:move(cards[2], to, -1)
-
-    lt.assertEquals('返回被移动的牌', cards[2], moved)
+    lt.assertEquals('返回是否成功', true, to:accept(cards[2]))
     lt.assertEquals('源区少了一张', 2, from:count())
     lt.assertEquals('源区剩余顺序', '甲,丙', zoneLabels(from))
     lt.assertEquals('目标区多了一张并落在底部', '一,二,乙', zoneLabels(to))
-end)
-
-lt.test('移动：位置 1 是顶、-1 与省略是底', function ()
-    local from  = lt.zone()
-    local to    = lt.zone()
-    local cards = fill(from, { '甲', '乙', '丙' })
-    fill(to, { '一', '二' })
-
-    from:move(cards[1], to, 1)
-    lt.assertEquals('1 = 顶部', '甲,一,二', zoneLabels(to))
-
-    from:move(cards[2], to, -1)
-    lt.assertEquals('-1 = 底部', '甲,一,二,乙', zoneLabels(to))
-
-    from:move(cards[3], to)
-    lt.assertEquals('省略位置视同底部', '甲,一,二,乙,丙', zoneLabels(to))
-end)
-
-lt.test('移动：其它下标按从顶部数或从底部数解释', function ()
-    local from  = lt.zone()
-    local to    = lt.zone()
-    local cards = fill(from, { '甲', '乙', '丙', '丁' })
-    fill(to, { '一', '二', '三' })
-
-    from:move(cards[1], to, 2)
-    lt.assertEquals('2 = 插到第二位', '一,甲,二,三', zoneLabels(to))
-
-    from:move(cards[2], to, -2)
-    lt.assertEquals('-2 = 插到倒数第二位', '一,甲,二,乙,三', zoneLabels(to))
-end)
-
-lt.test('移动：同一牌区内移动就是重排', function ()
-    local zone  = lt.zone()
-    local cards = fill(zone, { '甲', '乙', '丙' })
-
-    zone:move(cards[3], zone, 1)
-    lt.assertEquals('移到顶部', '丙,甲,乙', zoneLabels(zone))
-    lt.assertEquals('数量不变', 3, zone:count())
-
-    zone:move(cards[3], zone)
-    lt.assertEquals('移到底部', '甲,乙,丙', zoneLabels(zone))
-    lt.assertEquals('数量仍不变', 3, zone:count())
-end)
-
-lt.test('移动：牌不在源区时报错且两边不变', function ()
-    local from    = lt.zone()
-    local to      = lt.zone()
-    local stranger = lt.card('丙')
-    fill(from, { '甲', '乙' })
-    fill(to, { '一' })
-
-    lt.assertError('源区没有这张牌', function () from:move(stranger, to, 1) end)
-    lt.assertEquals('源区不变', '甲,乙', zoneLabels(from))
-    lt.assertEquals('目标区不变', '一', zoneLabels(to))
-end)
-
-lt.test('移动：任一端被禁用都失败', function ()
-    local from  = lt.zone()
-    local to    = lt.zone()
-    local cards = fill(from, { '甲' })
-    fill(to, { '一' })
-
-    from:disable()
-    lt.assertError('源区禁用', function () from:move(cards[1], to, 1) end)
-    lt.assertEquals('禁用时的源区不变', '甲', zoneLabels(from))
-
-    from:enable()
-    to:disable()
-    lt.assertError('目标区禁用', function () from:move(cards[1], to, 1) end)
-    lt.assertEquals('禁用时的源区不变（二）', '甲', zoneLabels(from))
-    lt.assertEquals('禁用时的目标区不变', '一', zoneLabels(to))
-end)
-
-lt.test('移动：位置越界或不是整数时报错', function ()
-    local from  = lt.zone()
-    local to    = lt.zone()
-    local cards = fill(from, { '甲' })
-
-    lt.assertError('位置 0', function () from:move(cards[1], to, 0) end)
-    lt.assertError('位置超出顶部范围', function () from:move(cards[1], to, 2) end)
-    lt.assertError('位置超出底部范围', function () from:move(cards[1], to, -2) end)
-
-    ---@type any
-    local notInteger = 1.5
-    lt.assertError('位置不是整数', function () from:move(cards[1], to, notInteger) end)
-
-    lt.assertEquals('一直没动过', '甲', zoneLabels(from))
-    lt.assertEquals('目标区一直为空', 0, to:count())
 end)
 
 lt.test('归属：放进牌区就记得住自己在哪里', function ()
@@ -131,22 +41,23 @@ lt.test('归属：放进牌区就记得住自己在哪里', function ()
 
     lt.assertEquals('一开始不属于任何牌区', nil, card:getZone())
 
-    zone:put(card)
+    zone:accept(card)
     lt.assertEquals('放进后记得住', zone, card:getZone())
 
-    zone:take(1)
-    lt.assertEquals('取出来后不再属于任何牌区', nil, card:getZone())
+    zone:clear()
+    lt.assertEquals('清空后不再属于任何牌区', nil, card:getZone())
 end)
 
-lt.test('归属：移动后跟着到目标区', function ()
+lt.test('归属：换区后跟着到目标区', function ()
     local from = lt.zone()
     local to   = lt.zone()
     local card = lt.card('甲')
-    from:put(card)
+    from:accept(card)
 
-    from:move(card, to)
+    to:accept(card)
 
     lt.assertEquals('归属改成目标区', to, card:getZone())
+    lt.assertEquals('源区不再有它', 0, from:count())
     lt.assertEquals('目标区拿得到它', card, to:peek(to:count()))
 end)
 
@@ -163,41 +74,27 @@ lt.test('随区容器：牌离开牌区时撤销挂在它上面的东西', funct
     local from = lt.zone()
     local to   = lt.zone()
     local card = lt.card('甲')
-    from:put(card)
+    from:accept(card)
 
     ---@type integer
     local times = 0
     card:withZone(function () times = times + 1 end)
 
-    from:move(card, to)
+    to:accept(card)
     lt.assertEquals('换区就跑了一次', 1, times)
 
-    to:take(1)
-    lt.assertEquals('再取出来不会重复跑（容器已经扔掉）', 1, times)
+    to:clear()
+    lt.assertEquals('清空不会重复跑（容器已经扔掉）', 1, times)
 
-    to:put(card)
+    to:accept(card)
     to:clear()
     lt.assertEquals('清空也算离开区', 1, times)
-end)
-
-lt.test('随区容器：同区内部调序不算离开区', function ()
-    local zone  = lt.zone()
-    local cards = fill(zone, { '甲', '乙' })
-
-    ---@type integer
-    local times = 0
-    cards[1]:withZone(function () times = times + 1 end)
-
-    zone:move(cards[1], zone, 1)
-
-    lt.assertEquals('牌没出这个区 ⇒ 不撤销', 0, times)
-    lt.assertEquals('确实换了位置', '甲,乙', zoneLabels(zone))
 end)
 
 lt.test('随区容器：没挂过东西的牌不建容器（懒建）', function ()
     local zone = lt.zone()
     local card = lt.card('甲')
-    zone:put(card)
+    zone:accept(card)
 
     ---@diagnostic disable-next-line: invisible
     lt.assertEquals('没挂过就没有容器', nil, card.zoneGCHost)
@@ -207,32 +104,69 @@ lt.test('随区容器：没挂过东西的牌不建容器（懒建）', function
     lt.assertEquals('挂过一次才有容器', true, card.zoneGCHost ~= nil)
 end)
 
-lt.test('归属：已经在牌区里的牌不能再放一次', function ()
+lt.test('归属：牌在别的区也能直接收过来（跨区搬运）', function ()
     local first  = lt.zone()
     local second = lt.zone()
     local card   = lt.card('甲')
-    first:put(card)
+    first:accept(card)
 
-    lt.assertError('不能再放进别的区', function () second:put(card) end)
-    lt.assertEquals('别的区仍然是空的', 0, second:count())
-    lt.assertEquals('归属没变', first, card:getZone())
+    lt.assertEquals('收下了', true, second:accept(card))
+    lt.assertEquals('源区空了', 0, first:count())
+    lt.assertEquals('进了目标区', 1, second:count())
+    lt.assertEquals('归属跟着走', second, card:getZone())
 
-    lt.assertError('在同一个区里也不能再放一次', function () first:put(card) end)
-    lt.assertEquals('同一个区里没有重复', 1, first:count())
+    lt.assertEquals('在同一个区里再收一次也算收下（移到末尾）', true, second:accept(card))
+    lt.assertEquals('同一个区里没有重复', 1, second:count())
 end)
 
-lt.test('移动：手牌放进有序牌区顶部后即可被取顶', function ()
+lt.test('收牌：一批牌一起收进来，从哪个区来都行', function ()
+    local first  = lt.zone()
+    local second = lt.zone()
+    local to     = lt.zone()
+    local a      = lt.card('甲')
+    local b      = lt.card('乙')
+    first:accept(a)
+    second:accept(b)
+
+    lt.assertEquals('返回是否成功', true, to:accept({ a, b }))
+    lt.assertEquals('两个源区都空了', 0, first:count() + second:count())
+    lt.assertEquals('目标区按给的顺序收', '甲,乙', zoneLabels(to))
+    lt.assertEquals('归属跟着走', to, a:getZone())
+    lt.assertEquals('归属跟着走（二）', to, b:getZone())
+
+    local ok, why = to:accept(lt.card('丙'), '武器')
+    lt.assertEquals('不是槽位区却给了槽位名 ⇒ 失败', false, ok)
+    lt.assertEquals('而且说出原因', '这个牌区不是槽位区', why)
+    lt.assertEquals('失败时什么都不改', 2, to:count())
+end)
+
+lt.test('收牌：被禁用的区收不下，也不动牌', function ()
+    local from = lt.zone()
+    local to   = lt.zone()
+    local card = lt.card('甲')
+    from:accept(card)
+    to:disable()
+
+    local ok, why = to:accept(card)
+    lt.assertEquals('禁用区收不下', false, ok)
+    lt.assertEquals('而且说出原因', '这个牌区被禁用了', why)
+    lt.assertEquals('源区没少牌', 1, from:count())
+    lt.assertEquals('归属没变', from, card:getZone())
+end)
+
+lt.test('收牌：收进有序牌区是追加到底部，取顶拿到的还是原来那张', function ()
     local pile  = lt.orderedZone()
     local hand  = lt.zone()
     local pileCards = fill(pile, { '甲', '乙', '丙' })
     local handCards = fill(hand, { '闪' })
 
-    hand:move(handCards[1], pile, 1)
+    lt.assertEquals('收下', true, pile:accept(handCards[1]))
 
-    lt.assertEquals('牌堆顶是刚移入的牌', '闪', pile:peek(1).name)
+    lt.assertEquals('牌堆顶没变', '甲', assert(pile:peek(1)).name)
     lt.assertEquals('牌堆容量增加', 4, pile:count())
     lt.assertEquals('手牌清空', 0, hand:count())
-    lt.assertEquals('取顶拿到的就是它', '闪', pile:takeTop().name)
-    lt.assertEquals('取顶后剩余顺序不变', '甲,乙,丙', zoneLabels(pile))
-    lt.assertNotEquals('原来的牌都还在', nil, pileCards[1])
+    lt.assertEquals('刚收进来的在底部', '闪', assert(pile:peek(4)).name)
+    lt.assertEquals('取顶拿到的还是原来那张', '甲', assert(pile:draw(1)[1]).name)
+    lt.assertEquals('取顶后剩余顺序不变', '乙,丙,闪', zoneLabels(pile))
+    lt.assertNotEquals('原来的牌都还在', nil, pileCards[3])
 end)

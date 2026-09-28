@@ -63,7 +63,7 @@ lt.test('对牌使用：用一张牌，目标是一张牌', function ()
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
     local card = game:createCard('抵消牌')
-    hand:put(card)
+    hand:accept(card)
     local target = game:createCard('没声明牌')
 
     local useCard = game:useCardToCard(user, card, target)
@@ -80,7 +80,7 @@ lt.test('对牌使用：结算后拿得到目标牌与这次用牌', function ()
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
     local card = game:createCard('抵消牌')
-    hand:put(card)
+    hand:accept(card)
     local target = game:createCard('没声明牌')
 
     ---@type Card?
@@ -114,7 +114,7 @@ lt.test('对牌使用：窗口里让出时，父结算也等它结完', function
     local watcher = players[2]
     local hand = assert(user:getZone('手牌'))
     local card = game:createCard('抵消牌')
-    hand:put(card)
+    hand:accept(card)
     local target = game:createCard('没声明牌')
 
     game:on('效果-能否生效', function (effect)
@@ -140,7 +140,7 @@ lt.test('对牌使用：没声明「获取卡牌目标」就用不了', function
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
     local card = game:createCard('没声明牌')
-    hand:put(card)
+    hand:accept(card)
 
     local ok, reason = game:canUseToCard(user, card)
     lt.assertEquals('不成立', false, ok)
@@ -155,7 +155,7 @@ lt.test('对牌使用：钩子不认那张牌就用不了', function ()
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
     local card = game:createCard('挑目标牌')
-    hand:put(card)
+    hand:accept(card)
 
     local ok, reason = game:canUseToCard(user, card, game:createCard('没声明牌'))
     lt.assertEquals('不成立', false, ok)
@@ -178,7 +178,7 @@ lt.test('对牌使用：内容侧的否决带着目标牌', function ()
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
     local card = game:createCard('受检牌')
-    hand:put(card)
+    hand:accept(card)
 
     ---@type Card?
     local checkedTarget = nil
@@ -201,7 +201,7 @@ lt.test('对牌使用：自己的阶段里用一次就记一次账', function ()
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
     local card = game:createCard('抵消牌')
-    hand:put(card)
+    hand:accept(card)
     local phase <close> = game:enterPhase(user, '出牌')
 
     game:useCardToCard(user, card, game:createCard('没声明牌'))

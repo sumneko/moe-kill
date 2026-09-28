@@ -16,6 +16,7 @@ Depends = nil
 --- 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
 ---@class CardDef
 ---@field on fun(self: CardDef, event: '进入区域', handler: fun(card: Card, zone: Zone, slot: string?): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发；槽位区额外给槽位名）
+---@field on fun(self: CardDef, event: '离开区域', handler: fun(card: Card, zone: Zone, slot: string?): any): CardDef # 这张牌离开某个牌区时跑（发的时候它已经不在那个区里；槽位区额外给槽位名）
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(plan: CardDef.TargetPlan): Player[]): CardDef
 ---@field on fun(self: CardDef, event: '获取卡牌目标', handler: fun(plan: CardDef.CardTargetPlan): Card[]): CardDef # 返回你认下的那批牌（发起方给的那张不在里面 = 不能对这张牌使用）；声明它 = 这张牌能「对牌使用」
 ---@field on fun(self: CardDef, event: '使用', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前；声明了 skipEffect 的牌就到这）

@@ -74,7 +74,7 @@ function M:bindFinish()
         -- 结算的默认收尾：内容侧没留走的牌进弃牌堆
         local discard = game:getZone('弃牌')
         for _, card in ipairs(zone:list()) do
-            zone:move(card, discard)
+            discard:accept(card)
         end
     end
     task:onResolved(finish)

@@ -31,7 +31,7 @@ lt.test('决策询问：一次往返', function ()
     local game, players = newGame(2)
     local hand = players[1]:getZone('手牌')
     local card = game:createCard('杀')
-    hand:put(card)
+    hand:accept(card)
 
     ---@type Ask?
     local asked = nil
@@ -97,7 +97,7 @@ lt.test('决策询问：自己不动任何状态', function ()
     local game, players = newGame(2)
     local hand = players[1]:getZone('手牌')
     local card = game:createCard('杀')
-    hand:put(card)
+    hand:accept(card)
 
     game:on('决策-询问', function (ask)
         ---@cast ask Ask

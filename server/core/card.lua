@@ -87,6 +87,11 @@ function M:withZone(disposer)
     self.zoneGCHost:bindGC(disposer)
 end
 
+--- 解除和牌区的绑定（只清归属；牌区列表由搬牌的人自己摘）
+function M:unbindZone()
+    self:bindZone(nil)
+end
+
 --- 记下这张牌所在的牌区（只有牌区自己用：放进 / 取出时维护）
 ---@param zone Zone?
 function M:bindZone(zone)

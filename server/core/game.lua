@@ -684,20 +684,41 @@ function M:ask(to, reason, question)
     return ask
 end
 
+--- 造一次撑牌、驱动并等它结完
+---@async
+---@param game Game
+---@param cards Card[]
+---@param zone? string|Zone
+---@param slot? string
+---@return MoveCard
+local function runMoveCard(game, cards, zone, slot)
+    local effect = moe.moveCard.create {
+        game  = game,
+        cards = cards,
+        zone  = zone,
+        slot  = slot,
+    }
+    effect:apply():await()
+    return effect
+end
+
 --- 把牌挪到某个牌区
 ---@async
 ---@param card Card|Card[] # 要挪的牌（单张或一批）
 ---@param zone? string|Zone # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找；不给 = 这次挪牌失败）
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
 function M:moveCard(card, zone)
-    local cards = moe.util.toList(card)
-    local effect = moe.moveCard.create {
-        game  = self,
-        cards = cards,
-        zone  = zone,
-    }
-    effect:apply():await()
-    return effect
+    return runMoveCard(self, moe.util.toList(card), zone)
+end
+
+--- 把一张牌挪进某个槽位（槽位区专用：先占槽、再进区）
+---@async
+---@param card Card # 要挪的那张牌
+---@param zone SlotZone # 目标槽位区
+---@param slot string # 槽位名
+---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
+function M:moveCardWithSlot(card, zone, slot)
+    return runMoveCard(self, { card }, zone, slot)
 end
 
 --- 抽牌：从抽牌堆顶抽 count 张（省略去向 = 抽进这个玩家的手牌；给了就用它，例如抽到某块处理区）

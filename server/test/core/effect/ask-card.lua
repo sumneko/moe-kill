@@ -70,7 +70,7 @@ end
 local function putInHand(player, cards)
     local hand = assert(player:getZone('手牌'), '这个玩家没有手牌区')
     for _, card in ipairs(cards) do
-        hand:put(card)
+        hand:accept(card)
     end
 end
 
@@ -271,7 +271,7 @@ lt.test('答复：`AskCard` 自己不处置那张牌', function ()
     local game, players = newGame(2)
     local hand = assert(players[2]:getZone('手牌'))
     local jink = game:createCard('闪')
-    hand:put(jink)
+    hand:accept(jink)
     answerWith(game, { jink })
 
     local ask = game:askCard(players[2], '交出', { name = '闪' })
@@ -339,7 +339,7 @@ lt.test('询问：条件按区筛（名字在被问者身上解析）', function
     local game, players = newGame(2)
     local mine = game:createCard('闪')
     putInHand(players[1], { mine })
-    players[1]:getZone('装备'):put(game:createCard('杀'))
+    players[1]:getZone('判定'):accept(game:createCard('杀'))
     answerWith(game, { mine })
 
     local ask     = game:askCard(players[1], nil, { zone = '手牌' })
@@ -353,15 +353,15 @@ end)
 lt.test('询问：条件的 zone 可以给区对象、也可以给好几个（其一）', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('闪') })
-    local equip = players[1]:getZone('装备')
-    equip:put(game:createCard('杀'))
-    players[1]:getZone('判定'):put(game:createCard('桃'))
+    local judge = players[1]:getZone('判定')
+    judge:accept(game:createCard('杀'))
+    game:getZone('弃牌'):accept(game:createCard('桃'))
 
-    local only = game:askCard(players[1], nil, { zone = equip })
+    local only = game:askCard(players[1], nil, { zone = judge })
     lt.assertEquals('给区对象：只有那个区的牌', 1, #assert(only.options))
-    lt.assertEquals('选项就是它', equip:peek(1), assert(only.options)[1].card)
+    lt.assertEquals('选项就是它', judge:peek(1), assert(only.options)[1].card)
 
-    local many = game:askCard(players[1], nil, { zone = { equip, '判定' } })
+    local many = game:askCard(players[1], nil, { zone = { judge, '弃牌' } })
     lt.assertEquals('给两个区：并集', 2, #assert(many.options))
 
     local none = game:askCard(players[1], nil, { zone = '没有这个区' })

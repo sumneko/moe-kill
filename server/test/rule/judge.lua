@@ -5,7 +5,7 @@ lt.test('判定：判定牌来自抽牌堆顶，结完进弃牌堆', function ()
     local run     = support.start { count = 2, packages = { '标准' } }
     local deck    = assert(run.game:getZone('抽牌'), '没有抽牌')
     local discard = assert(run.game:getZone('弃牌'), '没有弃牌')
-    local top     = deck:peek(1)
+    local top     = assert(deck:peek(1))
 
     local judge = run.game:judge(run.players[1], '测试')
 
@@ -22,7 +22,7 @@ lt.test('判定：抽牌堆空了会把弃牌洗回来', function ()
     local discard = assert(run.game:getZone('弃牌'), '没有弃牌')
 
     for _, card in ipairs(deck:list()) do
-        deck:move(card, discard)
+        discard:accept(card)
     end
     lt.assertEquals('抽牌堆空了', 0, deck:count())
 
@@ -37,8 +37,8 @@ lt.test('判定：改判换上的牌与旧判定牌都进弃牌堆', function ()
     local deck    = assert(run.game:getZone('抽牌'), '没有抽牌')
     local discard = assert(run.game:getZone('弃牌'), '没有弃牌')
     local before  = discard:count()
-    local old     = deck:peek(1)
-    local new     = deck:peek(2)
+    local old     = assert(deck:peek(1))
+    local new     = assert(deck:peek(2))
 
     run.game:on('判定-前', function (judge)
         judge:replace(new)
@@ -79,9 +79,9 @@ end)
 lt.test('判定：换牌只在「判定-前」里有效，窗口外什么也不做', function ()
     local run     = support.start { count = 2, packages = { '标准' } }
     local deck    = assert(run.game:getZone('抽牌'), '没有抽牌')
-    local first   = deck:peek(1)
-    local second  = deck:peek(2)
-    local third   = deck:peek(3)
+    local first   = assert(deck:peek(1))
+    local second  = assert(deck:peek(2))
+    local third   = assert(deck:peek(3))
 
     -- 还没开窗口就换：不生效，牌也不动
     local early = New 'Judge' (run.game, run.players[1], '测试')

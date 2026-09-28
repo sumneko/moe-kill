@@ -33,10 +33,6 @@ function M:settle()
         phase:addUseCount(name, 1)
     end
 
-    local zone, index = self.user:findCard(self.card)
-    ---@cast zone Zone
-    ---@cast index integer
-    zone:take(index)
     self.game:moveCard(self.card, self:getTempZone())
     self.game:fire('卡牌-结算前', self)
     self.card:fireHandlers('使用', self)
