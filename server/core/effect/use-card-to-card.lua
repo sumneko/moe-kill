@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 ---@class UseCardToCard.CreateOptions
 ---@field game Game
 ---@field user Player # 使用者

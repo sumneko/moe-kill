@@ -1,5 +1,3 @@
-require 'core.effect.ask-card'
-
 --- 要什么样的牌：`AskCard.Condition` 那些条件 + 一条 `target`（要对哪张牌使用）
 ---@class AskUseCardToCard.Condition : AskCard.Condition
 ---@field target Card # 要使用在哪张牌上（由发起方给定）

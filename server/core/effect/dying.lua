@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 ---@class Dying.CreateOptions
 ---@field game Game # 这次濒死属于哪一局
 ---@field player Player # 谁进入濒死

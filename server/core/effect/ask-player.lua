@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 --- 要什么样的角色：候选名单（发起方算好；答复必须落在这里面）
 ---@class AskPlayer.Condition
 ---@field players Player[] # 候选角色

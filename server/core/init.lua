@@ -1,3 +1,4 @@
+-- 本组按依赖顺序装载：父模块写在子模块前面 —— 顺序只在这里负责
 include 'core.card'
 include 'core.zone'
 include 'core.ordered-zone'

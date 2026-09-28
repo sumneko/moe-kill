@@ -1,5 +1,3 @@
-require 'core.zone'
-
 ---@class OrderedZone : Zone
 ---@field private random? Random
 ---@field private shortage? fun(zone: OrderedZone) # 取空了怎么补（内容侧挂）

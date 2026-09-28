@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 ---@class Ask.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者

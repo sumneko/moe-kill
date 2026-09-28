@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 ---@class MoveCard.CreateOptions
 ---@field game Game
 ---@field cards Card[] # 要挪的牌

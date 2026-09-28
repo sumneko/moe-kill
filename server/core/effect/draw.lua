@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 ---@class Draw.CreateOptions
 ---@field game Game # 这次摸牌属于哪一局
 ---@field player Player # 谁摸牌

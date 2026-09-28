@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 --- 一次答复：给出哪张牌（要一次使用时再带上目标）
 ---@class AskCard.Answer
 ---@field card? Card # 给出的牌（答不上就是不给）

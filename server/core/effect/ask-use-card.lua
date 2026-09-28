@@ -1,5 +1,3 @@
-require 'core.effect.ask-card'
-
 --- 一次答复：给出哪张牌 + 打给谁（要一次使用就得给目标；无目标牌不用）
 ---@class AskUseCard.Answer : AskCard.Answer
 ---@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）

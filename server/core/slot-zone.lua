@@ -1,5 +1,3 @@
-require 'core.zone'
-
 --- 按槽位寻址的牌区：每个槽位至多一张牌
 ---@class SlotZone : Zone
 ---@field slots string[] # 这个区有哪些槽位（按声明顺序）

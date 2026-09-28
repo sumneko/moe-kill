@@ -1,5 +1,3 @@
-require 'core.effect.ask-card'
-
 --- 要一张打出的牌：与「要一张牌」同形（条件筛候选、答复只有牌），只是答复的牌**当场交出来**
 ---@class AskPlayCard : AskCard
 local M = Class 'AskPlayCard'

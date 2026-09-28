@@ -1,5 +1,3 @@
-require 'core.effect.effect'
-
 ---@class Damage.CreateOptions
 ---@field game Game # 这次伤害属于哪一局
 ---@field from Player # 伤害来源
