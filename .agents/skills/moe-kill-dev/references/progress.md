@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-23 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **566 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **564 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -72,6 +72,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 ## 3 用户已表态、还没做的方向
 
+- **worker / master 与单局模式（用户 2026-09-28 定，已记成变更 `add-worker-mode`，暂不实施）**：一局 = 一个 VM（`bee.thread.create` 起子线程 + 独立 `lua_State`）；**开发与测试直接以 worker 身份进行**（单局模式：只开 worker，不需要 master），等 game 功能做完再加 master（lobby + 调度 worker 开单局）；两种模式共存。worker ↔ master **直接说现有 JSON-RPC**（协议本来就只有请求 / 反向请求 / 通知三种形状，正好是这条边界需要的三种）⇒ master 只转发与调度、不认识牌 / 阶段 / 胜负，**宿主可换**（将来真要进程级隔离就把 worker 丢进子进程，worker 代码不动）。自唤醒通道名**直接拼 `thread.id`**。另外两条同日决定：**「卸载 / 重装」整块不要了**（`game:resetContent()` 与 `install` 的清空重装路径退役 —— 清理手段改成「销毁 VM」）；**包清单在 VM 启动时就定死**（服务器模式 master 传入、单局模式自己做个简单交互来选）。**本变更只记录决策、不实施**；形状 / 取舍 / 关停顺序 / 删除面见 `openspec/changes/add-worker-mode/{proposal,design,tasks}.md`。两个已验证的前提（2026-09-28）：探针实测「起线程 + 载整个内核 ≈20ms、建局 + 开局 ≈13ms、VM 内存 ≈1.4MB、channel 往返 ≈2µs」；`bee.thread` **没有强杀**（退出只能靠入口自己返回）且 `errlog()` 是进程级共享、不带线程 id。
+- **包可以给内核类加方法（用户 2026-09-28 解锁，已记成变更 `allow-package-class-edit`，暂不实施）**：加载环境注入内核**同一个** `Class`（`moe-kill.lua` 里 `Class = class.declare`），包按内核写法 `local M = Class 'Player'` + `function M:distance(to)`；**只开 `Class` 这一个口子**（`New` / `Delete` / `Extends` / `Type` / `Presize` 都不给）；**没有生命周期管理**（加载一次不卸载 ⇒ 不记账、不回撤）；护栏降级为文档提醒（别用 `__` 前缀、别与 `__getter` / `__setter` 同名、注意实例字段会遮蔽类方法）；类型面基本不用手写注解（写法与内核同形：`---@class Player` 就够、**不用** `: Class.Base`，除非要用 `__getter`；派生字段要用 `---@type` 声明；函数写了 doc 就要把 `@return` 写全 —— 三条都实测过）。首个应用 = `@基础/距离.lua` 的**裸全局 `distance` 去掉**，改成 `Player:distance`（`杀` / `借刀杀人` / `顺手牵羊` 三个调用点跟着改）。
 - ~~**`'对卡牌生效'` 的声明形状**~~ —— **已实施（2026-09-24）**：改成 `'获取卡牌目标'`（载荷 `CardDef.CardTargetPlan`：`targets` = 发起方要对的那批牌；**返回你认下的那批** `Card[]`，内核取交集、发起方那张不在里面就不能用），`'对卡牌生效'` 删除、`CardEffectToCard` 不再跑内容钩子（只作身份与处理区归属者）。两个钩子的载荷同形 —— 参数都叫 `plan`、字段都叫 `targets`（角色支 `CardDef.TargetPlan` 是 `Player[]`、牌支 `CardDef.CardTargetPlan` 是 `Card[]`）。
 - ~~**`askUse*` 成功后自动接上 `useCard*`**~~ —— **已实施（2026-09-24）**：两个 `askUse*` 入口在询问结完后**直接把它用出去**（`AskUseCard:use()` / `AskUseCardToCard:use()`，幂等、只发一次），那次使用记在询问上（`ask.useCard` / `ask.useCardToCard`，没答复 ⇒ 空、不发起使用）。四个调用点改成读这个字段（出牌阶段 / 借刀杀人 / 濒死求桃 / 无懈窗口）。「打出的牌」那一类不受影响（`askPlayCard` 上是没有这个方法的）。
 - **询问家族**：将来加 `timeout` 与 `askSkill`，**timeout 与答复做 race**。`Ask`（通用决策询问，答复是 `any`）现在只剩弃牌阶段在用，用户认为它"意义不明" —— 等那批到位再谈去留（**不要擅自删**）。

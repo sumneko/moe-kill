@@ -85,7 +85,7 @@ moe.await   = require 'tools.await'
 moe.task    = require 'tools.task'
 moe.eventLoop = require 'tools.event-loop'
 moe.sevent  = require 'tools.simple-event'
-moe.asyncIO = require 'async-io'
+moe.loopWaiter = require 'loop-waiter'
 
 ---@class MoeKill.Tools
 moe.tools = {
@@ -138,7 +138,7 @@ end)
 moe.task.setErrorHandler(log.error)
 
 moe.eventLoop.addHighTask(function ()
-    moe.asyncIO.poll()
+    moe.loopWaiter.poll()
 end)
 
 moe.eventLoop.addHighTask(moe.timer.update)
@@ -147,10 +147,10 @@ moe.eventLoop.addHighTask(moe.timer.update)
 function moe.eventLoopOptions()
     return {
         waiter   = function (seconds)
-            moe.asyncIO.wait(seconds)
+            moe.loopWaiter.wait(seconds)
         end,
         deadline = moe.timer.getNextDeadline,
-        waker    = moe.asyncIO.wake,
+        waker    = moe.loopWaiter.wake,
     }
 end
 

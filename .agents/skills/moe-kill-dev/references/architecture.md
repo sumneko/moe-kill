@@ -39,7 +39,7 @@
 - exe + `bin/main.lua` 引导（照搬 LuaLS 4.0.0）：引导脚本设好 `package.path`，再按参数决定进「服务模式」还是「测试模式」。
 - 服务模式：建立 event-loop → 起 transport → 进入事件循环。
 - 测试模式：**不建 transport**，直接 `require 'test'`（即 `server/test.lua`）加载测试套件。
-- 空闲与等待：循环空闲时**阻塞等待到「下一个定时任务到期」**（没有定时任务则无限阻塞），等待 / 唤醒由 `bee.async` 承担（`server/async-io.lua`）；停止走自唤醒通道，不靠轮询也不靠分片。
+- 空闲与等待：循环空闲时**阻塞等待到「下一个定时任务到期」**（没有定时任务则无限阻塞），等待 / 唤醒由 `bee.epoll` 承担（`server/loop-waiter.lua`）；停止走自唤醒通道，不靠轮询也不靠分片。
 - **效果与等待**：一次结算 = 一个**任务**（`server/tools/task.lua`），效果体跑在它自己的协程里 —— 所以**结算体与时机回调里可以直接 `await`**（`moe.await.sleep` / `moe.await.yield`，恢复绑在**调用它的那个协程**上；应答方就是这么让出的），要等另一次结算结完用 `效果:await()`。**没有**「让出理由分派」与「让出逐层原样转发」这层机制（`Effect:suspend` 整层已于 2026-09-20 删除，理由：顺序请求、不会有外部打断）。
 
 ## 3. 协议设计原则（通用协议，一个后端对接多种前端）
@@ -135,7 +135,7 @@ sequenceDiagram
 
 - `include 'x'` = **可重载**入口：与 `require` 等价，但会把模块登记进重载集合（登记顺序即加载顺序）。
 - `require 'x'` = 一次性加载：**永不参与重载**。因此**不需要**任何名单 / 过滤配置来划分范围。
-- 目前只有内核（`core/`）用 `include`（`server/core/init.lua` 逐个登记）；`server/tools/`、`session/`、`async-io.lua` 以及热重载自身一律 `require`，从根上避免基础设施被换掉。
+- 目前只有内核（`core/`）用 `include`（`server/core/init.lua` 逐个登记）；`server/tools/`、`session/`、`loop-waiter.lua` 以及热重载自身一律 `require`，从根上避免基础设施被换掉。
 - **日志先就绪**：`log` 实例与 `moe.env` 在 `server/moe-kill.lua` 里创建，位置早于任何 `include`，所以可重载模块里可以直接用 `log.*`，加载器也能用 `log.error` 报错。
 - `package/` 规则集**不**走 `include` 也不走 `require`，而由自建加载器读文件执行（第 9 节），因此它从根上不参与热重载 —— 这不是「暂且如此」，而是设计要求。
 

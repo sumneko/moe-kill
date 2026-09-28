@@ -20,8 +20,8 @@
 
 - `bee.thread.create(source, ...)` 起线程（**不共享全局变量**），`bee.channel` 做线程间通信，数据会被序列化 → **只能传 plain data**。
 - `bee.time.monotonic()` 返回毫秒整数，单调递增，用于计时。
-- `bee.socket` 提供 tcp/udp/unix 与 `fd:handle()`；`bee.epoll` / `bee.select` 用于等待；`bee.async` 是**跨平台异步 I/O 层**（Windows/IOCP、macOS/GCD、Linux/io_uring・epoll），提供 `wait(timeout)` 阻塞等待、`submit_read/write/accept/connect`、`submit_file_read/write`、`submit_poll`（监听 fd 可读）。
-- LuaLS 4.0.0 的实践是**不用 `bee.async`**，把阻塞 IO（stdio、文件）丢给 worker 线程 + channel，主线程只跑 event-loop；**本工程反过来**：没有线程，等待与唤醒全部交给 `bee.async`（见第 6 节）。
+- `bee.socket` 提供 tcp/udp/unix 与 `fd:handle()`；等待 / 多路复用用 **`bee.epoll`**（跨平台：Linux 走 epoll、**Windows 走 AFD/IOCP**，能等 socket 与管道）；`bee.select` 虽然跨平台，但 Windows 上用的是 winsock `select()`、**只能等 socket**，等不了 `bee.channel` 的管道 fd。`bee.async` 是跨平台异步 I/O 层，**本工程不用它**（2026-09-28 起）。
+- LuaLS 4.0.0 的实践是**不用 `bee.async`**，把阻塞 IO（stdio、文件）丢给 worker 线程 + channel，主线程只跑 event-loop；本工程同样不用 `bee.async`，但等待 / 唤醒改用 **`bee.epoll`**，文件 IO **一律同步**（见第 6 节）。
 - **可选链**（`?.` `?:` `?[` `?(`）在 `master` 上，由 `3rd/lua-patch/optchain/` 在**构建期** `git apply` 补丁实现，**门控完全在构建层**（`compile/common.lua` 的 `lua_patches` 注册表；不打补丁时是纯官方 Lua，行为零影响）。
   - 启用方式：`luamake -optchain`，或在 `make.lua` 里写 `lm.optchain = true`（luamake 把命令行 flag 暴露为 `lm.<flag>`）。
   - 因此**该开关必须是项目默认构建的一部分**：源码里写了 `?.` 而构建未启用时会直接解析失败。
@@ -102,7 +102,7 @@ lm:executable "moe-kill" {
   make/modules.cpp      C 模块注册占位
   server/               后端根（代码 + 入口 + 测试 + 产物）
     main.lua  test.lua   进程入口与测试入口
-    moe-kill.lua  master.lua  args.lua  debugger.lua  async-io.lua
+    moe-kill.lua  master.lua  args.lua  debugger.lua  loop-waiter.lua
     core/  session/  tools/
     test/                无头测试（test.smoke / test.session / test.core…）
     bin/                 产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
@@ -183,25 +183,26 @@ end
 | `timer.lua` | 新增 `M.getNextDeadline()`：距最近一个定时任务到期还有多少秒（没有则返回 `nil`） | 供事件循环计算等待时长，替代空转 |
 | `simple-event.lua` | `fire` 支持**快速返回**（2026-09-22）：循环里收 `xpcall` 的返回值，**没报错且第一个返回值非 nil** 就停下、把它作为 `fire` 的结果（后面的回调不再调用）。判据必须连 `ok` 标志一起看 —— `log.error` 会把错误消息当返回值交出去，"回调报错"也会产生非 nil 值 | 时机系统需要"回调明确给出结论就短路"（`'卡牌-能否使用'` 靠它否决，见 `architecture.md` §10）；语义向后兼容（原先返回值被直接丢弃） |
 | `task.lua` | **本工程自有文件**（上游没有对应物：LuaLS 4.0.0 的 `ls.task` 已弃用，它的 `__del` 只关挂起的协程、`execute` 又把错误吞成 `onRejected`）：可等待的任务 —— 一个任务一个协程，`Task:execute(func)` 的**执行体返回值就是任务结果**，`setTimeout` / `__close` 一律 `reject`（超时 / 关闭 / 取消都算失败，只有正常跑完才 `resolve`）；`Task:cancel()` 停掉任务（`reject(CANCELED)`，若正跑在自己的协程里就地停住 —— 游戏的**流程**就是这么停的） | 效果是「可等待的任务」：`settle()` 的返回值就是这次结算的结果（`Ask` 的答案就读 `ask.result`）；取消走 `reject(CANCELED)` 不抛错（见 `code-style.md` 第 10 节） |
-| `fs-utility.lua` | 未改（仍是同步 `io.open`） | 异步文件读写另开 `server/async-io.lua`，不污染照搬文件 |
+| `fs-utility.lua` | 未改（仍是同步 `io.open`） | 文件 IO **一律同步**，照搬件不掺异步 —— 曾另开 `server/async-io.lua` 做异步文件读写，2026-09-28 随那个模块一起删掉（没有真实消费者） |
 | `utility.lua` | **新增 `m.isStrictList(t)`**（用户 2026-09-23 加）：判断是不是**严格数组**（索引从 1 连续到底），**空表不算**；**新增 `m.toList(value)`**（本工程自有）：把「单个值 / 列表 / 空表」统一成列表 —— 列表原样返回（空表也是空列表）、单个值包成一张表、**不会返回空**。**nil 不归它管**（`@param` 里就没有 nil）⇒ 可选参数由**调用方**自己挡（`if x ~= nil then ... end`），需要区分「没给」与「给了空表」的地方全靠这一条。当年各模块自己的 `toPlayerList` / `toTargetList`、`game:moveCard` 里两段手写归一，都已删掉改用它 | 一个「单个还是列表」的归一写法不该在每处重写一遍；nil 的口径由调用方决定（`card:useCard` 的「空表 = 没指定目标」、`AskCard` 的「没给目标」各有各的含义） |
 | `attribute.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（**LuaLS 4.0.0 里没有它**）；`System:define(name, simple, min, max)` → `Instance:get/set/add/getMin/getMax/event`，含公式（基础值 + 百分比）、上下限、惰性重算与变更事件；2026-09-19 已同步上游 `3f347e4`（“修复属性系统的报错”：给 `compileComplex` 的 `getMax` 生成块补 `local cache = instance.cache`）。**已知上游未修的同类坑**：`compileSimple` 的 `getMax` 生成块（约 613 行）同样缺这行 ⇒ `simple = true` 且 `max` 写字符串引用的属性调 `getMax` 会报 `attempt to index a nil value (global 'cache')`（写入钳制本身是好的） | 内核的“通用属性”直接接它，不自己写一套 |
 | `reload.lua` | **新增照搬文件**：来源 `y3-editor/y3-lualib` 的 `tools/reload.lua`（MIT，`Copyright (c) 2023 y3-editor`）—— `sumneko/utility` 与 LuaLS 4.0.0 都**没有**热重载库。改写点：`y3.util.*` → `moe.util.*`；回调注册**返回 disposer**（并因此修掉「回调数组每次重载整体替换、捕获的引用会失效」）；**`include` 失败时记日志（`log.error`，带堆栈）并抛出错误**（不再返回 `false` —— 出错就让调用方停下，而不是把 `false` 静默赋进门面），重载过程中的失败由 `fire()` 用 `pcall` 隔离 | 内核需要开发期热重载，见 `architecture.md` 第 8 节 |
 | `without-check-nil.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（原样、逐字节相同）。用 `debug.setmetatable(nil, mt)` 给 **`nil` 本身**装元表，让 nil 上的算术 / 拼接 / 索引 / 调用 / 比较都不崩；对外只有 `enable()` / `disable()`（`disable()` 仅在元表仍是它的那份时恢复） | 规则集**预解析试跑**用（`server/core/loader/preparse.lua`）：试跑要执行规则集代码但不该崩。注意它是**进程全局**改动，必须成对开关 |
 
-等待与唤醒的接线在 `server/async-io.lua`（本工程自有，**不属于 `tools/`**）：持有 `bee.async` 实例，提供阻塞等待、完成事件分发、异步文件读写、外部事件源注册与自唤醒通道。
+等待与唤醒的接线在 `server/loop-waiter.lua`（本工程自有，**不属于 `tools/`**；2026-09-28 替换掉原来的 `server/async-io.lua`）：持有**本 VM 唯一的 `bee.epoll` 实例** + 一个自唤醒通道，对外四个口子 —— `wait(seconds)`（阻塞等待，`nil` 表示无限期）、`poll()`（非阻塞排空）、`wake()`（瞬时信号）、`watch(fd, onReadable)`（注册外部事件源，回调自行取走数据）。它同时就是「**本 VM 的 fd 多路复用上下文**」（将来 transport / worker 的消息通道往它上面注册）。文件 IO **一律同步**。
 
 **初始化顺序（2026-09-19 按用户要求调整，勿改回去）**：`moe.env`（由 `arg[0]` 推出的根目录 / 日志路径）与 `log` 实例**都在 `server/moe-kill.lua` 里创建**，位置在 `moe.util` 的 `enable*` 之后、挂载其它工具与**加载内核之前**；`server/master.lua` 只留线程名、启动日志与内存定时上报。这样任何 `include`（内核模块）执行时日志一定就绪，`tools/reload.lua` 直接用 `xpcall(f, log.error, ...)` 即可。注意两点：日志块里的 `print` 回调用了 `%` 语法糖，所以它必须在 `enableFormatString()` **之后**；`moe.env` 仍由 `arg[0]` 推出，别把它再搬回 `master.lua`。
 
 **日志按模式分流（2026-09-19 定）**：`createLog(路径, 错误流)` 这个局部工厂负责造实例，`moe-kill.lua` 按 `moe.args.TEST` 选参数 —— **服务模式** `service.log` + `io.stderr`、**测试模式** `test.log` + `io.stdout`（error / fatal 除写文件外再打到这个流）。两个好处：跑测试**不再清空/污染 `service.log`**（`Log` 构造时就以 `'w+b'` 截断，所以这个选择必须在 `moe-kill.lua` 里做完，等 `test.lua` 再换就晚了）；`moe.env.LOG_FILE` 也随之指向 `test.log`，于是 `master.lua` 的启动行与 `test/smoke/log.lua` 读的是同一个文件。
 
-### `bee.async` 踩坑（本机实测）
+### 等待用 `bee.epoll`（2026-09-28 替换掉 `bee.async`，本机实测）
 
-- **`submit_poll` 在 Windows 下是零字节 `WSARecv`**：只能用于 socket 类句柄，且**必须先 `asfd:associate(fd)`**；未关联时完成事件永远不来（表现为等待超时，而不是报错）。`bee.channel` 的 fd 在 Windows 上就是 socket，用前同样要 `associate`（上游 `3rd/bee.lua/test/test_async.lua` 的 `test_submit_poll_channel` 就是这么写的）。
-- `asfd:wait(timeout)` 的超时单位是**毫秒**，`-1` 表示无限等待；若有已就绪的同步完成事件则立即返回。
-- `asfd:associate_file(io.open(...))` 会**就地**把底层句柄换成 overlapped / IOCP 关联句柄；异步路径用完后要 `close`，且不要与同步读写混用同一句柄。
-- 完成事件的 `udata` 原样返回，可以直接放登记表项（本工程就是用它把结果交回挂起的协程）。
-- `bee.async.create()` 返回 `(fd, err)`；创建失败必须报错，不要静默降级 —— 否则会变成「看起来能用但永远不会被唤醒」。
+- **`bee.select` 不能用来等 `bee.channel` 的 fd**：`binding/lua_select.cpp` 用的是 winsock `select()` + `SOCKET` fd_set，**只能等 socket**；而 channel 的 event 是**匿名管道**（`bee/net/event.h`：`fd_t pipe[2]`）。Windows 上等管道要用 `bee.epoll`（`bee/net/bpoll_win.cpp` → `bee/win/afd/`，AFD/IOCP）。
+- **实测**：`epoll.create(16)` + `ep:event_add(channel:fd(), EPOLLIN, tag)` 返回 true；另一个线程 200ms 后 `push` ⇒ `ep:wait(3000)` 在 **201ms** 返回（拿得到 `tag`）；无消息时 `wait(150)` 在 153ms 返回。
+- `epoll.create(n)` 的**返回是可选**（`bee.epoll.fd?` + 错误消息）⇒ 创建后**必须判空**（不判的话每次 `ep:xxx()` 都会报「需要判空」），创建失败要报错、不要静默降级。
+- `ep:wait(timeout)` 超时单位是**毫秒**，`-1` 表示无限等待、`0` 表示非阻塞（`poll()` 就是它）；返回 `(关联对象, 事件标志)` 迭代器，关联对象 = `event_add` 第三个参数原样交回。
+- 事件是**水平触发**：注册一次、每次可读都会报 ⇒ **不需要** `bee.async` 那套「完成后重新注册」。唯一的例外是自唤醒通道，`onReadable` 里要把它排空。
+- 自唤醒通道名拼 `thread.id`（`'moe-kill:event-loop#' .. thread.id`）：`channel.create` 的名字是**进程级唯一**，同进程第二个 VM 用同名会直接报 duplicate（探针实证）。
 
 ## 7. 命令速查
 
