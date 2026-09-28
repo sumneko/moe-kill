@@ -136,10 +136,10 @@ local function nullifyAtJudge(run, answerer, wuxie, target)
             return
         end
         local parent = ask.parent
-        if not (parent and parent.kind == '延时锦囊结算') then
+        if not (parent and parent.kind == 'cardEffect') then
             return
         end
-        ---@cast parent 延时锦囊结算
+        ---@cast parent CardEffect
         if parent.card == target then
             moe.await.sleep(0)
             ask:answer { card = wuxie }
@@ -386,28 +386,20 @@ lt.test('延时锦囊：判定区逐张结算，第一张被抵消不影响第�
     lt.assertEquals('乐不思蜀照常跳过出牌阶段', '准备,判定,摸牌,弃牌,结束', table.concat(starts, ','))
 end)
 
-lt.test('延时锦囊：使用期被无懈可击抵消 ⇒ 不进判定区，牌进弃牌堆', function ()
+lt.test('延时锦囊：使用期不产生无懈询问（判定前才有窗口）', function ()
     local run   = support.start { count = 2, packages = { '标准' } }
     local user  = run.players[1]
     local other = run.players[2]
     local lebu  = takeCard(run, user, '乐不思蜀')
-    local wuxie = takeCard(run, other, '无懈可击')
+    local asked = false
     run.game:on('卡牌-询问', function (ask)
-        if ask.to ~= other then
-            return
-        end
-        local parent = ask.parent
-        if not (parent and parent.kind == 'cardEffect') then
-            return
-        end
-        ---@cast parent CardEffect
-        if parent.card == lebu then
-            ask:answer { card = wuxie }
+        if ask.to == other and ask.parent?.kind == 'cardEffect' then
+            asked = true
         end
     end)
 
     run.game:useCard(user, lebu, { other })
 
-    lt.assertEquals('没进判定区', 0, other:getZone('判定'):count())
-    lt.assertEquals('乐不思蜀进了弃牌堆', true, moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), lebu))
+    lt.assertEquals('没人被问要不要用无懈', false, asked)
+    lt.assertEquals('乐不思蜀照常置入判定区', lebu, other:getZone('判定'):list()[1])
 end)

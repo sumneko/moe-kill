@@ -19,9 +19,9 @@ M.MAX_DEPTH = 150
 
 ---@param game Game
 function M:__init(game)
-    self.kind  = 'effect'
-    self.game  = game
-    self.tags  = {}
+    self.kind = 'effect'
+    self.game = game
+    self.tags = {}
     ---@type Effect[]
     self.childs = {}
 end

@@ -6,19 +6,14 @@ lt.test('牌：标识与牌名都由调用方给出', function ()
     lt.assertEquals('标识就是给进来的号', 7, card:getId())
     lt.assertEquals('牌名就是给进来的那个值', '杀', card.name)
 
-    local plain = moe.card.create(lt.game(), nil, 8)
-    lt.assertEquals('可以不要牌名', nil, plain.name)
-    lt.assertEquals('两张牌各自用各自的号', false, card:getId() == plain:getId())
+    local other = moe.card.create(lt.game(), '闪', 8)
+    lt.assertEquals('两张牌各自用各自的号', false, card:getId() == other:getId())
 end)
 
-lt.test('牌：改牌名不动标识', function ()
-    local card = lt.card('杀')
-    local id   = card:getId()
-
-    card:setName('闪')
-
-    lt.assertEquals('牌名可修改', '闪', card.name)
-    lt.assertEquals('标识不变', id, card:getId())
+lt.test('牌：没给牌名建不出来', function ()
+    lt.assertError('空牌名直接报错', function ()
+        moe.card.create(lt.game(), '', 9)
+    end)
 end)
 
 lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', function ()

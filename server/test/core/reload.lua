@@ -276,7 +276,7 @@ lt.test('重载：recycle 立即执行、重载后重跑并回收旧对象', fun
 
     local function rebuild(trashFn)
         runs = runs + 1
-        trash[#trash + 1] = trashFn(lt.card())
+        trash[#trash + 1] = trashFn(lt.card('回收牌'))
         return runs
     end
 

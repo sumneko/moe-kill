@@ -1,15 +1,16 @@
 ---@class Card: Class.Base
 ---@field private id integer # 号（这一局发的）
----@field name? any # 牌名（内容侧给的值，内核只存不解释）
+---@field name string # 牌名（内容侧给的值，内核只存不解释）
 ---@field suit? string # 花色
 ---@field point? integer # 点数（1..13）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
 ---@field private game Game # 属于哪一局（读自己的内容定义时用）
+---@field private def? CardDef # 内容定义（创建这张牌时就定格）
 local M = Class 'Card'
 
 ---@param game Game # 属于哪一局（读自己的内容定义时用）
----@param name? any # 牌名
+---@param name string # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数
@@ -19,6 +20,7 @@ function M:__init(game, name, id, suit, point)
     self.name  = name
     self.suit  = suit
     self.point = point
+    self.def   = game:getCard(name)
 end
 
 ---@return integer # 牌的号（这一局发的）
@@ -26,15 +28,30 @@ function M:getId()
     return self.id
 end
 
---- 改这张牌的牌名
----@param name? any # 新牌名
-function M:setName(name)
-    self.name = name
-end
-
 ---@return CardDef? # 这张牌的内容定义（查不到就是空）
 function M:getDef()
-    return self.game:getCard(self.name)
+    return self.def
+end
+
+--- 跑这张牌这条钩子的所有处理器
+---@param event string
+---@param ... any
+function M:fireHandlers(event, ...)
+    local def = self.def
+    if not def then
+        return
+    end
+    for _, handler in ipairs(def:getHandlers(event)) do
+        handler(...)
+    end
+end
+
+--- 让这张牌生效一次（判定阶段用；判定者 = 它所在区的主人）
+---@async
+function M:doEffect()
+    local player = assert(self:getZone()?.owner)
+    local effect = New 'CardEffect' (self.game, self, player)
+    effect:apply():await()
 end
 
 --- 这张牌是不是这个分类
@@ -99,7 +116,7 @@ moe.card = {}
 
 --- 建一张牌
 ---@param game Game # 属于哪一局
----@param name? any # 牌名
+---@param name string # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
 ---@param suit? string # 花色
 ---@param point? integer # 点数

@@ -30,28 +30,20 @@ function M:settle()
     end
 
     local name = self.card.name
-    ---@cast name string
     local phase = self.game:getUsePhase(self.user)
     if phase then
         phase:addUseCount(name, 1)
     end
 
-    local def = self.game:getCard(name)
-    ---@cast def CardDef
     local zone, index = self.user:findCard(self.card)
     ---@cast zone Zone
     ---@cast index integer
     zone:take(index)
     self.game:fire('卡牌-结算前', self)
-    for _, handler in ipairs(def:getHandlers('结算前')) do
-        handler(self)
-    end
-    local effect = New 'CardEffectToCard' (self.game, self, def, self.targetCard)
+    self.card:fireHandlers('使用', self)
+    local effect = New 'CardEffectToCard' (self.game, self.card, self.targetCard, self)
     self.cardEffectToCard = effect
     effect:apply()
-    for _, handler in ipairs(def:getHandlers('结算后')) do
-        handler(self)
-    end
     self.game:fire('卡牌-结算后', self)
 end
 
@@ -62,16 +54,15 @@ local CardEffectToCard = Class 'CardEffectToCard'
 Extends('CardEffectToCard', 'Effect')
 
 ---@param game Game
----@param useCard UseCardToCard # 这次生效属于哪一次用牌
----@param def CardDef
+---@param card Card
 ---@param target Card # 目标那张牌
-function CardEffectToCard:__init(game, useCard, def, target)
+---@param useCard UseCardToCard # 这次生效属于哪一次用牌
+function CardEffectToCard:__init(game, card, target, useCard)
     self.kind    = 'cardEffectToCard'
-    self.useCard = useCard
-    self.def     = def
-    self.user    = useCard.user
-    self.card    = useCard.card
+    self.card    = card
     self.target  = target
+    self.useCard = useCard
+    self.user    = useCard.user
 end
 
 --- 它本身不做事：这张牌要不要被阻止，由内容侧在 `'效果-能否生效'` 里回报

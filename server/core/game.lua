@@ -11,6 +11,7 @@
 ---@field private values table<string, any> # 这张牌自带的数据
 ---@field private noTargetFlag? boolean # 不指定目标
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
+---@field skipsEffect? boolean # 使用后不进入「生效」（声明过 `skipEffect`）
 local CardDef = Class 'CardDef'
 
 ---@type integer # 没声明限额时的兜底：事实上的「不限次数」
@@ -57,6 +58,13 @@ function CardDef:getHandlers(event)
         table.move(list, 1, #list, 1, snapshot)
     end
     return snapshot
+end
+
+--- 这张牌使用后不进入「生效」（用别的场合再让它生效）
+---@return CardDef
+function CardDef:skipEffect()
+    self.skipsEffect = true
+    return self
 end
 
 --- 声明这个阶段里最多用几次（可以多次调；同一个阶段重复写，后写的为准）
@@ -211,6 +219,9 @@ function CardDef:extends(name)
     end
     if base.noTargetFlag then
         self.noTargetFlag = true
+    end
+    if base.skipsEffect then
+        self.skipsEffect = true
     end
     return self
 end
@@ -737,7 +748,7 @@ local function collectLegalTargets(def, user, card, targets)
     return legal
 end
 
---- 牌本身能不能用（两条入口共用）：牌名 / 定义 / 在使用者身上 / 在声明的牌区 / 次数
+--- 牌本身能不能用（两条入口共用）：定义 / 在使用者身上 / 在声明的牌区 / 次数
 ---@param game Game
 ---@param user Player
 ---@param card Card
@@ -745,9 +756,6 @@ end
 ---@return any # 不能时的原因
 local function checkCardItself(game, user, card)
     local name = card.name
-    if type(name) ~= 'string' then
-        return nil, '这张牌没有牌名，查不到内容定义'
-    end
     local def = game:getCard(name)
     if not def then
         return nil, '没有叫「{}」的内容定义' % { name }

@@ -165,7 +165,7 @@ end
 | 类别 | 用什么 | 例子 |
 | ---- | ---- | ---- |
 | 字段名、局部变量、函数名、参数名 | **英文** | `{ name = '杀', count = 30 }`、`local deck = ...`、`local function totalCards()` |
-| 类名 / 类型名（含事件的载荷类） | **英文** | `Turn`、`Judge`、`Game.Event.Turn`（`延时锦囊结算` 保留中文 —— 与内容词对得上，用户 2026-09-28 定；`Game.Event.游戏开始` / `Game.Event.卡牌能否使用` 也保留 —— 与时机名对应） |
+| 类名 / 类型名（含事件的载荷类） | **英文** | `Turn`、`Judge`、`Game.Event.Turn`（`Game.Event.游戏开始` / `Game.Event.卡牌能否使用` 保留中文 —— 与时机名对应） |
 | 技能名 / 卡牌名 / 身份名等内容词 | 中文 | `'杀'`、`'闪'`、`'主公'`、`'奸雄'` |
 | 数据取值与配置键（规则数值的键、属性名、时机名、标签键） | 中文 | `game:setValue('体力上限', 4)`、`attrs:get('体力')`、`'游戏-开始'`、`setTag('身份', '主公')` |
 | 包名与包内文件名 | 中文 | `package/标准/牌表.lua`、`package/身份包/开局.lua` |
@@ -176,7 +176,7 @@ end
 - 包目录名可以带一个 `@` 前缀（表示该包默认加载，见 `architecture.md` 第 9 节），包内文件名不带。
 - **注入环境给的「函数」用 PascalCase，给的「对象 / 命名空间」小写**（用户 2026-09-19 定）：`Card` / `Depends` 是框架入口（与既有的 `Class` / `New` / `Extends` 同类），`game`（与 `moe` 同类）是环境给的对象。理由：包文件里 `local card = game:createCard('杀')` 这类局部变量很自然，小写入口一遮就没了；大写既躲开遮蔽，又能一眼区分「加载期 DSL」与「普通 API」。
   - **给标准库加助手就用库名本身**（用户 2026-09-21 定）：`table.filter` / 将来的 `string.trim`，**不要**另起 `Table` / `util` 这类全局 —— 名字自己说明了「这是对标准库的扩充」（做法与边界见 `architecture.md` 9.6）。
-- **回调参数按「载荷的具体类型」起名，别叫 `ctx`**（用户 2026-09-23 定）：载荷是内核某个类的实例就用它的小驼峰类名 —— `useCard`（`'卡牌-结算前'` / `'卡牌-结算后'` / 牌的 `'结算前'` / `'结算后'`；对牌使用那一支的载荷类型变了，名字照旧）、`cardEffect`（牌的 `'生效'`）、`askCard` / `askUseCard` / `askUseCardToCard` / `askPlayCard`（`'卡牌-询问'` / `'卡牌-答复'` / `'卡牌-答复后'` —— 载荷按实际是哪个类起名）、`damage` / `heal` / `dying` / `draw` / `judge` / `phase` / `player` / `ask`（`'决策-询问'` / `'决策-答复'`，载荷是 `Ask|AskPlayer` —— 两边都管就写 `ask`，只管角色那一支就写 `askPlayer`）/ `effect`（`'效果-能否生效'` 与 `'效果-收尾'`）、`result`（`'游戏-结束'`，类型是 `Game.Result`）；**没有类实例的载荷用描述性短名** —— `plan`（两个「获取目标」类钩子：角色支 `CardDef.TargetPlan` / 牌支 `CardDef.CardTargetPlan`）、`check`（`'卡牌-能否使用'`）、`turn`（`'回合-开始'` / `'回合-结束'`）、`event`（`'游戏-开始'`，空表）、`card` / `zone` / `slot`（牌的 `'进入区域'`，用户 2026-09-24 定的形状 —— `slot` 只有槽位区给得出）、`payload`（`game:on` 的 `string` 兜底签名）。**用不上载荷就干脆不接参数**（`function ()`）；`env-meta.lua` 的 `fun(...)` 签名里也照这个起名。
+- **回调参数按「载荷的具体类型」起名，别叫 `ctx`**（用户 2026-09-23 定）：载荷是内核某个类的实例就用它的小驼峰类名 —— `useCard`（`'卡牌-结算前'` / `'卡牌-结算后'` / 牌的 `'使用'`；对牌使用那一支的载荷类型变了，名字照旧）、`cardEffect`（牌的 `'生效'`）、`askCard` / `askUseCard` / `askUseCardToCard` / `askPlayCard`（`'卡牌-询问'` / `'卡牌-答复'` / `'卡牌-答复后'` —— 载荷按实际是哪个类起名）、`damage` / `heal` / `dying` / `draw` / `judge` / `phase` / `player` / `ask`（`'决策-询问'` / `'决策-答复'`，载荷是 `Ask|AskPlayer` —— 两边都管就写 `ask`，只管角色那一支就写 `askPlayer`）/ `effect`（`'效果-能否生效'` 与 `'效果-收尾'`）、`result`（`'游戏-结束'`，类型是 `Game.Result`）；**没有类实例的载荷用描述性短名** —— `plan`（两个「获取目标」类钩子：角色支 `CardDef.TargetPlan` / 牌支 `CardDef.CardTargetPlan`）、`check`（`'卡牌-能否使用'`）、`turn`（`'回合-开始'` / `'回合-结束'`）、`event`（`'游戏-开始'`，空表）、`card` / `zone` / `slot`（牌的 `'进入区域'`，用户 2026-09-24 定的形状 —— `slot` 只有槽位区给得出）、`payload`（`game:on` 的 `string` 兜底签名）。**用不上载荷就干脆不接参数**（`function ()`）；`env-meta.lua` 的 `fun(...)` 签名里也照这个起名。
 
 ## 9. 防御性检查的边界
 
@@ -217,7 +217,7 @@ end
 
 - 理由：`player:getAttr('体力')` 与方法（会做事的东西）一眼可分；而 `card:getId()` 这种**没有参数**的方法，读起来像「可能要做点什么」，实际只是取个字段 —— 调用方平白多一层，也让人误以为背后有逻辑。**算出来的值**用 `__getter` 的好处是：调用方不必知道「这是存的还是算的」（`desk.players` 与 `desk.alivePlayers` 读法一致），将来把字段改成派生（或反过来）**调用点一行不改**。
 - **不缓存派生值**：`__getter` 每次现算（`desk.alivePlayers` 就是这么做的，理由见 `architecture.md` 第 12 节 —— 局的事件表每次装载都清空，挂在它上面的内核缓存会静默失效）。
-- **存量不动**：已经有的一批无参 `getXxx()`（`Card:getId`、`Game:getResult` / `getEffects` / `getZones`、`Player:getZones` …）**不主动清理**（改它们是纯噪音改动、还会碰到别人的代码）；顺手遇到相关代码时再单独提。**例外**：`Card:getLabel` / `setLabel` 已经在 2026-09-24 的顺手清理里去掉了 —— 牌名改成公开字段 `card.name`（写用 `setName`），与 `card.suit` / `card.point` 一致；`CardDef` 上本来就叫 `name`，两边现在同名。
+- **存量不动**：已经有的一批无参 `getXxx()`（`Card:getId`、`Game:getResult` / `getEffects` / `getZones`、`Player:getZones` …）**不主动清理**（改它们是纯噪音改动、还会碰到别人的代码）；顺手遇到相关代码时再单独提。**例外**：`Card:getLabel` / `setLabel` 已经在 2026-09-24 的顺手清理里去掉了 —— 牌名改成公开字段 `card.name`（**建牌时必给非空字符串**；`setName` 已删），与 `card.suit` / `card.point` 一致；`CardDef` 上本来就叫 `name`，两边现在同名。
 - 边界：**这不是「字段都公开」**—— 需要封装的（如 `Zone` 内部的 `cards`、`Game` 内部的 `events`）照样用 `private` + 方法；本节的只是「**只读、无参**」这类接口的形状选择。
 
 ## 12. 可选链
@@ -231,7 +231,7 @@ end
 | `a?[k]` | 索引 | `t?[key]` |
 | `a?(args)` | 函数调用（接收者是个值、不带 `self`） | `handler?(self)` |
 
-- **首选写法**（照 `server/core/card.lua` 的 `getDef` / `isKind` 改）：`local game = self.game; if not game then return nil end; return game:getCard(self.name)` ⇒ `return self.game?:getCard(self.name)`；`def ~= nil and def:isKind(name)` ⇒ `def?:isKind(name)`。
+- **首选写法**（照 `server/core/card.lua` 的 `isKind` / `server/core/effect/use-card.lua` 的 `skipsEffect` 读法改）：`def ~= nil and def:isKind(name)` ⇒ `def?:isKind(name)`；`local def = card:getDef(); if not (def and def.skipsEffect) then … end` ⇒ `if not card:getDef()?.skipsEffect then … end`。
 - **坑（踩过）**：方法调用必须写 **`?:`** —— `a?.b()` 是「字段访问 + 普通调用」，**不带 `self`**（实测报 `attempt to index a nil value (local 'self')`）；`?.` / `?[` / `?()` 分别对应字段 / 索引 / 函数调用。
 - **返回值可能变「空」**：`def?:isKind(name)` 在 `def` 为空时给的是 **`nil` 而不是 `false`** —— 判真假照旧（`nil` 是假），但**精确比较**（`== false`、断言、`assertNotEquals`）时得自己 `== true` 收一下。`a?.b` 同理：链上任何一环为空，结果都是空。
 - **它不是「到处加防御」**：可选链只是把「本来就允许为空、且空了就该跳过」的地方写短，判断标准仍按 §9（**这一步真的会缺吗**）。别为了"看着安全"给不该空的字段加 `?`。

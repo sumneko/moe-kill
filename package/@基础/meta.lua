@@ -25,7 +25,3 @@
 ---@class Game
 ---@field on fun(self: Game, name: '伤害-结束', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Game, name: '伤害-结束', damage: Damage): any
-
---- 延时锦囊的结算钩子（判定结果已定、由牌自己处理）：按名收窄 `CardDef` 侧的 `on` 载荷
----@class CardDef
----@field on fun(self: CardDef, event: '判定结果', handler: fun(resolution: 延时锦囊结算)): CardDef

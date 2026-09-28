@@ -278,12 +278,12 @@ Card '甲'
         player:getTag('记录'))
 end)
 
-lt.test('定义：公共区也发「进入区域」，没定义的牌不发', function ()
+lt.test('定义：公共区也发「进入区域」，没定义的牌不发；定义跟着牌走', function ()
     local guard <close> = useProbe()
     local game, player = newGame([[
 Card '甲'
     : on('进入区域', function (card, zone, slot)
-        local seat = zone.game.desk.seats[1]
+        local seat = game.desk.seats[1]
         seat:setTag('记录', (seat:getTag('记录') or '')
             .. tostring(zone.owner ~= nil) .. '/' .. tostring(slot) .. ';')
     end)
@@ -298,5 +298,5 @@ Card '甲'
 
     local loose = lt.zone()
     loose:put(game:createCard('甲'))
-    lt.assertEquals('别的局里没有这张牌的定义，不发', 'false/nil;', player:getTag('记录'))
+    lt.assertEquals('别的局里也发，定义跟着牌走', 'false/nil;false/nil;', player:getTag('记录'))
 end)

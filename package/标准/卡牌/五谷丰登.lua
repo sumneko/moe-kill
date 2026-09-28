@@ -7,7 +7,7 @@ Card '五谷丰登'
     : on('获取目标', function (plan)
         return game.desk.alivePlayers
     end)
-    : on('结算前', function (useCard)
+    : on('使用', function (useCard)
         game:drawCards(useCard.user, #useCard.targets, useCard:getTempZone())
     end)
     : on('生效', function (cardEffect, useCard)

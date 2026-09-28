@@ -8,8 +8,9 @@ Card '乐不思蜀'
             return player ~= plan.user
         end)
     end)
-    : on('判定结果', function (resolution)
-        if resolution.judge?.card?.suit ~= '红桃' then
-            resolution.player.turn:skipPhase('出牌')
+    : on('生效', function (cardEffect)
+        local judge = game:judge(cardEffect.target, cardEffect.card.name)
+        if judge.card?.suit ~= '红桃' then
+            cardEffect.target.turn:skipPhase('出牌')
         end
     end)

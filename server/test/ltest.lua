@@ -20,7 +20,7 @@ M.errors         = {}
 M.cardId         = 0
 
 --- 造一张只给用例用的牌（号是测试自己发的，用例不关心具体值）
----@param name? any
+---@param name string
 ---@return Card
 function M.card(name)
     M.cardId = M.cardId + 1

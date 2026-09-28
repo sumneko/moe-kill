@@ -28,56 +28,53 @@ function M:settle()
     end
 
     local name = self.card.name
-    ---@cast name string
     local phase = self.game:getUsePhase(self.user)
     if phase then
         phase:addUseCount(name, 1)
     end
 
-    local def = self.game:getCard(name)
-    ---@cast def CardDef
     local zone, index = self.user:findCard(self.card)
     ---@cast zone Zone
     ---@cast index integer
     zone:take(index)
     self.game:fire('卡牌-结算前', self)
-    for _, handler in ipairs(def:getHandlers('结算前')) do
-        handler(self)
-    end
-    for target in self.game.desk:actionOrder(self.targets) do
-        local effect = New 'CardEffect' (self.game, self, def, target)
-        effect:apply()
-    end
-    for _, handler in ipairs(def:getHandlers('结算后')) do
-        handler(self)
+    self.card:fireHandlers('使用', self)
+    if not self.card:getDef()?.skipsEffect then
+        for target in self.game.desk:actionOrder(self.targets) do
+            local effect = New 'CardEffect' (self.game, self.card, target, self)
+            effect:apply()
+        end
     end
     self.game:fire('卡牌-结算后', self)
 end
 
---- 这张牌对某个目标的一次生效
+--- 这张牌对某个目标的一次生效（使用期逐目标 / 判定阶段每张一次）
 ---@class CardEffect : Effect
+---@field card Card
+---@field target Player
+---@field useCard? UseCard # 这次生效属于哪一次用牌（判定阶段的那次没有）
+---@field user Player # 使用者（判定阶段的那次没有）
 local CardEffect = Class 'CardEffect'
 
 Extends('CardEffect', 'Effect')
 
 ---@param game Game
----@param useCard UseCard # 这次生效属于哪一次用牌
----@param def CardDef
+---@param card Card
 ---@param target Player
-function CardEffect:__init(game, useCard, def, target)
+---@param useCard? UseCard # 这次生效属于哪一次用牌（判定阶段的不给）
+function CardEffect:__init(game, card, target, useCard)
     self.kind    = 'cardEffect'
-    self.useCard = useCard
-    self.def     = def
-    self.user    = useCard.user
-    self.card    = useCard.card
+    self.card    = card
     self.target  = target
+    self.useCard = useCard
+    if useCard then
+        self.user = useCard.user
+    end
 end
 
 ---@async
 function CardEffect:settle()
-    for _, handler in ipairs(self.def:getHandlers('生效')) do
-        handler(self, self.useCard)
-    end
+    self.card:fireHandlers('生效', self, self.useCard)
 end
 
 ---@class UseCard.API

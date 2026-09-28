@@ -117,19 +117,6 @@ lt.test('校验：没给目标时只判「能不能用」，给了目标就连�
     lt.assertEquals('目标不合法 ⇒ 用不了', false, (run.game:canUse(run.user, card, { run.user })))
 end)
 
-lt.test('校验：牌没牌名 ⇒ 用不了', function ()
-    local guard <close> = useProbe()
-    local run = newGame(SIMPLE)
-    -- 局上造的牌必须给牌名，这里直接造一张没牌名的
-    local card = lt.card()
-    run.hand:put(card)
-
-    local ok, reason = run.game:canUse(run.user, card)
-
-    lt.assertEquals('用不了', false, ok)
-    lt.assertEquals('原因是「没有牌名」', '这张牌没有牌名，查不到内容定义', reason)
-end)
-
 lt.test('校验：没有内容定义 ⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)

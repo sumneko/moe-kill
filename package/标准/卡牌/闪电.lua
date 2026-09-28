@@ -32,10 +32,10 @@ local function hasSameName(player, name)
 end
 
 -- 往下家挪：从下家起找第一个合法目标（存活、判定区里没有闪电）并把自己移过去；找不到就送弃牌堆
----@param resolution 延时锦囊结算
-local function passToNext(resolution)
-    local card   = resolution.card
-    local player = resolution.player
+---@param cardEffect CardEffect
+local function passToNext(cardEffect)
+    local card   = cardEffect.card
+    local player = cardEffect.target
     for current in game.desk:actionOrder(nil, player) do
         if current ~= player and not hasSameName(current, card.name) then
             game:moveCard(card, current:getZone('判定'))
@@ -50,10 +50,11 @@ Card '闪电'
     : on('获取目标', function (plan)
         return { plan.user }
     end)
-    : on('判定结果', function (resolution)
-        if isHit(resolution.judge) then
-            game:damage(nil, resolution.player, 3)
+    : on('生效', function (cardEffect)
+        local judge = game:judge(cardEffect.target, cardEffect.card.name)
+        if isHit(judge) then
+            game:damage(nil, cardEffect.target, 3)
         else
-            passToNext(resolution)
+            passToNext(cardEffect)
         end
     end)

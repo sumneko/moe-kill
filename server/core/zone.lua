@@ -67,18 +67,8 @@ end
 --- 牌进来了：把它定义上的「进入区域」钩子各跑一次（牌没定义就什么都不做）
 ---@param card Card
 function M:notifyEnter(card)
-    local name = card.name
-    if type(name) ~= 'string' or name == '' then
-        return
-    end
-    local def = self.game:getCard(name)
-    if not def then
-        return
-    end
     local slot = self:slotOf(card)
-    for _, handler in ipairs(def:getHandlers('进入区域')) do
-        handler(card, self, slot)
-    end
+    card:fireHandlers('进入区域', card, self, slot)
 end
 
 --- 放一张牌进来（已经在别的牌区里的牌要用 `move`）

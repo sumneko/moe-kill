@@ -120,6 +120,81 @@ Card '测试杀'
     lt.assertEquals('每个目标的生效自己建区（不借用牌那块）', true, user:getTag('生效自己建区'))
 end)
 
+lt.test('使用：声明 skipEffect 的牌只跑「使用」段，不进「生效」段', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试延时'
+    : skipEffect()
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2) }
+    end)
+    : on('使用', function (useCard)
+        useCard.user:setTag('记录', (useCard.user:getTag('记录') or '') .. '使用;')
+    end)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('记录', (cardEffect.user:getTag('记录') or '') .. '生效;')
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试延时')
+    hand:put(card)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('只跑了「使用」段', '使用;', user:getTag('记录'))
+end)
+
+lt.test('使用：没声明 skipEffect 的牌两段都跑（不互斥）', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试两段'
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2) }
+    end)
+    : on('使用', function (useCard)
+        useCard.user:setTag('记录', (useCard.user:getTag('记录') or '') .. '使用;')
+    end)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('记录', (cardEffect.user:getTag('记录') or '') .. '生效;')
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试两段')
+    hand:put(card)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('两段都跑了', '使用;生效;', user:getTag('记录'))
+end)
+
+lt.test('使用：声明 skipEffect 的牌不进「效果-能否生效」窗口', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试延时'
+    : skipEffect()
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试延时')
+    hand:put(card)
+
+    local asked = false
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'cardEffect' then
+            asked = true
+        end
+    end)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('没有进过窗口', false, asked)
+end)
+
 lt.test('使用：自己的阶段里用一次就记一次账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
@@ -536,24 +611,20 @@ Card '测试杀'
     lt.assertEquals('从使用者的下家开始绕一圈', '234', user:getTag('顺序'))
 end)
 
-lt.test('使用：牌自己的「结算前」/「结算后」各跑一次，顺序对', function ()
+lt.test('使用：牌自己的「使用」钩子先跑，之后才逐个生效', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
     : on('获取目标', function (target)
         return game.desk.players
     end)
-    : on('结算前', function (useCard)
+    : on('使用', function (useCard)
         local order = useCard.user:getTag('顺序') or ''
-        useCard.user:setTag('顺序', order .. '结算前')
+        useCard.user:setTag('顺序', order .. '使用')
     end)
     : on('生效', function (cardEffect)
         local order = cardEffect.user:getTag('顺序') or ''
         cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
-    end)
-    : on('结算后', function (useCard)
-        local order = useCard.user:getTag('顺序') or ''
-        useCard.user:setTag('顺序', order .. '结算后')
     end)
 ]])
 
@@ -565,7 +636,7 @@ Card '测试杀'
 
     game:useCard(user, card, { players[2], players[3] })
 
-    lt.assertEquals('结算前 → 逐个生效 → 结算后', '结算前23结算后', user:getTag('顺序'))
+    lt.assertEquals('使用 → 逐个生效', '使用23', user:getTag('顺序'))
 end)
 
 lt.test('使用：起点是顺序锚点，不是使用者', function ()
@@ -753,16 +824,13 @@ Card '有目标牌'
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
 
-lt.test('使用：零目标也跑完两个时机与收尾', function ()
+lt.test('使用：零目标也跑完使用钩子与收尾', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
     : noTarget()
-    : on('结算前', function (useCard)
-        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '结算前')
-    end)
-    : on('结算后', function (useCard)
-        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '结算后')
+    : on('使用', function (useCard)
+        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用')
     end)
 ]])
 
@@ -777,7 +845,7 @@ Card '无目标牌'
 
     local useCard = game:useCard(user, card, {})
 
-    lt.assertEquals('牌自己的两个时机都跑了', '结算前结算后', user:getTag('顺序'))
+    lt.assertEquals('牌自己的使用钩子跑了', '使用', user:getTag('顺序'))
     lt.assertEquals('用牌级两个时机也跑了', '卡牌-结算前,卡牌-结算后', table.concat(events, ','))
     lt.assertEquals('这次用牌没有目标', 0, #useCard.targets)
     lt.assertEquals('牌离开手牌', 0, hand:count())

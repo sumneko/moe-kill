@@ -35,9 +35,8 @@ local function nullified(card)
     return false
 end
 
---- 三种「生效」都在这里问：锦囊对某个角色的生效、无懈对一张牌的生效（= 抵消另一张【无懈可击】产生的效果）、
---- 以及判定阶段结算延时锦囊的生效
----@param effect CardEffect|CardEffectToCard|延时锦囊结算
+--- 两种「生效」都在这里问：锦囊对某个角色的生效（含判定阶段结算延时锦囊）、无懈对一张牌的生效（= 抵消另一张【无懈可击】产生的效果）
+---@param effect CardEffect|CardEffectToCard
 ---@return string? # 要抵消就给原因（这次生效被阻止）
 local function nullify(effect)
     if canNullify(effect.card) and nullified(effect.card) then
@@ -47,9 +46,8 @@ end
 
 game:on('效果-能否生效', function (effect)
     if effect.kind == 'cardEffect'
-    or effect.kind == 'cardEffectToCard'
-    or effect.kind == '延时锦囊结算' then
-        ---@cast effect CardEffect|CardEffectToCard|延时锦囊结算
+    or effect.kind == 'cardEffectToCard' then
+        ---@cast effect CardEffect|CardEffectToCard
         return nullify(effect)
     end
 end)

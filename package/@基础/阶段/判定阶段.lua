@@ -16,8 +16,7 @@ local function resolveJudgeZone(player)
         if card:getZone() ~= zone then
             goto continue
         end
-        local resolution = New '延时锦囊结算' (game, player, card)
-        resolution:apply():await()
+        card:doEffect()
         -- 结完自己挪走了的（闪电判不中）就不弃
         if card:getZone() ~= zone then
             goto continue
