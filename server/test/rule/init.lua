@@ -351,6 +351,22 @@ lt.test('规则集：@tools 给内容侧的 table 加了四个助手', function 
     lt.assertEquals('内容侧直接用 table.filter / map / contains / without', '4', card('甲'):getHandlers('跑')[1]())
 end)
 
+lt.test('规则集：@tools 给内容侧一个 util.defer', function ()
+    local guard <close> = prepare()
+    write('a.lua', 'Card("甲"):on("跑", function ()\n'
+        .. '    local order = {}\n'
+        .. '    do\n'
+        .. '        local guard <close> = util.defer(function () order[#order+1] = "收尾" end)\n'
+        .. '        order[#order+1] = "先"\n'
+        .. '    end\n'
+        .. '    return table.concat(order, ",")\n'
+        .. 'end)')
+
+    loadWithContent(list('a'))
+
+    lt.assertEquals('作用域一结束就跑收尾', '先,收尾', card('甲'):getHandlers('跑')[1]())
+end)
+
 lt.test('规则集：内容侧的标准库是副本，改了不影响内核', function ()
     local guard <close> = prepare()
     write('a.lua', 'table.乱来 = function () return "内容侧的" end\n'

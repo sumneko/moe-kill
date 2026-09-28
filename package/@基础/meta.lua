@@ -16,8 +16,6 @@
 
 --- 判定是本包提供的时机（内核不再认识它们）：按名收窄 `on` / `fire` 的载荷
 ---@class Game
----@field on fun(self: Game, name: '判定-亮牌', callback: fun(judge: 判定): any): function
----@field fire fun(self: Game, name: '判定-亮牌', judge: 判定): any
 ---@field on fun(self: Game, name: '判定-前', callback: fun(judge: 判定): any): function
 ---@field fire fun(self: Game, name: '判定-前', judge: 判定): any # 改判窗口：只能在这里面换牌
 ---@field on fun(self: Game, name: '判定-后', callback: fun(judge: 判定): any): function

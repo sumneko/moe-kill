@@ -3,7 +3,7 @@
 -- 收尾由内核做（`Effect` 基类）：把临时区里剩下的牌送弃牌。
 
 ---@class 判定 : Effect
----@field card? Card # 判定牌（在「判定-亮牌」里放上）
+---@field card? Card # 判定牌（翻出来就放上）
 ---@field replaced Card[] # 被换下的判定牌（按换下的顺序；它们也在这次判定的临时区里）
 local Judge = Class('判定', 'Effect')
 
@@ -34,27 +34,22 @@ end
 --- 开改判窗口：只有窗口开着的时候才允许换牌
 local function fireReplaceWindow(judge)
     judge.replacing = true
-    local guard <close> = setmetatable({}, { __close = function ()
+    local guard <close> = util.defer(function ()
         judge.replacing = false
-    end })
+    end)
     judge.game:fire('判定-前', judge)
 end
 
---- 判定结算：亮牌 → 改判窗口 → 结束（翻牌与收牌都由本文件做）
+--- 判定结算：亮牌 → 改判窗口 → 结束
 ---@async
 function Judge:settle()
-    self.game:fire('判定-亮牌', self)
+    local cards = self.game:drawCards(self.player, 1, self:getTempZone())
+    if #cards > 0 then
+        self.card = cards[1]
+    end
     fireReplaceWindow(self)
     self.game:fire('判定-后', self)
 end
-
--- 翻牌：从抽牌堆顶翻一张，放进这次判定自己的临时处理区（不够时由牌区上挂的回调补 —— 洗回弃牌）
-game:on('判定-亮牌', function (judge)
-    local cards = game:drawCards(judge.player, 1, judge:getTempZone())
-    if #cards > 0 then
-        judge.card = cards[1]
-    end
-end)
 
 ---@class Game
 local Game = Class 'Game'

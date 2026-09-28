@@ -80,13 +80,11 @@ lt.test('判定：换牌只能在「判定-前」里做，账按换下的顺序�
     local first   = deck:peek(1)
     local second  = deck:peek(2)
     local third   = deck:peek(3)
-    local brightErr, afterErr
-
-    run.game:on('判定-亮牌', function (judge)
-        brightErr = lt.assertError('亮牌时换牌', function ()
-            judge:replace(second)
-        end)
+    local earlyErr, afterErr
+    earlyErr = lt.assertError('还没开窗口就换牌', function ()
+        New '判定' (run.game, run.players[1], '测试'):replace(second)
     end)
+
     run.game:on('判定-前', function (judge)
         judge:replace(second)
         judge:replace(third)
@@ -105,7 +103,7 @@ lt.test('判定：换牌只能在「判定-前」里做，账按换下的顺序�
     lt.assertEquals('换过两次', 2, #judge.replaced)
     lt.assertEquals('先被换下的是第一张', first, judge.replaced[1])
     lt.assertEquals('再被换下的是第二张', second, judge.replaced[2])
-    lt.assertEquals('亮牌时换不了', true, brightErr ~= nil)
+    lt.assertEquals('还没开窗口就换不了', true, earlyErr ~= nil)
     lt.assertEquals('结算后换不了', true, afterErr ~= nil)
     lt.assertEquals('不是失败', nil, judge.err)
 end)
