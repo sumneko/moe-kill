@@ -298,27 +298,32 @@ lt.test('规则集：拿不到内核门面，但能从 game 上建属性系统',
     lt.assertEquals('属性系统可用', 3, card('测'):getHandlers('跑')[1]())
 end)
 
-lt.test('规则集：拿到 Class 可以给内核类加方法，但拿不到 New / Extends 等类表工具', function ()
+lt.test('规则集：拿到 Class / New 能自定义一次结算，但拿不到 Extends / Delete / Type / Presize', function ()
     local guard <close> = prepare()
     write('a.lua', 'local M = Class("Player")\n'
         .. 'function M:probeMark() return "来自内容侧" end\n'
-        .. 'Card("甲")')
+        .. 'local Probe = Class("probeEffect", "Effect")\n'
+        .. 'function Probe:__init(game) self.kind = "probeEffect" end\n'
+        .. 'Card("测"):on("跑", function ()\n'
+        .. '    local probe = New "probeEffect" (game)\n'
+        .. '    return probe.kind .. "/" .. tostring(probe.tags ~= nil) .. "/" .. tostring(probe.game == game)\n'
+        .. 'end)')
 
     load(list('a'))
 
     local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
     ---@diagnostic disable-next-line: undefined-field
-    lt.assertEquals('类表拿到手、方法装上了', '来自内容侧', player:probeMark())
+    lt.assertEquals('给内核类加的方法装上了', '来自内容侧', player:probeMark())
 
-    write('b.lua', 'local x = New("Player")')
-    lt.assertError('拿不到 New', function ()
-        load(list('b'))
-    end)
+    lt.assertEquals('能声明 Effect 子类并造出实例（父子构造都跑过）',
+        'probeEffect/true/true', card('测'):getHandlers('跑')[1]())
 
-    write('c.lua', 'local x = Extends("Player", "Player")')
-    lt.assertError('拿不到 Extends', function ()
-        load(list('c'))
-    end)
+    for _, name in ipairs { 'Extends', 'Delete', 'Type', 'Presize' } do
+        write('b.lua', ('local x = %s("Player")'):format(name))
+        lt.assertError(('拿不到 %s'):format(name), function ()
+            load(list('b'))
+        end)
+    end
 end)
 
 ---@param items string[] # 工具包（`@tools`）在项目自己的 package 目录里，所以这两个用例要把它也当来源

@@ -752,21 +752,6 @@ function M:drawCards(player, count, to)
     return cards
 end
 
---- 让某个人判定
----@async
----@param player Player # 谁的判定
----@param reason? string # 为什么判（内容由发起方定）
----@return Judge # 这次判定（已经结完：结果读 `.card`，失败读 `.err`）
-function M:judge(player, reason)
-    local judge = moe.judge.create {
-        game   = self,
-        player = player,
-        reason = reason,
-    }
-    judge:apply():await()
-    return judge
-end
-
 ---@param def CardDef
 ---@param user Player
 ---@param card Card

@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-23 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **565 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **561 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -56,6 +56,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **效果成败读 `.success`（2026-09-24，用户定）**：`Effect` 多一个 `__getter` **`success`**（= `.err` 为空，**现算不缓存** —— 结算过程中它会变），于是「这次到底成没成立」不用各处手写 `err == nil`（写多了容易与 `err` 的语义脱钩：空 = 成立）。用在两处：`无懈可击.lua` 判「刚用出去的那张无懈到底底掉没有」（`if effect and effect.success`）、`Ask:settle()` 的收尾判据（`not self.success or self.reply == nil`）。内核用例加一条（成立 / 出错两种口径），并在「被阻止」那条里断言 `success == false`。**验收基线 552 → 553**。
 - **`AskPlayer`：要一名角色（2026-09-25，用户提的）**：`game:askPlayer(被问者, 缘由, 条件?)`（`AskPlayer : Effect`，`kind` = `askPlayer`；文件 `core/effect/ask-player.lua`）—— 与 `askCard` 同一套机制换了个「要的东西」：**条件**只有 `players?`（**候选名单，发起方算好**，放在 `ask.options`）、**答复就是名单里的一个**（不在 ⇒ `.err` = `'答复不在可选角色里'`、`ask.player` 不存在，与「没答上」同一个分支），不给条件 = 不做限制；走 **`'决策-询问'` / `'决策-答复'`**（与通用 `Ask` 同名，载荷是 `Ask|AskPlayer` ⇒ 订阅方按实际是哪个类收窄，`env-meta` 已改；**没有「答复后」**——它不处置任何东西）。**【借刀杀人】改用**（`game:askPlayer(user, '借刀杀人', { players = reachable(holder) }).player`）—— 内容侧那句 `if not table.contains(candidates, chosen)` 删掉：**「答复在不在候选里」由内核挡**（与 `AskCard` 同一条口径：协议 / AI 给的答复是外部输入）。用例：**新增内核套件 `core.effect.ask-player` 9 条**、`rule.trick` 里 5 条借刀杀人用例改读 `ask.options`（「答复不在候选里」那条改名点出「内核拒收」）。**验收基线 557 → 566**。
 - **包可以给内核类加方法 + 首个应用（2026-09-28，`allow-package-class-edit`）**：加载环境多注入一个 **`Class`**（与内核同一个 `class.declare`；**只开这一个口子** —— `New` / `Delete` / `Extends` / `Type` / `Presize` 都不给，用例断言够不着）；`@基础/距离.lua` 的**裸全局 `distance` 退役**，改成 `Player:distance`（`杀` / `借刀杀人` / `顺手牵羊` 三个调用点改成 `user:distance(target)`，`lowercase-global` 诊断随之消失）。写法（`---@class Player` + `local M = Class 'Player'`，**不用** `: Class.Base`）、无护栏的三条提醒、`Extends` 连带效应、三条 LuaDoc 实测结论都写进了 `architecture.md` §9.6。`env-meta.lua` **不用**为 `Class` 补声明（全局赋值已带 `---@generic T: string` 签名）。**验收基线 564 → 565**。
+- **内容侧可以自定义「一次结算」+ 判定整体搬出内核（2026-09-28，`move-judge-to-package`）**：加载环境多注入一个 **`New`**（与 `Class` 配对）⇒ 内容侧能 `Class('判定', 'Effect')` 声明 `Effect` 子类并 `New '判定' (参数…)` 造实例（**实例化是内核那套两步写法**；`New` 的第二个参数是「实例存储表」，别往里传东西）。判定（阶段顺序 + 改判窗口 + `replaced` 账 + `game:judge` 入口）整个搬进 `package/@基础/判定.lua`，内核那边删掉 `core/effect/judge.lua` / `moe.judge` / `game:judge` / `env-meta` 的三条时机声明 ⇒ **内核不再认识「判定」**；三个时机名不变、但改由内容侧 fire，类型收窄写在 `@基础/meta.lua`。**`kind` 也从 `'judge'` 变成 `'判定'`**（内容侧的效果种类）。验收基线 565 → **561**（删内核判定套件 5 条、`rule.judge` 补 1 条）。
 
 ## 2 下一步：待用户挑（**尚未开工**）
 
