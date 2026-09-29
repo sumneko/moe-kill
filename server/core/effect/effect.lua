@@ -19,6 +19,9 @@ M.deep = 1
 ---@type integer # 效果最多嵌套多少层（安全阀：实测再深一点进程会直接没，见 references/architecture.md 第 12 节）
 M.MAX_DEPTH = 150
 
+---@type integer # 一次结算最多挂多少个子结算（安全阀：与 MAX_DEPTH 一起兜住「收尾里起结算」这类自激）
+M.MAX_CHILDS = 1000
+
 ---@param game Game
 function M:__init(game)
     self.kind = 'effect'
@@ -68,16 +71,13 @@ function M:bindFinish()
     local task = assert(self.task, '效果还没有发动')
     local game = self.game
     local function finish()
+        game:fire('效果-收尾', self)
         local zone = self.tempZone
         if not zone then
             return
         end
-        game:fire('效果-收尾', self)
         -- 结算的默认收尾：内容侧没留走的牌进弃牌堆
-        local discard = game:getZone('弃牌')
-        for _, card in ipairs(zone:list()) do
-            discard:accept(card)
-        end
+        game:getZone('弃牌'):accept(zone:list())
     end
     task:onResolved(finish)
     task:onRejected(finish)
@@ -96,6 +96,19 @@ function M:fireVeto(owner, name)
     return reason
 end
 
+--- 这一层还住不下吗（嵌套太深 / 父挂的子结算太多）：返回不让它结算的原因
+---@private
+---@param parent Effect
+---@return string?
+function M:checkNesting(parent)
+    if parent.deep >= M.MAX_DEPTH then
+        return '效果嵌套超过 {} 层' % { M.MAX_DEPTH }
+    end
+    if #parent.childs >= M.MAX_CHILDS then
+        return '一次结算里挂的子结算超过 {} 个' % { M.MAX_CHILDS }
+    end
+end
+
 --- 驱动这次结算（要等外部输入时它会挂在那儿，回来时不一定结完）
 ---@return Effect # 它自己
 function M:apply()
@@ -111,18 +124,28 @@ function M:apply()
         self.task:cancel()
         return self
     end
+
+    ---@type Effect?
     local parent = moe.task.getCurrentTask()?.context.effect
     self.parent = parent
+    if parent then
+        self.deep = parent.deep + 1
+    end
     self.task = moe.task.create { effect = self }
+
+    -- 越限的那层不结算，也不绑收尾：否则「收尾里起结算」的写法会一层层涨到爆栈
+    local reason = parent and self:checkNesting(parent)
+    if reason then
+        log.warn('{}，这次生效没有结算' % { reason })
+        self.task:cancel()
+        return self
+    end
+
     self:bindFinish()
 
     self.task:execute(function ()
         if parent then
             parent:addChildEffect(self)
-            if self.deep > M.MAX_DEPTH then
-                log.warn('效果嵌套超过 {} 层，这次生效没有结算' % { M.MAX_DEPTH })
-                self.task:cancel()
-            end
         else
             self.game:addEffect(self)
         end
@@ -143,10 +166,10 @@ function M:apply()
     return self
 end
 
+--- 记一个子结算（只记账；进不了账的那层不会走到这里）
 ---@param effect Effect
 function M:addChildEffect(effect)
     self.childs[#self.childs+1] = effect
-    effect.deep = self.deep + 1
 end
 
 ---@param self Effect

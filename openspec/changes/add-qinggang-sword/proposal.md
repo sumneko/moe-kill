@@ -10,9 +10,11 @@
 
 - **改名**：`青紅剑.lua` → `青釭剑.lua`（文件名 / 牌定义 / 牌表 / 用例期望表 / 规则文档）。
 - **青釭剑效果**：「被动」里订阅 `'卡牌-结算前'` —— 自己（剑主）使用【杀】时，对**每个目标**：`addBuff('防具无效')` + `buff:attach(target:getZone('防具'):disable())`；buff 自己订阅「这个目标那次生效的收尾」与「这次使用的收尾」，到点删自己。
-- **效果收尾整理**（`server/core/effect/effect.lua`，本批逼出来的两件事）：
-  1. `bindFinish` 去掉「没建过临时区就不发 `'效果-收尾'`」的闸门 —— 青釭剑要按目标的**生效收尾**松手，而没人应答【闪】的那次生效根本没建过区，现在不会发收尾；
-  2. 默认收尾的弃牌改**批量**：`discard:accept(zone:list())` 一次收一批（不再逐张 `accept`）。
+- **效果收尾整理**（`server/core/effect/effect.lua`）—— **已提前单独落地（2026-09-29，用户定「先单独做」）**，本变更不再包含：
+  1. ~~`bindFinish` 去掉「没建过临时区就不发 `'效果-收尾'`」的闸门~~ ⇒ 已改成**每次结算结完都发一次**；
+  2. ~~默认收尾的弃牌改批量~~ ⇒ 已改成 `discard:accept(zone:list())` 一次收一批。
+
+  **代价（落地时实测）**：收尾因此变成**可重入**的（处理器里起的结算也会发收尾）⇒ 订阅方必须按载荷过滤、且别在收尾里起新结算（见 `architecture.md` §10）。本变更的青釭剑 buff 订阅要写全过滤条件。
 
 ## Capabilities
 
@@ -27,8 +29,8 @@
 ## Impact
 
 - 内容：`package/标准/卡牌/青釭剑.lua`（重命名 + 效果）、`package/标准/牌表.lua`（牌名）
-- 内核：`server/core/effect/effect.lua`（收尾闸门 + 批量弃牌）
-- 用例：`server/test/rule/equip.lua`（青釭剑一组 + 期望表改名）、`core.effect`（收尾语义用例更新）、`rule.trick` 可能受批量弃牌影响的地方
+- 内核：~~`server/core/effect/effect.lua`（收尾闸门 + 批量弃牌）~~ —— 已提前单独落地（2026-09-29）
+- 用例：`server/test/rule/equip.lua`（青釭剑一组 + 期望表改名）
 - 依赖：`rework-zone-disable` / `replace-slot-zone-with-equip-zones` / `add-buff-system`（先落地）
 - 文档：`sanguosha-rules`（§9.11 / 牌表）、`architecture.md`（收尾时机一条）、`progress.md`
 

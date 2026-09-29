@@ -171,6 +171,49 @@ lt.test('效果：嵌套太深的那一层以「取消」收尾，不算失败�
     lt.assertEquals('只记根，内层不单独记', 1, #game:getEffects())
 end)
 
+lt.test('效果：越限的那一层不发收尾（收尾里起结算也不会自激）', function ()
+    local game = newGame(1)
+    local finished = 0
+    game:on('效果-收尾', function (effect)
+        finished = finished + 1
+        if effect.parent then
+            return
+        end
+        New 'ProbeEffect' (game, nil):apply()
+    end)
+
+    local probe = New 'ProbeEffect' (game, nil)
+    probe.deep = 100000
+    probe:apply():await()
+
+    lt.assertEquals('下面那层被拒 ⇒ 没有第二次收尾', 1, finished)
+end)
+
+lt.test('效果：一个结算挂的子结算到上限就不再结算', function ()
+    local game = newGame(1)
+    local settled = 0
+    local outer = New 'ProbeEffect' (game, nil)
+    outer.settle = function ()
+        for _ = 1, 5000 do
+            local child = New 'ProbeEffect' (game, nil)
+            child.settle = function ()
+                settled = settled + 1
+            end
+            child:apply()
+            if child.err == moe.task.CANCELED then
+                return '撞上限了'
+            end
+        end
+        return '没撞上限'
+    end
+
+    outer:apply():await()
+
+    lt.assertEquals('父的账上记的等于结算过的', #outer.childs, settled)
+    lt.assertEquals('撞上限后不再结算', true, settled > 0 and settled < 5000)
+    lt.assertEquals('外层照常结完', '撞上限了', outer.result)
+end)
+
 lt.test('效果：结算期间是根，结束就清掉', function ()
     local game, players = newGame(2)
 
@@ -547,14 +590,16 @@ lt.test('效果：点名向外层借区，借到的就是外层那块', function
     lt.assertEquals('借到的就是外层那块', assert(outer.tempZone, '外层没建区'), inner.borrowed)
 end)
 
-lt.test('效果：没要过区的效果不发收尾', function ()
+lt.test('效果：没要过区的效果也发收尾', function ()
     local game = newGame(1)
     local finished = 0
     game:on('效果-收尾', function () finished = finished + 1 end)
 
-    New 'ProbeEffect' (game, nil):apply():await()
+    local probe = New 'ProbeEffect' (game, nil)
+    probe:apply():await()
 
-    lt.assertEquals('没要过区就不发收尾', 0, finished)
+    lt.assertEquals('没要过区也发一次', 1, finished)
+    lt.assertEquals('发的时候自己没区', nil, probe.tempZone)
 end)
 
 lt.test('效果：结完时收尾一次', function ()
@@ -642,6 +687,10 @@ lt.test('效果：内容侧在收尾里先搬走的牌，内核不再动它', fu
 
     local stash = lt.zone()
     game:on('效果-收尾', function (effect)
+        -- 订阅方要按载荷过滤：收尾里起的结算自己也会收尾，不筛就会自激
+        if effect ~= probe then
+            return
+        end
         game:moveCard(kept, stash)
     end)
 
