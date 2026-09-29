@@ -331,6 +331,8 @@ local function prepare(instance, list)
                     packageMeta.entries[#packageMeta.entries+1] = name
                 end
             end,
+            -- 状态的声明不参与预解析的条目校验：同包重名在真跑时由 declareBuff 报
+            Buff = function () end,
         }
 
         for name, value in pairs(probe) do
@@ -431,6 +433,7 @@ function moe.loader.install(game, options)
     ctx.injected = {
         game    = game,
         Card    = function (name) return game:declareCard(name) end,
+        Buff    = function (name) return game:declareBuff(name) end,
         Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
         Class   = Class,
         New     = New,

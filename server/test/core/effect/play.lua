@@ -890,6 +890,31 @@ Card '无目标牌'
     lt.assertEquals('收尾后落在弃牌堆', game:getZone('弃牌'), card:getZone())
 end)
 
+lt.test('使用：用牌时机在使用者头上也发一份，别人收不到', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('测试杀')
+    hand:accept(card)
+
+    local mine, his, global = 0, 0, 0
+    user:on('卡牌-结算前', function () mine = mine + 1 end)
+    target:on('卡牌-结算前', function () his = his + 1 end)
+    game:on('卡牌-结算前', function () global = global + 1 end)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('使用者收到一份', 1, mine)
+    lt.assertEquals('不是使用者就收不到', 0, his)
+    lt.assertEquals('全局那份照发', 1, global)
+end)
+
 lt.test('定义：数据袋读得回来，重复写以后写的为准', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[

@@ -320,6 +320,8 @@ end
 ---@field list string[] # 上一次用的加载清单
 ---@field private cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
 ---@field private packages string[] # 包的加载顺序（首次出现的顺序）
+---@field private buffs table<string, table<string, BuffDef>> # 状态表：包名 → 裸名 → 定义
+---@field private buffPackages string[] # 声明过状态的包（首次出现的顺序）
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
 ---@field private values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
@@ -361,6 +363,8 @@ end
 function M:resetContent()
     self.cards       = {}
     self.packages    = {}
+    self.buffs       = {}
+    self.buffPackages = {}
     self.meta        = {}
     self.values      = {}
     self.loadedFiles = {}
@@ -540,6 +544,61 @@ function M:getCard(name)
     for _, package in ipairs(self.packages) do
         local cards = self.cards[package]
         local found = cards and cards[entry]
+        if found then
+            return found
+        end
+    end
+    return nil
+end
+
+--- 声明一只状态（只能写在加载期加载的那个包里）
+---@param name string
+---@return BuffDef
+function M:declareBuff(name)
+    local ctx = self.loading
+    if not ctx then
+        error('规则定义只能在加载规则集时声明', 2)
+    end
+    local owner = ctx.package
+    if not owner then
+        error('规则定义只能写在包目录里的文件里', 2)
+    end
+    checkSimpleName(name, 2)
+    local buffs = self.buffs[owner]
+    if not buffs then
+        buffs = {}
+        self.buffs[owner] = buffs
+        self.buffPackages[#self.buffPackages + 1] = owner
+    end
+    local existing = buffs[name]
+    if existing then
+        error('同一个包里重复声明了 {}：{} 与 {}' % { name, existing.source, ctx.current }, 2)
+    end
+    local def = moe.buff.declare(name, owner, ctx.current)
+    buffs[name] = def
+    return def
+end
+
+---@param name string
+---@return BuffDef? # 按名字找内容定义
+function M:getBuff(name)
+    local owner, entry = splitName(name)
+    if owner then
+        local buffs = self.buffs[owner]
+        return buffs and buffs[entry] or nil
+    end
+    local ctx  = self.loading
+    local mine = ctx and ctx.package
+    if mine then
+        local buffs = self.buffs[mine]
+        local found = buffs and buffs[entry]
+        if found then
+            return found
+        end
+    end
+    for _, package in ipairs(self.buffPackages) do
+        local buffs = self.buffs[package]
+        local found = buffs and buffs[entry]
         if found then
             return found
         end

@@ -72,6 +72,7 @@ function M:bindFinish()
     local game = self.game
     local function finish()
         game:fire('效果-收尾', self)
+        self.to?:fire('效果-收尾', self)
         local zone = self.tempZone
         if not zone then
             return
@@ -218,7 +219,3 @@ end
 function M:settle()
     error('效果子类必须实现 settle', 2)
 end
-
-
-
-

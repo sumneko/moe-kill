@@ -44,6 +44,7 @@ function M:settle()
 
     self.game:moveCard(self.card, self:getTempZone())
     self.game:fire('卡牌-结算前', self)
+    self.user:fire('卡牌-结算前', self)
     self.card:fireHandlers('使用', self)
     if not self.card.def.skipsEffect then
         for target in self.game.desk:actionOrder(self.targets) do

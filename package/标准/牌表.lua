@@ -92,7 +92,7 @@ game:setValue('牌表', {
     { name = '闪电', suit = '红桃', point = 12 },
     { name = '诸葛连弩', suit = '梅花', point = 1 },
     { name = '诸葛连弩', suit = '方块', point = 1 },
-    { name = '青紅剑', suit = '黑桃', point = 6 },
+    { name = '青釭剑', suit = '黑桃', point = 6 },
     { name = '雌雄双股剑', suit = '黑桃', point = 2 },
     { name = '青龙偃月刀', suit = '黑桃', point = 5 },
     { name = '丈八蛇矛', suit = '黑桃', point = 12 },

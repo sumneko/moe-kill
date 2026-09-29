@@ -646,6 +646,27 @@ lt.test('效果：被阻止也收尾（牌不能留在已经死掉的效果里�
     lt.assertEquals('取消也要收尾', 1, finished)
 end)
 
+lt.test('效果：收尾在当事人头上也发一份，别人收不到', function ()
+    local game, players = newGame(2)
+    local target = players[1]
+    local other  = players[2]
+    local mine, his, global = 0, 0, 0
+    target:on('效果-收尾', function () mine = mine + 1 end)
+    other:on('效果-收尾', function () his = his + 1 end)
+    game:on('效果-收尾', function () global = global + 1 end)
+
+    local probe = New 'ProbeEffect' (game, nil)
+    probe.to = target
+    probe:apply():await()
+
+    lt.assertEquals('当事人收到一份', 1, mine)
+    lt.assertEquals('不是当事人就收不到', 0, his)
+    lt.assertEquals('全局那份照发', 1, global)
+
+    New 'ProbeEffect' (game, nil):apply():await()
+    lt.assertEquals('没有承受者时，不往谁头上发', 1, mine)
+end)
+
 lt.test('效果：内层效果先收尾，外层后收尾', function ()
     local game = newGame(1)
     ---@type string[]

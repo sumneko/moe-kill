@@ -7,6 +7,7 @@
 ---@field private attributes Attributes
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
+---@field private buffs Buff[] # 挂在他身上的状态（按获得顺序）
 ---@field private tags table<string, any>
 ---@field private events Event # 他自己的时机表（内容侧用 player:on / player:fire）
 ---@field private alive boolean
@@ -22,6 +23,7 @@ function M:__init(game, attributes, name)
     self.attributes = attributes
     self.zoneList   = {}
     self.zoneMap    = {}
+    self.buffs      = {}
     self.tags       = {}
     self.events     = moe.event.create()
     self.alive      = true
@@ -108,6 +110,51 @@ function M:getZones()
     local zones = {}
     table.move(self.zoneList, 1, #self.zoneList, 1, zones)
     return zones
+end
+
+--- 获得一只状态：挂上（同名可并存）→ 发「获得」 → 返回实例
+---@param name string
+---@param payload? any # 内容侧自己约定的一份载荷（内核只存不解释）
+---@return Buff
+function M:addBuff(name, payload)
+    local def = self.game:getBuff(name)
+    if not def then
+        error('没有叫「{}」的内容定义' % { name }, 2)
+    end
+    local buff = moe.buff.create(self.game, def, self, payload)
+    self.buffs[#self.buffs + 1] = buff
+    buff:fireHandlers('获得')
+    return buff
+end
+
+--- 摘掉一只状态（`Buff:__del` 里调；内容侧用 `buff:remove()`）
+---@param buff Buff
+function M:removeBuff(buff)
+    for i, item in ipairs(self.buffs) do
+        if item == buff then
+            table.remove(self.buffs, i)
+            return
+        end
+    end
+end
+
+---@return Buff[] # 挂在他身上的状态（快照，按获得顺序）
+function M:getBuffs()
+    ---@type Buff[]
+    local buffs = {}
+    table.move(self.buffs, 1, #self.buffs, 1, buffs)
+    return buffs
+end
+
+---@param name string
+---@return boolean # 有没有挂着一只叫这个名字的状态
+function M:hasBuff(name)
+    for _, buff in ipairs(self.buffs) do
+        if buff.name == name then
+            return true
+        end
+    end
+    return false
 end
 
 --- 这张牌在他哪个牌区里、第几位

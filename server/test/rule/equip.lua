@@ -252,7 +252,7 @@ lt.test('装备：牌表里 14 张装备都定义好了，各自进对了子区'
     local expected = {
         ['诸葛连弩']   = { zone = '武器', range = 1 },
         ['雌雄双股剑'] = { zone = '武器', range = 2 },
-        ['青紅剑']     = { zone = '武器', range = 2 },
+        ['青釭剑']     = { zone = '武器', range = 2 },
         ['青龙偃月刀'] = { zone = '武器', range = 3 },
         ['丈八蛇矛']   = { zone = '武器', range = 3 },
         ['贯石斧']     = { zone = '武器', range = 3 },
@@ -649,4 +649,124 @@ lt.test('诸葛连弩：出牌阶段中途装上立即生效', function ()
     local result = run.game:useCard(user, second, { foe })
     lt.assertEquals('装上就能接着出', true, result.success)
     lt.assertEquals('第二张也结算了', 3, foe:getAttr('体力'))
+end)
+
+lt.test('青釭剑：无视防具，使用结束之后恢复', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青釭剑')
+    equipCard(run, target, '仁王盾')
+
+    local hand = assert(user:getZone('手牌'))
+    local black = run.game:createCard('杀', '黑桃', 7)
+    hand:accept(black)
+    run.game:useCard(user, black, { target })
+
+    lt.assertEquals('防具被无视：黑杀照常造成伤害', 4, target:getAttr('体力'))
+
+    -- 恢复：换别人打一张黑杀，盾又生效了（这次使用收尾时窗口已经关掉）
+    local other = run.players[3]
+    local black2 = run.game:createCard('杀', '黑桃', 8)
+    assert(other:getZone('手牌')):accept(black2)
+    run.game:useCard(other, black2, { target })
+
+    lt.assertEquals('这次使用结束之后【仁王盾】恢复', 4, target:getAttr('体力'))
+end)
+
+lt.test('青釭剑：旁人用【杀】不被无视', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local other  = run.players[3]
+
+    equipCard(run, user, '青釭剑')
+    equipCard(run, target, '仁王盾')
+
+    local black = run.game:createCard('杀', '黑桃', 7)
+    assert(other:getZone('手牌')):accept(black)
+    run.game:useCard(other, black, { target })
+
+    lt.assertEquals('盾照常抵消', 5, target:getAttr('体力'))
+end)
+
+lt.test('青釭剑：窗口内剑被搬走，目标照样被无视（官方 §1 司马懿条）', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    local sword = equipCard(run, user, '青釭剑')
+    equipCard(run, target, '仁王盾')
+
+    local black = run.game:createCard('杀', '黑桃', 7)
+    assert(user:getZone('手牌')):accept(black)
+
+    -- 轮到目标结算时把剑搬走（模拟【反馈】/ 使用者死亡）：窗口不该跟着消失
+    local moved = false
+    run.game:on('效果-能否生效', function (effect)
+        if moved or effect.kind ~= 'cardEffect' then
+            return
+        end
+        moved = true
+        run.game:moveCard(sword, '弃牌')
+    end)
+
+    run.game:useCard(user, black, { target })
+
+    lt.assertEquals('剑已经进弃牌堆', assert(run.game:getZone('弃牌')), sword:getZone())
+    lt.assertEquals('窗口还在：【仁王盾】照样无效', 4, target:getAttr('体力'))
+end)
+
+lt.test('青釭剑：窗口内换防具，换上来的同样无效', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青釭剑')
+    local old = equipCard(run, target, '仁王盾')
+
+    local black = run.game:createCard('杀', '黑桃', 7)
+    assert(user:getZone('手牌')):accept(black)
+
+    -- 压完之后把目标的防具换新：新区就是那块被禁的区
+    local swapped = false
+    run.game:on('卡牌-结算前', function (useCard)
+        if swapped or useCard.card ~= black then
+            return
+        end
+        swapped = true
+        local fresh = run.game:createCard('仁王盾')
+        assert(target:getZone('手牌')):accept(fresh)
+        target:equipCard(fresh)
+    end)
+
+    run.game:useCard(user, black, { target })
+
+    lt.assertEquals('旧防具进弃牌堆', assert(run.game:getZone('弃牌')), old:getZone())
+    lt.assertEquals('新防具同样无效', 4, target:getAttr('体力'))
+end)
+
+lt.test('青釭剑：这次使用半路收场也不残留压制', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青釭剑')
+    equipCard(run, target, '仁王盾')
+
+    local black = run.game:createCard('杀', '黑桃', 7)
+    assert(user:getZone('手牌')):accept(black)
+
+    -- 压完之后当场收局：目标那一次生效根本没轮到
+    run.game:on('卡牌-结算前', function (useCard)
+        if useCard.card == black then
+            run.game:endGame { side = '平局', reason = '测试' }
+        end
+    end)
+
+    run.game:useCard(user, black, { target })
+
+    lt.assertEquals('没有残留状态', false, target:hasBuff('防具无效'))
+    lt.assertEquals('防具区恢复启用', true, assert(target:getZone('防具')):isEnabled())
 end)

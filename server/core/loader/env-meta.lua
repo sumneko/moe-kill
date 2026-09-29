@@ -10,6 +10,9 @@ game = nil
 ---@type fun(name: string): CardDef
 Card = nil
 
+---@type fun(name: string): BuffDef
+Buff = nil
+
 ---@type fun(items: string[])
 Depends = nil
 
@@ -39,6 +42,11 @@ rule = nil
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
 ---@field targets Card[] # 要对的那批牌
+
+--- 状态的时机是**固定**的：名字由内核约定、与启用的包无关（清单以本文件为准，不留 string 兜底）
+---@class BuffDef
+---@field on fun(self: BuffDef, event: '获得', handler: fun(buff: Buff)): BuffDef # 挂到某人身上之后跑一次（在这里挂资源 / 订阅：`buff:bindGC(...)`）
+---@field on fun(self: BuffDef, event: '失去', handler: fun(buff: Buff)): BuffDef # 失去时跑一次（资源已经挂在 bindGC 上，这里只在「真的需要知道」时才用）
 
 --- 目前没有事件参数：触发时给空表，环境对象从 game 取
 ---@class Game.Event.游戏开始
@@ -108,5 +116,9 @@ rule = nil
 ---@field fire fun(self: Player, name: '效果-来源-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Player, name: '效果-目标-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第三段：问目标）：返回非 nil 即阻止（返回值就是原因）
 ---@field fire fun(self: Player, name: '效果-目标-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
+---@field on fun(self: Player, name: '效果-收尾', callback: fun(effect: Effect): any): function # 冲自己来的效果结完时再发一份（全局那份之外、对当事人再发一份）
+---@field fire fun(self: Player, name: '效果-收尾', effect: Effect): any
+---@field on fun(self: Player, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function # 自己使用的牌开始结算时再发一份（全局那份之外、对使用者再发一份）
+---@field fire fun(self: Player, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Player, name: string, callback: fun(payload: any): any): function
 ---@field fire fun(self: Player, name: string, ...: any): any # 第一个回调明确给出的返回值（快速返回）
