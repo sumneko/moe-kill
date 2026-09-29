@@ -36,6 +36,18 @@ local function equipCard(run, player, name)
     return card
 end
 
+---@param run Test.RuleSupport
+---@param player Player
+---@param keep Card # 留着的那张
+local function clearHandExcept(run, player, keep)
+    local hand = assert(player:getZone('手牌'), '没有手牌区')
+    for _, card in ipairs(hand:list()) do
+        if card ~= keep then
+            run.game:moveCard(card, '弃牌')
+        end
+    end
+end
+
 lt.test('装备：游戏开始时给每个玩家的装备区设好四条槽位', function ()
     local run = support.start { count = 3, packages = { '标准' } }
 
@@ -278,4 +290,133 @@ lt.test('装备：离槽停用后放回，重新启用', function ()
 
     run.game:moveCardWithSlot(weapon, equip, '武器')
     lt.assertEquals('放回槽位：重新应用', 5, user:getAttr('攻击范围'))
+end)
+
+lt.test('方天画戟：最后手牌用【杀】可指定两名目标，违规的用不出去', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+
+    equipCard(run, user, '方天画戟')
+    local card = takeCard(run, user, '杀')
+    clearHandExcept(run, user, card)
+
+    local ok, _, legal, min, max = run.game:canUse(user, card, { first, second })
+    lt.assertEquals('两名目标成立', true, ok)
+    lt.assertEquals('区间带上修正（不超合法目标数）', '1,2', min .. ',' .. max)
+    lt.assertEquals('合法目标就是另外两名', 2, #assert(legal))
+
+    local over, overReason = run.game:canUse(user, card, { user, first, second })
+    lt.assertEquals('三名（超合法数）用不出去', false, over)
+    lt.assertEquals('上限就是合法目标数 2', '「标准.杀」至多指定 2 个目标', overReason)
+
+    local none, noneReason = run.game:canUse(user, card, {})
+    lt.assertEquals('不给目标用不出去', false, none)
+    lt.assertEquals('原因是要至少一个', '「标准.杀」至少要指定 1 个目标', noneReason)
+
+    local bad, badReason = run.game:canUse(user, card, { user, first })
+    lt.assertEquals('含自己用不出去', false, bad)
+    lt.assertEquals('原因点名这个角色', '「标准.杀」不能以这个角色为目标', badReason)
+end)
+
+lt.test('方天画戟：两名目标依次结算，一个目标的响应不影响另一个', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+
+    equipCard(run, user, '方天画戟')
+    local card = takeCard(run, user, '杀')
+    clearHandExcept(run, user, card)
+    local jink = takeCard(run, first, '闪')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.to == first then
+            ask:answer { card = jink }
+        end
+    end)
+
+    run.game:useCard(user, card, { first, second })
+
+    lt.assertEquals('先结算的目标打出了闪，不掉血', 5, first:getAttr('体力'))
+    lt.assertEquals('后结算的目标没闪，掉 1 点', 4, second:getAttr('体力'))
+end)
+
+lt.test('方天画戟：不是最后手牌就不放宽', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+
+    equipCard(run, user, '方天画戟')
+    local card = takeCard(run, user, '杀')
+    takeCard(run, user, '桃')   -- 手上还有别的
+
+    local ok, reason = run.game:canUse(user, card, { first, second })
+    lt.assertEquals('两名用不出去', false, ok)
+    lt.assertEquals('原因就是默认上限 1', '「标准.杀」至多指定 1 个目标', reason)
+    lt.assertEquals('一名照常能用', true, (run.game:canUse(user, card, { first })))
+end)
+
+lt.test('方天画戟：没装备就不放宽', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+
+    local card = takeCard(run, user, '杀')
+    clearHandExcept(run, user, card)
+
+    local ok, reason = run.game:canUse(user, card, { first, second })
+    lt.assertEquals('两名用不出去', false, ok)
+    lt.assertEquals('原因就是默认上限 1', '「标准.杀」至多指定 1 个目标', reason)
+end)
+
+lt.test('方天画戟：拆下后失效', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+
+    local weapon = equipCard(run, user, '方天画戟')
+    local card   = takeCard(run, user, '杀')
+    clearHandExcept(run, user, card)
+
+    lt.assertEquals('装着的时候两名能用', true, (run.game:canUse(user, card, { first, second })))
+
+    run.game:moveCard(weapon, '弃牌')
+    local ok, reason = run.game:canUse(user, card, { first, second })
+    lt.assertEquals('拆走后两名用不出去', false, ok)
+    lt.assertEquals('原因就是默认上限 1', '「标准.杀」至多指定 1 个目标', reason)
+end)
+
+lt.test('方天画戟：只放宽【杀】，别的牌照旧', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+
+    equipCard(run, user, '方天画戟')
+    local card = takeCard(run, user, '决斗')
+    clearHandExcept(run, user, card)
+
+    local ok, reason = run.game:canUse(user, card, { first, second })
+    lt.assertEquals('决斗两名用不出去', false, ok)
+    lt.assertEquals('原因就是默认上限 1', '「标准.决斗」至多指定 1 个目标', reason)
+end)
+
+lt.test('方天画戟：只认装备主用的【杀】', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local owner = run.players[1]
+    local user  = run.players[2]
+    local other = run.players[3]
+
+    equipCard(run, owner, '方天画戟')
+    local card = takeCard(run, user, '杀')
+    clearHandExcept(run, user, card)
+
+    local ok, reason = run.game:canUse(user, card, { owner, other })
+    lt.assertEquals('别人用杀不受影响，两名用不出去', false, ok)
+    lt.assertEquals('原因就是默认上限 1', '「标准.杀」至多指定 1 个目标', reason)
 end)
