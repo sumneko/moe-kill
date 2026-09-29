@@ -1,7 +1,7 @@
 ---@class Zone
 ---@field kind string
 ---@field protected cards Card[]
----@field private enabled boolean
+---@field private disabled integer # 被禁用的层数（0 = 启用）
 ---@field private visible boolean # 是否对所有人可见（默认可见；不可见时只有持有者看得见）
 ---@field owner? Player # 这个区属于谁（公共区没有归属者）
 ---@field game Game # 属于哪一局
@@ -29,11 +29,11 @@ end
 
 ---@param game Game # 属于哪一局
 function M:__init(game)
-    self.kind    = 'zone'
-    self.cards   = {}
-    self.enabled = true
-    self.visible = true
-    self.game    = game
+    self.kind     = 'zone'
+    self.cards    = {}
+    self.disabled = 0
+    self.visible  = true
+    self.game     = game
 end
 
 --- 这个区收不收这张牌（进不去的在这里说，槽位区在这里要求先占槽）
@@ -44,18 +44,24 @@ function M:canEnter(card)
     return true
 end
 
---- 牌进来了：跑它定义上的「进入区域」钩子
+--- 牌进来了：本区被禁用就先压它一层，再跑它定义上的「进入区域」钩子
 ---@param card Card
 ---@param slot? string # 进的是哪个槽位（只有槽位区有）
 function M:notifyEnter(card, slot)
+    if self.disabled > 0 then
+        card:disablePassive()
+    end
     card:fireHandlers('进入区域', card, self, slot)
 end
 
---- 牌离开了：跑它定义上的「离开区域」钩子（发的时候牌已经不在本区里）
+--- 牌离开了：先跑它定义上的「离开区域」钩子，再松开本区压的那一层（发的时候牌已经不在本区里）
 ---@param card Card
 ---@param slot? string # 离开的是哪个槽位（只有槽位区有）
 function M:notifyLeave(card, slot)
     card:fireHandlers('离开区域', card, self, slot)
+    if self.disabled > 0 then
+        card:enablePassive()
+    end
 end
 
 --- 把这张牌从本区的列表里摘下来（不发事件、不动它的归属 —— 搬牌的人自己管）
@@ -120,9 +126,6 @@ function M:accept(cards, slot)
     if slot then
         return false, '这个牌区不是槽位区'
     end
-    if not self.enabled then
-        return false, '这个牌区被禁用了'
-    end
     self:notifyMoved(self:takeIn(moe.util.toList(cards)))
     return true
 end
@@ -175,11 +178,8 @@ function M:list()
 end
 
 --- 清空整个牌区（每张牌都发一次「离开区域」）
----@return integer # 清掉几张（被禁用就是 0）
+---@return integer # 清掉几张
 function M:clear()
-    if not self.enabled then
-        return 0
-    end
     local cards = self:list()
     for i = 1, #cards do
         self:remove(cards[i])
@@ -187,30 +187,33 @@ function M:clear()
     return #cards
 end
 
--- TODO: 以后改成计数（多个禁用者各自加一 / 减一，减到 0 才恢复；现在的 boolean 只够一个人禁）
---- 禁用这个牌区（不能放进 / 取出 / 清空；重复禁用返回 false）
----@return boolean
+--- 禁用这个牌区：区里的牌不能用、被动被压制（可以叠多层，每个禁用者各占一层）
+---@return function # 撤销这一次禁用
 function M:disable()
-    if not self.enabled then
-        return false
+    self.disabled = self.disabled + 1
+    if self.disabled == 1 then
+        for _, card in ipairs(self:list()) do
+            card:disablePassive()
+        end
     end
-    self.enabled = false
-    return true
+    local undone = false
+    return function ()
+        if undone then
+            return
+        end
+        undone = true
+        self.disabled = self.disabled - 1
+        if self.disabled == 0 then
+            for _, card in ipairs(self:list()) do
+                card:enablePassive()
+            end
+        end
+    end
 end
 
---- 重新启用这个牌区（重复启用返回 false）
----@return boolean
-function M:enable()
-    if self.enabled then
-        return false
-    end
-    self.enabled = true
-    return true
-end
-
----@return boolean # 现在能不能放进 / 取出
+---@return boolean # 这个区现在是不是启用（没被禁用）
 function M:isEnabled()
-    return self.enabled
+    return self.disabled == 0
 end
 
 --- 记下这个区属于谁（玩家建区时用）

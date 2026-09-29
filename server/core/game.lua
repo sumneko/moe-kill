@@ -823,7 +823,7 @@ local function collectLegalTargets(def, user, card, targets)
     return legal
 end
 
---- 牌本身能不能用（两条入口共用）：在使用者身上 / 在声明的牌区 / 次数
+--- 牌本身能不能用（两条入口共用）：在使用者身上 / 所在区没被禁用 / 在声明的牌区 / 次数
 ---@param game Game
 ---@param user Player
 ---@param card Card
@@ -835,6 +835,9 @@ local function checkCardItself(game, user, card)
     local zone = user:findCard(card)
     if not zone then
         return nil, '使用者手上没有这张牌'
+    end
+    if not zone:isEnabled() then
+        return nil, '「{}」在的牌区被禁用了，用不了' % { name }
     end
     local useZone = def:getZone()
     if useZone and zone ~= user:getZone(useZone) then

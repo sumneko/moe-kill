@@ -40,17 +40,12 @@ end
 
 --- 就地洗牌
 ---@param random? Random # 省略时用创建时绑定的随机源
----@return boolean # 洗了没有（被禁用就是 false）
 function M:shuffle(random)
-    if not self:isEnabled() then
-        return false
-    end
     local source = random or self.random
     if not source then
         error('这个牌区没有绑定随机源，洗牌时要传一个', 2)
     end
     source:shuffle(self.cards)
-    return true
 end
 
 ---@class OrderedZone.API

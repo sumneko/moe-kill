@@ -1,6 +1,59 @@
+local fs = require 'bee.filesystem'
 local lt = require 'test.ltest'
 
 local DECK = { '甲', '乙', '丙', '丁', '戊', '己', '庚', '辛' }
+
+local probeDir = moe.env.ROOT_PATH / 'tmp' / 'zone-probe'
+
+local probeSource = [[
+Card '被动牌'
+    : on('被动', function (card, zone)
+        game:setValue('应用', (game:getValue('应用') or 0) + 1)
+        return function ()
+            game:setValue('撤销', (game:getValue('撤销') or 0) + 1)
+        end
+    end)
+Card '装备样'
+    : on('进入区域', function (card, zone, slot)
+        if slot then
+            card:enablePassive()
+        end
+    end)
+    : on('离开区域', function (card, zone, slot)
+        if slot then
+            card:disablePassive()
+        end
+    end)
+    : on('被动', function (card, zone)
+        game:setValue('装备样应用', (game:getValue('装备样应用') or 0) + 1)
+        return function ()
+            game:setValue('装备样撤销', (game:getValue('装备样撤销') or 0) + 1)
+        end
+    end)
+]]
+
+---@return unknown # 配 <close> 用
+local function useProbe()
+    fs.remove_all(probeDir)
+    fs.create_directories(probeDir)
+    return moe.util.defer(function ()
+        fs.remove_all(probeDir)
+    end)
+end
+
+---@return Game
+local function newProbeGame()
+    local file = probeDir / '探针' / '牌.lua'
+    fs.create_directories(file:parent_path())
+    local ok, err = moe.util.saveFile(file:string(), probeSource)
+    assert(ok, err)
+    return moe.game.create {
+        seats    = 2,
+        random   = moe.random.create(1),
+        sources  = { probeDir:string() .. '/*' },
+        packages = { '探针' },
+    }
+end
 
 ---@param zone Zone
 ---@param source string[]
@@ -83,23 +136,102 @@ lt.test('牌区：kind 只用来区分子类', function ()
     lt.assertEquals('有序子类的 kind', 'orderedZone', lt.orderedZone().kind)
 end)
 
-lt.test('牌区：禁用后不可放入清空，启用后恢复', function ()
+lt.test('牌区：禁用可以叠层，逐层撤销才恢复', function ()
     local zone = lt.zone()
-    fill(zone, { '甲' })
 
     lt.assertEquals('初始为启用', true, zone:isEnabled())
-    lt.assertEquals('禁用生效', true, zone:disable())
-    lt.assertEquals('重复禁用无副作用', false, zone:disable())
 
-    lt.assertEquals('禁用后放不进去', false, (zone:accept(lt.card('乙'))))
-    lt.assertEquals('禁用后清不掉', 0, zone:clear())
-    lt.assertEquals('禁用期间内容仍可读', '甲', zoneLabels(zone))
+    local first  = zone:disable()
+    local second = zone:disable()
+    lt.assertEquals('叠了两层：不是启用', false, zone:isEnabled())
 
-    lt.assertEquals('启用生效', true, zone:enable())
-    lt.assertEquals('重复启用无副作用', false, zone:enable())
+    first()
+    first()
+    lt.assertEquals('同一只撤销函数重复调只减一层', false, zone:isEnabled())
 
-    lt.assertEquals('启用后恢复放入', true, zone:accept(lt.card('乙')))
-    lt.assertEquals('确实放进去了', '甲,乙', zoneLabels(zone))
+    second()
+    lt.assertEquals('两层都撤掉才恢复', true, zone:isEnabled())
+end)
+
+lt.test('牌区：禁用不再拦搬入搬出与清空', function ()
+    local zone = lt.zone()
+    fill(zone, { '甲' })
+    zone:disable()
+
+    lt.assertEquals('照收', true, (zone:accept(lt.card('乙'))))
+    lt.assertEquals('收进来了', '甲,乙', zoneLabels(zone))
+    lt.assertEquals('照清', 2, zone:clear())
+    lt.assertEquals('清空了', 0, zone:count())
+end)
+
+lt.test('牌区：禁用压住区里的牌，恢复时重新应用', function ()
+    local guard <close> = useProbe()
+    local game  = newProbeGame()
+    local zone  = moe.zone.create(game)
+    local card  = game:createCard('被动牌')
+    zone:accept(card)
+
+    card:enablePassive()
+    lt.assertEquals('先启用：应用一次', 1, game:getValue('应用'))
+
+    local undo = zone:disable()
+    lt.assertEquals('禁用把牌上的被动压掉', 1, game:getValue('撤销'))
+
+    undo()
+    lt.assertEquals('恢复时重新应用', 2, game:getValue('应用'))
+end)
+
+lt.test('牌区：禁用期间进区的牌也被压住', function ()
+    local guard <close> = useProbe()
+    local game  = newProbeGame()
+    local zone  = moe.zone.create(game)
+    local undo  = zone:disable()
+    local card  = game:createCard('被动牌')
+
+    zone:accept(card)
+    card:enablePassive()
+    lt.assertEquals('压制层数没到 0：一次都没应用', nil, game:getValue('应用'))
+
+    undo()
+    lt.assertEquals('区恢复：应用一次', 1, game:getValue('应用'))
+end)
+
+lt.test('牌区：禁用期间装进来的牌不会被进区钩子松开', function ()
+    local guard <close> = useProbe()
+    local game  = newProbeGame()
+    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
+    local undo  = zone:disable()
+    local card  = game:createCard('装备样')
+
+    zone:accept(card, '武器')
+
+    lt.assertEquals('进区钩子松开了一层，区级那层还在：没应用过', nil, game:getValue('装备样应用'))
+    lt.assertEquals('也没有东西要撤', nil, game:getValue('装备样撤销'))
+
+    undo()
+    lt.assertEquals('区恢复：应用一次', 1, game:getValue('装备样应用'))
+end)
+
+lt.test('牌区：从禁用区拿走时不再重新应用，区级那层也摘掉', function ()
+    local guard <close> = useProbe()
+    local game  = newProbeGame()
+    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
+    local other = moe.zone.create(game)
+    local card  = game:createCard('装备样')
+    zone:accept(card, '武器')
+    lt.assertEquals('先装上：应用一次', 1, game:getValue('装备样应用'))
+
+    local undo = zone:disable()
+    other:accept(card)
+
+    lt.assertEquals('离区钩子先停用 ⇒ 没有重新应用', 1, game:getValue('装备样应用'))
+    lt.assertEquals('撤销只发生过禁用那一次', 1, game:getValue('装备样撤销'))
+
+    undo()
+    lt.assertEquals('区恢复时牌已不在里面：不动它', 1, game:getValue('装备样应用'))
+
+    zone:accept(card, '武器')
+    lt.assertEquals('区已恢复，再装回来又应用一次（说明区级那层确实已摘掉）', 2, game:getValue('装备样应用'))
 end)
 
 lt.test('有序牌区：相同随机源洗出相同顺序', function ()
@@ -198,13 +330,13 @@ lt.test('有序牌区：洗牌必须传入随机源', function ()
     lt.assertEquals('失败后顺序不变', table.concat(DECK, ','), zoneLabels(zone))
 end)
 
-lt.test('有序牌区：禁用后不能洗牌', function ()
+lt.test('有序牌区：禁用后照洗（禁用是逻辑状态，不拦搬运）', function ()
     local zone = lt.orderedZone()
     fill(zone, DECK)
     zone:disable()
 
-    lt.assertEquals('禁用后洗不了', false, zone:shuffle(moe.random.create(1)))
-    lt.assertEquals('顺序未变', table.concat(DECK, ','), zoneLabels(zone))
+    zone:shuffle(moe.random.create(20260919))
+    lt.assertEquals('洗得动', shuffledLabels(20260919), zoneLabels(zone))
 end)
 
 lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看得见', function ()
@@ -324,20 +456,19 @@ lt.test('槽位区：清空后槽位全空', function ()
         assert(game:getZone('弃牌')):count())
 end)
 
-lt.test('槽位区：弃牌堆被禁用时，换槽整次都不做', function ()
-    local game  = newGame()
-    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
-    local old   = lt.card('甲')
+lt.test('槽位区：弃牌堆被禁用也照换（禁用不拦搬入搬出）', function ()
+    local game = newGame()
+    local zone = moe.slotZone.create(game):setSlots({ '武器' })
+    local old  = lt.card('甲')
     putInSlot(zone, '武器', old)
 
-    assert(game:getZone('弃牌')):disable()
+    local discard = assert(game:getZone('弃牌'))
+    discard:disable()
 
     local new = lt.card('乙')
-    local ok, why = zone:accept(new, '武器')
-    lt.assertEquals('换不进去', false, ok)
-    lt.assertEquals('而且说出原因', '弃牌堆被禁用了，换下来的牌没地方去', why)
-    lt.assertEquals('旧牌还在槽里', old, zone:getSlot('武器'))
-    lt.assertEquals('新牌没有归属', nil, new:getZone())
+    lt.assertEquals('换得进去', true, (zone:accept(new, '武器')))
+    lt.assertEquals('槽里换成新的', new, zone:getSlot('武器'))
+    lt.assertEquals('旧的照旧进弃牌堆', old, discard:list()[1])
 end)
 
 lt.test('槽位区：未声明的槽位名 —— 收不下、读也给「没有」', function ()

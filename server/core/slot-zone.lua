@@ -90,17 +90,11 @@ function M:accept(cards, slot)
     if #list > 1 then
         return false, '一个槽位只能收一张牌'
     end
-    if not self:isEnabled() then
-        return false, '这个牌区被禁用了'
-    end
     if not self:checkSlot(slot) then
         return false, '这个牌区没有「{}」这个槽位' % { slot }
     end
     local old     = self:getSlot(slot)
     local discard = self.game:getZone('弃牌')
-    if old and old ~= list[1] and not discard:isEnabled() then
-        return false, '弃牌堆被禁用了，换下来的牌没地方去'
-    end
     ---@type Zone.Move[]
     local moves = {}
     if old and old ~= list[1] then

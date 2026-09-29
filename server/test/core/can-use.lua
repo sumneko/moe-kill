@@ -164,6 +164,24 @@ lt.test('校验：牌不在使用者手上 ⇒ 用不了', function ()
     lt.assertEquals('原因是「手上没有」', '使用者手上没有这张牌', reason)
 end)
 
+lt.test('校验：牌所在的区被禁用 ⇒ 用不了', function ()
+    local guard <close> = useProbe()
+    local run = newGame(SIMPLE)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    lt.assertEquals('没禁用时能用', true, (run.game:canUse(run.user, card, run.target)))
+
+    local undo = run.hand:disable()
+
+    local ok, reason = run.game:canUse(run.user, card, run.target)
+    lt.assertEquals('禁用后用不了', false, ok)
+    lt.assertEquals('原因是「所在区被禁用」', '「测试杀」在的牌区被禁用了，用不了', reason)
+
+    undo()
+    lt.assertEquals('恢复后又能用', true, (run.game:canUse(run.user, card, run.target)))
+end)
+
 lt.test('校验：没声明「获取目标」⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame("Card '测试杀'")
