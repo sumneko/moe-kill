@@ -860,7 +860,7 @@ function M:canUse(user, card, target)
     local targets = target and moe.util.toList(target)
 
     -- 目标：给了目标才判个数与归属；「最少 0、最多 0」就是不指定目标
-    local min, max = card:getTargetCount(user, targets)
+    local min, max = card:getTargetCount(user)
     ---@type Player[]? # 能用时的合法目标（无目标牌没有）
     local legal = nil
     if min == 0 and max == 0 then
