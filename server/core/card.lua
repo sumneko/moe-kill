@@ -113,6 +113,23 @@ function M:getValue(name)
     return self.def:getValue(name)
 end
 
+--- 这次使用最少 / 最多几个目标（声明值 + 「卡牌-目标数修正」；「0、0」恒为「0、0」）
+---@param user Player # 谁在用
+---@param targets? Player[] # 已经定了的目标（不给就不收集修正）
+---@return integer # 最少几个
+---@return integer # 最多几个
+function M:getTargetCount(user, targets)
+    local min, max = self.def:getTargetCount()
+    if max == 0 or not targets then
+        return min, max
+    end
+    local extra = 0
+    for _, delta in ipairs(self.game:collect('卡牌-目标数修正', { user = user, card = self, targets = targets })) do
+        extra = extra + delta
+    end
+    return min, max + extra
+end
+
 ---@type string
 M.fullName = nil
 

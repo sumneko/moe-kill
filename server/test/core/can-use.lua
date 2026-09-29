@@ -414,6 +414,8 @@ Card '无目标牌'
     lt.assertEquals('不传目标能用（也不用声明「获取目标」）', true, (run.game:canUse(run.user, card)))
     lt.assertEquals('传空表也能用（调用方习惯给空表）', true, (run.game:canUse(run.user, card, {})))
     lt.assertEquals('也不给出合法目标', nil, (select(3, run.game:canUse(run.user, card))))
+    local _, _, _, min, max = run.game:canUse(run.user, card)
+    lt.assertEquals('数量区间是 0、0', '0,0', min .. ',' .. max)
 
     local ok, reason = run.game:canUse(run.user, card, { run.target })
     lt.assertEquals('给目标反而不行', false, ok)
@@ -479,4 +481,28 @@ lt.test('校验：多个来源的目标数修正叠加', function ()
 
     lt.assertEquals('两个 +1 叠成 +2：两名能用', true,
         (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
+end)
+
+lt.test('校验：结果连同数量区间一起给出（在合法目标里选最少到最多个）', function ()
+    local guard <close> = useProbe()
+    local run = newGame(ALL, 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    local asked = 0
+    run.game:on('卡牌-目标数修正', function ()
+        asked = asked + 1
+        return 1
+    end)
+
+    local ok, _, legal, min, max = run.game:canUse(run.user, card, { run.players[2] })
+    lt.assertEquals('能用', true, ok)
+    lt.assertEquals('合法目标照给', run.players[2], assert(legal)[1])
+    lt.assertEquals('最少几个不变', 1, min)
+    lt.assertEquals('最多几个带上修正', 2, max)
+
+    local ok2, _, _, min2, max2 = run.game:canUse(run.user, card)
+    lt.assertEquals('没给目标也能用', true, ok2)
+    lt.assertEquals('区间退回声明值（也没问修正）', '1,1', min2 .. ',' .. max2)
+    lt.assertEquals('全程只问了一次修正', 1, asked)
 end)

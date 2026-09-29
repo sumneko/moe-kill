@@ -848,6 +848,8 @@ end
 ---@return boolean # 能这样用吗
 ---@return any # 不能的原因
 ---@return Player[]? # 能用时的合法目标（无目标牌没有）
+---@return integer? # 最少几个（没给目标时是声明值）
+---@return integer? # 最多几个（给了目标是修正值、且不超合法目标数；没给是声明值）
 function M:canUse(user, card, target)
     local def, problem = checkCardItself(self, user, card)
     if not def then
@@ -858,10 +860,10 @@ function M:canUse(user, card, target)
     local targets = target and moe.util.toList(target)
 
     -- 目标：给了目标才判个数与归属；「最少 0、最多 0」就是不指定目标
-    local min, max = def:getTargetCount()
+    local min, max = card:getTargetCount(user, targets)
     ---@type Player[]? # 能用时的合法目标（无目标牌没有）
     local legal = nil
-    if max == 0 then
+    if min == 0 and max == 0 then
         if targets and #targets > 0 then
             return false, '「{}」不需要指定目标' % { def.fullName }
         end
@@ -875,13 +877,9 @@ function M:canUse(user, card, target)
             if #targets < min then
                 return false, '「{}」至少要指定 {} 个目标' % { def.fullName, min }
             end
-            local extra = 0
-            for _, delta in ipairs(self:collect('卡牌-目标数修正', { user = user, card = card, targets = targets })) do
-                extra = extra + delta
-            end
-            local cap = math.min(max + extra, #legal)
-            if #targets > cap then
-                return false, '「{}」至多指定 {} 个目标' % { def.fullName, cap }
+            max = math.min(max, #legal)
+            if #targets > max then
+                return false, '「{}」至多指定 {} 个目标' % { def.fullName, max }
             end
             ---@type Player[]
             local wanted = {}
@@ -907,7 +905,7 @@ function M:canUse(user, card, target)
         end
         return false, refusal
     end
-    return true, nil, legal
+    return true, nil, legal, min, max
 end
 
 --- 这张牌此刻能不能「对一张牌使用」（合法性由「获取卡牌目标」给出；目标牌由发起方给定）

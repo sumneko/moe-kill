@@ -95,6 +95,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **小重构：收集式跑牌钩子提炼成 `CardDef:collect`（2026-09-29，用户提的）**：`collectLegalTargets`（『获取目标』）与 `canUseToCard`（『获取卡牌目标』）原本各自手写「遍历 handlers + 校验返回值」，`Card:applyPassive()`（『被动』）也手写「收非空撤销函数」—— 三处统一成 **`CardDef:collect(event, ...)`**（跑全部回调、收非空返回值、按注册顺序；与局时机的 `collect` 同形）+ 一个共用局部函数 `collectLists`（每个声明**必须**给出列表：收上来的数量对不上或不是列表 ⇒ 报原来的「必须返回合法目标列表」）。**行为等价**（`collect` 只收非空 ⇒ 数量对不上正是原来的 nil 检测）。用例：`core.card-def` 加 `collect` 一条。**验收基线 606 → 607**。
 
+- **重构：目标数量的读法收口到 `Card:getTargetCount`（2026-09-29，用户提的）**：修正不再散在 `canUse` 里手写收集 —— 新增 **`Card:getTargetCount(user, targets?)`**（声明值 + Σ「卡牌-目标数修正」；没给 targets 不收集、「0、0」恒为「0、0」），`canUse` 只读它判「最少 / 至多」并**把区间一起返回**（`true, nil, legal, min, max` —— 「在 #legal 个里选 [min, max] 个」的语义，`useCard` / 将来的协议层直接取用）。**行为等价**（含 (0,0) 与「修正到 0」两条路径）。用例：`core.can-use` 加「结果连同数量区间」一条、(0,0) 用例补区间断言。**验收基线 607 → 608**。
+
 ## 2 下一步：待用户挑（**尚未开工**）
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
