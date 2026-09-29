@@ -521,3 +521,60 @@ lt.test('仁王盾：拆下后黑杀恢复', function ()
     run.game:useCard(user, second, { target })
     lt.assertEquals('拆走后黑杀照常掉血', 4, target:getAttr('体力'))
 end)
+
+lt.test('诸葛连弩：出牌阶段能连出两张【杀】', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+
+    equipCard(run, user, '诸葛连弩')
+    local first  = takeCard(run, user, '杀')
+    local second = takeCard(run, user, '杀')
+
+    local phase <close> = run.game:enterPhase(user, '出牌')
+
+    run.game:useCard(user, first, { foe })
+    lt.assertEquals('第一张照常结算', 4, foe:getAttr('体力'))
+
+    local result = run.game:useCard(user, second, { foe })
+    lt.assertEquals('第二张也放行（没有被次数拦住）', true, result.success)
+    lt.assertEquals('第二张也结算了', 3, foe:getAttr('体力'))
+end)
+
+lt.test('诸葛连弩：只帮装备主，不帮别人', function ()
+    local run = support.start { count = 3, packages = { '标准' } }
+    local a   = run.players[1]
+    local b   = run.players[2]
+    local foe = run.players[3]
+
+    equipCard(run, a, '诸葛连弩')
+
+    local first  = takeCard(run, b, '杀')
+    local second = takeCard(run, b, '杀')
+
+    local phase <close> = run.game:enterPhase(b, '出牌')
+
+    run.game:useCard(b, first, { foe })
+    local result = run.game:useCard(b, second, { foe })
+
+    lt.assertEquals('B 没装连弩：第二张被拒', '本阶段已经用过「杀」了', result.err)
+    lt.assertEquals('目标只掉一次血', 4, foe:getAttr('体力'))
+end)
+
+lt.test('诸葛连弩：拆下后限制立即回来', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+
+    local crossbow = equipCard(run, user, '诸葛连弩')
+    local first    = takeCard(run, user, '杀')
+    local second   = takeCard(run, user, '杀')
+
+    local phase <close> = run.game:enterPhase(user, '出牌')
+
+    run.game:useCard(user, first, { foe })
+    run.game:moveCard(crossbow, '弃牌')
+
+    local result = run.game:useCard(user, second, { foe })
+    lt.assertEquals('拆掉连弩，第二张就出不了', '本阶段已经用过「杀」了', result.err)
+end)

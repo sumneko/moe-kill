@@ -54,6 +54,11 @@ Depends = nil
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
 
+--- 这次使用次数上限的修正：每个订阅者返回一个整数增量（可正可负；没有贡献就不返回）
+---@class Game.Event.卡牌次数修正
+---@field user Player # 使用者
+---@field card Card # 要用的牌
+
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function
 ---@field fire fun(self: Game, name: '游戏-开始', event: Game.Event.游戏开始): any
@@ -70,6 +75,7 @@ Depends = nil
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
 ---@field on fun(self: Game, name: '卡牌-目标数修正', callback: fun(check: Game.Event.卡牌目标数修正): (integer?)): function
+---@field on fun(self: Game, name: '卡牌-次数修正', callback: fun(check: Game.Event.卡牌次数修正): (integer?)): function
 ---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function
