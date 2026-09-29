@@ -128,7 +128,7 @@ function M:apply()
         end
         local refusal = self:fireVeto(self.game, '效果-能否生效')
                      or self:fireVeto(self.from, '效果-来源-能否生效')
-                     or self:fireVeto(self.to, '效果-目标-能否生效')
+                     or self:fireVeto(self.to,   '效果-目标-能否生效')
         if refusal ~= nil then
             -- 有订阅者给了原因 ⇒ 这一次生效被阻止：不结算、没有结果、不算失败
             self:reject(refusal)

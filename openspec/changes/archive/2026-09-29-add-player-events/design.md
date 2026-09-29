@@ -20,13 +20,13 @@
 ```lua
 local refusal = self:fireVeto(self.game, '效果-能否生效')
              or self:fireVeto(self.from, '效果-来源-能否生效')
-             or self:fireVeto(self.to, '效果-目标-能否生效')
+             or self:fireVeto(self.to,   '效果-目标-能否生效')
 ```
 
 - `fireVeto(owner, name)` 是 Effect 的私有小函数：`owner?:fire(name, self)`（可选链：没有来源 / 没有目标就跳过），并把 `false` 归一成「这次生效被阻止」。名字与 `fire` 同族（评审时先叫 `ask` / `askVeto`，用户定了 `fireVeto`）。
 - **为什么归一化必须提前**：`or` 按 **truthy** 短路，而约定是「返回**非 nil** 即阻止」—— `false` 是合法应答，若留到链尾统一归一，`false or 下一段` 会把它当成「没拦」继续问（甚至最后把拦截丢掉）。
 - 顺序与短路由 `or` 的求值顺序天然表达（全局 → 来源 → 目标；谁先给原因就停）。
-- 对齐：`or` 悬挂、让三行的 `self:fireVeto(...)` 竖直一条线（首版落成「`or` 顶格」，用户评审时纠回悬挂）；可选链按 `code-style.md` §12（`server/tools/` 之外可用）。
+- 对齐：`or` 悬挂、三行竖直对齐，**参数列也补齐**（短的 `self.to,` 后用空格垫到与前两行同列）—— 首版落成「`or` 顶格」、二版「悬挂但参数没对齐」，用户评审两次纠形（2026-09-29），规则已补进 `code-style.md` §1；可选链按 §12（`server/tools/` 之外可用）。
 
 ## D4. `Effect.from` / `Effect.to` 的读法
 
