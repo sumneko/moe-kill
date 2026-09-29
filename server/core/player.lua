@@ -8,6 +8,7 @@
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
 ---@field private tags table<string, any>
+---@field private events Event # 他自己的时机表（内容侧用 player:on / player:fire）
 ---@field private alive boolean
 ---@field game Game # 属于哪一局（牌区顺着归属者找到局）
 local M = Class 'Player'
@@ -22,6 +23,7 @@ function M:__init(game, attributes, name)
     self.zoneList   = {}
     self.zoneMap    = {}
     self.tags       = {}
+    self.events     = moe.event.create()
     self.alive      = true
     self:addZone('手牌')
     self:addZone('装备', moe.slotZone.create(self.game))
@@ -143,6 +145,42 @@ end
 ---@param key string
 function M:removeTag(key)
     self.tags[key] = nil
+end
+
+--- 订阅一个时机
+---@param name string
+---@param callback fun(context: table): any
+---@return function # 撤销这次注册
+function M:on(name, callback)
+    if type(name) ~= 'string' or name == '' then
+        error('时机名必须是非空字符串', 2)
+    end
+    if type(callback) ~= 'function' then
+        error('时机回调必须是函数', 2)
+    end
+    return self.events:on(name, callback)
+end
+
+--- 触发一个时机
+---@param name string
+---@param ... any
+---@return any # 第一个回调明确给出的返回值（快速返回）；没人给就是空
+function M:fire(name, ...)
+    if type(name) ~= 'string' or name == '' then
+        error('时机名必须是非空字符串', 2)
+    end
+    return self.events:fire(name, ...)
+end
+
+--- 触发一个时机并收集所有回调的返回值（修正链类用它；是非问 / 通知用 fire）
+---@param name string
+---@param ... any
+---@return any[] # 每个回调的第一个返回值（没有 / 报错的不收）
+function M:collect(name, ...)
+    if type(name) ~= 'string' or name == '' then
+        error('时机名必须是非空字符串', 2)
+    end
+    return self.events:collect(name, ...)
 end
 
 ---@type boolean

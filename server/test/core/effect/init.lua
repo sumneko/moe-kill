@@ -650,3 +650,125 @@ lt.test('效果：内容侧在收尾里先搬走的牌，内核不再动它', fu
     lt.assertEquals('被搬走的落在内容侧给的地方', stash, kept:getZone())
     lt.assertEquals('没被搬走的进弃牌堆', discard, left:getZone())
 end)
+
+lt.test('效果：三段式按 全局 → 来源 → 目标 依次问', function ()
+    local game, players = newGame(2)
+    ---@type string[]
+    local trace = {}
+
+    game:on('效果-能否生效', function () trace[#trace + 1] = '全局' end)
+    players[1]:on('效果-来源-能否生效', function () trace[#trace + 1] = '来源' end)
+    players[2]:on('效果-目标-能否生效', function () trace[#trace + 1] = '目标' end)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('三段都问到、按序', '全局,来源,目标', table.concat(trace, ','))
+    lt.assertEquals('没人拦 ⇒ 照常结算', 3, players[2]:getAttr('体力'))
+end)
+
+lt.test('效果：全局拦下后不再问来源与目标', function ()
+    local game, players = newGame(2)
+    ---@type string[]
+    local trace = {}
+
+    game:on('效果-能否生效', function ()
+        trace[#trace + 1] = '全局'
+        return '全局拦下'
+    end)
+    players[1]:on('效果-来源-能否生效', function () trace[#trace + 1] = '来源' end)
+    players[2]:on('效果-目标-能否生效', function () trace[#trace + 1] = '目标' end)
+
+    local damage = game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('到全局为止', '全局', table.concat(trace, ','))
+    lt.assertEquals('原因就是那一句', '全局拦下', damage.err)
+    lt.assertEquals('没有掉血', 4, players[2]:getAttr('体力'))
+end)
+
+lt.test('效果：来源拦下后不再问目标', function ()
+    local game, players = newGame(2)
+    ---@type string[]
+    local trace = {}
+
+    game:on('效果-能否生效', function () trace[#trace + 1] = '全局' end)
+    players[1]:on('效果-来源-能否生效', function ()
+        trace[#trace + 1] = '来源'
+        return '来源不让'
+    end)
+    players[2]:on('效果-目标-能否生效', function () trace[#trace + 1] = '目标' end)
+
+    local damage = game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('到来源为止', '全局,来源', table.concat(trace, ','))
+    lt.assertEquals('原因', '来源不让', damage.err)
+    lt.assertEquals('没有掉血', 4, players[2]:getAttr('体力'))
+end)
+
+lt.test('效果：目标段只问承受者，不相干的玩家不被唤醒', function ()
+    local game, players = newGame(3)
+    ---@type integer
+    local bothered = 0
+
+    players[3]:on('效果-目标-能否生效', function () bothered = bothered + 1 end)
+    players[2]:on('效果-目标-能否生效', function () return '目标不让' end)
+
+    local damage = game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('不相干的玩家一次都没被问', 0, bothered)
+    lt.assertEquals('拦下了', '目标不让', damage.err)
+    lt.assertEquals('没有掉血', 4, players[2]:getAttr('体力'))
+end)
+
+lt.test('效果：目标段只给 false ⇒ 照样拦下（不被 or 链跳过）', function ()
+    local game, players = newGame(2)
+    players[2]:on('效果-目标-能否生效', function () return false end)
+
+    local damage = game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('归一成通用原因', '这次生效被阻止', damage.err)
+    lt.assertEquals('没有掉血', 4, players[2]:getAttr('体力'))
+end)
+
+lt.test('效果：没有来源就跳过来源段', function ()
+    local game, players = newGame(2)
+    ---@type string[]
+    local trace = {}
+
+    game:on('效果-能否生效', function () trace[#trace + 1] = '全局' end)
+    players[2]:on('效果-来源-能否生效', function () trace[#trace + 1] = '来源（不该被问）' end)
+    players[2]:on('效果-目标-能否生效', function () trace[#trace + 1] = '目标' end)
+
+    game:damage(nil, players[2], 1)
+
+    lt.assertEquals('无来源伤害：只问全局与目标', '全局,目标', table.concat(trace, ','))
+end)
+
+lt.test('效果：与玩家无关的效果只问全局段', function ()
+    local game, players = newGame(2)
+    ---@type string[]
+    local trace = {}
+
+    game:on('效果-能否生效', function (effect) trace[#trace + 1] = effect.kind end)
+    players[1]:on('效果-来源-能否生效', function () trace[#trace + 1] = '来源' end)
+    players[2]:on('效果-目标-能否生效', function () trace[#trace + 1] = '目标' end)
+
+    New 'ProbeEffect' (game, '结果'):apply()
+
+    lt.assertEquals('没有来源也没有目标的两段', 'probe', table.concat(trace, ','))
+end)
+
+lt.test('效果：用牌与生效的 from / to 指对人', function ()
+    local game, players = newGame(2)
+    local card    = game:createCard('杀')
+    local useCard = New 'UseCard' (game, players[1], card, { players[2] })
+
+    lt.assertEquals('用牌的 from 是使用者', players[1], useCard.from)
+
+    local effect = New 'CardEffect' (game, card, players[2], useCard)
+    lt.assertEquals('生效的 from 是使用者', players[1], effect.from)
+    lt.assertEquals('生效的 to 是承受者', players[2], effect.to)
+
+    local judged = New 'CardEffect' (game, card, players[2])
+    lt.assertEquals('判定阶段形态没有 from', nil, judged.from)
+    lt.assertEquals('判定阶段 to 照旧指判定者', players[2], judged.to)
+end)

@@ -57,7 +57,7 @@ Depends = nil
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function
 ---@field fire fun(self: Game, name: '游戏-开始', event: Game.Event.游戏开始): any
----@field on fun(self: Game, name: '效果-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效：返回非 nil 即阻止（返回值就是原因）
+---@field on fun(self: Game, name: '效果-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第一段：问全局）：返回非 nil 即阻止（返回值就是原因）
 ---@field fire fun(self: Game, name: '效果-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function # 只发给区的归属者（结完时自己建过临时处理区的那次结算）
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
@@ -92,3 +92,12 @@ Depends = nil
 ---@field fire fun(self: Game, name: '游戏-结束', result: Game.Result): any
 ---@field on fun(self: Game, name: string, callback: fun(payload: any): any): function
 ---@field fire fun(self: Game, name: string, ...: any): any # 第一个回调明确给出的返回值（快速返回）
+
+--- 玩家自己的时机表（与 Game 同形）：技能挂在它身上，只在自己被问到的那一段醒来
+---@class Player
+---@field on fun(self: Player, name: '效果-来源-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第二段：问来源）：返回非 nil 即阻止（返回值就是原因）
+---@field fire fun(self: Player, name: '效果-来源-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
+---@field on fun(self: Player, name: '效果-目标-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第三段：问目标）：返回非 nil 即阻止（返回值就是原因）
+---@field fire fun(self: Player, name: '效果-目标-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
+---@field on fun(self: Player, name: string, callback: fun(payload: any): any): function
+---@field fire fun(self: Player, name: string, ...: any): any # 第一个回调明确给出的返回值（快速返回）

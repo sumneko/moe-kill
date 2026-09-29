@@ -205,3 +205,60 @@ lt.test('玩家：没上桌的玩家也能置存活状态', function ()
 
     lt.assertEquals('照常改状态', false, player:isAlive())
 end)
+
+lt.test('玩家：自己的时机表与别人互不干扰', function ()
+    local a = newPlayer(newSystem())
+    local b = newPlayer(newSystem())
+
+    ---@type string[]
+    local log = {}
+    a:on('测试-时机', function () log[#log + 1] = 'a' end)
+    b:on('测试-时机', function () log[#log + 1] = 'b' end)
+
+    a:fire('测试-时机')
+    lt.assertEquals('只触发自己名下的订阅', 'a', table.concat(log, ','))
+
+    b:fire('测试-时机')
+    lt.assertEquals('各问各的', 'a,b', table.concat(log, ','))
+end)
+
+lt.test('玩家：注册顺序即执行顺序，撤销只影响那一次', function ()
+    local player = newPlayer(newSystem())
+    ---@type integer[]
+    local log = {}
+    player:on('甲', function () log[#log + 1] = 1 end)
+    local undo = player:on('甲', function () log[#log + 1] = 2 end)
+    player:on('甲', function () log[#log + 1] = 3 end)
+
+    player:fire('甲')
+    lt.assertEquals('按注册顺序执行', '1,2,3', table.concat(log, ','))
+
+    undo()
+    undo()
+    log = {}
+    player:fire('甲')
+    lt.assertEquals('撤销的是那一次注册，重复撤销安全', '1,3', table.concat(log, ','))
+end)
+
+lt.test('玩家：疑问式看返回值，修正式收全部', function ()
+    local player = newPlayer(newSystem())
+    player:on('问', function () end)
+    player:on('问', function () return '原因' end)
+    player:on('问', function () return '不该轮到我' end)
+    lt.assertEquals('第一个明确返回值即结论（快速返回）', '原因', player:fire('问'))
+
+    player:on('修正', function () return 1 end)
+    player:on('修正', function () return 2 end)
+    lt.assertEquals('收集所有返回值', '1,2', table.concat(player:collect('修正'), ','))
+end)
+
+lt.test('玩家：时机名必须是非空字符串', function ()
+    local player = newPlayer(newSystem())
+
+    lt.assertError('空串订阅报错', function ()
+        player:on('', function () end)
+    end)
+    lt.assertError('空串触发报错', function ()
+        player:fire('')
+    end)
+end)

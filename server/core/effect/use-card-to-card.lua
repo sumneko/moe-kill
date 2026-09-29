@@ -22,6 +22,15 @@ function M:__init(game, user, card, targetCard)
     self.targetCard = targetCard
 end
 
+---@type Player
+M.from = nil
+
+---@param self UseCardToCard
+---@return Player # 来源：用这张牌的人
+M.__getter.from = function (self)
+    return self.user
+end
+
 ---@async
 function M:settle()
     local ok, reason = self.game:canUseToCard(self.user, self.card, self.targetCard)
@@ -60,6 +69,15 @@ function CardEffectToCard:__init(game, card, target, useCard)
     self.target  = target
     self.useCard = useCard
     self.user    = useCard.user
+end
+
+---@type Player
+CardEffectToCard.from = nil
+
+---@param self CardEffectToCard
+---@return Player # 来源：使用者
+CardEffectToCard.__getter.from = function (self)
+    return self.user
 end
 
 --- 它本身不做事：这张牌要不要被阻止，由内容侧在 `'效果-能否生效'` 里回报

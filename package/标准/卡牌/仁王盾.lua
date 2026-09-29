@@ -5,12 +5,12 @@ Card '仁王盾'
     : extends '防具牌'
     : on('被动', function (card, zone)
         local owner = assert(zone.owner)
-        return game:on('效果-能否生效', function (effect)
+        return owner:on('效果-目标-能否生效', function (effect)
             if effect.kind ~= 'cardEffect' then
                 return
             end
             ---@cast effect CardEffect
-            if effect.card.name ~= '杀' or effect.target ~= owner then
+            if effect.card.name ~= '杀' then
                 return
             end
             if effect.card.suit == '黑桃' or effect.card.suit == '梅花' then

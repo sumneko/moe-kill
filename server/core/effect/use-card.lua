@@ -20,6 +20,15 @@ function M:__init(game, user, card, targets)
     self.targets = targets
 end
 
+---@type Player
+M.from = nil
+
+---@param self UseCard
+---@return Player # 来源：用这张牌的人
+M.__getter.from = function (self)
+    return self.user
+end
+
 ---@async
 function M:settle()
     local ok, reason = self.game:canUse(self.user, self.card, self.targets)
@@ -67,6 +76,24 @@ function CardEffect:__init(game, card, target, useCard)
     if useCard then
         self.user = useCard.user
     end
+end
+
+---@type Player?
+CardEffect.from = nil
+
+---@type Player
+CardEffect.to = nil
+
+---@param self CardEffect
+---@return Player? # 来源：使用者（判定阶段的那次没有）
+CardEffect.__getter.from = function (self)
+    return self.user
+end
+
+---@param self CardEffect
+---@return Player # 承受者：这次生效冲谁来的
+CardEffect.__getter.to = function (self)
+    return self.target
 end
 
 ---@async

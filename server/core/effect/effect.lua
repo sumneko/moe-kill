@@ -1,6 +1,8 @@
 ---@class Effect: GCHost, Class.Base
 ---@field kind string # 种类标识（基类给默认值，子类在自己的构造里覆盖）
 ---@field game Game # 这次效果所属的局
+---@field from? Player # 来源：这个效果是谁发起的（没有这一方就是空）
+---@field to? Player # 承受者：这个效果冲谁来的（没有这一方就是空）
 ---@field parent? Effect # 外层效果：这个效果是在哪个效果的结算里被结算的（栈空时结算则为「不存在」）
 ---@field result? any # 结果：这次结算给出的那个值（子类可在结算中途就定下）
 ---@field err? any # 没成立的原因（空 = 成立）：出错 / 不成立 / 被阻止 / 取消
@@ -81,6 +83,19 @@ function M:bindFinish()
     task:onRejected(finish)
 end
 
+--- 问一次这个时机：返回非空就是拦（只给 false 时归一成一句通用原因）
+---@private
+---@param owner? Player|Game # 问谁（为空 = 没有这一方，直接跳过）
+---@param name string # 时机名
+---@return any # 要拦就给原因
+function M:askVeto(owner, name)
+    local reason = owner?:fire(name, self)
+    if reason == false then
+        reason = '这次生效被阻止'
+    end
+    return reason
+end
+
 --- 驱动这次结算（要等外部输入时它会挂在那儿，回来时不一定结完）
 ---@return Effect # 它自己
 function M:apply()
@@ -111,12 +126,11 @@ function M:apply()
         else
             self.game:addEffect(self)
         end
-        local refusal = self.game:fire('效果-能否生效', self)
+        local refusal = self:askVeto(self.game, '效果-能否生效')
+        or self:askVeto(self.from, '效果-来源-能否生效')
+        or self:askVeto(self.to, '效果-目标-能否生效')
         if refusal ~= nil then
-            -- 订阅者给了原因 ⇒ 这一次生效被阻止：不结算、没有结果、不算失败
-            if refusal == false then
-                refusal = '这次生效被阻止'
-            end
+            -- 有订阅者给了原因 ⇒ 这一次生效被阻止：不结算、没有结果、不算失败
             self:reject(refusal)
             return
         end

@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-29 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **624 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **636 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -112,6 +112,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **选项嵌 `plan`、`legal` 恒为列表（2026-09-29，用户提的）**：`Game.UsableTargets.legal` 去掉可空（**「不指定目标」= 空表**，「空表 ⟺ 0、0」仍是唯一对应）；`AskUseCard.Option` 从平铺（`targets` / `min` / `max`）改成**嵌一个 `plan`**（`makeOption` 直接 `{ card, plan }`、不解包）；`checkOption` / 测试助手 `pickFirst` 跟着读 `option.plan`（`pickFirst` 用 `ask.kind` 收窄 —— `AskCard` 的选项没有 `plan`，照旧只给牌）。**行为等价**。**基线仍 621**。
 
 - **装备技能第二张：【仁王盾】（2026-09-29，`add-renwang-shield`）**：『被动』订阅 `'效果-能否生效'` —— 对**装备主**的**【杀】**、牌面**黑色**（黑桃 / 梅花）⇒ 返回原因（**阻止这次生效** = 官方「**无效**」；逐目标拦、**连**「要闪」**都**不跑）；锁定技 = 无条件。「无效 = 阻止生效」的拦截点记在 design 的 trade-off（若口径改成「先闪再无效」，挪拦截点即可）。用例 +3（黑杀无效且不问闪 / 红杀照常 / 拆下恢复 —— 顺带验「打别人不受影响」「两张杀照常进弃牌」）；用例里用 `createCard('杀', '黑桃', …)` 造指定花色的杀。**验收基线 621 → 624**。
+
+- **玩家级时机表 + 效果判定三段式（2026-09-29，`add-player-events`，用户提的）**：① `Player` 有了自己的时机表（`player:on / fire / collect`，与 `Game` 同形、同一个 `Event` 实现，挂玩家实例字段）—— 技能挂它身上、**只在自己被问到那一方时醒来**（不再「全局订阅 + 回调里认领」；resetContent 不清玩家事件表 —— 重装整块随 `add-worker-mode` 退役）。② `Effect:apply()` 的「问一次」扩成**三段**：全局 `'效果-能否生效'` → `effect.from` 的 `'效果-来源-能否生效'` → `effect.to` 的 `'效果-目标-能否生效'`，**谁先给原因就停**。③ `Effect.from` / `to` 读法：`CardEffect.from = user / .to = target`、`UseCard` / `UseCardToCard` / `CardEffectToCard` 的 `from = user`（`__getter` 转发）；`Damage` / `Heal` 现成。④ 形状（用户打磨的）：`self:askVeto`（`owner?:fire` + `false` 归一 —— **归一必须在 or 链之前**，`or` 按 truthy 短路会漏 `false`）+ **顶格 `or` 链**、可选链 `?:` 跳过没有的一方。⑤ 【仁王盾】迁到 `owner:on('效果-目标-能否生效')`、删掉回调里的目标认领。用例 +12（`core.player` 4：隔离 / disposer / 疑问式与收集 / 名称校验；`core.effect.init` 8：段序 / 两处短路 / 目标段隔离 / **false 不被 or 链跳过** / 无来源跳过 / 与玩家无关只问全局 / from-to 转发）；既有的「只返回 false ⇒ 归一」用例照旧守着语义。**验收基线 624 → 636**。
 
 ## 2 下一步：待用户挑（**尚未开工**）
 
