@@ -466,6 +466,7 @@ function M:enterPhase(player, name)
     self.phaseStack[#self.phaseStack + 1] = phase
     self.phase = phase
     self:fire('阶段-开始', phase)
+    player:fire('阶段-开始', phase)
     return phase
 end
 
@@ -476,6 +477,7 @@ function M:leavePhase(phase)
         error('阶段只能按嵌套顺序离开', 2)
     end
     self:fire('阶段-结束', phase)
+    phase.player:fire('阶段-结束', phase)
     self.phaseStack[#self.phaseStack] = nil
     self.phase = self.phaseStack[#self.phaseStack]
 end

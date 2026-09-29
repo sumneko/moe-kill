@@ -95,6 +95,10 @@ Depends = nil
 
 --- 玩家自己的时机表（与 Game 同形）：技能挂在它身上，只在自己被问到的那一段醒来
 ---@class Player
+---@field on fun(self: Player, name: '阶段-开始', callback: fun(phase: Phase): any): function # 自己这个玩家的阶段开始（全局那份之外、对当事人再发一份）
+---@field fire fun(self: Player, name: '阶段-开始', phase: Phase): any
+---@field on fun(self: Player, name: '阶段-结束', callback: fun(phase: Phase): any): function # 自己这个玩家的阶段结束（全局那份之外、对当事人再发一份）
+---@field fire fun(self: Player, name: '阶段-结束', phase: Phase): any
 ---@field on fun(self: Player, name: '效果-来源-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第二段：问来源）：返回非 nil 即阻止（返回值就是原因）
 ---@field fire fun(self: Player, name: '效果-来源-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Player, name: '效果-目标-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第三段：问目标）：返回非 nil 即阻止（返回值就是原因）

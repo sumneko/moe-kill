@@ -20,4 +20,3 @@
 - [x] 4.2 `openspec validate add-zhuge-crossbow --strict` + 归档
 
 （评审记录：首版走「卡牌-次数修正」事件 + `checkCardItself` 收集，用户否决后整套撤掉、改回阶段账 —— 见 design 的 Decision Log。）
-

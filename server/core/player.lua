@@ -183,6 +183,15 @@ function M:collect(name, ...)
     return self.events:collect(name, ...)
 end
 
+--- 当前正在进行的、属于他的阶段（没有就是空）
+---@return Phase?
+function M:currentPhase()
+    local phase = self.game.phase
+    if phase and phase.player == self then
+        return phase
+    end
+end
+
 ---@type boolean
 M.acting = nil
 

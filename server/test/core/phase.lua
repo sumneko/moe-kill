@@ -49,6 +49,36 @@ lt.test('阶段：进入时触发阶段-开始，阶段实例就是事件上下�
     lt.assertEquals('结束后事件也拿到了它', phase, ended)
 end)
 
+lt.test('阶段：阶段事件也发给当事人一份，别人收不到', function ()
+    local game, players = newGame()
+    ---@type string[]
+    local mine = {}
+    ---@type integer
+    local others = 0
+    players[1]:on('阶段-开始', function (phase) mine[#mine + 1] = '开始:' .. phase.name end)
+    players[1]:on('阶段-结束', function (phase) mine[#mine + 1] = '结束:' .. phase.name end)
+    players[2]:on('阶段-开始', function () others = others + 1 end)
+
+    local phase = game:enterPhase(players[1], '出牌')
+    Delete(phase)
+
+    lt.assertEquals('当事人开始与结束都收到', '开始:出牌,结束:出牌', table.concat(mine, ','))
+    lt.assertEquals('别人一次都没收到', 0, others)
+end)
+
+lt.test('阶段：先问全局、再发当事人', function ()
+    local game, players = newGame()
+    ---@type string[]
+    local trace = {}
+    game:on('阶段-开始', function () trace[#trace + 1] = '全局' end)
+    players[1]:on('阶段-开始', function () trace[#trace + 1] = '当事人' end)
+
+    local phase = game:enterPhase(players[1], '出牌')
+    Delete(phase)
+
+    lt.assertEquals('全局先、当事人后', '全局,当事人', table.concat(trace, ','))
+end)
+
 lt.test('阶段：作用域结束（<close>）就离开', function ()
     local game, players = newGame()
     ---@type string[]
@@ -132,6 +162,24 @@ lt.test('阶段：addLimit 返回的撤销函数精确、幂等', function ()
 
     undoBig()
     lt.assertEquals('再撤另一笔', 0, phase:getLimitDelta('杀'))
+end)
+
+lt.test('阶段：玩家的 currentPhase 只给属于自己的当前阶段', function ()
+    local game, players = newGame()
+
+    lt.assertEquals('不在阶段里：空', nil, players[1]:currentPhase())
+
+    local mine = game:enterPhase(players[1], '出牌')
+    lt.assertEquals('自己的阶段：读得到', mine, players[1]:currentPhase())
+    lt.assertEquals('别人读不到', nil, players[2]:currentPhase())
+
+    Delete(mine)
+    lt.assertEquals('离开后又是空', nil, players[1]:currentPhase())
+
+    local other = game:enterPhase(players[2], '出牌')
+    lt.assertEquals('别人的阶段：自己是空', nil, players[1]:currentPhase())
+    lt.assertEquals('当事人才读得到', other, players[2]:currentPhase())
+    Delete(other)
 end)
 
 lt.test('阶段：标签袋与玩家同形状', function ()
