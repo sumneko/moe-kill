@@ -26,6 +26,13 @@ Card '窄牌'
             return player ~= target.user
         end)
     end)
+Card '双目标牌'
+    : targetCount(2, 2)
+    : on('获取目标', function (target)
+        return table.filter(game.desk.alivePlayers, function (player)
+            return player ~= target.user
+        end)
+    end)
 ]])
     assert(ok, err)
 end
@@ -183,6 +190,36 @@ lt.test('要一次使用：答复必须给目标，且只能从可用目标里�
     local outside = game:askUseCard(players[1], '测试', { name = '测试牌' })
     lt.assertEquals('名单外的目标 ⇒ 没答复', nil, outside.card)
     lt.assertEquals('原因是「目标不在可选项里」', '答复的目标不在可选项里', outside.err)
+end)
+
+lt.test('要一次使用：答复的目标个数要落在选项的区间里', function ()
+    local game, players = newGame(3)
+    local one = game:createCard('窄牌')
+    local two = game:createCard('双目标牌')
+    putInHand(players[1], { one, two })
+
+    ---@type AskUseCard.Answer[]
+    local replies = {
+        { card = one, targets = { players[2], players[3] } }, -- 太多（至多 1）
+        { card = one, targets = { players[2] } },             -- 合适
+        { card = two, targets = { players[2] } },             -- 太少（至少 2）
+    }
+    local index = 0
+    game:on('卡牌-询问', function (ask)
+        index = index + 1
+        ask:answer(replies[index])
+    end)
+
+    local over = game:askUseCard(players[1], '测试', { name = '窄牌' })
+    lt.assertEquals('个数太多 ⇒ 拒收', nil, over.card)
+    lt.assertEquals('原因', '至多指定 1 个目标', over.err)
+
+    local fine = game:askUseCard(players[1], '测试', { name = '窄牌' })
+    lt.assertEquals('个数合适 ⇒ 收下', one, fine.card)
+
+    local under = game:askUseCard(players[1], '测试', { name = '双目标牌' })
+    lt.assertEquals('个数太少 ⇒ 拒收', nil, under.card)
+    lt.assertEquals('原因', '至少要指定 2 个目标', under.err)
 end)
 
 lt.test('要一次使用：答复的目标给单个或一张列表都行', function ()

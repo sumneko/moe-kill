@@ -48,7 +48,7 @@ function M:makeOption(card)
     return { card = card, targets = legal, min = min, max = math.min(max, #legal) }
 end
 
---- 答复要给出目标，且落在这个选项的可用目标里；无目标牌不要给目标
+--- 答复要给出目标，个数落在选项的区间里，且都在可用目标里；无目标牌不要给目标
 ---@param option AskCard.Option
 ---@param value AskCard.Answer
 ---@return any # 通过就是空
@@ -67,6 +67,12 @@ function M:checkOption(option, value)
     local list = moe.util.toList(value.targets)
     if #list == 0 then
         return '这次答复要给出目标'
+    end
+    if #list < option.min then
+        return '至少要指定 {} 个目标' % { option.min }
+    end
+    if #list > option.max then
+        return '至多指定 {} 个目标' % { option.max }
     end
     for _, target in ipairs(list) do
         if not moe.util.arrayHas(targets, target) then
