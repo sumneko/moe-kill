@@ -52,6 +52,26 @@ lt.test('决策询问：一次往返', function ()
     lt.assertEquals('答复成为结果', card, ask.reply.card)
 end)
 
+lt.test('决策询问：结算之外的乱序答复不收（反向）', function ()
+    local game, players = newGame(1)
+    local ask = moe.ask.create {
+        game     = game,
+        to       = players[1],
+        reason   = '测试',
+        question = {},
+    }
+
+    ask:answer('抢答')
+    game:on('决策-询问', function (payload)
+        ---@cast payload Ask
+        payload:answer('正经答复')
+    end)
+
+    ask:apply():await()
+
+    lt.assertEquals('抢答不算数，算的是问出口之后那次', '正经答复', ask.reply)
+end)
+
 lt.test('决策询问：没人应答不算失败', function ()
     local game, players = newGame(2)
 

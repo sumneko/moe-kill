@@ -47,6 +47,26 @@ lt.test('询问：一次往返（候选名单摆在询问上）', function ()
     lt.assertEquals('答复成为结果', players[3], ask.player)
 end)
 
+lt.test('询问：结算之外的乱序答复不收（反向）', function ()
+    local game, players = newGame(3)
+    local ask = moe.askPlayer.create {
+        game      = game,
+        to        = players[1],
+        reason    = '测试',
+        condition = { players = { players[2] } },
+    }
+
+    ask:answer(players[3])
+    game:on('决策-询问', function (payload)
+        ---@cast payload AskPlayer
+        payload:answer(players[2])
+    end)
+
+    ask:apply():await()
+
+    lt.assertEquals('抢答不算数，算的是问出口之后那次', players[2], ask.player)
+end)
+
 lt.test('询问：答复不在候选里 ⇒ 拒收，原因记在 `.err`', function ()
     local game, players = newGame(3)
 

@@ -9,6 +9,7 @@
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
 ---@field question any # 问什么
+---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field reply? any # 答复（与 `.result` 同值；没答上时不存在）
 ---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'Ask'
@@ -25,11 +26,16 @@ function M:__init(game, to, reason, question)
     self.to       = to
     self.reason   = reason
     self.question = question
+    self.asked    = false
 end
 
 --- 应答这次询问：给出的答复当场成为结果（读 `.reply`）
 ---@param value any # 答复（内容由发起方解释）
 function M:answer(value)
+    if not self.asked then
+        log.info('这次询问还没问出口，这条答复不收')
+        return
+    end
     if self.task.resolved then
         log.info('这次询问已经答过了，先给出的算数')
         return
@@ -48,6 +54,7 @@ end
 --- 把询问交给应答方（答复一到，结果就定下了）
 ---@async
 function M:settle()
+    self.asked = true
     self.game:fire('决策-询问', self)
 
     if not self.success or self.reply == nil then

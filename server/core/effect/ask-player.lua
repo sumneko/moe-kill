@@ -14,6 +14,7 @@
 ---@field reason string # 这次为什么问
 ---@field condition? AskPlayer.Condition # 要什么样的角色
 ---@field options? Player[] # 候选名单（没给条件时为空 = 不做限制）
+---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field player? Player # 答复给出的那名角色（= `.result`）
 ---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskPlayer'
@@ -30,6 +31,7 @@ function M:__init(game, to, reason, condition)
     self.to        = to
     self.reason    = reason
     self.condition = condition
+    self.asked     = false
 end
 
 --- 候选名单（没给条件就是空 = 不做限制）
@@ -58,6 +60,10 @@ function M:answer(value)
     if value == nil then
         return
     end
+    if not self.asked then
+        log.info('这次询问还没问出口，这条答复不收')
+        return
+    end
     if self.task.resolved then
         log.info('这次询问已经答过了，先给出的算数')
         return
@@ -81,6 +87,7 @@ end
 ---@async
 function M:settle()
     self.options = self:collectOptions()
+    self.asked   = true
     self.game:fire('决策-询问', self)
 
     if not self.result then

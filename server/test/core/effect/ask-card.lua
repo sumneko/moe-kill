@@ -86,6 +86,27 @@ lt.test('询问：一次往返（选项按条件算出来）', function ()
     lt.assertEquals('选项挂在询问上', jink, assert(ask.options)[1].card)
 end)
 
+lt.test('询问：结算之外的乱序答复不收（反向）', function ()
+    local game, players = newGame(2)
+    local early = game:createCard('闪')
+    local late  = game:createCard('杀')
+    putInHand(players[2], { early, late })
+
+    local ask = moe.askCard.create {
+        game      = game,
+        to        = players[2],
+        reason    = '测试',
+        condition = { name = { '闪', '杀' } },
+    }
+    -- 问出口之前抢答：不收，这次询问照旧等真正的答复
+    ask:answer { card = early }
+    answerWith(game, { late })
+
+    ask:apply():await()
+
+    lt.assertEquals('抢答不算数，算的是问出口之后那次', late, ask.card)
+end)
+
 lt.test('询问：候选可以来自给定的一批牌（不看被问者的牌区）', function ()
     local game, players = newGame(2)
     local mine    = game:createCard('闪')
