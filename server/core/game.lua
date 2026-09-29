@@ -63,6 +63,22 @@ function CardDef:getHandlers(event)
     return snapshot
 end
 
+--- 跑这条钩子的全部回调，收齐非空返回值（收集式；只要通知就用 getHandlers）
+---@param event string
+---@param ... any
+---@return any[] # 每个回调的第一个返回值（没有的不收，按注册顺序）
+function CardDef:collect(event, ...)
+    ---@type any[]
+    local collected = {}
+    for _, handler in ipairs(self:getHandlers(event)) do
+        local value = handler(...)
+        if value ~= nil then
+            collected[#collected + 1] = value
+        end
+    end
+    return collected
+end
+
 --- 这张牌使用后不进入「生效」（用别的场合再让它生效）
 ---@return CardDef
 function CardDef:skipEffect()
@@ -752,6 +768,25 @@ function M:drawCards(player, count, to)
     return cards
 end
 
+--- 收集这类钩子的返回值：每个声明都必须给出一个列表
+---@param def CardDef
+---@param event string
+---@param ctx table
+---@return any[][]? # 各声明给出的列表（按声明顺序）
+---@return string? # 有声明没给列表时的原因
+local function collectLists(def, event, ctx)
+    local lists = def:collect(event, ctx)
+    if #lists ~= #def:getHandlers(event) then
+        return nil, '「{}」的「{}」必须返回合法目标列表' % { def.fullName, event }
+    end
+    for _, list in ipairs(lists) do
+        if type(list) ~= 'table' then
+            return nil, '「{}」的「{}」必须返回合法目标列表' % { def.fullName, event }
+        end
+    end
+    return lists
+end
+
 ---@param def CardDef
 ---@param user Player
 ---@param card Card
@@ -759,8 +794,7 @@ end
 ---@return Player[]? # 各声明取交集后的合法目标
 ---@return string? # 不成立的原因
 local function collectLegalTargets(def, user, card, targets)
-    local handlers = def:getHandlers('获取目标')
-    if #handlers == 0 then
+    if #def:getHandlers('获取目标') == 0 then
         return nil, '「{}」没有声明「获取目标」，现在用不了' % { def.fullName }
     end
     ---@type CardDef.TargetPlan
@@ -769,14 +803,9 @@ local function collectLegalTargets(def, user, card, targets)
         card = card,
         targets = targets
     }
-    ---@type Player[][]
-    local lists = {}
-    for _, handler in ipairs(handlers) do
-        local list = handler(ctx)
-        if type(list) ~= 'table' then
-            return nil, '「{}」的「获取目标」必须返回合法目标列表' % { def.fullName }
-        end
-        lists[#lists + 1] = list
+    local lists, reason = collectLists(def, '获取目标', ctx)
+    if not lists then
+        return nil, reason
     end
     ---@type Player[]
     local legal = moe.util.arrayIntersect(lists)
@@ -892,21 +921,15 @@ function M:canUseToCard(user, card, targetCard)
     if not def then
         return false, problem
     end
-    local handlers = def:getHandlers('获取卡牌目标')
-    if #handlers == 0 then
+    if #def:getHandlers('获取卡牌目标') == 0 then
         return false, '「{}」没有声明「获取卡牌目标」，不能对牌使用' % { def.fullName }
     end
     if targetCard then
         ---@type CardDef.CardTargetPlan
         local ctx = { user = user, card = card, targets = { targetCard } }
-        ---@type Card[][]
-        local lists = {}
-        for _, handler in ipairs(handlers) do
-            local list = handler(ctx)
-            if type(list) ~= 'table' then
-                return false, '「{}」的「获取卡牌目标」必须返回合法目标列表' % { def.fullName }
-            end
-            lists[#lists + 1] = list
+        local lists, reason = collectLists(def, '获取卡牌目标', ctx)
+        if not lists then
+            return false, reason
         end
         if not moe.util.arrayHas(moe.util.arrayIntersect(lists), targetCard) then
             return false, '「{}」不能对这张牌使用' % { def.fullName }

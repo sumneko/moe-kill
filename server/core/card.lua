@@ -81,13 +81,7 @@ end
 function M:applyPassive()
     local zone = assert(self:getZone())
     ---@type fun()[]
-    local undos = {}
-    for _, handler in ipairs(self.def:getHandlers('被动')) do
-        local undo = handler(self, zone)
-        if undo then
-            undos[#undos + 1] = undo
-        end
-    end
+    local undos = self.def:collect('被动', self, zone)
     self.passiveUndo = function ()
         for i = #undos, 1, -1 do
             undos[i]()

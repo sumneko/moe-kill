@@ -391,3 +391,21 @@ Card '孙'
     lt.assertEquals('自己写的覆盖基类的（最少）', 0, ownMin)
     lt.assertEquals('自己写的覆盖基类的（最多）', 0, ownMax)
 end)
+
+lt.test('定义：collect 跑全部回调，收齐非空返回值', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '甲'
+    : on('获取目标', function (target)
+        return 1
+    end)
+    : on('获取目标', function (target) end)
+    : on('获取目标', function (target)
+        return 3
+    end)
+]])
+
+    local def = assert(game:getCard('甲'))
+    lt.assertEquals('空的没收，其余按注册顺序排开', '1,3', table.concat(def:collect('获取目标', {}), ','))
+    lt.assertEquals('没人订阅的钩子给空列表', 0, #def:collect('没有这条', {}))
+end)
