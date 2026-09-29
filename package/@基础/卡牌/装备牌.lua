@@ -1,9 +1,20 @@
 -- 装备牌模板：继承它就有「装备」分类、不指定目标、只从手牌里用（使用）
--- 通用的使用处理写在基类上：「使用」钩子里按分类找到槽位、用一次挪牌的结算装进那个槽位（加成由各类别基类的「进入区域」管）
+-- 通用的使用处理写在基类上：「使用」钩子里按分类找到槽位、用一次挪牌的结算装进那个槽位
+-- 被动随槽位启停：进入与分类对应的槽位才启用（效果写在各类别基类的「被动」里）
 Card '装备牌'
     : kind '装备'
     : noTarget()
     : zone '手牌'
+    : on('进入区域', function (card, zone, slot)
+        if slot and card:isKind(slot) then
+            card:enablePassive()
+        end
+    end)
+    : on('离开区域', function (card, zone, slot)
+        if slot and card:isKind(slot) then
+            card:disablePassive()
+        end
+    end)
     : on('使用', function (useCard)
         local card = useCard.card
         local zone = useCard.user:getZone('装备')

@@ -237,6 +237,45 @@ lt.test('装备：两类坐骑各自是一个定义，分类与钩子都在这�
             def:isKind(name == '进攻马' and '防御马' or '进攻马'))
         lt.assertEquals(name .. '：距离修正也在这里定下', name == '进攻马' and -1 or 1,
             def:getValue('距离修正'))
-        lt.assertEquals(name .. '：钩子也从坐骑牌抄来了', 1, #def:getHandlers('进入区域'))
+        lt.assertEquals(name .. '：被动钩子也从坐骑牌抄来了', 1, #def:getHandlers('被动'))
+        lt.assertEquals(name .. '：启停钩子（装备模板的）也在', 1, #def:getHandlers('进入区域'))
     end
+end)
+
+lt.test('装备：被动可以临时压制，松开后恢复', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local weapon = equipCard(run, user, '麒麟弓')
+    lt.assertEquals('先装上：攻击范围 1 + 4', 5, user:getAttr('攻击范围'))
+
+    weapon:disablePassive()
+    lt.assertEquals('压制住：加成被撤（牌还挂在槽里）', 1, user:getAttr('攻击范围'))
+
+    weapon:enablePassive()
+    lt.assertEquals('松开：重新应用', 5, user:getAttr('攻击范围'))
+end)
+
+lt.test('装备：进错槽位不启用被动', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local weapon = takeCard(run, user, '麒麟弓')
+    local equip  = assert(user:getZone('装备'))
+
+    run.game:moveCardWithSlot(weapon, equip, '防具')
+
+    lt.assertEquals('牌进了防具槽（槽位本身不挑分类）', weapon, equip:getSlot('防具'))
+    lt.assertEquals('分类对不上：被动没启用，攻击范围还是 1', 1, user:getAttr('攻击范围'))
+end)
+
+lt.test('装备：离槽停用后放回，重新启用', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local weapon = equipCard(run, user, '麒麟弓')
+    local equip  = assert(user:getZone('装备'))
+
+    run.game:moveCard(weapon, '弃牌')
+    lt.assertEquals('离槽：加成回落', 1, user:getAttr('攻击范围'))
+
+    run.game:moveCardWithSlot(weapon, equip, '武器')
+    lt.assertEquals('放回槽位：重新应用', 5, user:getAttr('攻击范围'))
 end)

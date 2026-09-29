@@ -21,6 +21,7 @@ Depends = nil
 ---@field on fun(self: CardDef, event: '获取卡牌目标', handler: fun(plan: CardDef.CardTargetPlan): Card[]): CardDef # 返回你认下的那批牌（发起方给的那张不在里面 = 不能对这张牌使用）；声明它 = 这张牌能「对牌使用」
 ---@field on fun(self: CardDef, event: '使用', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前；声明了 skipEffect 的牌就到这）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard?)): CardDef # 一次生效（使用期逐目标 / 判定阶段每张一次）
+---@field on fun(self: CardDef, event: '被动', handler: fun(card: Card, zone: Zone): (fun()?)): CardDef # 被动启用时跑一次：应用效果、返回撤销函数（停用时内核调它）
 
 --- 「获取目标」的上下文：想用哪张牌、打算打谁
 ---@class CardDef.TargetPlan

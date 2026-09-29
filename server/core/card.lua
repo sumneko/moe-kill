@@ -7,6 +7,8 @@
 ---@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
 ---@field game Game # 属于哪一局（读自己的内容定义时用）
 ---@field def CardDef # 内容定义（建牌时查一次就定格；查不到直接报错）
+---@field private passiveSuppress integer # 被动被压制的层数（出厂 1 = 未启用）
+---@field private passiveUndo? fun() # 本次应用的被动效果的撤销函数
 local M = Class 'Card'
 
 ---@param game Game # 属于哪一局（读自己的内容定义时用）
@@ -25,6 +27,7 @@ function M:__init(game, name, id, suit, point)
         error('没有叫「{}」的内容定义' % { name }, 2)
     end
     self.def = def
+    self.passiveSuppress = 1
 end
 
 ---@return integer # 牌的号（这一局发的）
@@ -47,6 +50,59 @@ function M:doEffect()
     local player = assert(self:getZone()?.owner)
     local effect = New 'CardEffect' (self.game, self, player)
     effect:apply():await()
+end
+
+--- 启用被动：松开一层压制（松开到 0 时应用）
+---@return function # 撤销这一次松开
+function M:enablePassive()
+    self.passiveSuppress = self.passiveSuppress - 1
+    if self.passiveSuppress == 0 then
+        self:applyPassive()
+    end
+    return function ()
+        self:disablePassive()
+    end
+end
+
+--- 停用被动：压上一层压制（压回 1 时撤销已应用的效果）
+---@return function # 撤销这一次压制
+function M:disablePassive()
+    self.passiveSuppress = self.passiveSuppress + 1
+    if self.passiveSuppress == 1 then
+        self:removePassive()
+    end
+    return function ()
+        self:enablePassive()
+    end
+end
+
+--- 跑『被动』钩子、把返回的撤销函数收成一只（后应用的先撤）
+---@private
+function M:applyPassive()
+    local zone = assert(self:getZone())
+    ---@type fun()[]
+    local undos = {}
+    for _, handler in ipairs(self.def:getHandlers('被动')) do
+        local undo = handler(self, zone)
+        if undo then
+            undos[#undos + 1] = undo
+        end
+    end
+    self.passiveUndo = function ()
+        for i = #undos, 1, -1 do
+            undos[i]()
+        end
+    end
+end
+
+--- 把记下的撤销函数调掉（先清空再调，重复触发不会重复撤）
+---@private
+function M:removePassive()
+    local undo = self.passiveUndo
+    self.passiveUndo = nil
+    if undo then
+        undo()
+    end
 end
 
 --- 这张牌是不是这个分类
