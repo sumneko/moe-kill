@@ -429,7 +429,7 @@ Card '无目标牌'
     lt.assertEquals('不传目标能用（也不用声明「获取目标」）', true, (run.game:canUse(run.user, card)))
     lt.assertEquals('传空表也能用（调用方习惯给空表）', true, (run.game:canUse(run.user, card, {})))
     local plan = assert(select(3, run.game:canUse(run.user, card)))
-    lt.assertEquals('也不给出合法目标', nil, plan.legal)
+    lt.assertEquals('合法目标是空表', 0, #plan.legal)
     lt.assertEquals('数量区间是 0、0', '0,0', plan.min .. ',' .. plan.max)
 
     local ok, reason = run.game:canUse(run.user, card, { run.target })

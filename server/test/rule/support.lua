@@ -40,8 +40,13 @@ function M.pickFirst(ask)
     if not option then
         return nil
     end
-    if option.targets then
-        return { card = option.card, targets = { assert(option.targets[1]) } }
+    if ask.kind == 'askUseCard' then
+        ---@cast ask AskUseCard
+        ---@cast option AskUseCard.Option
+        local legal = option.plan.legal
+        if #legal > 0 then
+            return { card = option.card, targets = { assert(legal[1]) } }
+        end
     end
     return { card = option.card }
 end

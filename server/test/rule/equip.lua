@@ -62,9 +62,10 @@ lt.test('装备：装备牌没有目标，出牌阶段能选中它并用出去',
     local user = run.players[1]
     local card = takeCard(run, user, '诸葛连弩')
 
-    ---@type AskCard.Option?
+    ---@type AskUseCard.Option?
     local option = nil
     run.game:on('卡牌-询问', function (ask)
+        ---@cast ask AskUseCard
         local options = assert(ask.options)
         option = options[1]
         ask:answer(support.pickFirst(ask))
@@ -73,7 +74,8 @@ lt.test('装备：装备牌没有目标，出牌阶段能选中它并用出去',
     local ask = run.game:askUseCard(user, '出牌', { zone = '手牌' })
 
     lt.assertEquals('选项里就是这张装备牌', card, assert(assert(option).card))
-    lt.assertEquals('无目标牌的选项不带 targets', nil, assert(option).targets)
+    lt.assertEquals('无目标牌：可用目标是空表', 0, #assert(assert(option).plan.legal))
+    lt.assertEquals('区间是 0、0', '0,0', assert(option).plan.min .. ',' .. assert(option).plan.max)
     lt.assertEquals('答复只有牌、没有目标', nil, ask.targets)
 
     run.game:useCard(user, assert(ask.card), ask.targets or {})
@@ -450,7 +452,7 @@ lt.test('方天画戟：出牌阶段的选项带上放宽后的数量区间', fu
     run.game:askUseCard(user, '出牌', { zone = '手牌' })
 
     lt.assertEquals('选项就是这张杀', card, assert(option).card)
-    lt.assertEquals('最少 1', 1, assert(option).min)
-    lt.assertEquals('最多放宽到 2（不超可用目标数）', 2, assert(option).max)
-    lt.assertEquals('可用目标两名', 2, #assert(assert(option).targets))
+    lt.assertEquals('最少 1', 1, assert(option).plan.min)
+    lt.assertEquals('最多放宽到 2（不超可用目标数）', 2, assert(option).plan.max)
+    lt.assertEquals('可用目标两名', 2, #assert(assert(option).plan.legal))
 end)

@@ -109,6 +109,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **`canUse` 的目标结果合成一个结构（2026-09-29，用户提的）**：`legal` / `min` / `max` 三个散值合成 **`Game.UsableTargets = { legal, min, max }`**（`canUse` 成功返回 `true, nil, plan`）—— 「不会有『没有 legal 但有 min/max』的半空状态」：**`legal` 缺省 ⟺ `min = max = 0`**（「不指定目标」，唯一一种）。顺带把**取小（与合法目标数）收进 `canUse` 统一做**（以前「没给目标」的路径不取小，选项得自己再算一遍）⇒ 选项直接用 `plan.max`。**行为等价**（已有断言都落在取小后的值上）。**基线仍 621**。
 
+- **选项嵌 `plan`、`legal` 恒为列表（2026-09-29，用户提的）**：`Game.UsableTargets.legal` 去掉可空（**「不指定目标」= 空表**，「空表 ⟺ 0、0」仍是唯一对应）；`AskUseCard.Option` 从平铺（`targets` / `min` / `max`）改成**嵌一个 `plan`**（`makeOption` 直接 `{ card, plan }`、不解包）；`checkOption` / 测试助手 `pickFirst` 跟着读 `option.plan`（`pickFirst` 用 `ask.kind` 收窄 —— `AskCard` 的选项没有 `plan`，照旧只给牌）。**行为等价**。**基线仍 621**。
+
 ## 2 下一步：待用户挑（**尚未开工**）
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：

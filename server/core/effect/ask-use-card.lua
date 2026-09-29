@@ -2,11 +2,9 @@
 ---@class AskUseCard.Answer : AskCard.Answer
 ---@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）
 
---- 一个合法选项：一张能用的牌 + 它的可用目标与数量区间
+--- 一个合法选项：一张能用的牌 + 它这次使用的可用目标与数量区间
 ---@class AskUseCard.Option : AskCard.Option
----@field targets? Player[] # 这张牌的可用目标（无目标牌没有这个字段）
----@field min integer # 这次使用最少几个目标
----@field max integer # 最多几个（按当时的可用目标数取小）
+---@field plan Game.UsableTargets # 「不指定目标」的牌是 legal 空表、0、0
 
 --- 要什么样的牌：`AskCard.Condition` 那些条件 + 一条 target
 ---@class AskUseCard.Condition : AskCard.Condition
@@ -41,7 +39,7 @@ function M:makeOption(card)
         return nil
     end
     ---@cast plan Game.UsableTargets
-    return { card = card, targets = plan.legal, min = plan.min, max = plan.max }
+    return { card = card, plan = plan }
 end
 
 --- 答复要给出目标，个数落在选项的区间里，且都在可用目标里；无目标牌不要给目标
@@ -50,8 +48,8 @@ end
 ---@return any # 通过就是空
 function M:checkOption(option, value)
     ---@cast option AskUseCard.Option
-    local targets = option.targets
-    if not targets then
+    local legal = option.plan.legal
+    if #legal == 0 then
         if value.targets ~= nil and #moe.util.toList(value.targets) > 0 then
             return '这张牌不需要目标'
         end
@@ -64,16 +62,16 @@ function M:checkOption(option, value)
     if #list == 0 then
         return '这次答复要给出目标'
     end
-    if #list < option.min then
-        return '至少要指定 {} 个目标' % { option.min }
+    if #list < option.plan.min then
+        return '至少要指定 {} 个目标' % { option.plan.min }
     end
-    if #list > option.max then
-        return '至多指定 {} 个目标' % { option.max }
+    if #list > option.plan.max then
+        return '至多指定 {} 个目标' % { option.plan.max }
     end
     ---@type table<Player, true>
     local seen = {}
     for _, target in ipairs(list) do
-        if not moe.util.arrayHas(targets, target) then
+        if not moe.util.arrayHas(legal, target) then
             return '答复的目标不在可选项里'
         end
         if seen[target] then

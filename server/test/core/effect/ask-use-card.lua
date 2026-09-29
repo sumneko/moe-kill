@@ -88,9 +88,9 @@ lt.test('要一次使用：只收能用的牌，选项带可用目标', function
 
     lt.assertEquals('种类标识', 'askUseCard', ask.kind)
     lt.assertEquals('没声明「获取目标」的不进选项', 1, #options)
-    lt.assertEquals('选项带上了可用目标', 2, #assert(options[1].targets))
+    lt.assertEquals('选项带上了可用目标', 2, #options[1].plan.legal)
     lt.assertEquals('选项带上数量区间（取小到可用目标数）', '1,2',
-        options[1].min .. ',' .. options[1].max)
+        options[1].plan.min .. ',' .. options[1].plan.max)
     lt.assertEquals('答复收下', usable, ask.card)
     lt.assertEquals('答复里的目标也收下', 1, #assert(ask.targets))
 end)
@@ -105,10 +105,10 @@ lt.test('要一次使用：选项的区间带上目标数修正，并取小到�
         index = index + 1
         local option = assert(assert(ask.options)[1], '该有一个选项')
         if index == 1 then
-            lt.assertEquals('没修正：区间就是声明的 1、1', '1,1', option.min .. ',' .. option.max)
+            lt.assertEquals('没修正：区间就是声明的 1、1', '1,1', option.plan.min .. ',' .. option.plan.max)
             return
         end
-        lt.assertEquals('修正 +1：区间带上、并取小到可用目标数 2', '1,2', option.min .. ',' .. option.max)
+        lt.assertEquals('修正 +1：区间带上、并取小到可用目标数 2', '1,2', option.plan.min .. ',' .. option.plan.max)
         ask:answer { card = option.card, targets = { players[2] } }
     end)
 
@@ -156,7 +156,7 @@ lt.test('要一次使用：条件的 target ⇒ 可用目标要与它至少有�
     local options = assert(ask.options)
 
     lt.assertEquals('能用在这张上 ⇒ 进选项', 1, #options)
-    local targets = assert(options[1].targets)
+    local targets = options[1].plan.legal
     lt.assertEquals('选项的目标就是交集（名单里那个）', 1, #targets)
     lt.assertEquals('就是 2 号位', players[2], targets[1])
 

@@ -311,9 +311,9 @@ end
 ---@field side string # 胜方阵营：主公方 / 反贼 / 内奸 / 平局
 ---@field reason string # 胜负依据（中文短句，给人看 / 前端可直接显示）
 
---- 这次使用的可用目标与数量区间（`canUse` 成功时给出）
+--- 这次使用的可用目标与数量区间（`canUse` 成功时给出；「不指定目标」的牌是 legal 空表、min / max 都是 0）
 ---@class Game.UsableTargets
----@field legal Player[]? # 合法目标（「不指定目标」的牌没有）
+---@field legal Player[] # 合法目标
 ---@field min integer # 最少几个
 ---@field max integer # 最多几个（已与合法目标数取小）
 ---@class Game
@@ -853,7 +853,7 @@ end
 ---@param target? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
 ---@return boolean # 能这样用吗
 ---@return any # 不能的原因
----@return Game.UsableTargets? # 能用时的可用目标与数量区间（「不指定目标」的牌是 legal 缺省、0、0）
+---@return Game.UsableTargets? # 能用时的可用目标与数量区间（「不指定目标」的牌是 legal 空表、0、0）
 function M:canUse(user, card, target)
     local def, problem = checkCardItself(self, user, card)
     if not def then
@@ -865,18 +865,18 @@ function M:canUse(user, card, target)
 
     -- 目标：给了目标才判个数与归属；「最少 0、最多 0」就是不指定目标
     local min, max = card:getTargetCount(user)
-    ---@type Player[]? # 能用时的合法目标（无目标牌没有）
-    local legal = nil
+    ---@type Player[] # 能用时的合法目标（「不指定目标」的牌是空表）
+    local legal = {}
     if min == 0 and max == 0 then
         if targets and #targets > 0 then
             return false, '「{}」不需要指定目标' % { def.fullName }
         end
     else
-        local reason
-        legal, reason = collectLegalTargets(def, user, card, targets)
-        if not legal then
+        local list, reason = collectLegalTargets(def, user, card, targets)
+        if not list then
             return false, reason
         end
+        legal = list
         max = math.min(max, #legal)
         if targets then
             if #targets < min then
