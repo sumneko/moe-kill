@@ -841,9 +841,6 @@ local function checkCardItself(game, user, card)
     local phase = game:getUsePhase(user)
     if phase then
         local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
-        for _, delta in ipairs(game:collect('卡牌-次数修正', { user = user, card = card })) do
-            limit = limit + delta
-        end
         if phase:getUseCount(name) >= limit then
             return nil, '本阶段已经用过「{}」了' % { name }
         end

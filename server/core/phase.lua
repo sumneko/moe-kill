@@ -59,8 +59,17 @@ end
 --- 改本阶段某名字的上限（+1 = 可以多用一次；+1000 = 事实上不限次数）
 ---@param name string
 ---@param delta integer
+---@return fun() # 撤销这次修改（精确减掉这一笔）
 function M:addLimit(name, delta)
     self.limitDeltas[name] = (self.limitDeltas[name] or 0) + delta
+    local undone = false
+    return function ()
+        if undone then
+            return
+        end
+        undone = true
+        self.limitDeltas[name] = (self.limitDeltas[name] or 0) - delta
+    end
 end
 
 --- 本阶段某名字的上限增减

@@ -117,6 +117,23 @@ lt.test('阶段：两本账都按名字记', function ()
     lt.assertEquals('别的名字的上限没动', 0, phase:getLimitDelta('闪'))
 end)
 
+lt.test('阶段：addLimit 返回的撤销函数精确、幂等', function ()
+    local game, players = newGame()
+    local phase = game:enterPhase(players[1], '出牌')
+
+    local undoOne = phase:addLimit('杀', 1)
+    local undoBig = phase:addLimit('杀', 1000)
+    lt.assertEquals('两笔都在', 1001, phase:getLimitDelta('杀'))
+
+    undoOne()
+    lt.assertEquals('只撤掉自己那笔', 1000, phase:getLimitDelta('杀'))
+    undoOne()
+    lt.assertEquals('重复撤销安全', 1000, phase:getLimitDelta('杀'))
+
+    undoBig()
+    lt.assertEquals('再撤另一笔', 0, phase:getLimitDelta('杀'))
+end)
+
 lt.test('阶段：标签袋与玩家同形状', function ()
     local game, players = newGame()
     local phase = game:enterPhase(players[1], '出牌')

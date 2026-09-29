@@ -7,10 +7,25 @@ Card '诸葛连弩'
     : value('攻击范围', 1)
     : on('被动', function (card, zone)
         local owner = assert(zone.owner)
-        return game:on('卡牌-次数修正', function (check)
-            if check.card.name ~= '杀' or check.user ~= owner then
-                return
+        ---@type fun()? # 当前这个出牌阶段上补记的那笔账
+        local undoCurrent = nil
+
+        local unsubscribe = game:on('阶段-开始', function (phase)
+            if phase.name == '出牌' and phase.player == owner then
+                undoCurrent = phase:addLimit('杀', 1000)
             end
-            return 1000
         end)
+
+        local current = game.phase
+        if current and current.name == '出牌' and current.player == owner then
+            undoCurrent = current:addLimit('杀', 1000)
+        end
+
+        return function ()
+            unsubscribe()
+            if undoCurrent then
+                undoCurrent()
+                undoCurrent = nil
+            end
+        end
     end)

@@ -578,3 +578,24 @@ lt.test('诸葛连弩：拆下后限制立即回来', function ()
     local result = run.game:useCard(user, second, { foe })
     lt.assertEquals('拆掉连弩，第二张就出不了', '本阶段已经用过「杀」了', result.err)
 end)
+
+lt.test('诸葛连弩：出牌阶段中途装上立即生效', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+
+    local crossbow = takeCard(run, user, '诸葛连弩')
+    local first    = takeCard(run, user, '杀')
+    local second   = takeCard(run, user, '杀')
+
+    local phase <close> = run.game:enterPhase(user, '出牌')
+
+    run.game:useCard(user, first, { foe })
+    lt.assertEquals('第一张照常结算', 4, foe:getAttr('体力'))
+
+    run.game:useCard(user, crossbow, {})
+
+    local result = run.game:useCard(user, second, { foe })
+    lt.assertEquals('装上就能接着出', true, result.success)
+    lt.assertEquals('第二张也结算了', 3, foe:getAttr('体力'))
+end)

@@ -227,32 +227,6 @@ lt.test('校验：不在任何阶段里 ⇒ 不按次数拦', function ()
     lt.assertEquals('阶段外不受次数限制', true, (run.game:canUse(run.user, card, run.target)))
 end)
 
-lt.test('校验：次数修正参与限额（Σ 增量，可正可负）', function ()
-    local guard <close> = useProbe()
-    local run = newGame(LIMITED)
-    local card = run.game:createCard('测试杀')
-    run.hand:accept(card)
-
-    ---@type integer # 探针给的修正
-    local delta = -1
-    run.game:on('卡牌-次数修正', function (check)
-        if check.user == run.user and check.card == card then
-            return delta
-        end
-    end)
-
-    local phase <close> = run.game:enterPhase(run.user, '测试阶段')
-
-    lt.assertEquals('负修正：一次都不行（上限压到 0）', false, (run.game:canUse(run.user, card, run.target)))
-
-    delta = 1
-    lt.assertEquals('改成正修正：又能用了', true, (run.game:canUse(run.user, card, run.target)))
-    phase:addUseCount('测试杀', 1)
-    lt.assertEquals('用了一次，修正顶着', true, (run.game:canUse(run.user, card, run.target)))
-    phase:addUseCount('测试杀', 1)
-    lt.assertEquals('额度用完就不行', false, (run.game:canUse(run.user, card, run.target)))
-end)
-
 lt.test('校验：声明了牌区 ⇒ 必须从那个区里用', function ()
     local guard <close> = useProbe()
     local run = newGame(FROM_HAND)
