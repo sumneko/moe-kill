@@ -730,14 +730,12 @@ end
 ---@param game Game
 ---@param cards Card[]
 ---@param zone? string|Zone
----@param slot? string
 ---@return MoveCard
-local function runMoveCard(game, cards, zone, slot)
+local function runMoveCard(game, cards, zone)
     local effect = moe.moveCard.create {
         game  = game,
         cards = cards,
         zone  = zone,
-        slot  = slot,
     }
     effect:apply():await()
     return effect
@@ -750,16 +748,6 @@ end
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
 function M:moveCard(card, zone)
     return runMoveCard(self, moe.util.toList(card), zone)
-end
-
---- 把一张牌挪进某个槽位（槽位区专用：先占槽、再进区）
----@async
----@param card Card # 要挪的那张牌
----@param zone SlotZone # 目标槽位区
----@param slot string # 槽位名
----@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
-function M:moveCardWithSlot(card, zone, slot)
-    return runMoveCard(self, { card }, zone, slot)
 end
 
 --- 抽牌：从抽牌堆顶抽 count 张（省略去向 = 抽进这个玩家的手牌；给了就用它，例如抽到某块处理区）

@@ -6,7 +6,10 @@ Card '诸葛连弩'
     : extends '武器牌'
     : value('攻击范围', 1)
     : on('被动', function (card, zone)
-        local owner = assert(zone.owner)
+        local owner = zone.owner
+        if not owner then
+            return
+        end
         ---@type fun()?
         local undoCurrent = nil
 

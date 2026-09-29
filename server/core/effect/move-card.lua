@@ -1,11 +1,9 @@
 ---@class MoveCard.CreateOptions
 ---@field game Game
----@field cards Card[] # 要挪的牌（给了槽位名就只能一张）
+---@field cards Card[] # 要挪的牌
 ---@field zone? string|Zone # 目标牌区（名字或牌区对象；不给 = 这次挪牌失败）
----@field slot? string # 目标区里的槽位名（只对槽位区有意义）
 
 ---@class MoveCard : Effect
----@field slot? string # 目标区里的槽位名
 local M = Class 'MoveCard'
 
 Extends('MoveCard', 'Effect')
@@ -13,12 +11,10 @@ Extends('MoveCard', 'Effect')
 ---@param game Game
 ---@param cards Card[]
 ---@param zone? string|Zone
----@param slot? string
-function M:__init(game, cards, zone, slot)
+function M:__init(game, cards, zone)
     self.kind  = 'moveCard'
     self.cards = cards
     self.zone  = zone
-    self.slot  = slot
 end
 
 --- 找目标牌区：牌区对象直接用；名字先在**当前回合角色**身上找，再找局上的牌区
@@ -41,13 +37,13 @@ local function resolveZone(game, item)
     return zone
 end
 
---- 一次结算把整批牌挪过去（区名解析不出来 / 牌区收不下 ⇒ 这次不成立，什么都不改）
+--- 一次结算把整批牌挪过去（区名解析不出来 ⇒ 这次不成立，什么都不改）
 function M:settle()
     local stop, reason = resolveZone(self.game, self.zone)
     if not stop then
         return self:reject(reason)
     end
-    local ok, why = stop:accept(self.cards, self.slot)
+    local ok, why = stop:accept(self.cards)
     if not ok then
         return self:reject(why)
     end
@@ -59,5 +55,5 @@ moe.moveCard = {}
 ---@param options MoveCard.CreateOptions
 ---@return MoveCard
 function moe.moveCard.create(options)
-    return New 'MoveCard' (options.game, options.cards, options.zone, options.slot)
+    return New 'MoveCard' (options.game, options.cards, options.zone)
 end

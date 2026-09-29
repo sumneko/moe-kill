@@ -1,5 +1,26 @@
+local fs      = require 'bee.filesystem'
 local lt      = require 'test.ltest'
 local support = require 'test.rule.support'
+
+local probeDir = moe.env.ROOT_PATH / 'tmp' / 'equip-probe'
+
+---@return unknown # 配 <close> 用
+local function useProbe()
+    fs.remove_all(probeDir)
+    fs.create_directories(probeDir)
+    return moe.util.defer(function ()
+        fs.remove_all(probeDir)
+    end)
+end
+
+---@param rel string
+---@param content string
+local function write(rel, content)
+    local file = probeDir / rel
+    fs.create_directories(file:parent_path())
+    local ok, err = moe.util.saveFile(file:string(), content)
+    assert(ok, err)
+end
 
 ---@param game Game
 ---@param name string
@@ -48,13 +69,46 @@ local function clearHandExcept(run, player, keep)
     end
 end
 
-lt.test('装备：游戏开始时给每个玩家的装备区设好四条槽位', function ()
+lt.test('装备：游戏开始时给每个玩家建好四个装备子区', function ()
     local run = support.start { count = 3, packages = { '标准' } }
 
     for _, player in ipairs(run.players) do
-        lt.assertEquals('槽位名按声明顺序', '武器,防具,进攻马,防御马',
-            table.concat(assert(player:getZone('装备'), '没有装备区').slots, ','))
+        for _, name in ipairs { '武器', '防具', '进攻马', '防御马' } do
+            local zone = assert(player:getZone(name), '没有 ' .. name .. ' 子区')
+            lt.assertEquals(name .. '：是普通区', 'zone', zone.kind)
+            lt.assertEquals(name .. '：归属这个玩家', player, zone.owner)
+        end
     end
+
+    lt.assertEquals('「装备」这个区名不再存在（四个子区取代了它）', nil, run.players[1]:getZone('装备'))
+end)
+
+lt.test('装备：别的包往 rule.equipZones 里追加子区，新子区会被建出来', function ()
+    local guard <close> = useProbe()
+    write('扩展/装备扩展.lua', [[
+rule.equipZones[#rule.equipZones + 1] = '宝物'
+
+Card '宝物牌'
+    : extends '装备牌'
+    : addKind '宝物'
+
+Card '玉玺'
+    : extends '宝物牌'
+]])
+    local run = support.start {
+        count    = 2,
+        packages = { '标准', '扩展' },
+        sources  = { probeDir:string() .. '/*', './package/*' },
+    }
+    local user     = run.players[1]
+    local treasure = assert(user:getZone('宝物'), '宝物子区没被建出来')
+
+    local card = run.game:createCard('玉玺')
+    assert(user:getZone('手牌'), '没有手牌区'):accept(card)
+    run.game:useCard(user, card, {})
+
+    lt.assertEquals('进了宝物子区', card, treasure:list()[1])
+    lt.assertEquals('也算他身上的装备牌', true, moe.util.arrayHas(user.equipCards, card))
 end)
 
 lt.test('装备：装备牌没有目标，出牌阶段能选中它并用出去', function ()
@@ -80,36 +134,36 @@ lt.test('装备：装备牌没有目标，出牌阶段能选中它并用出去',
 
     run.game:useCard(user, assert(ask.card), ask.targets or {})
 
-    lt.assertEquals('牌进了武器槽', card, assert(user:getZone('装备')):getSlot('武器'))
+    lt.assertEquals('牌进了武器子区', card, assert(user:getZone('武器')):list()[1])
 end)
 
-lt.test('装备：用出去就落进对应的槽，并按数据加攻击范围', function ()
+lt.test('装备：用出去就落进对应的子区，并按数据加攻击范围', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]
 
     local card = equipCard(run, user, '麒麟弓')
 
-    lt.assertEquals('进了武器槽', card, assert(user:getZone('装备')):getSlot('武器'))
-    lt.assertEquals('装备区就这一张', 1, assert(user:getZone('装备')):count())
+    lt.assertEquals('进了武器子区', card, assert(user:getZone('武器')):list()[1])
+    lt.assertEquals('武器子区就这一张', 1, assert(user:getZone('武器')):count())
     lt.assertEquals('攻击范围 1 + 4', 5, user:getAttr('攻击范围'))
     lt.assertEquals('结算完的牌没被收进弃牌堆', 0, assert(run.game:getZone('弃牌')):count())
 end)
 
-lt.test('装备：坐骑各进自己的槽，改的是距离修正', function ()
+lt.test('装备：坐骑各进自己的子区，改的是距离修正', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]
 
     local horse  = equipCard(run, user, '赤兔')
     local shield = equipCard(run, user, '的卢')
 
-    lt.assertEquals('进攻马进了进攻马槽', horse, assert(user:getZone('装备')):getSlot('进攻马'))
-    lt.assertEquals('防御马进了防御马槽', shield, assert(user:getZone('装备')):getSlot('防御马'))
-    lt.assertEquals('两个槽位互不影响', 2, assert(user:getZone('装备')):count())
+    lt.assertEquals('进攻马进了进攻马子区', horse, assert(user:getZone('进攻马')):list()[1])
+    lt.assertEquals('防御马进了防御马子区', shield, assert(user:getZone('防御马')):list()[1])
+    lt.assertEquals('两个子区各一张', 2, #user.equipCards)
     lt.assertEquals('进攻修正 -1', -1, user:getAttr('进攻修正'))
     lt.assertEquals('防御修正 +1', 1, user:getAttr('防御修正'))
 end)
 
-lt.test('装备：同槽换新装备，旧牌进弃牌堆、加成换成新的', function ()
+lt.test('装备：同子区换新装备，旧牌进弃牌堆、加成换成新的', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]
 
@@ -118,20 +172,20 @@ lt.test('装备：同槽换新装备，旧牌进弃牌堆、加成换成新的',
 
     local new = equipCard(run, user, '麒麟弓')
 
-    lt.assertEquals('槽里是新的那张', new, assert(user:getZone('装备')):getSlot('武器'))
-    lt.assertEquals('装备区只有一张', 1, assert(user:getZone('装备')):count())
+    lt.assertEquals('子区里是新的那张', new, assert(user:getZone('武器')):list()[1])
+    lt.assertEquals('武器子区只有一张', 1, assert(user:getZone('武器')):count())
     lt.assertEquals('旧牌进了弃牌堆', true,
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), old))
     lt.assertEquals('攻击范围换成新的（旧的不再叠加）', 5, user:getAttr('攻击范围'))
 end)
 
-lt.test('装备：被【过河拆桥】拆走后修正回落，槽位也读不到了', function ()
+lt.test('装备：被【过河拆桥】拆走后修正回落，子区也空了', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
     local weapon = equipCard(run, target, '麒麟弓')
     local trick  = takeCard(run, user, '过河拆桥')
-    local equip  = assert(target:getZone('装备'))
+    local zone   = assert(target:getZone('武器'))
 
     run.game:on('卡牌-询问', function (ask)
         ask:answer { card = weapon }
@@ -139,9 +193,8 @@ lt.test('装备：被【过河拆桥】拆走后修正回落，槽位也读不�
 
     run.game:useCard(user, trick, { target })
 
-    lt.assertEquals('装备区空了', 0, equip:count())
+    lt.assertEquals('武器子区空了', 0, zone:count())
     lt.assertEquals('攻击范围回落到 1', 1, target:getAttr('攻击范围'))
-    lt.assertEquals('槽位读不到那张牌', nil, equip:getSlot('武器'))
     lt.assertEquals('拆走的牌进了弃牌堆', true,
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), weapon))
 end)
@@ -177,7 +230,7 @@ lt.test('装备：进攻马让自己到别人的距离 -1、防御马让别人�
     lt.assertEquals('相邻的 2 号位照旧够得着（距离最小 1，不会减到 0）', true,
         moe.util.arrayHas(assert(plan.legal), two))
 
-    run.game:moveCard(assert(assert(one:getZone('装备')):getSlot('进攻马')), '弃牌')
+    run.game:moveCard(assert(assert(one:getZone('进攻马')):list()[1]), '弃牌')
     lt.assertEquals('马被拆走就回到原样', '2,4', reachable())
     lt.assertEquals('进攻修正也回落', 0, one:getAttr('进攻修正'))
 
@@ -187,30 +240,30 @@ lt.test('装备：进攻马让自己到别人的距离 -1、防御马让别人�
     lt.assertEquals('进攻修正不受影响', 0, one:getAttr('进攻修正'))
 end)
 
-lt.test('装备：牌表里 14 张装备都定义好了，各自进对了槽', function ()
+lt.test('装备：牌表里 14 张装备都定义好了，各自进对了子区', function ()
     local run = support.start { count = 2, packages = { '标准' } }
 
     ---@class Test.EquipExpect
-    ---@field slot string # 该进的槽位名
+    ---@field zone string # 该进的子区名
     ---@field range? integer # 官方攻击范围（牌上写的就是这个值）
     ---@field delta? integer # 距离修正
 
     ---@type table<string, Test.EquipExpect>
     local expected = {
-        ['诸葛连弩']   = { slot = '武器', range = 1 },
-        ['雌雄双股剑'] = { slot = '武器', range = 2 },
-        ['青紅剑']     = { slot = '武器', range = 2 },
-        ['青龙偃月刀'] = { slot = '武器', range = 3 },
-        ['丈八蛇矛']   = { slot = '武器', range = 3 },
-        ['贯石斧']     = { slot = '武器', range = 3 },
-        ['方天画戟']   = { slot = '武器', range = 4 },
-        ['麒麟弓']     = { slot = '武器', range = 5 },
-        ['赤兔']       = { slot = '进攻马', delta = -1 },
-        ['大宛']       = { slot = '进攻马', delta = -1 },
-        ['紫骍']       = { slot = '进攻马', delta = -1 },
-        ['的卢']       = { slot = '防御马', delta = 1 },
-        ['绝影']       = { slot = '防御马', delta = 1 },
-        ['爪黄飞电']   = { slot = '防御马', delta = 1 },
+        ['诸葛连弩']   = { zone = '武器', range = 1 },
+        ['雌雄双股剑'] = { zone = '武器', range = 2 },
+        ['青紅剑']     = { zone = '武器', range = 2 },
+        ['青龙偃月刀'] = { zone = '武器', range = 3 },
+        ['丈八蛇矛']   = { zone = '武器', range = 3 },
+        ['贯石斧']     = { zone = '武器', range = 3 },
+        ['方天画戟']   = { zone = '武器', range = 4 },
+        ['麒麟弓']     = { zone = '武器', range = 5 },
+        ['赤兔']       = { zone = '进攻马', delta = -1 },
+        ['大宛']       = { zone = '进攻马', delta = -1 },
+        ['紫骍']       = { zone = '进攻马', delta = -1 },
+        ['的卢']       = { zone = '防御马', delta = 1 },
+        ['绝影']       = { zone = '防御马', delta = 1 },
+        ['爪黄飞电']   = { zone = '防御马', delta = 1 },
     }
 
     ---@type table<string, true>
@@ -226,7 +279,7 @@ lt.test('装备：牌表里 14 张装备都定义好了，各自进对了槽', f
 
         local def = assert(run.game:getCard(name), '没有定义：' .. name)
         lt.assertEquals(name .. '：是装备', true, def:isKind('装备'))
-        lt.assertEquals(name .. '：分类里有槽位名（内核按它找槽）', true, def:isKind(want.slot))
+        lt.assertEquals(name .. '：分类里有子区名（装备模板按它找子区）', true, def:isKind(want.zone))
         if want.range then
             lt.assertEquals(name .. '：攻击范围与描述一致', want.range, def:getValue('攻击范围'))
         end
@@ -265,35 +318,33 @@ lt.test('装备：被动可以临时压制，松开后恢复', function ()
     lt.assertEquals('先装上：攻击范围 1 + 4', 5, user:getAttr('攻击范围'))
 
     weapon:disablePassive()
-    lt.assertEquals('压制住：加成被撤（牌还挂在槽里）', 1, user:getAttr('攻击范围'))
+    lt.assertEquals('压制住：加成被撤（牌还挂在子区里）', 1, user:getAttr('攻击范围'))
 
     weapon:enablePassive()
     lt.assertEquals('松开：重新应用', 5, user:getAttr('攻击范围'))
 end)
 
-lt.test('装备：进错槽位不启用被动', function ()
+lt.test('装备：进错子区不启用被动', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]
     local weapon = takeCard(run, user, '麒麟弓')
-    local equip  = assert(user:getZone('装备'))
 
-    run.game:moveCardWithSlot(weapon, equip, '防具')
+    run.game:moveCard(weapon, assert(user:getZone('防具')))
 
-    lt.assertEquals('牌进了防具槽（槽位本身不挑分类）', weapon, equip:getSlot('防具'))
+    lt.assertEquals('牌进了防具子区（子区本身不挑分类）', weapon, assert(user:getZone('防具')):list()[1])
     lt.assertEquals('分类对不上：被动没启用，攻击范围还是 1', 1, user:getAttr('攻击范围'))
 end)
 
-lt.test('装备：离槽停用后放回，重新启用', function ()
+lt.test('装备：拆走后被动停用，放回子区重新启用', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]
     local weapon = equipCard(run, user, '麒麟弓')
-    local equip  = assert(user:getZone('装备'))
 
     run.game:moveCard(weapon, '弃牌')
-    lt.assertEquals('离槽：加成回落', 1, user:getAttr('攻击范围'))
+    lt.assertEquals('拆走：加成回落', 1, user:getAttr('攻击范围'))
 
-    run.game:moveCardWithSlot(weapon, equip, '武器')
-    lt.assertEquals('放回槽位：重新应用', 5, user:getAttr('攻击范围'))
+    run.game:moveCard(weapon, assert(user:getZone('武器')))
+    lt.assertEquals('放回武器子区：重新应用', 5, user:getAttr('攻击范围'))
 end)
 
 lt.test('方天画戟：最后手牌用【杀】可指定两名目标，违规的用不出去', function ()

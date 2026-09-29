@@ -2,7 +2,7 @@
 
 -- 本文件只声明注入环境的类型：环境对象本身、内容定义入口、以及 game 上的**事件**（按名收窄 on/fire 的上下文）。
 -- Game 上其余入口（askCard / moveCard / drawCards …）的声明在 `server/core/game.lua`，别往这里抄一份。
--- 内核建好的五个基础牌区（局上 `抽牌` / `弃牌`，玩家身上 `手牌` / `装备` / `判定`）是**对内容侧的约定**：包可以直接取（`game:getZone('弃牌')`），但不得重建同名区；声明见 `game.lua` / `player.lua` 里 getZone 的重载。
+-- 内核建好的四个基础牌区（局上 `抽牌` / `弃牌`，玩家身上 `手牌` / `判定`）是**对内容侧的约定**：包可以直接取（`game:getZone('弃牌')`），但不得重建同名区；声明见 `game.lua` / `player.lua` 里 getZone 的重载。
 
 ---@type Game
 game = nil
@@ -13,10 +13,15 @@ Card = nil
 ---@type fun(items: string[])
 Depends = nil
 
+--- 内容侧共享的规则数据袋：装载器每轮装载给一张新的空表（内核不认识里面的东西 —— 字段由内容侧自己声明，如 `@基础/meta.lua` 里的 `equipZones`）
+---@class Loader.Rule
+---@type Loader.Rule
+rule = nil
+
 --- 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
 ---@class CardDef
----@field on fun(self: CardDef, event: '进入区域', handler: fun(card: Card, zone: Zone, slot: string?): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发；槽位区额外给槽位名）
----@field on fun(self: CardDef, event: '离开区域', handler: fun(card: Card, zone: Zone, slot: string?): any): CardDef # 这张牌离开某个牌区时跑（发的时候它已经不在那个区里；槽位区额外给槽位名）
+---@field on fun(self: CardDef, event: '进入区域', handler: fun(card: Card, zone: Zone): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发）
+---@field on fun(self: CardDef, event: '离开区域', handler: fun(card: Card, zone: Zone): any): CardDef # 这张牌离开某个牌区时跑（发的时候它已经不在那个区里）
 ---@field on fun(self: CardDef, event: '获取目标', handler: fun(plan: CardDef.TargetPlan): Player[]): CardDef
 ---@field on fun(self: CardDef, event: '获取卡牌目标', handler: fun(plan: CardDef.CardTargetPlan): Card[]): CardDef # 返回你认下的那批牌（发起方给的那张不在里面 = 不能对这张牌使用）；声明它 = 这张牌能「对牌使用」
 ---@field on fun(self: CardDef, event: '使用', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前；声明了 skipEffect 的牌就到这）

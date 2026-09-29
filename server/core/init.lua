@@ -2,7 +2,6 @@
 include 'core.card'
 include 'core.zone'
 include 'core.ordered-zone'
-include 'core.slot-zone'
 include 'core.random'
 include 'core.attribute'
 include 'core.event'

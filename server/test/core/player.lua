@@ -25,13 +25,13 @@ lt.test('玩家：持有属性实例', function ()
     lt.assertEquals('别人的属性不受影响', 3, b:getAttributes():get('体力上限'))
 end)
 
-lt.test('玩家：内核建好手牌 / 装备 / 判定三个区', function ()
+lt.test('玩家：内核建好手牌 / 判定两个区', function ()
     local player = newPlayer(newSystem())
 
-    lt.assertEquals('三个区都在', 3, #player:getZones())
+    lt.assertEquals('两个区都在', 2, #player:getZones())
     lt.assertEquals('手牌区', true, player:getZone('手牌') ~= nil)
-    lt.assertEquals('装备区', true, player:getZone('装备') ~= nil)
     lt.assertEquals('判定区', true, player:getZone('判定') ~= nil)
+    lt.assertEquals('装备子区不由内核建（内容侧在游戏开始时建）', nil, player:getZone('武器'))
     lt.assertEquals('手牌区按加入顺序在前', player:getZone('手牌'), player:getZones()[1])
 
     local other = newPlayer(newSystem())
@@ -39,15 +39,10 @@ lt.test('玩家：内核建好手牌 / 装备 / 判定三个区', function ()
     lt.assertEquals('归属记在持有者身上', false, player:getZone('手牌'):isVisibleTo(other))
 end)
 
-lt.test('玩家：装备区是槽位区，槽位由内容侧在游戏开始时设置', function ()
-    local system = newSystem()
-    local game   = moe.game.create { seats = 1, random = moe.random.create(1) }
-    local player = moe.player.create(game, { attributes = system:createInstance() })
+lt.test('玩家：判定区是有序区（结算顺序 = 进入顺序，后入先出）', function ()
+    local player = newPlayer(newSystem())
 
-    lt.assertEquals('装备区是槽位区', 'slotZone', player:getZone('装备').kind)
-    lt.assertEquals('内核建出来时没有槽位（等内容侧在游戏开始时设）', 0,
-        #player:getZone('装备').slots)
-    lt.assertEquals('判定区是有序区（结算顺序 = 进入顺序，后入先出）', 'orderedZone', player:getZone('判定').kind)
+    lt.assertEquals('判定区是有序区', 'orderedZone', assert(player:getZone('判定')).kind)
 end)
 
 lt.test('玩家：牌区可增删', function ()
@@ -57,13 +52,13 @@ lt.test('玩家：牌区可增删', function ()
     local undo = player:addZone('手牌区')
     player:addZone('装备区')
 
-    lt.assertEquals('两个自建牌区都在', 5, #player:getZones())
-    lt.assertEquals('按加入顺序排在后面', player:getZone('手牌区'), player:getZones()[4])
+    lt.assertEquals('两个自建牌区都在', 4, #player:getZones())
+    lt.assertEquals('按加入顺序排在后面', player:getZone('手牌区'), player:getZones()[3])
     lt.assertEquals('按名字查得到', true, player:getZone('装备区') ~= nil)
 
     undo()
     undo()
-    lt.assertEquals('撤销后少一个', 4, #player:getZones())
+    lt.assertEquals('撤销后少一个', 3, #player:getZones())
     lt.assertEquals('被撤销的查不到了', nil, player:getZone('手牌区'))
     lt.assertEquals('另一个不受影响', true, player:getZone('装备区') ~= nil)
 end)

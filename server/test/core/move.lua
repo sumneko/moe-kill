@@ -133,11 +133,6 @@ lt.test('收牌：一批牌一起收进来，从哪个区来都行', function ()
     lt.assertEquals('目标区按给的顺序收', '甲,乙', zoneLabels(to))
     lt.assertEquals('归属跟着走', to, a:getZone())
     lt.assertEquals('归属跟着走（二）', to, b:getZone())
-
-    local ok, why = to:accept(lt.card('丙'), '武器')
-    lt.assertEquals('不是槽位区却给了槽位名 ⇒ 失败', false, ok)
-    lt.assertEquals('而且说出原因', '这个牌区不是槽位区', why)
-    lt.assertEquals('失败时什么都不改', 2, to:count())
 end)
 
 lt.test('收牌：被禁用的区照收（禁用是逻辑状态，不拦搬运）', function ()

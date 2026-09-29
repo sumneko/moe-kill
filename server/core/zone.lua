@@ -11,21 +11,7 @@ local M = Class 'Zone'
 ---@class Zone.Move
 ---@field card Card
 ---@field from? Zone # 它原来在哪个区（本来就没有归属就是空）
----@field fromSlot? string # 它原来在那个区的哪个槽位
 ---@field to Zone # 它进了哪个区
----@field slot? string # 它进了目标区的哪个槽位
-
---- 这张牌在那个区的哪个槽位里（只有槽位区有槽位）
----@param zone Zone
----@param card Card
----@return string?
-local function slotNameOf(zone, card)
-    if zone.kind ~= 'slotZone' then
-        return nil
-    end
-    ---@cast zone SlotZone
-    return zone:slotOf(card)
-end
 
 ---@param game Game # 属于哪一局
 function M:__init(game)
@@ -36,29 +22,19 @@ function M:__init(game)
     self.game     = game
 end
 
---- 这个区收不收这张牌（进不去的在这里说，槽位区在这里要求先占槽）
----@protected
----@param card Card
----@return boolean
-function M:canEnter(card)
-    return true
-end
-
 --- 牌进来了：本区被禁用就先压它一层，再跑它定义上的「进入区域」钩子
 ---@param card Card
----@param slot? string # 进的是哪个槽位（只有槽位区有）
-function M:notifyEnter(card, slot)
+function M:notifyEnter(card)
     if self.disabled > 0 then
         card:disablePassive()
     end
-    card:fireHandlers('进入区域', card, self, slot)
+    card:fireHandlers('进入区域', card, self)
 end
 
 --- 牌离开了：先跑它定义上的「离开区域」钩子，再松开本区压的那一层（发的时候牌已经不在本区里）
 ---@param card Card
----@param slot? string # 离开的是哪个槽位（只有槽位区有）
-function M:notifyLeave(card, slot)
-    card:fireHandlers('离开区域', card, self, slot)
+function M:notifyLeave(card)
+    card:fireHandlers('离开区域', card, self)
     if self.disabled > 0 then
         card:enablePassive()
     end
@@ -77,14 +53,12 @@ end
 --- 静默把这批牌收进本区（只摘、置、绑，不发任何事件）
 ---@protected
 ---@param cards Card[]
----@param slots? string[] # 与 cards 一一对应的槽位名（不给就是没有）
 ---@return Zone.Move[] # 这次搬动的记录（发事件时用）
-function M:takeIn(cards, slots)
+function M:takeIn(cards)
     ---@type Zone.Move[]
     local moves = {}
     for i, card in ipairs(cards) do
-        local from     = card:getZone()
-        local fromSlot = from and slotNameOf(from, card) or nil
+        local from = card:getZone()
         if from then
             from:detach(card)
         end
@@ -92,11 +66,9 @@ function M:takeIn(cards, slots)
         self.cards[#self.cards + 1] = card
         card:bindZone(self)
         moves[i] = {
-            card     = card,
-            from     = from,
-            fromSlot = fromSlot,
-            to       = self,
-            slot     = slots and slots[i] or nil,
+            card = card,
+            from = from,
+            to   = self,
         }
     end
     return moves
@@ -109,23 +81,19 @@ function M:notifyMoved(moves)
     for _, move in ipairs(moves) do
         local from = move.from
         if from then
-            from:notifyLeave(move.card, move.fromSlot)
+            from:notifyLeave(move.card)
         end
     end
     for _, move in ipairs(moves) do
-        move.to:notifyEnter(move.card, move.slot)
+        move.to:notifyEnter(move.card)
     end
 end
 
 --- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「离开区域」/「进入区域」）
 ---@param cards Card|Card[] # 要收的牌（单张或一批）
----@param slot? string # 收进哪个槽位（只有槽位区有槽位）
 ---@return boolean # 收下了没有
 ---@return string? # 没收下的原因
-function M:accept(cards, slot)
-    if slot then
-        return false, '这个牌区不是槽位区'
-    end
+function M:accept(cards)
     self:notifyMoved(self:takeIn(moe.util.toList(cards)))
     return true
 end
@@ -139,10 +107,9 @@ function M:remove(card)
     if not index then
         return nil
     end
-    local slot = slotNameOf(self, card)
     table.remove(self.cards, index)
     card:unbindZone()
-    self:notifyLeave(card, slot)
+    self:notifyLeave(card)
     return card
 end
 

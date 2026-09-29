@@ -6,7 +6,10 @@ Card '方天画戟'
     : extends '武器牌'
     : value('攻击范围', 4)
     : on('被动', function (card, zone)
-        local owner = assert(zone.owner)
+        local owner = zone.owner
+        if not owner then
+            return
+        end
         return game:on('卡牌-目标数修正', function (check)
             if check.card.name ~= '杀' or check.user ~= owner then
                 return

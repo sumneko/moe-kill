@@ -14,13 +14,13 @@ Card '被动牌'
         end
     end)
 Card '装备样'
-    : on('进入区域', function (card, zone, slot)
-        if slot then
+    : on('进入区域', function (card, zone)
+        if zone.owner then
             card:enablePassive()
         end
     end)
-    : on('离开区域', function (card, zone, slot)
-        if slot then
+    : on('离开区域', function (card, zone)
+        if zone.owner then
             card:disablePassive()
         end
     end)
@@ -198,12 +198,14 @@ end)
 
 lt.test('牌区：禁用期间装进来的牌不会被进区钩子松开', function ()
     local guard <close> = useProbe()
-    local game  = newProbeGame()
-    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
-    local undo  = zone:disable()
-    local card  = game:createCard('装备样')
+    local game   = newProbeGame()
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    player:addZone('武器')
+    local zone = assert(player:getZone('武器'))
+    local undo = zone:disable()
+    local card = game:createCard('装备样')
 
-    zone:accept(card, '武器')
+    zone:accept(card)
 
     lt.assertEquals('进区钩子松开了一层，区级那层还在：没应用过', nil, game:getValue('装备样应用'))
     lt.assertEquals('也没有东西要撤', nil, game:getValue('装备样撤销'))
@@ -214,11 +216,13 @@ end)
 
 lt.test('牌区：从禁用区拿走时不再重新应用，区级那层也摘掉', function ()
     local guard <close> = useProbe()
-    local game  = newProbeGame()
-    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
-    local other = moe.zone.create(game)
+    local game   = newProbeGame()
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    player:addZone('武器')
+    local zone  = assert(player:getZone('武器'))
+    local other = assert(game:getZone('弃牌'))
     local card  = game:createCard('装备样')
-    zone:accept(card, '武器')
+    zone:accept(card)
     lt.assertEquals('先装上：应用一次', 1, game:getValue('装备样应用'))
 
     local undo = zone:disable()
@@ -230,7 +234,7 @@ lt.test('牌区：从禁用区拿走时不再重新应用，区级那层也摘�
     undo()
     lt.assertEquals('区恢复时牌已不在里面：不动它', 1, game:getValue('装备样应用'))
 
-    zone:accept(card, '武器')
+    zone:accept(card)
     lt.assertEquals('区已恢复，再装回来又应用一次（说明区级那层确实已摘掉）', 2, game:getValue('装备样应用'))
 end)
 
@@ -357,131 +361,4 @@ lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看�
     local nobody = moe.zone.create(game)
     nobody:setVisible(false)
     lt.assertEquals('没有归属的暗区：谁都看不见', false, nobody:isVisibleTo(mine))
-end)
-
----@return Game # 换下来的牌要有个地方去（槽位区的弃牌堆）
-local function newGame()
-    return moe.game.create { seats = 2, random = moe.random.create(1) }
-end
-
---- 把牌放进某个槽位（`accept` 自己会占槽）
----@param zone SlotZone
----@param slot string
----@param card Card
-local function putInSlot(zone, slot, card)
-    zone:accept(card, slot)
-end
-
-lt.test('槽位区：放进空槽、同槽换新时旧牌进弃牌堆', function ()
-    local game = newGame()
-    local zone = moe.slotZone.create(game):setSlots({ '武器', '防具' })
-    local slot = assert(game:getZone('弃牌'), '局上有弃牌区')
-
-    lt.assertEquals('kind 只用来区分子类', 'slotZone', zone.kind)
-    lt.assertEquals('声明的槽位按顺序', '武器,防具', table.concat(zone.slots, ','))
-    lt.assertEquals('空槽读不到', nil, zone:getSlot('武器'))
-
-    local old = lt.card('甲')
-    putInSlot(zone, '武器', old)
-    lt.assertEquals('放进去就读得到', old, zone:getSlot('武器'))
-    lt.assertEquals('牌记着自己在哪个区', zone, old:getZone())
-    lt.assertEquals('另一个槽还是空的', nil, zone:getSlot('防具'))
-
-    local new = lt.card('乙')
-    putInSlot(zone, '武器', new)
-    lt.assertEquals('槽里换成新的', new, zone:getSlot('武器'))
-    lt.assertEquals('一个槽始终只有一张（装备区也只有这一张）', 1, zone:count())
-    lt.assertEquals('旧的进了弃牌堆', old, slot:list()[1])
-    lt.assertEquals('旧的不再属于这个区', slot, old:getZone())
-end)
-
-lt.test('槽位区：从别的区搬进来 —— 给槽位名的那次挪牌', function ()
-    local game  = newGame()
-    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
-    local other = moe.zone.create(game)
-    local card  = lt.card('甲')
-    other:accept(card)
-
-    local moveCard = game:moveCardWithSlot(card, zone, '武器')
-
-    lt.assertEquals('这次挪牌没失败', nil, moveCard.err)
-    lt.assertEquals('源区空了', 0, other:count())
-    lt.assertEquals('牌进了槽', card, zone:getSlot('武器'))
-    lt.assertEquals('牌在本区里', zone, card:getZone())
-end)
-
-lt.test('槽位区：没占槽的牌进不来', function ()
-    local game  = newGame()
-    local zone  = moe.slotZone.create(game):setSlots({ '武器' })
-    local other = moe.zone.create(game)
-    local card  = lt.card('甲')
-    other:accept(card)
-
-    local ok, why = zone:accept(card)
-    lt.assertEquals('没给槽位名就进不去（牌还在原区）', false, ok)
-    lt.assertEquals('而且说出原因', '槽位区必须指名收进哪个槽位', why)
-    lt.assertEquals('没归属的直接放进去也进不去', false, (zone:accept(lt.card('乙'))))
-    lt.assertEquals('区里什么都没进', 0, zone:count())
-    lt.assertEquals('牌还在原处', other, card:getZone())
-end)
-
-lt.test('槽位区：牌被别的路径取走后槽位就地失效', function ()
-    local game = newGame()
-    local zone = moe.slotZone.create(game):setSlots({ '武器' })
-    local card = lt.card('甲')
-    putInSlot(zone, '武器', card)
-
-    zone:clear()
-
-    lt.assertEquals('槽位读不到那张牌了', nil, zone:getSlot('武器'))
-
-    local again = lt.card('乙')
-    putInSlot(zone, '武器', again)
-    lt.assertEquals('空出来的槽能重新放', again, zone:getSlot('武器'))
-    lt.assertEquals('区里就那一张', 1, zone:count())
-    lt.assertEquals('这次没有旧牌要弃（牌早就走了）', 0, assert(game:getZone('弃牌')):count())
-end)
-
-lt.test('槽位区：清空后槽位全空', function ()
-    local game = newGame()
-    local zone = moe.slotZone.create(game):setSlots({ '武器', '防具' })
-    putInSlot(zone, '武器', lt.card('甲'))
-    putInSlot(zone, '防具', lt.card('乙'))
-
-    lt.assertEquals('清空返回张数', 2, zone:clear())
-
-    lt.assertEquals('武器槽空了', nil, zone:getSlot('武器'))
-    lt.assertEquals('防具槽空了', nil, zone:getSlot('防具'))
-    lt.assertEquals('清空的牌没有自动进弃牌堆（归内容侧）', 0,
-        assert(game:getZone('弃牌')):count())
-end)
-
-lt.test('槽位区：弃牌堆被禁用也照换（禁用不拦搬入搬出）', function ()
-    local game = newGame()
-    local zone = moe.slotZone.create(game):setSlots({ '武器' })
-    local old  = lt.card('甲')
-    putInSlot(zone, '武器', old)
-
-    local discard = assert(game:getZone('弃牌'))
-    discard:disable()
-
-    local new = lt.card('乙')
-    lt.assertEquals('换得进去', true, (zone:accept(new, '武器')))
-    lt.assertEquals('槽里换成新的', new, zone:getSlot('武器'))
-    lt.assertEquals('旧的照旧进弃牌堆', old, discard:list()[1])
-end)
-
-lt.test('槽位区：未声明的槽位名 —— 收不下、读也给「没有」', function ()
-    local game = newGame()
-    local zone = moe.slotZone.create(game):setSlots({ '武器' })
-
-    local ok, why = zone:accept(lt.card('甲'), '防具')
-    lt.assertEquals('收不下（拒绝，不抛）', false, ok)
-    lt.assertEquals('而且说出是哪个槽位', '这个牌区没有「防具」这个槽位', why)
-    lt.assertEquals('读不到', nil, zone:getSlot('防具'))
-    lt.assertEquals('拒绝后什么都没放进去', 0, zone:count())
-
-    local bare = moe.slotZone.create(game)
-    lt.assertEquals('不声明就没有槽位', 0, #bare.slots)
-    lt.assertEquals('没有槽位也收不下', false, (bare:accept(lt.card('甲'), '武器')))
 end)

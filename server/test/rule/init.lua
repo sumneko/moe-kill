@@ -566,3 +566,18 @@ lt.test('环境：重装换一份新环境，上一轮写的全局不再可见',
 
     lt.assertEquals('重装之后看不见了', false, game:getValue('看得见'))
 end)
+
+lt.test('环境：装载器给内容侧一张共享袋 rule，重装换新', function ()
+    local guard <close> = prepare()
+    writeIn('甲/写.lua', 'rule.数值 = 1')
+    writeIn('乙/读.lua', 'game:setValue("读到的", rule.数值)')
+
+    load({ '甲', '乙' })
+    lt.assertEquals('后加载的包读得到先加载的包往里写的东西', 1, game:getValue('读到的'))
+
+    game:setValue('读到的', nil)
+    writeIn('丙/看.lua', 'game:setValue("这一轮还有没有", rule.数值)')
+    load({ '丙' })
+
+    lt.assertEquals('重装换一张新袋：上一轮写的没了', nil, game:getValue('这一轮还有没有'))
+end)

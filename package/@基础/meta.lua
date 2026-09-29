@@ -1,5 +1,9 @@
 ---@meta
 
+--- 装备子区名单挂在装载器给的共享袋上（内容侧跨包共享；装载器每轮新建一张）
+---@class Loader.Rule
+---@field equipZones string[] # 装备子区名（= 装备的分类名；想加子区的包在加载期往这里追加）
+
 ---@class Game
 ---@field getValue fun(self: Game, name: '默认体力'|'主公额外体力'): integer
 ---@field getValue fun(self: Game, name: string): any

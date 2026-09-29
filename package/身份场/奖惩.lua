@@ -16,15 +16,13 @@ game:on('玩家-死亡', function (player)
 
     if player:getTag('身份') == '忠臣' and killer == game.desk:getPlayer(1) then
         local hand  = killer:getZone('手牌')
-        local equip = killer:getZone('装备')
+        local equip = killer.equipCards
         ---@type Card[]
         local cards = {}
         if hand then
             table.move(hand:list(), 1, hand:count(), 1, cards)
         end
-        if equip then
-            table.move(equip:list(), 1, equip:count(), #cards + 1, cards)
-        end
+        table.move(equip, 1, #equip, #cards + 1, cards)
         if #cards > 0 then
             game:moveCard(cards, '弃牌')
         end

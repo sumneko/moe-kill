@@ -364,7 +364,7 @@ lt.test('过河拆桥：目标身上有牌的区都逐张当候选，弃掉挑�
     lt.assertEquals('挑中的手牌进了弃牌', true,
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), hidden))
     lt.assertEquals('目标手牌空了', 0, hand:count())
-    lt.assertEquals('装备区没动', 1, assert(target:getZone('装备')):count())
+    lt.assertEquals('武器子区没动', 1, assert(target:getZone('武器')):count())
 end)
 
 lt.test('过河拆桥：目标只有手牌时，候选就是那几张手牌', function ()
@@ -439,7 +439,7 @@ lt.test('借刀杀人：被借刀者用出【杀】，武器留在自己身上',
     lt.assertEquals('候选就是被借刀者能打到的人', true,
         moe.util.arrayHas(assert(candidates), victim))
     lt.assertEquals('打出的【杀】结算了：目标挨 1 点', 4, victim:getAttr('体力'))
-    lt.assertEquals('武器还在他装备区', weapon, assert(holder:getZone('装备')):getSlot('武器'))
+    lt.assertEquals('武器还在他武器子区', weapon, assert(holder:getZone('武器')):list()[1])
     lt.assertEquals('使用者没拿到武器', 0, assert(user:getZone('手牌')):count())
     lt.assertEquals('用过的【杀】与【借刀杀人】都进了弃牌堆', 2,
         assert(run.game:getZone('弃牌')):count())
@@ -463,7 +463,7 @@ lt.test('借刀杀人：被借刀者手上没【杀】⇒ 武器交给使用者'
 
     lt.assertEquals('武器进使用者手牌', hand, weapon:getZone())
     lt.assertEquals('手上就这一张', 1, hand:count())
-    lt.assertEquals('装备区空了', 0, assert(holder:getZone('装备')):count())
+    lt.assertEquals('武器子区空了', 0, assert(holder:getZone('武器')):count())
     lt.assertEquals('被借刀者的攻击范围回落', 1, holder:getAttr('攻击范围'))
     lt.assertEquals('使用者的攻击范围没被带跑', 1, user:getAttr('攻击范围'))
 end)
@@ -531,7 +531,7 @@ lt.test('借刀杀人：使用者没指定角色（答复不在候选里）⇒ �
 
     lt.assertEquals('答复不在候选里 ⇒ 按没指定处理，武器交给使用者',
         assert(user:getZone('手牌')), weapon:getZone())
-    lt.assertEquals('装备区空了', 0, assert(holder:getZone('装备')):count())
+    lt.assertEquals('武器子区空了', 0, assert(holder:getZone('武器')):count())
 end)
 
 lt.test('借刀杀人：没人应答「指定谁」⇒ 同样按没指定处理', function ()
@@ -565,9 +565,9 @@ lt.test('顺手牵羊：挑中目标哪张，就把哪张拿进自己的手牌',
 
     run.game:useCard(user, card, { target })
 
-    lt.assertEquals('手牌与装备区的牌都在候选里', 2, #options)
+    lt.assertEquals('手牌与装备子区的牌都在候选里', 2, #options)
     lt.assertEquals('牌到了自己手上', hand, weapon:getZone())
-    lt.assertEquals('目标装备区空了', 0, assert(target:getZone('装备')):count())
+    lt.assertEquals('目标武器子区空了', 0, assert(target:getZone('武器')):count())
     lt.assertEquals('手上就这一张（拿走的那张，用完的已出手）', 1, hand:count())
 end)
 

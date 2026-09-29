@@ -14,7 +14,7 @@ local preparse = require 'core.loader.preparse'
 ---@field public package? string # 正在执行的文件的所属包
 ---@field excludes table<string, string> # 互斥项 → 声明者
 ---@field env table # **整轮装载共用**的书写环境（包定义的全局函数就落在这里 ⇒ 包之间可以共享）
----@field injected table<string, any> # 注入项（game / Card / Depends / Class / New）：每个文件加载前都会刷回 env
+---@field injected table<string, any> # 注入项（game / Card / Depends / Class / New / rule）：每个文件加载前都会刷回 env
 
 ---@class Loader.MetaFile
 ---@field logical string
@@ -51,7 +51,7 @@ local ALLOWED_GLOBALS = {
     'string', 'table', 'tonumber', 'tostring', 'type', 'utf8', 'xpcall',
 }
 
----@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends / Class / New）
+---@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends / Class / New / rule）
 ---@return table
 local function makeEnv(extra)
     ---@type table<string, any>
@@ -265,6 +265,8 @@ local function prepare(instance, list)
 
     ---@type table<string, any> # 试跑那一趟也共用一份书写环境（与真跑语义一致）
     local probeEnv = makeEnv {}
+    -- 共享袋也照真跑来一张（与真跑同生命周期：一轮一张），否则内容侧往 rule 里写东西会在试跑里假报错
+    probeEnv.rule = {}
 
     local index = 1
     while index <= #queue do
@@ -432,6 +434,7 @@ function moe.loader.install(game, options)
         Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
         Class   = Class,
         New     = New,
+        rule    = {},
     }
     ctx.env = makeEnv(ctx.injected)
     game.loading = ctx

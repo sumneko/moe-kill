@@ -4,15 +4,13 @@
 -- 被指定的那名角色不是这张牌的目标（不进 targets，不触发「成为目标」类技能）。
 
 ---@param player Player
----@return Card? # 装备区里的武器牌（按分类认，不认槽位名）
+---@return Card? # 武器子区里那张武器牌
 local function weaponOf(player)
-    local equip = player:getZone('装备')
-    for _, card in ipairs(equip:list()) do
-        if card:isKind('武器') then
-            return card
-        end
+    local zone = player:getZone('武器')
+    if not zone then
+        return nil
     end
-    return nil
+    return zone:list()[1]
 end
 
 ---@param player Player # 被借刀者

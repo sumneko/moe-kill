@@ -205,7 +205,7 @@ lt.test('奖惩：主公杀死忠臣 ⇒ 装备区的牌一起弃掉', function 
     local run    = startGame()
     local master = run.players[1]
     local hand   = assert(master:getZone('手牌'))
-    local equip  = assert(master:getZone('装备'))
+    local weaponZone = assert(master:getZone('武器'))
     local pile   = assert(run.game:getZone('弃牌'))
 
     ---@type Card # 抽牌堆里挑一张武器给主公装上
@@ -225,7 +225,7 @@ lt.test('奖惩：主公杀死忠臣 ⇒ 装备区的牌一起弃掉', function 
     kill(run, run.players[2])
 
     lt.assertEquals('手牌清空', 0, hand:count())
-    lt.assertEquals('装备区也清空', 0, equip:count())
+    lt.assertEquals('武器子区也清空', 0, weaponZone:count())
     lt.assertEquals('手牌与装备区的牌都进了弃牌', before + 1, pile:count())
     lt.assertEquals('攻击范围跟着回落', 1, master:getAttr('攻击范围'))
 end)
