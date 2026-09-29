@@ -107,6 +107,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **答错防御：重复目标与空答复（2026-09-29，用户提的「现在就做一遍」）**：把「客户端答错要能正确阻止」在内核侧先吃一遍 —— 逐入口盘拒收面（`askCard` / `askUseCard` / `askPlayCard` / `askPlayer` / `askUseCardToCard` 的「不在选项 / 多给目标 / 个数区间 / 无目标牌给目标 / 要求就得给」都已有拦与用例），**补两个缺口**：① **重复指定同一个目标**（`{甲, 甲}`）—— 以前只有数量校验能挡（上限 1 时才挡得住），方天这类放宽到 2+ 就会被收下、同一个目标挨两次 ⇒ 两层都拦：`canUse` 的子集检查（「不能重复指定同一个目标」）+ `AskUseCard:checkOption`（「答复的目标重复了」）；② **空表答复**（`answer {}`）走「答复不在可选项里」（连牌都没给 ⇒ 拒）。用例 +3（`core.can-use` / `core.effect.ask-use-card` / `core.effect.ask-card`）+ `rule/equip` 方天组加重复断言。**验收基线 618 → 621**。
 
+- **`canUse` 的目标结果合成一个结构（2026-09-29，用户提的）**：`legal` / `min` / `max` 三个散值合成 **`Game.UsableTargets = { legal, min, max }`**（`canUse` 成功返回 `true, nil, plan`）—— 「不会有『没有 legal 但有 min/max』的半空状态」：**`legal` 缺省 ⟺ `min = max = 0`**（「不指定目标」，唯一一种）。顺带把**取小（与合法目标数）收进 `canUse` 统一做**（以前「没给目标」的路径不取小，选项得自己再算一遍）⇒ 选项直接用 `plan.max`。**行为等价**（已有断言都落在取小后的值上）。**基线仍 621**。
+
 ## 2 下一步：待用户挑（**尚未开工**）
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：

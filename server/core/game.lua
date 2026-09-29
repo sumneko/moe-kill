@@ -310,6 +310,12 @@ end
 ---@class Game.Result
 ---@field side string # 胜方阵营：主公方 / 反贼 / 内奸 / 平局
 ---@field reason string # 胜负依据（中文短句，给人看 / 前端可直接显示）
+
+--- 这次使用的可用目标与数量区间（`canUse` 成功时给出）
+---@class Game.UsableTargets
+---@field legal Player[]? # 合法目标（「不指定目标」的牌没有）
+---@field min integer # 最少几个
+---@field max integer # 最多几个（已与合法目标数取小）
 ---@class Game
 ---@field list string[] # 上一次用的加载清单
 ---@field private cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
@@ -847,9 +853,7 @@ end
 ---@param target? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
 ---@return boolean # 能这样用吗
 ---@return any # 不能的原因
----@return Player[]? # 能用时的合法目标（无目标牌没有）
----@return integer? # 最少几个（没给目标时是声明值）
----@return integer? # 最多几个（给了目标是修正值、且不超合法目标数；没给是声明值）
+---@return Game.UsableTargets? # 能用时的可用目标与数量区间（「不指定目标」的牌是 legal 缺省、0、0）
 function M:canUse(user, card, target)
     local def, problem = checkCardItself(self, user, card)
     if not def then
@@ -873,11 +877,11 @@ function M:canUse(user, card, target)
         if not legal then
             return false, reason
         end
+        max = math.min(max, #legal)
         if targets then
             if #targets < min then
                 return false, '「{}」至少要指定 {} 个目标' % { def.fullName, min }
             end
-            max = math.min(max, #legal)
             if #targets > max then
                 return false, '「{}」至多指定 {} 个目标' % { def.fullName, max }
             end
@@ -908,7 +912,7 @@ function M:canUse(user, card, target)
         end
         return false, refusal
     end
-    return true, nil, legal, min, max
+    return true, nil, { legal = legal, min = min, max = max }
 end
 
 --- 这张牌此刻能不能「对一张牌使用」（合法性由「获取卡牌目标」给出；目标牌由发起方给定）

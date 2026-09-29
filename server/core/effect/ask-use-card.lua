@@ -36,16 +36,12 @@ end
 ---@param card Card
 ---@return AskUseCard.Option?
 function M:makeOption(card)
-    local ok, _, legal, min, max = self.game:canUse(self.to, card, self.condition?.target)
+    local ok, _, plan = self.game:canUse(self.to, card, self.condition?.target)
     if not ok then
         return nil
     end
-    ---@cast min integer
-    ---@cast max integer
-    if not legal then
-        return { card = card, min = min, max = max }
-    end
-    return { card = card, targets = legal, min = min, max = math.min(max, #legal) }
+    ---@cast plan Game.UsableTargets
+    return { card = card, targets = plan.legal, min = plan.min, max = plan.max }
 end
 
 --- 答复要给出目标，个数落在选项的区间里，且都在可用目标里；无目标牌不要给目标

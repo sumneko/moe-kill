@@ -244,9 +244,9 @@ lt.test('延时锦囊：判定区里有同名牌时用不出去（乐不思蜀 /
     lt.assertEquals('对判定区已有乐不思蜀的人用不了', false, ok)
     lt.assertEquals('理由是「不能以这个角色为目标」', '「标准.乐不思蜀」不能以这个角色为目标', reason)
 
-    local good, _, legal = run.game:canUse(user, lebu, { third })
+    local good, _, plan = run.game:canUse(user, lebu, { third })
     lt.assertEquals('对没有同名牌的别人用得了', true, good)
-    lt.assertEquals('合法目标里排除了拿着同名的那位', false, moe.util.arrayHas(assert(legal), second))
+    lt.assertEquals('合法目标里排除了拿着同名的那位', false, moe.util.arrayHas(assert(assert(plan).legal), second))
 
     toJudgeZone(run, user, '闪电')
     local bolt = takeCard(run, user, '闪电')

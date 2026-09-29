@@ -157,7 +157,8 @@ lt.test('装备：进攻马让自己到别人的距离 -1、防御马让别人�
 
     ---@return string # 顺手牵羊的合法目标（按座位号；用它观察距离：距离 1 以内且身上有牌）
     local function reachable()
-        local targets = assert(select(3, run.game:canUse(one, trick)), '该给出合法目标')
+        local plan = assert(select(3, run.game:canUse(one, trick)), '该给出合法目标')
+        local targets = assert(plan.legal)
         ---@type string[]
         local seats = {}
         for i, player in ipairs(targets) do
@@ -170,8 +171,9 @@ lt.test('装备：进攻马让自己到别人的距离 -1、防御马让别人�
 
     equipCard(run, one, '赤兔')
     lt.assertEquals('进攻马：自己到别人 -1 ⇒ 3 号位也够得着了', '2,3,4', reachable())
+    local plan = assert(select(3, run.game:canUse(one, trick)))
     lt.assertEquals('相邻的 2 号位照旧够得着（距离最小 1，不会减到 0）', true,
-        moe.util.arrayHas(assert(select(3, run.game:canUse(one, trick))), two))
+        moe.util.arrayHas(assert(plan.legal), two))
 
     run.game:moveCard(assert(assert(one:getZone('装备')):getSlot('进攻马')), '弃牌')
     lt.assertEquals('马被拆走就回到原样', '2,4', reachable())
@@ -302,10 +304,11 @@ lt.test('方天画戟：最后手牌用【杀】可指定两名目标，违规�
     local card = takeCard(run, user, '杀')
     clearHandExcept(run, user, card)
 
-    local ok, _, legal, min, max = run.game:canUse(user, card, { first, second })
+    local ok, _, plan = run.game:canUse(user, card, { first, second })
+    ---@cast plan Game.UsableTargets
     lt.assertEquals('两名目标成立', true, ok)
-    lt.assertEquals('区间带上修正（不超合法目标数）', '1,2', min .. ',' .. max)
-    lt.assertEquals('合法目标就是另外两名', 2, #assert(legal))
+    lt.assertEquals('区间带上修正（不超合法目标数）', '1,2', plan.min .. ',' .. plan.max)
+    lt.assertEquals('合法目标就是另外两名', 2, #assert(plan.legal))
 
     local over, overReason = run.game:canUse(user, card, { user, first, second })
     lt.assertEquals('三名（超合法数）用不出去', false, over)

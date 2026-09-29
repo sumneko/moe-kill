@@ -87,8 +87,8 @@ lt.test('无中生有：只能以自己为目标', function ()
     local user = run.players[1]
     local card = takeCard(run, user, '无中生有')
 
-    local ok, _, legal = run.game:canUse(user, card, { user })
-    local targets = assert(legal, '能用的牌该给出合法目标')
+    local ok, _, plan = run.game:canUse(user, card, { user })
+    local targets = assert(assert(plan).legal, '能用的牌该给出合法目标')
     lt.assertEquals('对自己用得了', true, ok)
     lt.assertEquals('合法目标就一个', 1, #targets)
     lt.assertEquals('那个目标就是自己', user, targets[1])
@@ -143,11 +143,13 @@ lt.test('南蛮入侵 / 万箭齐发：合法目标是所有其他角色', funct
     local nanman = takeCard(run, user, '南蛮入侵')
     local arrows = takeCard(run, user, '万箭齐发')
 
-    local one = assert(select(3, run.game:canUse(user, nanman)), '南蛮该给出合法目标')
+    local plan1 = assert(select(3, run.game:canUse(user, nanman)), '南蛮该给出合法目标')
+    local one = assert(plan1.legal)
     lt.assertEquals('三个人的局里两个目标', 2, #one)
     lt.assertEquals('不含自己', false, moe.util.arrayHas(one, user))
 
-    local other = assert(select(3, run.game:canUse(user, arrows)), '万箭该给出合法目标')
+    local plan2 = assert(select(3, run.game:canUse(user, arrows)), '万箭该给出合法目标')
+    local other = assert(plan2.legal)
     lt.assertEquals('万箭一样', 2, #other)
     lt.assertEquals('不含自己', false, moe.util.arrayHas(other, user))
 end)
@@ -172,7 +174,8 @@ lt.test('桃园结义：合法目标是所有存活角色，包含自己', funct
     local user = run.players[1]
     local card = takeCard(run, user, '桃园结义')
 
-    local targets = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local plan = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local targets = assert(plan.legal)
     lt.assertEquals('三个人的局里三个目标', 3, #targets)
     lt.assertEquals('包含自己', true, moe.util.arrayHas(targets, user))
 end)
@@ -232,7 +235,8 @@ lt.test('决斗：合法目标是其他角色，不含自己', function ()
     local user = run.players[1]
     local card = takeCard(run, user, '决斗')
 
-    local targets = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local plan = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local targets = assert(plan.legal)
     lt.assertEquals('三个人的局里两个目标', 2, #targets)
     lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
 end)
@@ -396,7 +400,8 @@ lt.test('过河拆桥：合法目标是「区域里有牌」的其他角色', fu
     local card = takeCard(run, user, '过河拆桥')
     takeCard(run, run.players[2], '杀')
 
-    local targets = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local plan = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local targets = assert(plan.legal)
 
     lt.assertEquals('只有身上有牌的 2 号位', 1, #targets)
     lt.assertEquals('就是 2 号位', run.players[2], targets[1])
@@ -498,7 +503,8 @@ lt.test('借刀杀人：合法目标要有武器、且他攻击范围内还有�
     lt.assertEquals('装备区没武器的不能当目标', false, ok)
 
     equipCard(run, armed, '诸葛连弩')
-    local targets = assert(select(3, run.game:canUse(user, card)), '有武器的该能当目标')
+    local plan = assert(select(3, run.game:canUse(user, card)), '有武器的该能当目标')
+    local targets = assert(plan.legal)
     lt.assertEquals('装武器的那个合法', true, moe.util.arrayHas(targets, armed))
     lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
 
@@ -595,7 +601,8 @@ lt.test('顺手牵羊：合法目标要距离 1 以内且区域里有牌', funct
     takeCard(run, run.players[2], '杀')
     takeCard(run, run.players[3], '杀')
 
-    local targets = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local plan = assert(select(3, run.game:canUse(user, card)), '该给出合法目标')
+    local targets = assert(plan.legal)
 
     lt.assertEquals('只有相邻的 2 号位', 1, #targets)
     lt.assertEquals('就是 2 号位', run.players[2], targets[1])

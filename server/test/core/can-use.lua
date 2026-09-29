@@ -124,11 +124,12 @@ lt.test('校验：能用的牌给出合法目标', function ()
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
 
-    local ok, reason, legal = run.game:canUse(run.user, card)
+    local ok, reason, plan = run.game:canUse(run.user, card)
+    ---@cast plan Game.UsableTargets
 
     lt.assertEquals('能用', true, ok)
     lt.assertEquals('没有原因', nil, reason)
-    lt.assertEquals('给出合法目标', run.target, assert(legal)[1])
+    lt.assertEquals('给出合法目标', run.target, assert(plan.legal)[1])
 end)
 
 lt.test('校验：没给目标时只判「能不能用」，给了目标就连目标一起判', function ()
@@ -315,8 +316,9 @@ Card '测试杀'
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
 
-    local ok, _, legal = run.game:canUse(run.user, card)
-    local list = assert(legal)
+    local ok, _, plan = run.game:canUse(run.user, card)
+    ---@cast plan Game.UsableTargets
+    local list = assert(plan.legal)
 
     lt.assertEquals('能用', true, ok)
     lt.assertEquals('只剩交集里的那个', 1, #list)
@@ -426,9 +428,9 @@ Card '无目标牌'
 
     lt.assertEquals('不传目标能用（也不用声明「获取目标」）', true, (run.game:canUse(run.user, card)))
     lt.assertEquals('传空表也能用（调用方习惯给空表）', true, (run.game:canUse(run.user, card, {})))
-    lt.assertEquals('也不给出合法目标', nil, (select(3, run.game:canUse(run.user, card))))
-    local _, _, _, min, max = run.game:canUse(run.user, card)
-    lt.assertEquals('数量区间是 0、0', '0,0', min .. ',' .. max)
+    local plan = assert(select(3, run.game:canUse(run.user, card)))
+    lt.assertEquals('也不给出合法目标', nil, plan.legal)
+    lt.assertEquals('数量区间是 0、0', '0,0', plan.min .. ',' .. plan.max)
 
     local ok, reason = run.game:canUse(run.user, card, { run.target })
     lt.assertEquals('给目标反而不行', false, ok)
@@ -478,11 +480,12 @@ lt.test('校验：没给目标也问一次修正（拿区间），但不判数�
         return 1
     end)
 
-    local ok, _, legal, min, max = run.game:canUse(run.user, card)
+    local ok, _, plan = run.game:canUse(run.user, card)
+    ---@cast plan Game.UsableTargets
     lt.assertEquals('没给目标时照常能用', true, ok)
     lt.assertEquals('问了一次（给区间用）', 1, asked)
-    lt.assertEquals('区间带上修正', '1,2', min .. ',' .. max)
-    lt.assertEquals('合法目标照给（选项要用）', 3, #assert(legal))
+    lt.assertEquals('区间带上修正、也取小', '1,2', plan.min .. ',' .. plan.max)
+    lt.assertEquals('合法目标照给（选项要用）', 3, #assert(plan.legal))
 
     run.game:canUse(run.user, card, { run.players[2] })
     lt.assertEquals('给了目标再问一次', 2, asked)
@@ -524,14 +527,16 @@ lt.test('校验：结果连同数量区间一起给出（在合法目标里选�
         return 1
     end)
 
-    local ok, _, legal, min, max = run.game:canUse(run.user, card, { run.players[2] })
+    local ok, _, plan = run.game:canUse(run.user, card, { run.players[2] })
+    ---@cast plan Game.UsableTargets
     lt.assertEquals('能用', true, ok)
-    lt.assertEquals('合法目标照给', run.players[2], assert(legal)[1])
-    lt.assertEquals('最少几个不变', 1, min)
-    lt.assertEquals('最多几个带上修正', 2, max)
+    lt.assertEquals('合法目标照给', run.players[2], assert(plan.legal)[1])
+    lt.assertEquals('最少几个不变', 1, plan.min)
+    lt.assertEquals('最多几个带上修正', 2, plan.max)
 
-    local ok2, _, _, min2, max2 = run.game:canUse(run.user, card)
+    local ok2, _, plan2 = run.game:canUse(run.user, card)
+    ---@cast plan2 Game.UsableTargets
     lt.assertEquals('没给目标也能用', true, ok2)
-    lt.assertEquals('区间也带上修正（不取小）', '1,2', min2 .. ',' .. max2)
+    lt.assertEquals('区间也带上修正、也取小', '1,2', plan2.min .. ',' .. plan2.max)
     lt.assertEquals('两次都问过修正', 2, asked)
 end)

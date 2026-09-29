@@ -815,10 +815,10 @@ Card '无目标牌'
     local card = game:createCard('无目标牌')
     hand:accept(card)
 
-    local ok, reason, legal = game:canUse(user, card)
+    local ok, reason, plan = game:canUse(user, card)
     lt.assertEquals('不用给目标就能用', true, ok)
     lt.assertEquals('没有原因', nil, reason)
-    lt.assertEquals('不给出合法目标（本来就没有）', nil, legal)
+    lt.assertEquals('不给出合法目标（本来就没有）', nil, assert(plan).legal)
 
     local noTargets = game:useCard(user, card, {})
     lt.assertEquals('零目标也用出去了', nil, noTargets.err)
