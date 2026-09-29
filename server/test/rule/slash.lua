@@ -100,24 +100,18 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     lt.assertEquals('杀也进了弃牌', true, moe.util.arrayHas(discard, card))
 end)
 
-lt.test('杀：多目标依次结算，一个目标的响应不影响另一个', function ()
+lt.test('杀：默认只能指定一名目标', function ()
     local run    = support.start { count = 3, packages = { '标准' } }
     local user   = run.players[1]
     local first  = run.players[2]
     local second = run.players[3]
     local card   = takeSlash(run, user)
-    local jink   = takeCard(run, first, '闪')
 
-    run.game:on('卡牌-询问', function (ask)
-        if ask.to == first then
-            ask:answer { card = jink }
-        end
-    end)
+    local useCard = run.game:useCard(user, card, { first, second })
 
-    run.game:useCard(user, card, { first, second })
-
-    lt.assertEquals('先结算的目标打出了闪，不掉血', 5, first:getAttr('体力'))
-    lt.assertEquals('后结算的目标没闪，掉 1 点', 4, second:getAttr('体力'))
+    lt.assertEquals('两张一起指定 ⇒ 用不出去', '「标准.杀」至多指定 1 个目标', useCard.err)
+    lt.assertEquals('牌还留在手上', 1, assert(user:getZone('手牌')):count())
+    lt.assertEquals('没有谁受伤', 5, first:getAttr('体力'))
 end)
 
 lt.test('杀：应答方不给牌时照常结算，不会挂住', function ()

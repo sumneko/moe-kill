@@ -11,13 +11,14 @@ do
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '闪'
 Card '测试牌'
+    : targetCount(1, 1000)
     : on('获取目标', function (target)
         return table.filter(game.desk.alivePlayers, function (player)
             return player ~= target.user
         end)
     end)
 Card '无目标牌'
-    : noTarget()
+    : targetCount(0, 0)
 ]])
     assert(ok, err)
 end

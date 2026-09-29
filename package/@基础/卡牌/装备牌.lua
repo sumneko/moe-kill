@@ -3,7 +3,7 @@
 -- 被动随槽位启停：进入与分类对应的槽位才启用（效果写在各类别基类的「被动」里）
 Card '装备牌'
     : kind '装备'
-    : noTarget()
+    : targetCount(0, 0)
     : zone '手牌'
     : on('进入区域', function (card, zone, slot)
         if slot and card:isKind(slot) then

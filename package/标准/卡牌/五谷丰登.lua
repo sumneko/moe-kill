@@ -4,6 +4,7 @@
 
 Card '五谷丰登'
     : extends '锦囊牌'
+    : targetCount(1, 1000)
     : on('获取目标', function (plan)
         return game.desk.alivePlayers
     end)

@@ -9,7 +9,7 @@ function M:__init(onError)
     self.onError = onError or log.error
 end
 
----@param callback fun(...)
+---@param callback fun(...): any
 ---@return function unsubscribe
 function M:on(callback)
     table.insert(self.events, callback)
@@ -41,6 +41,20 @@ function M:fire(...)
             return table.unpack(results, 2, results.n)
         end
     end
+end
+
+---@param ... any
+---@return any[] # 每个回调的第一个返回值（没有 / 报错的不收）
+function M:collect(...)
+    ---@type any[]
+    local collected = {}
+    for _, callback in ipairs(self.events) do
+        local ok, value = xpcall(callback, self.onError, ...)
+        if ok and value ~= nil then
+            collected[#collected + 1] = value
+        end
+    end
+    return collected
 end
 
 return {

@@ -101,3 +101,48 @@ lt.test('事件：可以列出已注册的时机名', function ()
     lt.assertEquals('注册过的名字在列', true, event:has('a'))
     lt.assertEquals('没注册的名字不在列', false, event:has('c'))
 end)
+
+lt.test('事件：collect 收齐非空返回值，顺序照注册顺序', function ()
+    local event = moe.event.create()
+    event:on('甲', function () return 1 end)
+    event:on('甲', function () end)
+    event:on('甲', function () return 3 end)
+
+    local values = event:collect('甲')
+
+    lt.assertEquals('没返回值的没收，有返回值的按顺序排开', '1,3', table.concat(values, ','))
+end)
+
+lt.test('事件：collect 遇到未注册的时机名给空列表', function ()
+    local event = moe.event.create()
+
+    lt.assertEquals('空操作', 0, #event:collect('甲'))
+end)
+
+lt.test('事件：collect 里回调报错不影响其余回调', function ()
+    lt.expectErrors(1)
+    local event = moe.event.create()
+    event:on('甲', function () return 1 end)
+    event:on('甲', function () error('事件回调故意报错') end)
+    event:on('甲', function () return 3 end)
+
+    local values = event:collect('甲')
+
+    lt.assertEquals('报错的那个被跳过，其余照收', '1,3', table.concat(values, ','))
+end)
+
+lt.test('事件：collect 透传上下文', function ()
+    local event = moe.event.create()
+    local received
+    event:on('甲', function (payload)
+        received = payload
+        return payload.count
+    end)
+
+    ---@type table<string, any>
+    local payload = { count = 4 }
+    local values = event:collect('甲', payload)
+
+    lt.assertEquals('回调收到触发时传的上下文', payload, received)
+    lt.assertEquals('返回值照收', 4, values[1])
+end)

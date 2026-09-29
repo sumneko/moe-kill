@@ -9,7 +9,8 @@
 ---@field private kinds string[] # 分类（可多条，按声明顺序）
 ---@field private kindSet table<string, true> # 分类去重用
 ---@field private values table<string, any> # 这张牌自带的数据
----@field private noTargetFlag? boolean # 不指定目标
+---@field private targetMin integer # 目标数量下限（默认 1）
+---@field private targetMax integer # 目标数量上限（默认 1；「0、0」= 不指定目标）
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 ---@field skipsEffect? boolean # 使用后不进入「生效」（声明过 `skipEffect`）
 local CardDef = Class 'CardDef'
@@ -32,6 +33,8 @@ function CardDef:__init(game, name, owner, source)
     self.kinds    = {}
     self.kindSet  = {}
     self.values   = {}
+    self.targetMin = 1
+    self.targetMax = 1
 end
 
 --- 登记这张牌的一个钩子
@@ -160,17 +163,21 @@ function CardDef:getValue(name)
     return self.values[name]
 end
 
---- 声明这张牌不指定目标（装备牌这类）：用牌时不再要求给目标
+--- 声明一次能指定几个目标（默认「1、1」；「0、0」= 不指定目标；事实不限写 1000）
+---@param min integer # 最少几个
+---@param max integer # 最多几个
 ---@return CardDef
-function CardDef:noTarget()
-    self.noTargetFlag = true
+function CardDef:targetCount(min, max)
+    self.targetMin = min
+    self.targetMax = max
     return self
 end
 
---- 这张牌是不是不指定目标
----@return boolean
-function CardDef:isNoTarget()
-    return self.noTargetFlag == true
+--- 一次能指定几个目标（没改过就是默认的 1、1）
+---@return integer # 最少几个
+---@return integer # 最多几个
+function CardDef:getTargetCount()
+    return self.targetMin, self.targetMax
 end
 
 --- 声明这张牌必须从哪个牌区用（重复调以后写的为准）
@@ -217,9 +224,8 @@ function CardDef:extends(name)
     for name, value in pairs(base.values) do
         self.values[name] = value
     end
-    if base.noTargetFlag then
-        self.noTargetFlag = true
-    end
+    self.targetMin = base.targetMin
+    self.targetMax = base.targetMax
     if base.skipsEffect then
         self.skipsEffect = true
     end
@@ -392,7 +398,7 @@ end
 
 --- 订阅一个时机
 ---@param name string
----@param callback fun(context: table)
+---@param callback fun(context: table): any
 ---@return function # 撤销这次注册
 function M:on(name, callback)
     if type(name) ~= 'string' or name == '' then
@@ -413,6 +419,17 @@ function M:fire(name, ...)
         error('时机名必须是非空字符串', 2)
     end
     return self.events:fire(name, ...)
+end
+
+--- 触发一个时机并收集所有回调的返回值（修正链类用它；是非问 / 通知用 fire）
+---@param name string
+---@param ... any
+---@return any[] # 每个回调的第一个返回值（没有 / 报错的不收）
+function M:collect(name, ...)
+    if type(name) ~= 'string' or name == '' then
+        error('时机名必须是非空字符串', 2)
+    end
+    return self.events:collect(name, ...)
 end
 
 --- 进入一个回合阶段（返回的阶段可以当 `<close>` 用：作用域结束就离开）
@@ -811,10 +828,11 @@ function M:canUse(user, card, target)
     ---@type Player[]?
     local targets = target and moe.util.toList(target)
 
-    -- 目标：给了目标才判（无目标牌给了非空目标就是不成立）
+    -- 目标：给了目标才判个数与归属；「最少 0、最多 0」就是不指定目标
+    local min, max = def:getTargetCount()
     ---@type Player[]? # 能用时的合法目标（无目标牌没有）
     local legal = nil
-    if def:isNoTarget() then
+    if max == 0 then
         if targets and #targets > 0 then
             return false, '「{}」不需要指定目标' % { def.fullName }
         end
@@ -825,8 +843,16 @@ function M:canUse(user, card, target)
             return false, reason
         end
         if targets then
-            if #targets == 0 then
-                return false, '「{}」至少要指定一个目标' % { def.fullName }
+            if #targets < min then
+                return false, '「{}」至少要指定 {} 个目标' % { def.fullName, min }
+            end
+            local extra = 0
+            for _, delta in ipairs(self:collect('卡牌-目标数修正', { user = user, card = card, targets = targets })) do
+                extra = extra + delta
+            end
+            local cap = math.min(max + extra, #legal)
+            if #targets > cap then
+                return false, '「{}」至多指定 {} 个目标' % { def.fullName, cap }
             end
             ---@type Player[]
             local wanted = {}

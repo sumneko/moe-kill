@@ -348,3 +348,46 @@ lt.test('定义：同槽换新时，被挤掉的旧牌也在最后那批发（�
     lt.assertEquals('旧牌离开装备区在前，新牌进槽在最后（两边都带槽位名）',
         '离甲/武器;离乙/nil;进甲/nil;进乙/武器;', seat:getTag('记录'))
 end)
+
+lt.test('定义：targetCount 声明目标数量，重复调以后写的为准', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '甲'
+    : targetCount(2, 4)
+    : targetCount(0, 0)
+]])
+
+    local min, max = assert(game:getCard('甲')):getTargetCount()
+    lt.assertEquals('重复写以后写的为准（最少）', 0, min)
+    lt.assertEquals('重复写以后写的为准（最多）', 0, max)
+end)
+
+lt.test('定义：不声明就是「最少 1、最多 1」', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[Card '甲']])
+
+    local min, max = assert(game:getCard('甲')):getTargetCount()
+    lt.assertEquals('默认最少', 1, min)
+    lt.assertEquals('默认最多', 1, max)
+end)
+
+lt.test('定义：extends 抄目标数量，自己写的覆盖基类', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '基'
+    : targetCount(2, 3)
+Card '子'
+    : extends '基'
+Card '孙'
+    : extends '基'
+    : targetCount(0, 0)
+]])
+
+    local min, max = assert(game:getCard('子')):getTargetCount()
+    lt.assertEquals('抄来最少', 2, min)
+    lt.assertEquals('抄来最多', 3, max)
+
+    local ownMin, ownMax = assert(game:getCard('孙')):getTargetCount()
+    lt.assertEquals('自己写的覆盖基类的（最少）', 0, ownMin)
+    lt.assertEquals('自己写的覆盖基类的（最多）', 0, ownMax)
+end)

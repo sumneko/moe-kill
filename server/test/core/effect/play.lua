@@ -588,6 +588,7 @@ lt.test('使用：逐目标生效，顺序按行动顺序', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : targetCount(1, 1000)
     : on('获取目标', function (target)
         return game.desk.players
     end)
@@ -612,6 +613,7 @@ lt.test('使用：牌自己的「使用」钩子先跑，之后才逐个生效',
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : targetCount(1, 1000)
     : on('获取目标', function (target)
         return game.desk.players
     end)
@@ -640,6 +642,7 @@ lt.test('使用：起点是顺序锚点，不是使用者', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : targetCount(1, 1000)
     : on('获取目标', function (target)
         return game.desk.players
     end)
@@ -665,6 +668,7 @@ lt.test('使用：收尾时机在所有目标处理完之后，且只触发一�
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : targetCount(1, 1000)
     : on('获取目标', function (target)
         return game.desk.players
     end)
@@ -732,6 +736,7 @@ lt.test('使用：上一个生效结完（哪怕它让出）才轮到下一个',
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : targetCount(1, 1000)
     : on('获取目标', function (target)
         return game.desk.players
     end)
@@ -766,6 +771,7 @@ lt.test('使用：每个目标的生效可以被单独取消', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
+    : targetCount(1, 1000)
     : on('获取目标', function (target)
         return game.desk.players
     end)
@@ -795,11 +801,11 @@ Card '测试杀'
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
-lt.test('使用：声明了 noTarget 就不需要目标', function ()
+lt.test('使用：声明了「最少 0、最多 0」就不需要目标', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : noTarget()
+    : targetCount(0, 0)
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('生效过', true)
     end)
@@ -825,7 +831,7 @@ lt.test('使用：无目标牌给目标时给出的原因', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : noTarget()
+    : targetCount(0, 0)
 ]])
 
     local game, user, target, hand = newGame()
@@ -838,7 +844,7 @@ Card '无目标牌'
     lt.assertEquals('牌没被拿走', 1, hand:count())
 end)
 
-lt.test('使用：没声明 noTarget 的牌照旧要求非空目标', function ()
+lt.test('使用：默认的牌照旧要求非空目标', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '有目标牌'
@@ -859,7 +865,7 @@ lt.test('使用：零目标也跑完使用钩子与收尾', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : noTarget()
+    : targetCount(0, 0)
     : on('使用', function (useCard)
         useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用')
     end)

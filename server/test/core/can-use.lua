@@ -26,13 +26,16 @@ end
 ---@field user Player # 1 号位（使用者）
 ---@field target Player # 2 号位（目标）
 ---@field hand Zone # 使用者的手牌区
+---@field players Player[] # 所有座位
 
 ---@param cardSource string # 探针包里的牌定义
+---@param seats? integer # 座位数（省略时 2）
 ---@return Test.CanUse
-local function newGame(cardSource)
+local function newGame(cardSource, seats)
+    seats = seats or 2
     write('探针/牌.lua', cardSource)
     local game = moe.game.create {
-        seats    = 2,
+        seats    = seats,
         random   = moe.random.create(1),
         sources  = { probeDir:string() .. '/*' },
         packages = { '探针' },
@@ -46,7 +49,7 @@ local function newGame(cardSource)
     })
     ---@type Player[]
     local players = {}
-    for i = 1, 2 do
+    for i = 1, seats do
         local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         player:setAttr('体力', 4)
@@ -54,10 +57,11 @@ local function newGame(cardSource)
     end
     local hand = players[1]:getZone('手牌')
     return {
-        game   = game,
-        user   = players[1],
-        target = players[2],
-        hand   = hand,
+        game    = game,
+        user    = players[1],
+        target  = players[2],
+        hand    = hand,
+        players = players,
     }
 end
 
@@ -65,6 +69,20 @@ local SIMPLE = [[
 Card '测试杀'
     : on('获取目标', function (target)
         return { game.desk:getPlayer(2) }
+    end)
+]]
+
+local ALL = [[
+Card '测试杀'
+    : on('获取目标', function (target)
+        return game.desk.players
+    end)
+]]
+
+local TWO = [[
+Card '测试杀'
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2), game.desk:getPlayer(3) }
     end)
 ]]
 
@@ -345,4 +363,120 @@ lt.test('校验：跑校验不进记牌器、也不改状态', function ()
     lt.assertEquals('能用', true, ok)
     lt.assertEquals('记牌器还是空的', 0, #run.game:getEffects())
     lt.assertEquals('牌还在手上', 1, run.hand:count())
+end)
+
+lt.test('校验：默认「最少 1、最多 1」', function ()
+    local guard <close> = useProbe()
+    local run = newGame(ALL, 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    lt.assertEquals('指定一名能用', true, (run.game:canUse(run.user, card, run.players[2])))
+
+    local ok, reason = run.game:canUse(run.user, card, { run.players[2], run.players[3] })
+    lt.assertEquals('指定两名就用不了了', false, ok)
+    lt.assertEquals('原因是「至多指定 1 个目标」', '「探针.测试杀」至多指定 1 个目标', reason)
+end)
+
+lt.test('校验：声明「最少 1、最多 2」后，数量按区间判', function ()
+    local guard <close> = useProbe()
+    local run = newGame([[
+Card '测试杀'
+    : targetCount(1, 2)
+    : on('获取目标', function (target)
+        return game.desk.players
+    end)
+]], 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    lt.assertEquals('一名能用', true, (run.game:canUse(run.user, card, { run.players[2] })))
+    lt.assertEquals('两名也能用', true, (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
+
+    local ok, reason = run.game:canUse(run.user, card, {})
+    lt.assertEquals('一个都不给就用不了了', false, ok)
+    lt.assertEquals('原因是「至少要指定 1 个目标」', '「探针.测试杀」至少要指定 1 个目标', reason)
+
+    local over, overReason = run.game:canUse(run.user, card, { run.players[2], run.players[3], run.user })
+    lt.assertEquals('三个也用不了了', false, over)
+    lt.assertEquals('原因是「至多指定 2 个目标」', '「探针.测试杀」至多指定 2 个目标', overReason)
+end)
+
+lt.test('校验：「最少 0、最多 0」谁都不指定，给目标反而不行', function ()
+    local guard <close> = useProbe()
+    local run = newGame([[
+Card '无目标牌'
+    : targetCount(0, 0)
+]])
+    local card = run.game:createCard('无目标牌')
+    run.hand:accept(card)
+
+    lt.assertEquals('不传目标能用（也不用声明「获取目标」）', true, (run.game:canUse(run.user, card)))
+    lt.assertEquals('传空表也能用（调用方习惯给空表）', true, (run.game:canUse(run.user, card, {})))
+    lt.assertEquals('也不给出合法目标', nil, (select(3, run.game:canUse(run.user, card))))
+
+    local ok, reason = run.game:canUse(run.user, card, { run.target })
+    lt.assertEquals('给目标反而不行', false, ok)
+    lt.assertEquals('原因是「不需要指定目标」', '「探针.无目标牌」不需要指定目标', reason)
+end)
+
+lt.test('校验：目标数修正放宽与收紧，上限跟合法目标数取较小值', function ()
+    local guard <close> = useProbe()
+    local run = newGame(TWO, 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    local extra = 0
+    run.game:on('卡牌-目标数修正', function (check)
+        return extra
+    end)
+
+    local ok, reason = run.game:canUse(run.user, card, { run.players[2], run.players[3] })
+    lt.assertEquals('没放宽时两名被拒', false, ok)
+    lt.assertEquals('原因就是默认上限 1', '「探针.测试杀」至多指定 1 个目标', reason)
+
+    extra = 1
+    lt.assertEquals('放宽 1 个：两名就能用了', true,
+        (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
+
+    extra = 5
+    local over, overReason = run.game:canUse(run.user, card, { run.players[2], run.players[3], run.user })
+    lt.assertEquals('放宽再多也超不过合法目标数（「获取目标」只给得出两名）', false, over)
+    lt.assertEquals('上限就是合法目标数 2', '「探针.测试杀」至多指定 2 个目标', overReason)
+
+    extra = -1
+    local tight, tightReason = run.game:canUse(run.user, card, { run.players[2] })
+    lt.assertEquals('收紧 1 个：连一名都不让指定', false, tight)
+    lt.assertEquals('上限收到 0', '「探针.测试杀」至多指定 0 个目标', tightReason)
+end)
+
+lt.test('校验：没给目标就不问「目标数修正」', function ()
+    local guard <close> = useProbe()
+    local run = newGame(ALL, 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    local asked = 0
+    run.game:on('卡牌-目标数修正', function ()
+        asked = asked + 1
+    end)
+
+    lt.assertEquals('没给目标时照常能用', true, (run.game:canUse(run.user, card)))
+    lt.assertEquals('也就没问修正', 0, asked)
+
+    run.game:canUse(run.user, card, { run.players[2] })
+    lt.assertEquals('给了目标就问一次', 1, asked)
+end)
+
+lt.test('校验：多个来源的目标数修正叠加', function ()
+    local guard <close> = useProbe()
+    local run = newGame(ALL, 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    run.game:on('卡牌-目标数修正', function () return 1 end)
+    run.game:on('卡牌-目标数修正', function () return 1 end)
+
+    lt.assertEquals('两个 +1 叠成 +2：两名能用', true,
+        (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
 end)

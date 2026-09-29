@@ -3,6 +3,7 @@
 
 Card '南蛮入侵'
     : extends '锦囊牌'
+    : targetCount(1, 1000)
     : on('获取目标', function (plan)
         return table.filter(game.desk.alivePlayers, function (player)
             return player ~= plan.user

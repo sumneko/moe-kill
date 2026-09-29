@@ -8,7 +8,7 @@ end
 
 --- 订阅一个时机
 ---@param name string
----@param callback fun(...)
+---@param callback fun(...): any
 ---@return function # 撤销这次注册
 function M:on(name, callback)
     local instance = self.events[name]
@@ -31,6 +31,18 @@ function M:fire(name, ...)
     ---@type any
     local result = instance:fire(...)
     return result
+end
+
+--- 触发一个时机，收集所有回调的返回值（nil 不收）
+---@param name string
+---@param ... any
+---@return any[]
+function M:collect(name, ...)
+    local instance = self.events[name]
+    if not instance then
+        return {}
+    end
+    return instance:collect(...)
 end
 
 ---@param name string
