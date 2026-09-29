@@ -74,10 +74,16 @@ function M:checkOption(option, value)
     if #list > option.max then
         return '至多指定 {} 个目标' % { option.max }
     end
+    ---@type table<Player, true>
+    local seen = {}
     for _, target in ipairs(list) do
         if not moe.util.arrayHas(targets, target) then
             return '答复的目标不在可选项里'
         end
+        if seen[target] then
+            return '答复的目标重复了'
+        end
+        seen[target] = true
     end
     return nil
 end

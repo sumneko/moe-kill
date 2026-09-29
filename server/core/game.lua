@@ -887,6 +887,9 @@ function M:canUse(user, card, target)
                 if not moe.util.arrayHas(legal, player) then
                     return false, '「{}」不能以这个角色为目标' % { def.fullName }
                 end
+                if moe.util.arrayHas(wanted, player) then
+                    return false, '「{}」不能重复指定同一个目标' % { def.fullName }
+                end
                 wanted[#wanted + 1] = player
             end
             legal = wanted

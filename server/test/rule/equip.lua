@@ -318,6 +318,10 @@ lt.test('方天画戟：最后手牌用【杀】可指定两名目标，违规�
     local bad, badReason = run.game:canUse(user, card, { user, first })
     lt.assertEquals('含自己用不出去', false, bad)
     lt.assertEquals('原因点名这个角色', '「标准.杀」不能以这个角色为目标', badReason)
+
+    local dup, dupReason = run.game:canUse(user, card, { first, first })
+    lt.assertEquals('重复目标用不出去', false, dup)
+    lt.assertEquals('原因点名重复', '「标准.杀」不能重复指定同一个目标', dupReason)
 end)
 
 lt.test('方天画戟：两名目标依次结算，一个目标的响应不影响另一个', function ()

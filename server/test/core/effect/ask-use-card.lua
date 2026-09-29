@@ -222,6 +222,20 @@ lt.test('要一次使用：答复的目标个数要落在选项的区间里', fu
     lt.assertEquals('原因', '至少要指定 2 个目标', under.err)
 end)
 
+lt.test('要一次使用：答复的目标重复会被拒收', function ()
+    local game, players = newGame(3)
+    local card = game:createCard('测试牌')
+    putInHand(players[1], { card })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = card, targets = { players[2], players[2] } }
+    end)
+
+    local ask = game:askUseCard(players[1], '测试', { name = '测试牌' })
+
+    lt.assertEquals('重复 ⇒ 拒收', nil, ask.card)
+    lt.assertEquals('原因', '答复的目标重复了', ask.err)
+end)
+
 lt.test('要一次使用：答复的目标给单个或一张列表都行', function ()
     local game, players = newGame(3)
     local card = game:createCard('测试牌')

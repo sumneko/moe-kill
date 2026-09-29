@@ -86,6 +86,14 @@ Card '测试杀'
     end)
 ]]
 
+local WIDE = [[
+Card '测试杀'
+    : targetCount(1, 1000)
+    : on('获取目标', function (target)
+        return game.desk.players
+    end)
+]]
+
 local LIMITED = [[
 Card '测试杀'
     : limit('测试阶段', 1)
@@ -491,6 +499,17 @@ lt.test('校验：多个来源的目标数修正叠加', function ()
 
     lt.assertEquals('两个 +1 叠成 +2：两名能用', true,
         (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
+end)
+
+lt.test('校验：不能重复指定同一个目标', function ()
+    local guard <close> = useProbe()
+    local run = newGame(WIDE, 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    local ok, reason = run.game:canUse(run.user, card, { run.players[2], run.players[2] })
+    lt.assertEquals('用不出去', false, ok)
+    lt.assertEquals('原因点名重复', '「探针.测试杀」不能重复指定同一个目标', reason)
 end)
 
 lt.test('校验：结果连同数量区间一起给出（在合法目标里选最少到最多个）', function ()

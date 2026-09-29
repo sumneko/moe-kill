@@ -296,6 +296,20 @@ lt.test('询问：答复不在可选项里时拒收，原因记在 `.err`', func
     lt.assertEquals('选项里只有手上那一张', 1, #assert(ask.options))
 end)
 
+lt.test('询问：答复是空表 ⇒ 一样拒收（连牌都没给）', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function (ask)
+        ask:answer {}
+    end)
+
+    local ask = game:askCard(players[2], '测试', { name = '闪' })
+
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
+end)
+
 lt.test('询问：`AskCard` 不要目标，答复多给会被拒收', function ()
     local game, players = newGame(3)
     local plain = game:createCard('闪')
