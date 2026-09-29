@@ -3,7 +3,7 @@
 ## 1 内核
 
 - [x] 1.1 `server/core/player.lua`：时机表（`__init` 建 `Event` + `on / fire / collect`）
-- [x] 1.2 `server/core/effect/effect.lua`：`from?` / `to?` 注解 + `askVeto` + `apply()` 三段式
+- [x] 1.2 `server/core/effect/effect.lua`：`from?` / `to?` 注解 + `fireVeto` + `apply()` 三段式
 - [x] 1.3 `server/core/effect/use-card.lua`：`CardEffect.from / .to`、`UseCard.from`（`__getter` 转发）
 - [x] 1.4 `server/core/effect/use-card-to-card.lua`：`UseCardToCard.from`、`CardEffectToCard.from`
 
@@ -22,4 +22,3 @@
 
 - [x] 4.1 文档（`architecture.md`、`sanguosha-rules` §9.11、`env-meta.lua` 声明、`progress.md`）
 - [x] 4.2 `openspec validate add-player-events --strict` + 归档
-

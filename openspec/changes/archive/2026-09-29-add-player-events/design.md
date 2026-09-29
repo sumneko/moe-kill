@@ -15,18 +15,18 @@
 - **身份编码进时机名**（而不是靠 fire 参数或订阅者自知）：同一个人既是来源又是目标（自伤）时两段各自可辨。
 - 备选（否决）：三段统一叫 `'效果-能否生效'`、只是 fire 到不同对象 —— 省一个名字，但身份丢了，回调要自己认领、日志分不清是哪段拦的。
 
-## D3. 依次问的写法：`ask` + or 链 + 可选链
+## D3. 依次问的写法：`fireVeto` + or 链 + 可选链
 
 ```lua
-local refusal = self:ask(self.game, '效果-能否生效')
-or self:ask(self.from, '效果-来源-能否生效')
-or self:ask(self.to, '效果-目标-能否生效')
+local refusal = self:fireVeto(self.game, '效果-能否生效')
+             or self:fireVeto(self.from, '效果-来源-能否生效')
+             or self:fireVeto(self.to, '效果-目标-能否生效')
 ```
 
-- `ask(owner, name)` 是 Effect 的私有小函数：`owner?:fire(name, self)`（可选链：没有来源 / 没有目标就跳过），并把 `false` 归一成「这次生效被阻止」。
+- `fireVeto(owner, name)` 是 Effect 的私有小函数：`owner?:fire(name, self)`（可选链：没有来源 / 没有目标就跳过），并把 `false` 归一成「这次生效被阻止」。名字与 `fire` 同族（评审时先叫 `ask` / `askVeto`，用户定了 `fireVeto`）。
 - **为什么归一化必须提前**：`or` 按 **truthy** 短路，而约定是「返回**非 nil** 即阻止」—— `false` 是合法应答，若留到链尾统一归一，`false or 下一段` 会把它当成「没拦」继续问（甚至最后把拦截丢掉）。
 - 顺序与短路由 `or` 的求值顺序天然表达（全局 → 来源 → 目标；谁先给原因就停）。
-- 对齐按 `code-style.md` §1（`or` 顶格）；可选链按 §12（`server/tools/` 之外可用）。
+- 对齐：`or` 悬挂、让三行的 `self:fireVeto(...)` 竖直一条线（首版落成「`or` 顶格」，用户评审时纠回悬挂）；可选链按 `code-style.md` §12（`server/tools/` 之外可用）。
 
 ## D4. `Effect.from` / `Effect.to` 的读法
 

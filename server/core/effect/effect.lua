@@ -88,7 +88,7 @@ end
 ---@param owner? Player|Game # 问谁（为空 = 没有这一方，直接跳过）
 ---@param name string # 时机名
 ---@return any # 要拦就给原因
-function M:askVeto(owner, name)
+function M:fireVeto(owner, name)
     local reason = owner?:fire(name, self)
     if reason == false then
         reason = '这次生效被阻止'
@@ -126,9 +126,9 @@ function M:apply()
         else
             self.game:addEffect(self)
         end
-        local refusal = self:askVeto(self.game, '效果-能否生效')
-        or self:askVeto(self.from, '效果-来源-能否生效')
-        or self:askVeto(self.to, '效果-目标-能否生效')
+        local refusal = self:fireVeto(self.game, '效果-能否生效')
+                     or self:fireVeto(self.from, '效果-来源-能否生效')
+                     or self:fireVeto(self.to, '效果-目标-能否生效')
         if refusal ~= nil then
             -- 有订阅者给了原因 ⇒ 这一次生效被阻止：不结算、没有结果、不算失败
             self:reject(refusal)
