@@ -27,6 +27,7 @@
 | `.agents/skills/sanguosha-rules/` | **项目技能：三国杀规则口径**（身份场、阶段、结算时序、时机系统） |
 | `.agents/skills/powershell-safe-invocation/`、`.agents/sync-manifest.json` | 来自通用能力库，见「通用能力」章节 |
 | `.github/` | GitHub 平台目录（当前为空，预留 CI 工作流 / issue 模板等） |
+| `HANDOVER.md` | 会话交接：当前状态、正在做的一批、待办（新会话读完本文件后接着读它） |
 
 ## 通用能力
 
