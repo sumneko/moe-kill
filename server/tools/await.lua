@@ -107,6 +107,15 @@ function API.waitAll(callbacks)
     return results
 end
 
+--把一笔回调登记到下一个调度（不让当前协程让出）
+---@param callback fun()
+function API.wake(callback)
+    if not waker then
+        error('需要先试用 setSleepWaker 设置唤醒器')
+    end
+    waker(0, callback)
+end
+
 --设置错误处理器
 ---@param handler fun(traceback: string) # 当有错误发生时，会以错误堆栈为参数调用该函数
 function API.setErrorHandler(handler)

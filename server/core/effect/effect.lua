@@ -109,7 +109,7 @@ function M:checkNesting(parent)
     end
 end
 
---- 驱动这次结算（要等外部输入时它会挂在那儿，回来时不一定结完）
+--- 驱动这次结算：排上队，下一笔调度才真正开跑；要结果就接着 `:await()`
 ---@return Effect # 它自己
 function M:apply()
     if not IsValid(self) then
@@ -143,7 +143,7 @@ function M:apply()
 
     self:bindFinish()
 
-    self.task:execute(function ()
+    self.task:executeAsync(function ()
         if parent then
             parent:addChildEffect(self)
         else
@@ -154,7 +154,7 @@ function M:apply()
                      or self:fireVeto(self.to,   '效果-目标-能否生效')
         if refusal ~= nil then
             -- 有订阅者给了原因 ⇒ 这一次生效被阻止：不结算、没有结果、不算失败
-            self:reject(refusal)
+            self:cancel(refusal)
             return
         end
         return self:settle()
@@ -209,15 +209,16 @@ end
 
 --- 让这次生效以「不成立」收尾：原因记进 `.err`（不是报错），并就地停住执行体
 ---@param reason any # 不成立的原因
-function M:reject(reason)
+function M:cancel(reason)
     local task = assert(self.task, '效果还没有发动')
-    task:reject(reason)
-    if moe.task.getCurrentTask() == task then
-        coroutine.yield()
-    end
+    task:cancel(reason)
 end
 
 --- 结算这次效果：返回值就是这次结算的结果
 function M:settle()
     error('效果子类必须实现 settle', 2)
 end
+
+
+
+

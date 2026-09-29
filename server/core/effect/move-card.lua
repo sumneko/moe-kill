@@ -41,11 +41,11 @@ end
 function M:settle()
     local stop, reason = resolveZone(self.game, self.zone)
     if not stop then
-        return self:reject(reason)
+        return self:cancel(reason)
     end
     local ok, why = stop:accept(self.cards)
     if not ok then
-        return self:reject(why)
+        return self:cancel(why)
     end
 end
 

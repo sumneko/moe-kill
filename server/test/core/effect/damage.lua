@@ -70,7 +70,7 @@ lt.test('伤害：建实例先不结算就不掉血', function ()
     lt.assertEquals('实例知道自己属于哪一局', game, damage.game)
     lt.assertEquals('还没结算，体力不变', 4, players[2]:getAttr('体力'))
 
-    damage:apply()
+    damage:apply():await()
 
     lt.assertEquals('结算之后才变化', 2, players[2]:getAttr('体力'))
 end)
@@ -80,7 +80,7 @@ lt.test('伤害：便利入口与手写两步等价', function ()
 
     game:damage(players[1], players[2], 2)
     local other = New 'Damage' (game, players[1], players[3], 2)
-    other:apply()
+    other:apply():await()
 
     lt.assertEquals('两条路的结果一样', players[2]:getAttr('体力'), players[3]:getAttr('体力'))
     lt.assertEquals('结果确实是 2', 2, players[3]:getAttr('体力'))

@@ -1,9 +1,9 @@
 ---@class Task : GCHost # 可等待的任务：驱动协程、交出结果、叫醒等待者
 ---@field context table # 任务上下文
----@field resolved boolean # 是否已经结完（完成或失败都算）
+---@field resolved boolean # 结果是否已经定下
 ---@field result? any # 结果
 ---@field err? any # 失败
----@field private threads thread[] # 这个任务起的协程
+---@field private thread? thread # 这个任务的协程（一个任务只驱动一次）
 ---@field private awaitings fun(result: any, err: any)[] # 正在等它的那些协程
 local M = Class 'Task'
 
@@ -22,23 +22,42 @@ local errorHandler
 function M:__init(context)
     self.context   = context or {}
     self.resolved  = false
-    self.threads   = {}
     self.awaitings = {}
 end
 
+--- 收口：定结果 → 叫回调 → 叫醒等它的人 → 收掉自己的执行体（只有 `Delete` 会走到这里）
 ---@private
 function M:__del()
-    for _, co in ipairs(self.threads) do
-        if coroutine.status(co) == 'suspended' then
-            coroutine.close(co)
+    self:reject(API.CLOSED)
+    if self.err == nil then
+        if self._onResolved then
+            self._onResolved(self.result)
         end
+    else
+        if self._onRejected then
+            self._onRejected(self.err)
+        end
+    end
+    self:resolveAwaitings()
+
+    local co = self.thread
+    if not co then
+        return
+    end
+    if co == coroutine.running() then
+        -- 自己就是那个执行体：交给下一个调度再关（当场关会把这一帧后面的一起丢掉）
+        moe.await.wake(function ()
+            coroutine.close(co)
+        end)
+    elseif coroutine.status(co) == 'suspended' then
+        coroutine.close(co)
     end
 end
 
 --- 以「关闭」收尾（由 to-be-closed 变量关闭时触发）
 ---@param err? any
 function M:__close(err)
-    self:reject(err or API.CLOSED)
+    self:cancel(err or API.CLOSED)
 end
 
 ---@param callback fun(result: any)
@@ -61,7 +80,7 @@ function M:onRejected(callback)
     return self
 end
 
---- 完成这次任务
+--- 完成这次任务：只把结果记下来，收口交给 `Delete`（见 `__del`）
 ---@param result? any
 function M:resolve(result)
     if self.resolved then
@@ -69,14 +88,9 @@ function M:resolve(result)
     end
     self.resolved = true
     self.result   = result
-    if self._onResolved then
-        self._onResolved(result)
-    end
-    self:resolveAwaitings()
-    Delete(self)
 end
 
---- 让这次任务失败
+--- 让这次任务失败：只把原因记下来，收口交给 `Delete`（见 `__del`）
 ---@param err any
 function M:reject(err)
     if self.resolved then
@@ -84,49 +98,56 @@ function M:reject(err)
     end
     self.resolved = true
     self.err      = err
-    if self._onRejected then
-        self._onRejected(err)
+end
+
+--- 停掉这次任务：优先级最高（结果已经定过也强行改成「取消」），当场收口；已经删除过（收口过）就不再动
+---@param err? any
+function M:cancel(err)
+    if not IsValid(self) then
+        return
     end
-    self:resolveAwaitings()
+    self.resolved = true
+    self.result   = nil
+    self.err      = err or API.CANCELED
     Delete(self)
-end
-
---- 停掉这次任务：以「取消」收尾（结果为空、`err` = `canceled`）；若正跑在这个任务的协程里，就地停住
-function M:cancel()
-    self:reject(API.CANCELED)
-    if moe.task.getCurrentTask() == self then
-        coroutine.yield()
+    if self.thread == coroutine.running() then
+        -- 自己就是那个执行体：让出去，本帧就此停住（收口时已经把这帧登记给了下一个调度）
+        self:delay()
     end
 end
 
---- 到点还没结完就以「超时」失败
+--- 到点还没结完就以「超时」停掉
 ---@param timeout number
 function M:setTimeout(timeout)
     self:bindGC(moe.timer.wait(timeout, function ()
-        self:reject(API.TIMEOUT)
+        self:cancel(API.TIMEOUT)
     end))
 end
 
 ---@private
 function M:resolveAwaitings()
+    local result, err = self.result, self.err
     for _, resume in ipairs(self.awaitings) do
-        resume(self.result, self.err)
+        -- 不内联恢复：登记到下一笔调度，C 栈深度与逻辑深度脱钩（见 architecture.md 第 12 节）
+        moe.await.wake(function ()
+            resume(result, err)
+        end)
     end
 end
 
 ---@type table<thread, Task>
 local taskMap = setmetatable({}, { __mode = 'k' })
 
---- 起一个协程跑这次任务；跑完自动完成（执行体的返回值就是结果），报错记成失败
+--- 起一个协程立即跑这次任务；跑完自动完成（执行体的返回值就是结果），报错记成失败
 ---@param func fun(task: Task): any
 ---@return Task
-function M:execute(func)
-    local co
+function M:executeSync(func)
+    self.parent = coroutine.running()
+
     ---@async
     moe.await.call(function ()
-        co = coroutine.running()
-        taskMap[co] = self
-        table.insert(self.threads, co)
+        self.thread = coroutine.running()
+        taskMap[self.thread] = self
         local ok, result = xpcall(func, function (err)
             if errorHandler then
                 errorHandler(err)
@@ -136,11 +157,36 @@ function M:execute(func)
         if ok then
             self:resolve(result)
         end
+        Delete(self)
     end)
-    if co and self.resolved and coroutine.status(co) == 'suspended' then
-        -- 任务已经结完了，但执行体还挂着（例如它被取消）：收掉它，让退栈发生
-        coroutine.close(co)
-    end
+
+    return self
+end
+
+--- 起一个协程准备这次任务；跑完自动完成（执行体的返回值就是结果），报错记成失败
+--- 会在当前协程让出后才会开始跑，或者用 `await` 来跑。
+---@param func fun(task: Task): any
+---@return Task
+function M:executeAsync(func)
+    self.parent = coroutine.running()
+
+    ---@async
+    moe.await.call(function ()
+        self.thread = coroutine.running()
+        taskMap[self.thread] = self
+        self:delay()
+        local ok, result = xpcall(func, function (err)
+            if errorHandler then
+                errorHandler(err)
+            end
+            self:reject(err)
+        end, self)
+        if ok then
+            self:resolve(result)
+        end
+        Delete(self)
+    end)
+
     return self
 end
 

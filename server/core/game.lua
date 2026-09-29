@@ -1020,7 +1020,7 @@ function M:runFlow()
     end
     local task    = moe.task.create { game = self }
     self.flowTask = task
-    task:execute(function ()
+    task:executeSync(function ()
         return handler()
     end)
     return task

@@ -30,7 +30,7 @@ function RejectEffect:__init(game)
 end
 
 function RejectEffect:settle()
-    self:reject('不成立')
+    self:cancel('不成立')
 end
 
 --- 测试用：结算里再嵌套一个内层效果（两边各要一块临时区）
@@ -199,7 +199,7 @@ lt.test('效果：一个结算挂的子结算到上限就不再结算', function
             child.settle = function ()
                 settled = settled + 1
             end
-            child:apply()
+            child:apply():await()
             if child.err == moe.task.CANCELED then
                 return '撞上限了'
             end
@@ -360,7 +360,7 @@ lt.test('效果：结算中抛错也退栈', function ()
     end
     lt.clearErrors()
 
-    damage:apply()
+    damage:apply():await()
 
     lt.assertEquals('失败记在效果上', true, damage.err ~= nil)
     lt.assertEquals('错误被收到', 1, #lt.errors)
@@ -458,7 +458,7 @@ lt.test('效果：被阻止后它自己的结算不再执行', function ()
         trace[#trace + 1] = '结算跑完了'
     end
 
-    damage:apply()
+    damage:apply():await()
 
     lt.assertEquals('结算整个没跑', 0, #trace)
     lt.assertEquals('体力没变', 4, players[2]:getAttr('体力'))
@@ -472,7 +472,7 @@ lt.test('效果：失败记在 err 上，不抛', function ()
     end
     lt.clearErrors()
 
-    lt.assertEquals('apply 不抛，返回它自己', probe, probe:apply())
+    lt.assertEquals('apply 不抛，返回它自己', probe, probe:apply():await())
     lt.assertEquals('错误记在效果上', true, probe.err ~= nil)
     lt.assertEquals('错误被收到', 1, #lt.errors)
     lt.assertEquals('再等也不抛', probe, probe:await())
@@ -490,7 +490,7 @@ lt.test('效果：成败读 .success，它就是「没成立的原因为空」',
     probe.settle = function ()
         error('故意报错', 0)
     end
-    probe:apply()
+    probe:apply():await()
 
     lt.assertEquals('出错 = 不成立', false, probe.success)
 end)
@@ -499,7 +499,7 @@ lt.test('效果：结算体给出的值就是这次结算的结果', function ()
     local game, players = newGame(2)
 
     local probe = New 'ProbeEffect' (game, '答案')
-    probe:apply()
+    probe:apply():await()
 
     lt.assertEquals('读 settle 的返回值', '答案', probe.result)
 
@@ -527,7 +527,7 @@ lt.test('效果：自动失败交给任务的错误处理器，阻止不交', fu
     end
     lt.clearErrors()
 
-    damage:apply()
+    damage:apply():await()
 
     lt.assertEquals('失败记在效果上', true, damage.err ~= nil)
     lt.assertEquals('处理器收到一次', 1, #lt.errors)
@@ -612,7 +612,7 @@ lt.test('效果：结完时收尾一次', function ()
 
     local probe = New 'ProbeEffect' (game, nil)
     probe:getTempZone()
-    probe:apply()
+    probe:apply():await()
 
     lt.assertEquals('只收一次', 1, #finished)
     lt.assertEquals('收的就是它', probe, finished[1])
@@ -625,7 +625,7 @@ lt.test('效果：不成立也收尾', function ()
 
     local reject = New 'RejectEffect' (game)
     reject:getTempZone()
-    reject:apply()
+    reject:apply():await()
 
     lt.assertEquals('这次结算不成立', '不成立', reject.err)
     lt.assertEquals('照样收尾', 1, finished)
@@ -641,7 +641,7 @@ lt.test('效果：被阻止也收尾（牌不能留在已经死掉的效果里�
 
     local probe = New 'ProbeEffect' (game, nil)
     probe:getTempZone()
-    probe:apply()
+    probe:apply():await()
 
     lt.assertEquals('取消也要收尾', 1, finished)
 end)
@@ -669,7 +669,7 @@ lt.test('效果：收尾时临时区剩下的牌进弃牌堆', function ()
     local card = game:createCard('测试牌')
     game:moveCard(card, zone)
 
-    probe:apply()
+    probe:apply():await()
 
     lt.assertEquals('临时区空了', 0, zone:count())
     lt.assertEquals('牌进了弃牌堆', discard, card:getZone())
@@ -694,7 +694,7 @@ lt.test('效果：内容侧在收尾里先搬走的牌，内核不再动它', fu
         game:moveCard(kept, stash)
     end)
 
-    probe:apply()
+    probe:apply():await()
 
     lt.assertEquals('被搬走的落在内容侧给的地方', stash, kept:getZone())
     lt.assertEquals('没被搬走的进弃牌堆', discard, left:getZone())
@@ -801,7 +801,7 @@ lt.test('效果：与玩家无关的效果只问全局段', function ()
     players[1]:on('效果-来源-能否生效', function () trace[#trace + 1] = '来源' end)
     players[2]:on('效果-目标-能否生效', function () trace[#trace + 1] = '目标' end)
 
-    New 'ProbeEffect' (game, '结果'):apply()
+    New 'ProbeEffect' (game, '结果'):apply():await()
 
     lt.assertEquals('没有来源也没有目标的两段', 'probe', table.concat(trace, ','))
 end)

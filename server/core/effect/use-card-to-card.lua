@@ -35,7 +35,7 @@ end
 function M:settle()
     local ok, reason = self.game:canUseToCard(self.user, self.card, self.targetCard)
     if not ok then
-        self:reject(reason)
+        self:cancel(reason)
     end
 
     local name = self.card.name

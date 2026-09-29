@@ -43,7 +43,7 @@ lt.test('回复：建实例先不结算就不回血', function ()
     lt.assertEquals('实例带点数', 2, heal.amount)
     lt.assertEquals('还没结算，体力不变', 4, players[2]:getAttr('体力'))
 
-    heal:apply()
+    heal:apply():await()
 
     lt.assertEquals('结算之后才变化', 6, players[2]:getAttr('体力'))
 end)
