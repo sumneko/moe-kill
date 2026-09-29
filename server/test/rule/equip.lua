@@ -456,3 +456,68 @@ lt.test('方天画戟：出牌阶段的选项带上放宽后的数量区间', fu
     lt.assertEquals('最多放宽到 2（不超可用目标数）', 2, assert(option).plan.max)
     lt.assertEquals('可用目标两名', 2, #assert(assert(option).plan.legal))
 end)
+
+lt.test('仁王盾：黑色的【杀】对装备者无效，连【闪】都不问', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local other  = run.players[3]
+
+    equipCard(run, target, '仁王盾')
+    local hand = assert(user:getZone('手牌'))
+    local black = run.game:createCard('杀', '黑桃', 7)
+    hand:accept(black)
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askPlayCard' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, black, { target })
+
+    lt.assertEquals('无效：不掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('连【闪】都没问（整段生效没跑）', 0, asked)
+
+    local black2 = run.game:createCard('杀', '黑桃', 8)
+    hand:accept(black2)
+    run.game:useCard(user, black2, { other })
+
+    lt.assertEquals('打没盾的人：问了一次【闪】', 1, asked)
+    lt.assertEquals('没人答闪 ⇒ 掉 1 点', 4, other:getAttr('体力'))
+    lt.assertEquals('两张杀都照常进弃牌', 2, assert(run.game:getZone('弃牌')):count())
+end)
+
+lt.test('仁王盾：红色的【杀】照常吃', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, target, '仁王盾')
+    local card = run.game:createCard('杀', '红桃', 7)
+    assert(user:getZone('手牌')):accept(card)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('红杀不被拦：掉 1 点', 4, target:getAttr('体力'))
+end)
+
+lt.test('仁王盾：拆下后黑杀恢复', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    local shield = equipCard(run, target, '仁王盾')
+    local hand   = assert(user:getZone('手牌'))
+    local first  = run.game:createCard('杀', '梅花', 7)
+    hand:accept(first)
+    run.game:useCard(user, first, { target })
+    lt.assertEquals('装着的时候黑杀无效', 5, target:getAttr('体力'))
+
+    run.game:moveCard(shield, '弃牌')
+    local second = run.game:createCard('杀', '梅花', 8)
+    hand:accept(second)
+    run.game:useCard(user, second, { target })
+    lt.assertEquals('拆走后黑杀照常掉血', 4, target:getAttr('体力'))
+end)

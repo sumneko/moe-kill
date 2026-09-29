@@ -1,5 +1,20 @@
 -- 【仁王盾】（标准版）
 -- 锁定技，黑色的【杀】对你无效。
--- 技能没做（锁定技 + 改「杀」的生效）—— 先只把这张牌摆进来
+
 Card '仁王盾'
     : extends '防具牌'
+    : on('被动', function (card, zone)
+        local owner = assert(zone.owner)
+        return game:on('效果-能否生效', function (effect)
+            if effect.kind ~= 'cardEffect' then
+                return
+            end
+            ---@cast effect CardEffect
+            if effect.card.name ~= '杀' or effect.target ~= owner then
+                return
+            end
+            if effect.card.suit == '黑桃' or effect.card.suit == '梅花' then
+                return '仁王盾'
+            end
+        end)
+    end)
