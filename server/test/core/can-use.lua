@@ -411,6 +411,11 @@ Card '无目标牌'
     local card = run.game:createCard('无目标牌')
     run.hand:accept(card)
 
+    local asked = 0
+    run.game:on('卡牌-目标数修正', function ()
+        asked = asked + 1
+    end)
+
     lt.assertEquals('不传目标能用（也不用声明「获取目标」）', true, (run.game:canUse(run.user, card)))
     lt.assertEquals('传空表也能用（调用方习惯给空表）', true, (run.game:canUse(run.user, card, {})))
     lt.assertEquals('也不给出合法目标', nil, (select(3, run.game:canUse(run.user, card))))
@@ -420,6 +425,7 @@ Card '无目标牌'
     local ok, reason = run.game:canUse(run.user, card, { run.target })
     lt.assertEquals('给目标反而不行', false, ok)
     lt.assertEquals('原因是「不需要指定目标」', '「探针.无目标牌」不需要指定目标', reason)
+    lt.assertEquals('无目标牌不收集修正', 0, asked)
 end)
 
 lt.test('校验：目标数修正放宽与收紧，上限跟合法目标数取较小值', function ()
@@ -452,7 +458,7 @@ lt.test('校验：目标数修正放宽与收紧，上限跟合法目标数取�
     lt.assertEquals('上限收到 0', '「探针.测试杀」至多指定 0 个目标', tightReason)
 end)
 
-lt.test('校验：没给目标就不问「目标数修正」', function ()
+lt.test('校验：没给目标也问一次修正（拿区间），但不判数量', function ()
     local guard <close> = useProbe()
     local run = newGame(ALL, 3)
     local card = run.game:createCard('测试杀')
@@ -461,13 +467,17 @@ lt.test('校验：没给目标就不问「目标数修正」', function ()
     local asked = 0
     run.game:on('卡牌-目标数修正', function ()
         asked = asked + 1
+        return 1
     end)
 
-    lt.assertEquals('没给目标时照常能用', true, (run.game:canUse(run.user, card)))
-    lt.assertEquals('也就没问修正', 0, asked)
+    local ok, _, legal, min, max = run.game:canUse(run.user, card)
+    lt.assertEquals('没给目标时照常能用', true, ok)
+    lt.assertEquals('问了一次（给区间用）', 1, asked)
+    lt.assertEquals('区间带上修正', '1,2', min .. ',' .. max)
+    lt.assertEquals('合法目标照给（选项要用）', 3, #assert(legal))
 
     run.game:canUse(run.user, card, { run.players[2] })
-    lt.assertEquals('给了目标就问一次', 1, asked)
+    lt.assertEquals('给了目标再问一次', 2, asked)
 end)
 
 lt.test('校验：多个来源的目标数修正叠加', function ()
@@ -503,6 +513,6 @@ lt.test('校验：结果连同数量区间一起给出（在合法目标里选�
 
     local ok2, _, _, min2, max2 = run.game:canUse(run.user, card)
     lt.assertEquals('没给目标也能用', true, ok2)
-    lt.assertEquals('区间退回声明值（也没问修正）', '1,1', min2 .. ',' .. max2)
-    lt.assertEquals('全程只问了一次修正', 1, asked)
+    lt.assertEquals('区间也带上修正（不取小）', '1,2', min2 .. ',' .. max2)
+    lt.assertEquals('两次都问过修正', 2, asked)
 end)

@@ -19,6 +19,13 @@ Card '测试牌'
     end)
 Card '无目标牌'
     : targetCount(0, 0)
+Card '窄牌'
+    : targetCount(1, 1)
+    : on('获取目标', function (target)
+        return table.filter(game.desk.alivePlayers, function (player)
+            return player ~= target.user
+        end)
+    end)
 ]])
     assert(ok, err)
 end
@@ -75,8 +82,36 @@ lt.test('要一次使用：只收能用的牌，选项带可用目标', function
     lt.assertEquals('种类标识', 'askUseCard', ask.kind)
     lt.assertEquals('没声明「获取目标」的不进选项', 1, #options)
     lt.assertEquals('选项带上了可用目标', 2, #assert(options[1].targets))
+    lt.assertEquals('选项带上数量区间（取小到可用目标数）', '1,2',
+        options[1].min .. ',' .. options[1].max)
     lt.assertEquals('答复收下', usable, ask.card)
     lt.assertEquals('答复里的目标也收下', 1, #assert(ask.targets))
+end)
+
+lt.test('要一次使用：选项的区间带上目标数修正，并取小到可用目标数', function ()
+    local game, players = newGame(3)
+    local card = game:createCard('窄牌')
+    putInHand(players[1], { card })
+
+    local index = 0
+    game:on('卡牌-询问', function (ask)
+        index = index + 1
+        local option = assert(assert(ask.options)[1], '该有一个选项')
+        if index == 1 then
+            lt.assertEquals('没修正：区间就是声明的 1、1', '1,1', option.min .. ',' .. option.max)
+            return
+        end
+        lt.assertEquals('修正 +1：区间带上、并取小到可用目标数 2', '1,2', option.min .. ',' .. option.max)
+        ask:answer { card = option.card, targets = { players[2] } }
+    end)
+
+    local first = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+    lt.assertEquals('第一次没答复 ⇒ 牌还在', nil, first.card)
+
+    game:on('卡牌-目标数修正', function () return 1 end)
+
+    local second = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+    lt.assertEquals('第二次答上了', card, second.card)
 end)
 
 lt.test('要一次使用：无目标牌的选项不带 targets，答复也不用给目标', function ()

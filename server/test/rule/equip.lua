@@ -420,3 +420,30 @@ lt.test('方天画戟：只认装备主用的【杀】', function ()
     lt.assertEquals('别人用杀不受影响，两名用不出去', false, ok)
     lt.assertEquals('原因就是默认上限 1', '「标准.杀」至多指定 1 个目标', reason)
 end)
+
+lt.test('方天画戟：出牌阶段的选项带上放宽后的数量区间', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+
+    equipCard(run, user, '方天画戟')
+    local card = takeCard(run, user, '杀')
+    clearHandExcept(run, user, card)
+
+    ---@type AskUseCard.Option?
+    local option = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askUseCard' then
+            return   -- 用出去的【杀】会再问一次【闪】，那次不管
+        end
+        ---@cast ask AskUseCard
+        option = assert(assert(ask.options)[1], '选项里没有这张杀')
+        ask:answer(support.pickFirst(ask))
+    end)
+
+    run.game:askUseCard(user, '出牌', { zone = '手牌' })
+
+    lt.assertEquals('选项就是这张杀', card, assert(option).card)
+    lt.assertEquals('最少 1', 1, assert(option).min)
+    lt.assertEquals('最多放宽到 2（不超可用目标数）', 2, assert(option).max)
+    lt.assertEquals('可用目标两名', 2, #assert(assert(option).targets))
+end)

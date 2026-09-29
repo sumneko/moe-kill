@@ -53,7 +53,7 @@ Depends = nil
 ---@class Game.Event.卡牌目标数修正
 ---@field user Player # 使用者
 ---@field card Card # 要用的牌
----@field targets Player[] # 这次要给的目标
+---@field targets? Player[] # 这次要给的目标（还没定就是空）
 
 ---@class Game
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function

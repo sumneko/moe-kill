@@ -2,9 +2,11 @@
 ---@class AskUseCard.Answer : AskCard.Answer
 ---@field targets? Player|Player[] # 单目标可以只给一个，多目标给一张列表（入库前统一成列表）
 
---- 一个合法选项：一张能用的牌 + 它的可用目标
+--- 一个合法选项：一张能用的牌 + 它的可用目标与数量区间
 ---@class AskUseCard.Option : AskCard.Option
 ---@field targets? Player[] # 这张牌的可用目标（无目标牌没有这个字段）
+---@field min integer # 这次使用最少几个目标
+---@field max integer # 最多几个（按当时的可用目标数取小）
 
 --- 要什么样的牌：`AskCard.Condition` 那些条件 + 一条 target
 ---@class AskUseCard.Condition : AskCard.Condition
@@ -19,6 +21,7 @@
 --- 要一次「使用」：候选逐张跑 canUse（用不了的牌不进选项），答复必须带目标
 ---@class AskUseCard : AskCard
 ---@field condition? AskUseCard.Condition # 要什么样的牌（比基类多一条 target）
+---@field options? AskUseCard.Option[] # 合法选项（覆写基类：带可用目标与数量区间）
 ---@field targets? Player[] # 答复指定的目标（= `.result.targets`；无目标牌是「不存在」）
 ---@field useCard? UseCard # 把这次答复用出去得到的那次使用（没答复 / 还没用过就是空）
 local M = Class 'AskUseCard'
@@ -33,14 +36,16 @@ end
 ---@param card Card
 ---@return AskUseCard.Option?
 function M:makeOption(card)
-    local ok, _, legal = self.game:canUse(self.to, card, self.condition?.target)
+    local ok, _, legal, min, max = self.game:canUse(self.to, card, self.condition?.target)
     if not ok then
         return nil
     end
+    ---@cast min integer
+    ---@cast max integer
     if not legal then
-        return { card = card }
+        return { card = card, min = min, max = max }
     end
-    return { card = card, targets = legal }
+    return { card = card, targets = legal, min = min, max = math.min(max, #legal) }
 end
 
 --- 答复要给出目标，且落在这个选项的可用目标里；无目标牌不要给目标
