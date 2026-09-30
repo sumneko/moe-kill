@@ -1877,3 +1877,61 @@ lt.test('丈八蛇矛：拆下后就不发动', function ()
     lt.assertEquals('不问要不要换', 0, asked)
     lt.assertEquals('照常受伤', 4, held:getAttr('体力'))
 end)
+
+lt.test('丈八蛇矛：出牌阶段主动用两张手牌当【杀】', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+
+    local spear  = equipCard(run, user, '丈八蛇矛')
+    local first  = takeCard(run, user, '桃')
+    local second = takeCard(run, user, '桃')
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        ---@cast ask AskUseCard
+        if ask.kind == 'askCard' then
+            return { card = { first, second } }
+        end
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用出去一张虚拟【杀】')
+
+    lt.assertEquals('视为的是【杀】', '杀', card.name)
+    lt.assertEquals('是虚拟牌', true, card.virtual)
+    lt.assertEquals('关联是那把武器', spear, assert(chosen).source)
+    lt.assertEquals('素材是那两张手牌', 2, #card.subcards)
+    lt.assertEquals('目标掉了 1 点血', 4, foe:getAttr('体力'))
+    lt.assertEquals('第一张手牌进了弃牌堆', assert(run.game:getZone('弃牌')), first:getZone())
+    lt.assertEquals('第二张也进了', assert(run.game:getZone('弃牌')), second:getZone())
+end)
+
+lt.test('丈八蛇矛：手牌不够两张时进不了选项', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+
+    equipCard(run, user, '丈八蛇矛')
+    takeCard(run, user, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            asked = asked + 1
+        end
+    end)
+
+    local ask = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+
+    lt.assertEquals('没有声明选项', 0, #assert(ask.options))
+    lt.assertEquals('也没问过素材', 0, asked)
+    lt.assertEquals('没答复', nil, ask.card)
+end)

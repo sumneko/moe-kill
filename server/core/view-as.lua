@@ -1,6 +1,7 @@
 ---@class ViewAs : Class.Base # 一份「视为某牌」的声明（挂在玩家身上，问牌时按声明顺序依次尝试）
 ---@field name string # 视为哪张牌
 ---@field owner Player # 挂在谁身上
+---@field source? any # 关联的来源（装备传那张牌实例、技能传技能实例；客户端先点它再选牌与目标，内核只存不解释）
 ---@field condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材，牌由内核照牌名造）
 ---@field private game Game # 属于哪一局
 ---@field private handlers table<string, function[]>
@@ -10,11 +11,13 @@ local M = Class 'ViewAs'
 ---@param game Game
 ---@param owner Player
 ---@param name string
+---@param source? any
 ---@param condition? AskCard.Condition
-function M:__init(game, owner, name, condition)
+function M:__init(game, owner, name, source, condition)
     self.game      = game
     self.owner     = owner
     self.name      = name
+    self.source    = source
     self.condition = condition
     self.handlers  = {}
     self.removed   = false
@@ -111,8 +114,9 @@ moe.viewAs = {}
 ---@param game Game
 ---@param owner Player
 ---@param name string # 视为哪张牌
+---@param source? any # 关联的来源（内核只存不解释）
 ---@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材）
 ---@return ViewAs
-function moe.viewAs.create(game, owner, name, condition)
-    return New 'ViewAs' (game, owner, name, condition)
+function moe.viewAs.create(game, owner, name, source, condition)
+    return New 'ViewAs' (game, owner, name, source, condition)
 end

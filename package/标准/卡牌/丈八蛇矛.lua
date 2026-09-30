@@ -10,5 +10,5 @@ Card '丈八蛇矛'
         if not owner then
             return
         end
-        host:bindGC(owner:addViewAs('杀', { zone = '手牌', min = 2, max = 2 }))
+        host:bindGC(owner:addViewAs('杀', card, { zone = '手牌', min = 2, max = 2 }))
     end)

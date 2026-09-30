@@ -8,7 +8,7 @@ Card '八卦阵'
         if not owner then
             return
         end
-        local viewAs = owner:addViewAs('闪')
+        local viewAs = owner:addViewAs('闪', card)
             : on('发动', function ()
                 if game:askChoice(owner, '八卦阵', { '发动' }).choice == nil then
                     return

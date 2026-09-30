@@ -926,7 +926,7 @@ local function collectLegalTargets(def, user, card, targets, useOptions)
     return legal
 end
 
---- 牌本身能不能用（两条入口共用）：在使用者身上 / 所在区没被禁用 / 在声明的牌区 / 次数
+--- 牌本身能不能用（两条入口共用）：在使用者身上 / 所在区没被禁用 / 在声明的牌区 / 次数（虚拟牌不进牌区，前三条跳过）
 ---@param game Game
 ---@param user Player
 ---@param card Card
@@ -936,16 +936,18 @@ end
 local function checkCardItself(game, user, card, useOptions)
     local name = card.name
     local def  = card.def
-    local zone = user:findCard(card)
-    if not zone then
-        return nil, '使用者手上没有这张牌'
-    end
-    if not zone:isEnabled() then
-        return nil, '「{}」在的牌区被禁用了，用不了' % { name }
-    end
-    local useZone = def:getZone()
-    if useZone and zone ~= user:getZone(useZone) then
-        return nil, '「{}」只能从「{}」里用' % { def.fullName, useZone }
+    if not card.virtual then
+        local zone = user:findCard(card)
+        if not zone then
+            return nil, '使用者手上没有这张牌'
+        end
+        if not zone:isEnabled() then
+            return nil, '「{}」在的牌区被禁用了，用不了' % { name }
+        end
+        local useZone = def:getZone()
+        if useZone and zone ~= user:getZone(useZone) then
+            return nil, '「{}」只能从「{}」里用' % { def.fullName, useZone }
+        end
     end
     local phase = game:getUsePhase(user)
     if phase and not useOptions?.ignoreUseLimit then

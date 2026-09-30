@@ -123,7 +123,7 @@ lt.test('视为声明：素材不够就不试，连问都不问', function ()
         return { card = hand:list()[1] }
     end)
 
-    local viewAs = players[1]:addViewAs('杀', { zone = '手牌', min = 2, max = 2 })
+    local viewAs = players[1]:addViewAs('杀', nil, { zone = '手牌', min = 2, max = 2 })
     local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
 
     lt.assertEquals('没产出', nil, viewAs:tryProduce(ask))
@@ -135,7 +135,7 @@ lt.test('视为声明：条件一张都筛不出来时也跳过', function ()
     local hand = assert(players[1]:getZone('手牌'))
     hand:accept(game:createCard('闪', '黑桃', 2))
 
-    local viewAs = players[1]:addViewAs('杀', { zone = '手牌', color = '红', min = 1, max = 1 })
+    local viewAs = players[1]:addViewAs('杀', nil, { zone = '手牌', color = '红', min = 1, max = 1 })
     local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
 
     lt.assertEquals('没产出', nil, viewAs:tryProduce(ask))
@@ -152,7 +152,7 @@ lt.test('视为声明：素材收齐就造牌，牌带着那几张子牌（牌�
         return { card = { first, second } }
     end)
 
-    local viewAs = players[1]:addViewAs('杀', { zone = '手牌', min = 2, max = 2 })
+    local viewAs = players[1]:addViewAs('杀', nil, { zone = '手牌', min = 2, max = 2 })
     local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
 
     local produced = assert(viewAs:tryProduce(ask), '该产出')
@@ -179,7 +179,7 @@ lt.test('视为声明：素材条件按牌面筛（只要红色的）', function
         return { card = options[1].card }
     end)
 
-    local viewAs = players[1]:addViewAs('杀', { zone = '手牌', color = '红', min = 1, max = 1 })
+    local viewAs = players[1]:addViewAs('杀', nil, { zone = '手牌', color = '红', min = 1, max = 1 })
     local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
 
     local produced = assert(viewAs:tryProduce(ask), '该产出')
@@ -193,8 +193,16 @@ lt.test('视为声明：素材没给够就不成立', function ()
     hand:accept(game:createCard('闪'))
     hand:accept(game:createCard('桃'))
 
-    local viewAs = players[1]:addViewAs('杀', { zone = '手牌', min = 2, max = 2 })
+    local viewAs = players[1]:addViewAs('杀', nil, { zone = '手牌', min = 2, max = 2 })
     local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
 
     lt.assertEquals('没人答 ⇒ 没产出', nil, viewAs:tryProduce(ask))
+end)
+
+lt.test('视为声明：关联的来源读得到，不传就是空', function ()
+    local game, players = newGame(2)
+    local source = game:createCard('闪')
+
+    lt.assertEquals('关联就是给的那个', source, players[1]:addViewAs('杀', source).source)
+    lt.assertEquals('不传就是空', nil, players[1]:addViewAs('闪').source)
 end)

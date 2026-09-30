@@ -49,6 +49,53 @@ function M:makeOption(card)
     return { card = card, plan = plan }
 end
 
+--- 追加「视为」声明的选项：素材收得到、且这次用得出去才出现（牌名对不上这次要的牌就不试）
+---@param options AskCard.Option[]
+function M:collectExtraOptions(options)
+    local names = self.condition?.names
+    for _, viewAs in ipairs(self.to:getViewAsList()) do
+        if not names or moe.util.arrayHas(names, viewAs.name) then
+            local plan = self:viewAsPlan(viewAs)
+            if plan then
+                options[#options + 1] = { viewAs = viewAs, plan = plan }
+            end
+        end
+    end
+end
+
+--- 这份声明此刻能不能用出去：素材够 + 拿一张光板虚拟牌过一遍 `canUse`（真牌要等素材到手才造）
+---@param viewAs ViewAs
+---@return Game.UsableTargets?
+function M:viewAsPlan(viewAs)
+    if not viewAs:canGatherMaterials() then
+        return nil
+    end
+    local probe = self.game:createVirtualCard(viewAs.name)
+    local ok, _, plan = self.game:canUse(self.to, probe, self.condition?.target, self.useOptions)
+    Delete(probe)
+    if not ok then
+        return nil
+    end
+    return plan
+end
+
+--- 选了某份「视为」声明 ⇒ 让它表态、按声明收素材、照牌名造牌；拿不到牌这次就作废
+---@async
+---@param value AskCard.Answer
+---@return AskCard.Answer?
+function M:beforeResolve(value)
+    local viewAs = value.viewAs
+    if not viewAs then
+        return value
+    end
+    local card = viewAs:tryProduce(self)
+    if card == nil then
+        self.task:reject('没有给出视为【{}】的素材' % { viewAs.name })
+        return nil
+    end
+    return { card = card, targets = value.targets }
+end
+
 --- 答复要给出目标，个数落在选项的区间里，且都在可用目标里；无目标牌不要给目标
 ---@param option AskCard.Option
 ---@param value AskCard.Answer

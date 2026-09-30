@@ -307,3 +307,119 @@ lt.test('要一次使用：没人应答就没有那次使用', function ()
     lt.assertEquals('没有答复', nil, ask.card)
     lt.assertEquals('也没有那次使用', nil, ask.useCard)
 end)
+
+lt.test('要一次使用：选中「视为」声明 ⇒ 收素材、造牌，当答复用出去', function ()
+    local game, players = newGame(3)
+    local first  = game:createCard('闪')
+    local second = game:createCard('闪')
+    putInHand(players[1], { first, second })
+
+    ---@type ViewAs?
+    local chosen = nil
+    game:on('卡牌-询问', function (ask)
+        ---@cast ask AskUseCard
+        if ask.kind == 'askCard' then
+            return { card = { first, second } }
+        end
+        local option = assert(assert(ask.options)[1], '声明该进选项')
+        chosen = option.viewAs
+        return { viewAs = option.viewAs, targets = { players[2] } }
+    end)
+
+    local viewAs = players[1]:addViewAs('测试牌', nil, { zone = '手牌', min = 2, max = 2 })
+    local ask    = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+
+    local card = assert(ask.card)
+    lt.assertEquals('选项就是这份声明', viewAs, chosen)
+    lt.assertEquals('没传关联就是空', nil, assert(chosen).source)
+    lt.assertEquals('造出来的是虚拟牌', true, card.virtual)
+    lt.assertEquals('按声明的牌名造', '测试牌', card.name)
+    lt.assertEquals('素材是那两张手牌', 2, #card.subcards)
+    lt.assertEquals('照常发起使用', true, ask.useCard ~= nil)
+    lt.assertEquals('两张手牌都进了弃牌堆', assert(game:getZone('弃牌')), first:getZone())
+    lt.assertEquals('第二张也进了', assert(game:getZone('弃牌')), second:getZone())
+end)
+
+lt.test('要一次使用：素材不够时声明不进选项', function ()
+    local game, players = newGame(3)
+    putInHand(players[1], { game:createCard('闪') })
+    players[1]:addViewAs('测试牌', nil, { zone = '手牌', min = 2, max = 2 })
+    game:on('卡牌-询问', function (ask)
+        return nil
+    end)
+
+    local ask = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+
+    lt.assertEquals('选项里什么都没有', 0, #assert(ask.options))
+end)
+
+lt.test('要一次使用：声明的牌名对不上这次要的牌就不进选项', function ()
+    local game, players = newGame(3)
+    putInHand(players[1], { game:createCard('测试牌'), game:createCard('闪') })
+    players[1]:addViewAs('窄牌', nil, { zone = '手牌', min = 1, max = 1 })
+    game:on('卡牌-询问', function (ask)
+        return nil
+    end)
+
+    local ask     = game:askUseCard(players[1], '出牌', { name = '测试牌', zone = '手牌' })
+    local options = assert(ask.options)
+
+    lt.assertEquals('只剩那张实体牌', 1, #options)
+    lt.assertEquals('它不是声明选项', nil, options[1].viewAs)
+end)
+
+lt.test('要一次使用：实体牌与声明一起出现在选项里', function ()
+    local game, players = newGame(3)
+    putInHand(players[1], { game:createCard('测试牌'), game:createCard('闪') })
+    players[1]:addViewAs('测试牌', nil, { zone = '手牌', min = 2, max = 2 })
+    game:on('卡牌-询问', function (ask)
+        return nil
+    end)
+
+    local ask     = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+    local options = assert(ask.options)
+
+    lt.assertEquals('实体一个 + 声明一个', 2, #options)
+    lt.assertEquals('实体那个带着牌', '测试牌', assert(options[1].card).name)
+    lt.assertEquals('声明那个带着声明、没有牌', true, options[2].viewAs ~= nil)
+    lt.assertEquals('声明选项没有牌', nil, options[2].card)
+end)
+
+lt.test('要一次使用：选中声明却给不出素材 ⇒ 作废，不算失败', function ()
+    local game, players = newGame(3)
+    local first  = game:createCard('闪')
+    local second = game:createCard('闪')
+    putInHand(players[1], { first, second })
+
+    game:on('卡牌-询问', function (ask)
+        ---@cast ask AskUseCard
+        if ask.kind == 'askCard' then
+            return nil
+        end
+        return { viewAs = assert(assert(ask.options)[1]).viewAs, targets = { players[2] } }
+    end)
+
+    players[1]:addViewAs('测试牌', nil, { zone = '手牌', min = 2, max = 2 })
+    local ask = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+
+    lt.assertEquals('没有答复', nil, ask.card)
+    lt.assertEquals('原因是没给素材', '没有给出视为【测试牌】的素材', ask.err)
+    lt.assertEquals('没有发起使用', nil, ask.useCard)
+    lt.assertEquals('手牌一张没动', 2, assert(players[1]:getZone('手牌')):count())
+    lt.assertEquals('不算失败（没进错误日志）', 0, #lt.errors)
+end)
+
+lt.test('要一次使用：声明选项的答复给错目标会被拒收', function ()
+    local game, players = newGame(3)
+    putInHand(players[1], { game:createCard('闪'), game:createCard('闪') })
+    players[1]:addViewAs('测试牌', nil, { zone = '手牌', min = 2, max = 2 })
+    game:on('卡牌-询问', function (ask)
+        ---@cast ask AskUseCard
+        return { viewAs = assert(assert(ask.options)[1]).viewAs, targets = { players[1] } }
+    end)
+
+    local ask = game:askUseCard(players[1], '出牌', { zone = '手牌' })
+
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('原因是目标不在可选范围里', '答复的目标不在可选项里', ask.err)
+end)

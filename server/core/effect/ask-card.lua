@@ -2,6 +2,7 @@
 --- 由应答方从 `'卡牌-询问'` 里**返回**（返回空 = 不表态，问下一位）；答复不合法由内核拒收
 ---@class AskCard.Answer
 ---@field card? Card|Card[] # 给出的牌（答不上就是不给）
+---@field viewAs? ViewAs # 选了哪份「视为」声明（与 `card` 互斥；只有使用族会出现）
 ---@field targets? Player|Player[] # 目标：只有 `AskUseCard` 接受（`AskCard` 给了会被拒收）
 
 --- 归一化之后存进结果里的形状
@@ -11,7 +12,8 @@
 
 --- 一个合法选项：可以给出的一张牌
 ---@class AskCard.Option
----@field card Card # 给出的牌
+---@field card? Card # 给出的牌（「视为」声明的选项没有牌 —— 牌要等素材到手才造）
+---@field viewAs? ViewAs # 这个选项是哪份「视为」声明
 ---@field targets? Player[] # 这张牌的可用目标（「要一次使用」才有；有它就代表答复必须给目标、且要落在这里）
 
 --- 要什么样的牌：每个字段都是一条筛选条件（数组 = 满足其一；单值 = 当成只有一个的数组；不填 = 无要求）
@@ -211,7 +213,13 @@ function M:collectOptions()
             options[#options + 1] = option
         end
     end
+    self:collectExtraOptions(options)
     return options
+end
+
+--- 追加「不是一张实体牌」的候选（子类在这里补 —— 如使用族的「视为」声明）
+---@param options AskCard.Option[]
+function M:collectExtraOptions(options)
 end
 
 --- 这个选项与这份答复配不配（子类在这里补「目标」那一半）
@@ -231,6 +239,14 @@ end
 function M:checkAnswer(value)
     if type(value) ~= 'table' then
         return '答复必须是一张表（`{ card = ... }`）'
+    end
+    if value.viewAs ~= nil then
+        for _, option in ipairs(self.options or {}) do
+            if option.viewAs == value.viewAs then
+                return self:checkOption(option, value)
+            end
+        end
+        return '答复不在可选项里'
     end
     local cards = moe.util.toList(value.card)
     local min   = self.condition?.min or 1
@@ -310,6 +326,14 @@ end
 function M:beforeAsk()
 end
 
+--- 答复校验过了、定下结果之前跑一次（子类在这里把「不是一张牌」的答复换成牌；给空 = 这次作废，原因自己 reject 过）
+---@async
+---@param value AskCard.Answer
+---@return AskCard.Answer?
+function M:beforeResolve(value)
+    return value
+end
+
 --- 取值：先开替代窗口，没人替代就问应答方（**第一个给出答复的胜出，后面的订阅者不再调**）
 ---@async
 ---@return boolean # 有没有拿到答复（答复不合法时也已经拒收）
@@ -329,7 +353,13 @@ function M:collectAnswer()
         self.task:reject(problem)
         return false
     end
-    self.task:resolve(self:normalizeAnswer(answer))
+
+    local resolved = self:beforeResolve(answer)
+    if resolved == nil then
+        return false
+    end
+
+    self.task:resolve(self:normalizeAnswer(resolved))
     return true
 end
 

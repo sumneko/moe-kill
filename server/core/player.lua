@@ -163,10 +163,11 @@ end
 
 --- 声明一份「视为某牌」（如【八卦阵】的「视为一张【闪】」）：撤销用 `viewAs:remove()`
 ---@param name string # 视为哪张牌
+---@param source? any # 关联的来源（装备传那张牌实例、技能传技能实例；内核只存不解释）
 ---@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材，牌由内核照牌名造）
 ---@return ViewAs
-function M:addViewAs(name, condition)
-    local viewAs = moe.viewAs.create(self.game, self, name, condition)
+function M:addViewAs(name, source, condition)
+    local viewAs = moe.viewAs.create(self.game, self, name, source, condition)
     self.viewAsList[#self.viewAsList + 1] = viewAs
     return viewAs
 end
