@@ -5,6 +5,7 @@
 ---@field point? integer # 点数（1..13）
 ---@field virtual boolean # 是不是虚拟牌（没有实体牌；进不了任何牌区）
 ---@field subcards Card[] # 对应的实体牌（普通牌是空表）
+---@field physical Card[] # 对应的实体牌（普通牌就是自己、虚拟牌是它的素材）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field game Game # 属于哪一局（读自己的内容定义时用）
 ---@field def CardDef # 内容定义（建牌时查一次就定格；查不到直接报错）
@@ -36,6 +37,18 @@ end
 ---@return integer # 牌的号（这一局发的）
 function M:getId()
     return self.id
+end
+
+---@type Card[]
+M.physical = nil
+
+--- 这张牌对应的实体牌（普通牌就是它自己，虚拟牌是它的素材）
+---@return Card[]
+M.__getter.physical = function (self)
+    if self.virtual then
+        return self.subcards
+    end
+    return { self }
 end
 
 --- 跑这张牌这条钩子的所有处理器

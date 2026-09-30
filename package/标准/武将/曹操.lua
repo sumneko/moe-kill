@@ -12,14 +12,15 @@ Skill '奸雄'
     : on('被动', function (skill, host)
         local owner = skill.owner
         host:bindGC(owner:on('伤害-目标-结束', function (damage)
-            local card = damage.card
-            if not card then
+            -- 能拿几张拿几张：已经不在原处的那些（被人拿走 / 被挪走）就不要了
+            local cards = damage.cardsInPlace
+            if #cards == 0 then
                 return
             end
             -- 不答 = 不发动
             if game:askChoice(owner, '奸雄', { '发动' }).choice ~= '发动' then
                 return
             end
-            game:moveCard(card, owner:getZone('手牌'))
+            game:moveCard(cards, owner:getZone('手牌'))
         end))
     end)

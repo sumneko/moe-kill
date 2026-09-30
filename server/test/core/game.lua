@@ -154,7 +154,7 @@ lt.test('局：没有归属的牌也能挪，直接放进去', function ()
     lt.assertEquals('弃牌里有它', card, pile:list()[1])
 end)
 
-lt.test('局：往弃牌区挪虚拟牌 ⇒ 不进弃牌堆（注销）', function ()
+lt.test('局：往弃牌区挪虚拟牌 ⇒ 虚牌自己不进去，也没被注销', function ()
     local game    = newGame()
     local pile    = game:getZone('弃牌')
     local virtual = game:createVirtualCard('闪')
@@ -163,7 +163,7 @@ lt.test('局：往弃牌区挪虚拟牌 ⇒ 不进弃牌堆（注销）', functi
 
     lt.assertEquals('这次挪牌算成立', true, move.success)
     lt.assertEquals('弃牌堆没收到', 0, pile:count())
-    lt.assertEquals('虚拟牌被注销', false, IsValid(virtual))
+    lt.assertEquals('虚拟牌没被注销', true, IsValid(virtual))
 end)
 
 lt.test('局：挪牌可以直接给牌区对象', function ()
