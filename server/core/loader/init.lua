@@ -333,6 +333,8 @@ local function prepare(instance, list)
             end,
             -- 状态的声明不参与预解析的条目校验：同包重名在真跑时由 declareBuff 报
             Buff = function () end,
+            -- 武将也一样：武将名与牌名是两个命名空间，同包重名在真跑时由 declareHero 报
+            Hero = function () end,
         }
 
         for name, value in pairs(probe) do
@@ -434,6 +436,7 @@ function moe.loader.install(game, options)
         game    = game,
         Card    = function (name) return game:declareCard(name) end,
         Buff    = function (name) return game:declareBuff(name) end,
+        Hero    = function (name) return game:declareHero(name) end,
         Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
         Class   = Class,
         New     = New,

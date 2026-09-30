@@ -217,7 +217,7 @@ server/bin/moe-kill.exe --test rule           # 规则集加载套件（清单/�
 server/bin/moe-kill.exe --test rule.meta      # 互斥 / 预解析 / 包元信息套件
 server/bin/moe-kill.exe --test rule.vfs       # 包来源与虚拟文件系统套件（来源语法/覆盖/合并/不缓存）
 server/bin/moe-kill.exe --test rule.base      # 基础规则包套件（规则数值/体力初值/牌堆构建与洗牌）
-server/bin/moe-kill.exe --test rule.identity  # 身份场套件（人数配置/身份写标签/主公加成与先手）
+server/bin/moe-kill.exe --test rule.identity  # 身份场套件（人数配置/身份写字段/主公加成与先手）
 server/bin/moe-kill.exe --test rule.setup     # 开局装配套件（8 人完整开局 + 可复现）
 server/bin/moe-kill.exe --test core.desk      # 桌子套件（座位 / 行动顺序 / 距离求值）
 server/bin/moe-kill.exe --test core.player    # 玩家套件（属性实例 / 牌区增删 / 标签 / 存活与参与行动）

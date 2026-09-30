@@ -11,6 +11,7 @@ local M = {}
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field seed? integer
 ---@field answers? Card[] # 脚本化的答复（按顺序给出牌；省略时一律不响应）
+---@field beforeStart? fun(game: Game, players: Player[]) # 开局之前跑一次（选将这类装配动作放这里）
 
 ---@param answers Card[]?
 ---@return fun(ask: AskCard): AskCard.Answer?
@@ -70,6 +71,9 @@ function M.start(options)
         local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         players[i] = player
+    end
+    if options.beforeStart then
+        options.beforeStart(game, players)
     end
     game:fire('游戏-开始', {})
     game.turnPlayer = players[1]

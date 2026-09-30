@@ -37,10 +37,10 @@ end
 ---@return Test.RuleSupport
 local function startGame()
     local run = support.start { count = 4, packages = { '身份场', '标准' } }
-    run.players[1]:setTag('身份', '主公')
-    run.players[2]:setTag('身份', '忠臣')
-    run.players[3]:setTag('身份', '反贼')
-    run.players[4]:setTag('身份', '内奸')
+    run.players[1]:setIdentity('主公')
+    run.players[2]:setIdentity('忠臣')
+    run.players[3]:setIdentity('反贼')
+    run.players[4]:setIdentity('内奸')
     return run
 end
 

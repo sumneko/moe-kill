@@ -13,7 +13,4 @@
 ---@field setValue fun(self: Game, name: string, value: any)
 
 ---@class Player: Class.Base
----@field getTag fun(self: Player, key: '身份'): 身份场.身份
----@field getTag fun(self: Player, key: string): any
----@field setTag fun(self: Player, key: '身份', value: 身份场.身份)
----@field setTag fun(self: Player, key: string, value: any)
+---@field identity? 身份场.身份 # 身份（由 身份.lua 的 setIdentity 写入）

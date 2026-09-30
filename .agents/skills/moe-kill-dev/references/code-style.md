@@ -146,7 +146,7 @@ end
   - 与上一条不冲突：上一条说的是 `XXX.CreateOptions` 这类**没有赋值过程**的入参结构体。
 - **可选标记写在「名字」上，不写在类型后面**（用户 2026-09-19 定）：`---@field key? number`、`---@param key? number`、`fun(x: number, y?: number)`。不要写 `---@field key number?` / `---@param key number?` / `fun(x: number, y: number?)`。
   - `server/tools/` 里照搬来的文件保持上游原样，**不按这条改**（也不为了统一去动上游文件）。
-  - **跨文件给同一个字段名追加签名必须带兜底**（2026-09-21 实测）：在别的文件里重声明 `---@class X` 并写 `---@field f ...`，**会接管 `f` 这个名字的签名表**（不是叠加）—— 内核那份来自方法定义的签名会被报错掉。所以包里写 `---@field getTag fun(self: Player, key: '身份'): 身份场.身份` 时，**必须再补一条 `key: string` 的兜底**（详见 `architecture.md` 9.6 的「包自带 `meta.lua`」）；重声明类时基类也要写全（`---@class Player: Class.Base`）。
+  - **跨文件给同一个字段名追加签名必须带兜底**（2026-09-21 实测）：在别的文件里重声明 `---@class X` 并写 `---@field f ...`，**会接管 `f` 这个名字的签名表**（不是叠加）—— 内核那份来自方法定义的签名会被报错掉。所以包里写 `---@field getValue fun(self: Game, name: '身份配置'): table<integer, 身份场.身份配置项[]>` 时，**必须再补一条 `name: string` 的兜底**（详见 `architecture.md` 9.6 的「包自带 `meta.lua`」）；重声明类时基类也要写全（`---@class Player: Class.Base`）。
 - **字段名撞 LuaDoc 访问修饰符时要显式写修饰符**：`private` / `protected` / `package` / `public` 是 **LuaDoc 的访问修饰符**，字段真叫 `package` 时直接写 `---@field package string` 会被解析成「修饰符 + 名字」而报 `luadoc-miss-type-name`（去掉 `#` 后又报 `undefined-doc-name`）；正确写法是 **`---@field public package string # 所属包名`**。
   - 同理：`---@field` 的描述必须带 `#` 引导（`类型 # 描述`），直接跟中文会被当成第二个类型。
 
@@ -181,7 +181,7 @@ end
 | 字段名、局部变量、函数名、参数名 | **英文** | `{ name = '杀', count = 30 }`、`local deck = ...`、`local function totalCards()` |
 | 类名 / 类型名（含事件的载荷类） | **英文** | `Turn`、`Judge`、`Game.Event.Turn`（`Game.Event.游戏开始` / `Game.Event.卡牌能否使用` 保留中文 —— 与时机名对应） |
 | 技能名 / 卡牌名 / 身份名等内容词 | 中文 | `'杀'`、`'闪'`、`'主公'`、`'奸雄'` |
-| 数据取值与配置键（规则数值的键、属性名、时机名、标签键） | 中文 | `game:setValue('体力上限', 4)`、`attrs:get('体力')`、`'游戏-开始'`、`setTag('身份', '主公')` |
+| 数据取值与配置键（规则数值的键、属性名、时机名、标签键） | 中文 | `game:setValue('体力上限', 4)`、`attrs:get('体力')`、`'游戏-开始'`、`setTag('缘由', '杀')` |
 | 包名与包内文件名 | 中文 | `package/标准/牌表.lua`、`package/身份包/开局.lua` |
 
 - 理由：中文名是**给写规则的人看的**（读起来像规则），字段与变量是**代码**（给写引擎的人看）；两者混在一起会让「这是标识符还是字符串」变得难分。

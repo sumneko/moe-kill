@@ -23,9 +23,9 @@ local function useProbe()
 end
 
 ---@param player Player
----@return any
+---@return 身份场.身份?
 local function identity(player)
-    return player:getTag('身份')
+    return player.identity
 end
 
 ---@param sources? string[]
@@ -78,13 +78,13 @@ lt.test('身份场：人数不在配置里时不分配身份', function ()
     end
 end)
 
-lt.test('身份场：身份被写进标签', function ()
+lt.test('身份场：身份写进字段', function ()
     local run = support.start { packages = { '身份场', '标准' }, count = 8 }
 
     ---@type table<string, integer>
     local counts = {}
     for i = 1, 8 do
-        local value = identity(run.players[i])
+        local value = assert(identity(run.players[i]))
         lt.assertEquals('第 {} 个玩家有身份' % { i }, 'string', type(value))
         counts[value] = (counts[value] or 0) + 1
     end

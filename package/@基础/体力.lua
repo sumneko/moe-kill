@@ -1,4 +1,5 @@
 -- 定义「体力」属性：下限到负数，上限跟着「体力上限」走
+-- 开局的默认值只给「还没选武将」的角色（选了武将的上限与体力由 @基础/武将.lua 写）
 local attributeSystem = game:getAttributeSystem()
 
 attributeSystem:define('体力', {
@@ -15,7 +16,9 @@ attributeSystem:define('体力上限', {
 game:on('游戏-开始', function ()
     local defaultHp = game:getValue('默认体力') or 5
     for _, player in ipairs(game.desk.players) do
-        player:setAttr('体力上限', defaultHp)
-        player:setAttr('体力',    defaultHp)
+        if not player.hero then
+            player:setAttr('体力上限', defaultHp)
+            player:setAttr('体力',    defaultHp)
+        end
     end
 end)

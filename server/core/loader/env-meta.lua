@@ -13,6 +13,9 @@ Card = nil
 ---@type fun(name: string): BuffDef
 Buff = nil
 
+---@type fun(name: string): HeroDef
+Hero = nil
+
 ---@type fun(items: string[])
 Depends = nil
 

@@ -15,11 +15,11 @@ game:on('游戏-开始', function ()
     game.random:shuffle(pool)
 
     for i = 2, #seats do
-        seats[i]:setTag('身份', pool[i - 1])
+        seats[i]:setIdentity(pool[i - 1])
     end
 
     local lord = seats[1]
-    lord:setTag('身份', '主公')
+    lord:setIdentity('主公')
 
     local bonus = game:getValue('主公额外体力') or 0
     if bonus ~= 0 then

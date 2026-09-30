@@ -200,6 +200,23 @@ lt.test('基础：体力可以降到负数，写值会被钳到上限', function
     lt.assertEquals('抬上限不动体力', -2, player:getAttr('体力'))
 end)
 
+lt.test('基础：体力的便捷读法', function ()
+    local run    = support.start { packages = { '身份场', '标准' }, count = 4 }
+    local player = run.players[2]
+
+    lt.assertEquals('当前体力', 5, player:getHp())
+    lt.assertEquals('体力上限', 5, player:getMaxHp())
+    lt.assertEquals('满血时没有缺失', 0, player:getLostHp())
+
+    player:setAttr('体力', 3)
+    lt.assertEquals('掉血后当前体力', 3, player:getHp())
+    lt.assertEquals('上限不动', 5, player:getMaxHp())
+    lt.assertEquals('缺失 = 上限 − 当前', 2, player:getLostHp())
+
+    player:addAttr('体力上限', 1)
+    lt.assertEquals('抬上限后缺失跟着变大（算出来的，不是存的）', 3, player:getLostHp())
+end)
+
 lt.test('基础：属性系统由局持有，随清空重载重建', function ()
     local game = newGame(nil, { '身份场', '标准' })
 

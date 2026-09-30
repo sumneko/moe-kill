@@ -10,11 +10,16 @@
 ---@field setValue fun(self: Game, name: '默认体力'|'主公额外体力', value: integer)
 ---@field setValue fun(self: Game, name: string, value: any)
 
---- 性别（由将来的武将系统写入；没有武将时常常没有 —— 官方：没有性别的角色不能判断别人与其性别是否相同）
+--- 性别（由武将写入；没有武将时常常没有 —— 官方：没有性别的角色不能判断别人与其性别是否相同）
 ---@alias 基础.性别 '男'|'女'
+
+--- 势力（由武将写入；官方：魏 / 蜀 / 吴 / 群 / 西 / 神，标准包只用前四个）
+---@alias 基础.势力 '魏'|'蜀'|'吴'|'群'
 
 ---@class Player: Class.Base
 ---@field sex? 基础.性别
+---@field hero? HeroDef # 这名角色用的是哪张武将（由 @基础/武将.lua 的 setHero 写入）
+---@field kingdom? 基础.势力 # 势力（同上）
 ---@field getAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正'): number
 ---@field getAttr fun(self: Player, name: string): any
 ---@field setAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正', value: number)

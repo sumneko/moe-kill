@@ -17,7 +17,7 @@ end
 ---@return boolean
 local function allHaveIdentity(run)
     for i = 1, #run.players do
-        if type(run.players[i]:getTag('身份')) ~= 'string' then
+        if run.players[i].identity == nil then
             return false
         end
     end
@@ -28,7 +28,7 @@ lt.test('开局：8 人完整装配', function ()
     local run = support.start { packages = { '身份场', '标准' }, count = 8 }
 
     lt.assertEquals('八个人都在桌上', 8, #run.desk.players)
-    lt.assertEquals('1 号位是主公', '主公', run.players[1]:getTag('身份'))
+    lt.assertEquals('1 号位是主公', '主公', run.players[1].identity)
     lt.assertEquals('主公上限 6', 6, attributes(run.players[1]):get('体力上限'))
     lt.assertEquals('主公体力也是 6', 6, attributes(run.players[1]):get('体力'))
     lt.assertEquals('其他人上限 5', 5, attributes(run.players[8]):get('体力上限'))
@@ -44,7 +44,7 @@ lt.test('开局：同一 seed 两次开局的分配一致', function ()
         ---@type string[]
         local result = {}
         for i = 1, 8 do
-            result[i] = tostring(run.players[i]:getTag('身份'))
+            result[i] = tostring(run.players[i].identity)
         end
         return result
     end
@@ -60,7 +60,7 @@ lt.test('开局：换一个 seed 身份分配（通常）不同', function ()
         ---@type string[]
         local result = {}
         for i = 2, 8 do
-            result[i-1] = tostring(run.players[i]:getTag('身份'))
+            result[i-1] = tostring(run.players[i].identity)
         end
         return table.concat(result, ',')
     end
