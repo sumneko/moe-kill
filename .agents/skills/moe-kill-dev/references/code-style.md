@@ -133,9 +133,10 @@ end
 - 访问动态键（如命令行参数表）时，用 `---@type table<string, T>` 显式标注该局部变量来表达"这里故意访问未知键"，不要用 disable 注释。
 - 跨模块传递的结构体在 `---@class` 里声明全部字段，而不是只写 usage。
 - **字段已经有明确赋值时，不再在 `---@class` 下加 `---@field`**（用户 2026-09-21 定）：`self.x = ...` 本身就是声明，LuaLS 会据此推出字段与类型，再补一条 `---@field x T` 只是重复。**只在赋值表达不出来的时候才写**，常见的三类：
-  - **可选与可见性**：`---@field x? T`、`private` / `package` 赋值表达不出来。且 LuaLS 的 `package` 可见性**按文件算** —— 父类标了 `---@package` 的字段，子类要在自己的文件里用就得**再声明一次**（`AskCard` 的 `task` 就是为此保留；删了会报 `invisible`）。
+  - **可选与可见性**：`---@field x? T`、`private` / `protected` / `package` 赋值表达不出来。**给子类用的字段写 `protected`**（本类 + 子类可见、**跨文件照认** —— `Effect` 的 `task` 即此；2026-09-30 从 `package` 换过来、五处重声明清除）；`package` **按文件算**，只留给同一文件内用的字段。
     - **该藏的字段就得藏**（用户 2026-09-21 定）：只在内核内部用、内容包与装配侧不该看见的字段一律标 `---@private`（如 `Game` 的 `events` / `cards` / `packages` / `values` / `flow`）—— “外面现在没人读”不等于“外面可以读”。
     - **用例是白盒，要看内部字段就那一行就地开个口子**：`---@diagnostic disable-next-line: invisible`（诊断名就是 `invisible`）。**产品代码不许用 disable 绕可见性** —— 真需要就从类上开一个正式入口。
+    - **getter 体里访问 `protected` / `private` 字段时别写 `---@param self X`**（2026-09-30 实测）：显式给 self 标型会让 LuaLS 丢掉 getter 的类上下文、误报「不可见」（不标则 self 不推导类型、该函数体内不做检查）—— `Effect` 的 `result` / `err`、`Ask` 的 `reply`、`AskChoice` 的 `choice` 四处即此；`---@cast self X` 同样会触发。
   - **赋值给的是 `any` / `unknown`**：`moe.inspect` 的 `fun(root: any): string` 是**收窄** —— `tools/inspect.lua` 没注解，赋值只能推出 `unknown`，所以这条 `---@field` 留着。反过来，`moe.card = {}` 这类赋值带了 `---@class Card.API`，字段类型当场就定下来了（跨文件也认），**不用**再在 `MoeKill` 上写字段。
   - **要放宽或要元素类型**：`Zone` / `Effect` 的 `kind` 声明成 `string`，是为了让子类（含规则层与测试）能换成自己的名字；`game.lua` 的 `self.cards = {}` 空表赋值说不出 `table<string, table<string, CardDef>>` 这种元素类型。
   - 与上一条不冲突：上一条说的是 `XXX.CreateOptions` 这类**没有赋值过程**的入参结构体。

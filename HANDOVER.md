@@ -4,14 +4,14 @@
 
 ## 当前状态（2026-09-30）
 
-- 基线：`server/bin/moe-kill.exe --test` **703 用例 0 失败**（用时 ≈ 4 秒）；问题面板 information 及以上 0。
-- 最近提交：`82f525b`（`add-qilin-bow`：麒麟弓 + 伤害「造成伤害时」时点；672 用例基线）；此前 `68a3db2`（Task 取消改裸让出）、`cd17b62`（删 add-zhuge-crossbow 空壳）、`b19a62b`（Buff 内核与【青釭剑】）。
-- **未提交的一批**（三条变更、都已实现 / 已归档，**等「提交」口令**）：① `add-cixiong-swords`（雌雄双股剑 + ask 家族升级，`archive/2026-09-30-add-cixiong-swords`）：`server/core/effect/ask-card.lua` / `ask-choice.lua`（新）/ `init.lua`、`server/core/game.lua`、`package/@基础/meta.lua`、`package/标准/卡牌/雌雄双股剑.lua`、`server/test.lua`、`server/test/core/effect/ask-card.lua` / `ask-choice.lua`（新）；② `add-designated-target-timing`（逐目标「指定目标后」+ 青釭 / 雌雄迁移，`archive/2026-09-30-add-designated-target-timing`）：`server/core/effect/use-card.lua`、`server/core/loader/env-meta.lua`、`package/标准/卡牌/青釭剑.lua`、`server/test/core/effect/play.lua`、`server/test/rule/equip.lua`；③ `add-qinglong-blade`（青龙偃月刀 +「使用选项」，`archive/2026-09-30-add-qinglong-blade`）：`server/core/game.lua`、`server/core/effect/use-card.lua` / `ask-use-card.lua`、`server/core/loader/env-meta.lua`、`package/@基础/距离.lua`（新增 `isInRange`，认 `ignoreDistance`）、`package/标准/卡牌/杀.lua`（把选项喂给 `isInRange`）、`package/标准/卡牌/青龙偃月刀.lua`、`server/test/core/effect/play.lua`、`server/test/rule/slash.lua`、`server/test/rule/equip.lua`；三条共同带动 `sanguosha-rules` §9.11、`progress.md`、`HANDOVER.md`。
+- 基线：`server/bin/moe-kill.exe --test` **716 用例 0 失败**（用时 ≈ 4 秒）；问题面板 information 及以上 0。
+- 最近提交：`ce59d15`（`add-guanshi-axe`：【贯石斧】+ `AskOffsetCard`「抵消」子类 + 青龙迁移；716 用例基线）、本笔（`Effect.task` 改 `protected`，纯注解）；此前 `6926651`（青龙偃月刀 +「使用选项」）、`93a3291`（雌雄双股剑 + ask 家族升级 + 逐目标「指定目标后」）、`82f525b`（麒麟弓 + 伤害「造成伤害时」）、`68a3db2`（Task 取消改裸让出）。
+- **未提交的一批**：无 —— 本会话两笔均已提交（① `add-guanshi-axe` 在 `ce59d15`；② `Effect.task` 改 `protected` 在本笔）。
 
 ## 正在做的一批
 
-- 装备技能按「一张牌一个功能点」推进；**已做七张**：方天画戟 / 仁王盾 / 诸葛连弩 / 青釭剑（2026-09-29）、麒麟弓（2026-09-30，`add-qilin-bow`，已提交）、雌雄双股剑（`add-cixiong-swords`）、**青龙偃月刀**（2026-09-30，`add-qinglong-blade`：`Game.UseOptions` 三旗标 + 技能 —— 后两批**已实现、已归档、未提交**）。
-- **下一个功能点由用户定**（`progress.md` §2 候选表）：其余装备自带技能（青龙偃月刀 / 丈八蛇矛 / 贯石斧）、八卦阵的技能（要「替换 / 追加一次响应」）、装备区的协议层表达；另线 `add-worker-mode`（1/16）。
+- 装备技能按「一张牌一个功能点」推进；**已做八张**：方天画戟 / 仁王盾 / 诸葛连弩 / 青釭剑（2026-09-29）、麒麟弓 / 雌雄双股剑 / 青龙偃月刀（2026-09-30，已提交）、**贯石斧**（2026-09-30，`add-guanshi-axe`：`AskOffsetCard`「抵消」子类 + 青龙迁移 —— 已实现、已归档、**已提交 `ce59d15`**）。
+- **下一个功能点由用户定**（`progress.md` §2 候选表）：其余装备自带技能（丈八蛇矛）、八卦阵的技能（要「替换 / 追加一次响应」）、装备区的协议层表达；另线 `add-worker-mode`（1/16）。
 
 ## 已拍板的口径（别推翻）
 
@@ -34,13 +34,17 @@
 - **性别 = `player.sex` 字段**（用户 2026-09-30 定「少用 setTag」，`add-cixiong-swords`）：`'男' | '女' | nil`（`@基础/meta.lua` 声明），由将来的武将系统写入；**两边都知道且不同才发动**，缺了跳过（官方：没有性别的角色不能判断异性）。
 - **雌雄双股剑触发点**：订 `owner:on('卡牌-来源-指定目标后')`（逐目标「指定目标后」；2026-09-30 从 `'卡牌-结算前'` 迁入），判异性。
 - **「使用选项」`Game.UseOptions`**（用户 2026-09-30 定名，`add-qinglong-blade`）：`game:useCard` / `game:askUseCard` 的**第 4 个参数**（`UseCard.useOptions` / `AskUseCard.useOptions`）；三旗标 —— **`ignoreDistance`**（随选项传给 `'获取目标'` 的回调；射程判断走 **`Player:isInRange`**、认它直接算在 —— `distance` 保持诚实只给真值）、**`ignoreUseLimit`**（跳过次数检查）、**`notCounted`**（不写账）；照 FreeKill 的 `bypass_distances` / `bypass_times` / `extraUse`。
-- **青龙偃月刀口径**（用户 2026-09-30 拍）：触发 = `game:on('卡牌-答复后')` 筛（askPlayCard + 【闪】 + reason `'杀'` + `parent.user == owner`）→ **直接 `askUseCard` 三旗标**（**不问「是否发动」**，取消 = 不发动；当日改）；**不计入次数且不受次数限制是两件事**（不搞“加一次机会”）；**无视距离**；只能对其 / 不能额外目标；链式可续。
+- **青龙偃月刀口径**（用户 2026-09-30 拍）：触发 = `owner:on('效果-来源-被抵消')` 筛（reason `'杀'` + 【闪】；当日从『答复后』正面迁移）→ **直接 `askUseCard` 三旗标**（**不问「是否发动」**，取消 = 不发动）；**不计入次数且不受次数限制是两件事**（不搞“加一次机会”）；**无视距离**；只能对其 / 不能额外目标；链式可续。
+- **玩家份事件名带「来源」/「目标」**（用户 2026-09-30 定为规则，已写进 `architecture.md` §10）：对当事人再发一份时，全局那份不带方向、玩家那份按角色插词（来源侧 `来源` / 承受侧 `目标`）；先例 `'伤害-来源-开始'`、`'卡牌-来源/目标-指定目标后'`、`'效果-来源-被抵消'`；**早期三个同名两份**（`'阶段-开始'` / `'阶段-结束'`、`'效果-收尾'`、`'卡牌-结算前'`）未追改。
+- **「抵消」= `AskOffsetCard` 子类**（`add-guanshi-axe`）：要一张打出的牌来抵消 —— **打出 = 抵消名义成立**；随后发两段时机（全局 `'效果-被抵消'` → 来源 `'效果-来源-被抵消'`），**驳回 = 订阅者返回值即原因**（子类拿它 `cancel` 自己；`cancel` 会清 `.result` —— 事后读不到 `.card`，窗口内读得到）；**最终读 `.success`**（没打出 `.err` = 「没有打出」）。首用：【杀】（要【闪】）/【贯石斧】（驳回）。
+- **`Effect.task` 用 `protected`**（用户 2026-09-30 拍）：本类 + 子类可见、**跨文件照认**（以前误以为 LuaLS 不支持，在五处子类文件各贴了一份「重声明」—— 已清）。**坑**：getter（`__getter`）体里访问 protected 字段时**别写 `---@param self`** —— 写了 LuaLS 会丢掉 getter 的类上下文、误报不可见（`result` / `err` / `reply` / `choice` 四处已照此处理）。推广：**给子类用的字段一律 `protected`**；`package` 只留给同一文件内的字段（`code-style.md` §6）。
 
 ## 待办 / 悬着的事
 
 - **下一个功能点由用户定**（见 `progress.md` §2 的候选表）。
 - 测试抖动（已出现 **2 次**：一次 2 用例、一次 3 用例；失败名单两次都没抓到，随后累计 **50 次复跑全绿**（含 1 次 3 路背景负载））。两次都出现在**刚批量改完文件 / 语言服务器在分析**的窗口，嫌疑仍是真实时间阈值用例；**下次遇到别急着复跑 —— 先把整份输出存下来**（或 `--test <套件>` 缩小范围）再动手查。
 - 另有 `add-worker-mode`（1/16，另一条线）：玩家时机表的重装退役挂它上面。
+- 「抵消」子类的**后续**（本批 Non-goals）：南蛮 / 万箭 / 决斗暂不迁（有消费者再迁）；【无双】那种「多张闪才算抵消」只保证模型接得上（判定写在卡自己里）；无懈那条路不报「被抵消」时机。
 - 阵亡清算（判定区 / 手牌 / 装备的牌进弃牌堆）仍未做（记在 `progress.md` §3「死亡规则」批次）。
 - 已知边界（`sanguosha-rules` §9.11）：【青釭剑】窗口内失去防具、其「失去时」技能仍不能发动（【白银狮子】那类裁定）；【麒麟弓】的「借刀杀人 + 武圣把武器当实体牌」只做到「武器已离开子区就不发动」的效果面（武圣等武将系统未做）；【雌雄双股剑】与【青釭剑】已迁到逐目标「指定目标后」（差的「成为目标时」/再入标与同时机多技能排序等【享乐】/【流离】那批）；【青龙偃月刀】的触发是『答复后』近似（真「抵消」状态等【贯石斧】批）；真实对局里性别暂恒为空（武将系统未做）⇒ 雌雄不发动属正常态。
 

@@ -11,7 +11,6 @@
 ---@field question any # 问什么
 ---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field reply? any # 答复（与 `.result` 同值；没答上时不存在）
----@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'Ask'
 
 Extends('Ask', 'Effect')
@@ -44,7 +43,6 @@ function M:answer(value)
 end
 
 --- 答复：与 `.result` 同值（没答上时不存在）
----@param self Ask
 ---@return any
 M.__getter.reply = function (self)
     assert(self.task, '询问还没有发动')

@@ -7,7 +7,7 @@
 ---@field result? any # 结果：这次结算给出的那个值（子类可在结算中途就定下）
 ---@field err? any # 没成立的原因（空 = 成立）：出错 / 不成立 / 被阻止 / 取消
 ---@field success boolean # 这次结算成不成立（= 没成立的原因为空）
----@field package task? Task # 这次结算的任务：驱动、完成、叫醒等待者都归它
+---@field protected task? Task # 这次结算的任务：驱动、完成、叫醒等待者都归它
 ---@field tempZone? Zone # 自己那块临时处理区（没要过为空 —— 要一块区请用 getTempZone）
 ---@field private tags table<string, any> # 标签袋（内容侧挂这次结算的临时数据）
 local M = Class 'Effect'
@@ -173,14 +173,12 @@ function M:addChildEffect(effect)
     self.childs[#self.childs+1] = effect
 end
 
----@param self Effect
 ---@return any
 M.__getter.result = function (self)
     assert(self.task, '效果还没有发动')
     return self.task.result
 end
 
----@param self Effect
 ---@return any
 M.__getter.err = function (self)
     assert(self.task, '效果还没有发动')

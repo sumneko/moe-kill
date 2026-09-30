@@ -12,7 +12,6 @@
 ---@field options any[] # 可选项（内容由发起方定）
 ---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field choice? any # 挑中的那个选项（没答上时不存在）
----@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskChoice'
 
 Extends('AskChoice', 'Effect')
@@ -52,7 +51,6 @@ function M:answer(value)
 end
 
 --- 挑中的那个选项（没答上时不存在）
----@param self AskChoice
 ---@return any
 M.__getter.choice = function (self)
     assert(self.task, '询问还没有发动')

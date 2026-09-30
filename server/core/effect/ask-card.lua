@@ -31,7 +31,6 @@
 ---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
 ---@field cards Card[] # 答复给出的牌（没答就是空表）
----@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskCard'
 
 Extends('AskCard', 'Effect')

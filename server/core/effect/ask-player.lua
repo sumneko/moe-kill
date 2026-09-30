@@ -16,7 +16,6 @@
 ---@field options? Player[] # 候选名单（没给条件时为空 = 不做限制）
 ---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field player? Player # 答复给出的那名角色（= `.result`）
----@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskPlayer'
 
 Extends('AskPlayer', 'Effect')
