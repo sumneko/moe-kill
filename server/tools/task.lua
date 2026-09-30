@@ -235,6 +235,7 @@ function API.race(branches)
         return function () task:await() end
     end))
 
+    -- 输家当场取消：连带收掉挂在它下面的结算
     for i = 1, count do
         if i ~= win then
             tasks[i]:cancel()
@@ -249,8 +250,10 @@ function API.race(branches)
     return winner
 end
 
+--- 并发跑多路，**第一个成功算赢、报错的不算赢**（等别的路；全失败给 nil），其余当场取消
+---@async
 ---@param branches (fun(task: Task): any)[] # 各路（各自同步风格地写；要用自己的 task 就收参数）
----@return Task.RaceWinner? # 赢家（一路都没结完 = nil）
+---@return Task.RaceWinner? # 赢家（一路都没成功 = nil）
 function API.any(branches)
     local count = #branches
     ---@type Task[]
@@ -264,6 +267,7 @@ function API.any(branches)
                     resume(i)
                 end)
                 : onRejected(function ()
+                    -- 报错的不算赢；都倒下了才收工
                     alive = alive - 1
                     if alive == 0 then
                         resume(nil)
