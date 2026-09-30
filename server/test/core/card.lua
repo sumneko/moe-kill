@@ -133,6 +133,24 @@ lt.test('牌：虚拟牌的花色与点数默认从原始牌算', function ()
     lt.assertEquals('两张都记着', 2, #many.subcards)
 end)
 
+lt.test('牌：虚拟牌的素材里不会套虚拟牌（解包成实体牌）', function ()
+    local game   = lt.game()
+    local first  = moe.card.create(game, '杀', 100, '黑桃', 9)
+    local second = moe.card.create(game, '杀', 101, '红桃', 3)
+
+    local inner = game:createVirtualCard('杀', { first, second })
+    lt.assertEquals('内层虚拟牌带着两张实体', 2, #inner.subcards)
+
+    local outer = game:createVirtualCard('闪', inner)
+    lt.assertEquals('再套一层还是那两张实体', 2, #outer.subcards)
+    lt.assertEquals('第一张是实体牌', first, outer.subcards[1])
+    lt.assertEquals('第二张是实体牌', second, outer.subcards[2])
+    lt.assertEquals('没有虚拟牌混进来', false, outer.subcards[1].virtual or outer.subcards[2].virtual)
+
+    lt.assertEquals('牌面按解包后的实体算：两张 ⇒ 没有花色', nil, outer.suit)
+    lt.assertEquals('牌面按解包后的实体算：两张 ⇒ 没有点数', nil, outer.point)
+end)
+
 lt.test('牌：颜色由花色当场算（红桃 / 方块 = 红，黑桃 / 梅花 = 黑）', function ()
     local game = lt.game()
     local heart   = moe.card.create(game, '闪', 110, '红桃', 2)

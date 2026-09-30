@@ -188,6 +188,53 @@ lt.test('视为声明：素材收齐就造牌，牌带着那几张子牌（牌�
     lt.assertEquals('素材自己没动（去哪由搬牌的人定）', 2, hand:count())
 end)
 
+lt.test('视为声明：钩子直接返回牌，就拿它们当素材（不再去收）', function ()
+    local game, players = newGame(2)
+    local hand   = assert(players[1]:getZone('手牌'))
+    local given  = game:createCard('闪', '红桃', 2)
+    local second = game:createCard('闪', '黑桃', 3)
+    hand:accept(given)
+    hand:accept(second)
+
+    ---@type integer
+    local asked = 0
+    game:on('卡牌-询问', function ()
+        asked = asked + 1
+        return nil
+    end)
+
+    local viewAs = players[1]:addViewAs('杀', nil, { zone = '手牌', min = 1, max = 1 })
+        : on('发动', function ()
+            return { given, second }
+        end)
+    local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
+
+    local produced = assert(viewAs:tryProduce(ask), '该产出')
+    lt.assertEquals('照声明的牌名造', '杀', produced.name)
+    lt.assertEquals('素材就是钩子给的那两张', 2, #produced.subcards)
+    lt.assertEquals('第一张', given, produced.subcards[1])
+    lt.assertEquals('第二张', second, produced.subcards[2])
+    lt.assertEquals('没有再去收素材', 0, asked)
+end)
+
+lt.test('视为声明：钩子返回一张牌也算数', function ()
+    local game, players = newGame(2)
+    local hand  = assert(players[1]:getZone('手牌'))
+    local given = game:createCard('闪', '红桃', 2)
+    hand:accept(given)
+
+    local viewAs = players[1]:addViewAs('杀')
+        : on('发动', function ()
+            return given
+        end)
+    local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
+
+    local produced = assert(viewAs:tryProduce(ask), '该产出')
+    lt.assertEquals('单张也收进素材', 1, #produced.subcards)
+    lt.assertEquals('就是那一张', given, produced.subcards[1])
+    lt.assertEquals('牌面跟着它', '红桃', produced.suit)
+end)
+
 lt.test('视为声明：素材条件按牌面筛（只要红色的）', function ()
     local game, players = newGame(2)
     local hand  = assert(players[1]:getZone('手牌'))

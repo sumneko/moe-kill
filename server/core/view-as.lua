@@ -25,7 +25,7 @@ end
 
 --- 登记一个处理器（返回自己，供链式写法）
 ---@param event '发动'
----@param handler fun(ask: AskCard): (boolean?)
+---@param handler fun(ask: AskCard): (boolean|Card|Card[]?) # 返回真 = 发动（按 `condition` 去收素材）；返回牌 = 发动且拿它们当素材；返回假 / 空 = 不发动
 ---@return ViewAs
 function M:on(event, handler)
     local list = self.handlers[event]
@@ -59,10 +59,14 @@ function M:canGatherMaterials()
     return #moe.askCard.collectCandidates(self.owner, condition) >= condition.min
 end
 
---- 按声明的条件收素材（不要素材就直接造），拿到了就照声明造一张虚拟牌
+--- 照声明造一张虚拟牌（`materials` 是这次发动自带的素材 —— 给了就不再去收）
 ---@async
+---@param materials? Card[] # 这次发动自带的素材
 ---@return Card? # 产出的牌（素材没给够就是空）
-function M:produce()
+function M:produce(materials)
+    if materials then
+        return self.game:createVirtualCard(self.name, materials)
+    end
     if not self.condition then
         return self.game:createVirtualCard(self.name)
     end
@@ -94,7 +98,7 @@ function M:tryProduce(ask)
     return card
 end
 
---- 跑「发动」表态，成立就造牌
+--- 跑「发动」表态：返回真 ⇒ 按声明收素材；返回牌 ⇒ 拿它们当素材；返回假 / 空 ⇒ 不发动
 ---@private
 ---@async
 ---@param ask AskCard
@@ -105,8 +109,12 @@ function M:launch(ask)
         return self:produce()
     end
     for _, handler in ipairs(handlers) do
-        if handler(ask) then
+        local answer = handler(ask)
+        if answer == true then
             return self:produce()
+        end
+        if answer and answer ~= false then
+            return self:produce(moe.util.toList(answer))
         end
     end
 end

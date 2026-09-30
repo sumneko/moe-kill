@@ -4,7 +4,7 @@
 ---@field suit? string # 花色
 ---@field point? integer # 点数（1..13）
 ---@field virtual boolean # 是不是虚拟牌（没有实体牌；进不了任何牌区）
----@field subcards Card[] # 对应的实体牌（普通牌是空表）
+---@field subcards Card[] # 对应的实体牌（普通牌是空表）—— **一律是实体牌**，虚拟牌不进这里（构造时已经解包）
 ---@field physical Card[] # 对应的实体牌（普通牌就是自己、虚拟牌是它的素材）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field game Game # 属于哪一局（读自己的内容定义时用）
@@ -218,20 +218,24 @@ function moe.card.create(game, name, id, suit, point)
     return New 'Card' (game, name, id, suit, point)
 end
 
---- 建一张虚拟牌（原始牌可给一或多张；花色与点数默认：一张 ⇒ 抄它，其余 ⇒ 无）
+--- 建一张虚拟牌（`subcards` 一律解包成**实体牌** —— 虚拟牌不能当素材；原始牌可给一或多张，花色与点数默认：实体牌只有一张 ⇒ 抄它，其余 ⇒ 无）
 ---@param game Game # 属于哪一局
 ---@param name string # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
----@param subcards? Card|Card[] # 对应的实体牌
+---@param subcards? Card|Card[] # 对应的实体牌（可以不给、可以多张；虚拟牌会被换成它的实体牌）
 ---@return Card
 function moe.card.createVirtual(game, name, id, subcards)
-    local list = subcards and moe.util.toList(subcards) or {}
+    ---@type Card[]
+    local physical = {}
+    for _, card in ipairs(subcards and moe.util.toList(subcards) or {}) do
+        table.move(card.physical, 1, #card.physical, #physical + 1, physical)
+    end
     local suit, point
-    if #list == 1 then
-        suit, point = list[1].suit, list[1].point
+    if #physical == 1 then
+        suit, point = physical[1].suit, physical[1].point
     end
     local card = moe.card.create(game, name, id, suit, point)
     card.virtual  = true
-    card.subcards = list
+    card.subcards = physical
     return card
 end
