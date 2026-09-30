@@ -217,7 +217,7 @@ lt.test('校验：本阶段用满额度 ⇒ 用不了，且不问内容侧', fun
     lt.assertEquals('原因是「本阶段已经用过」', '本阶段已经用过「测试杀」了', reason)
     lt.assertEquals('内建不过就不问内容侧', 1, asked)
 
-    phase:addLimit('测试杀', 1)
+    run.user:addLimit('测试杀', '测试阶段', 1)
     lt.assertEquals('加了上限就又能用了', true, (run.game:canUse(run.user, card, run.target)))
     lt.assertEquals('又能用之后照样会问内容侧', 2, asked)
 end)

@@ -938,7 +938,7 @@ local function checkCardItself(game, user, card, useOptions)
     end
     local phase = game:getUsePhase(user)
     if phase and not useOptions?.ignoreUseLimit then
-        local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
+        local limit = def:getLimit(phase.name) + user:getLimitDelta(name, phase.name)
         if phase:getUseCount(name) >= limit then
             return nil, '本阶段已经用过「{}」了' % { name }
         end

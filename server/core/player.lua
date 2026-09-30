@@ -11,6 +11,7 @@
 ---@field private tags table<string, any>
 ---@field private events Event # 他自己的时机表（内容侧用 player:on / player:fire）
 ---@field private alive boolean
+---@field private limitDeltas table<string, table<string, integer>> # 各阶段里各名字的上限增减（阶段名 → 名字 → 增减）
 ---@field game Game # 属于哪一局（牌区顺着归属者找到局）
 local M = Class 'Player'
 
@@ -18,15 +19,16 @@ local M = Class 'Player'
 ---@param attributes Attributes
 ---@param name? string
 function M:__init(game, attributes, name)
-    self.game       = game
-    self.name       = name
-    self.attributes = attributes
-    self.zoneList   = {}
-    self.zoneMap    = {}
-    self.buffs      = {}
-    self.tags       = {}
-    self.events     = moe.event.create()
-    self.alive      = true
+    self.game        = game
+    self.name        = name
+    self.attributes  = attributes
+    self.zoneList    = {}
+    self.zoneMap     = {}
+    self.buffs       = {}
+    self.tags        = {}
+    self.events      = moe.event.create()
+    self.alive       = true
+    self.limitDeltas = {}
     self:addZone('手牌')
     -- 判定区有序：结算顺序由进入顺序定（后入先出）
     self:addZone('判定', moe.orderedZone.create(self.game))
@@ -235,6 +237,40 @@ function M:currentPhase()
     if phase and phase.player == self then
         return phase
     end
+end
+
+--- 改自己某阶段里某名字的上限（+1 = 可以多用一次；+1000 = 事实上不限次数）
+---@param name string # 牌名 / 技能名（取值由你定）
+---@param phase string # 阶段名（取值由你定）
+---@param delta integer
+---@return fun() # 撤销这次修改（精确减掉这一笔）
+function M:addLimit(name, phase, delta)
+    local byName = self.limitDeltas[phase]
+    if not byName then
+        byName = {}
+        self.limitDeltas[phase] = byName
+    end
+    byName[name] = (byName[name] or 0) + delta
+    local undone = false
+    return function ()
+        if undone then
+            return
+        end
+        undone = true
+        byName[name] = (byName[name] or 0) - delta
+    end
+end
+
+--- 自己某阶段里某名字的上限增减
+---@param name string
+---@param phase string
+---@return integer
+function M:getLimitDelta(name, phase)
+    local byName = self.limitDeltas[phase]
+    if byName then
+        return byName[name] or 0
+    end
+    return 0
 end
 
 ---@type boolean

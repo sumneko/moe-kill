@@ -114,6 +114,34 @@ lt.test('玩家：addAttr 返回的撤销函数只减掉自己那条', function 
     lt.assertEquals('撤完回到原值', 4, player:getAttr('体力上限'))
 end)
 
+lt.test('玩家：上限修正按（名字、阶段）两个键记', function ()
+    local player = newPlayer(newSystem())
+
+    lt.assertEquals('一开始没有上限增减', 0, player:getLimitDelta('杀', '出牌'))
+
+    player:addLimit('杀', '出牌', 1)
+    player:addLimit('杀', '出牌', 1000)
+    lt.assertEquals('会累加', 1001, player:getLimitDelta('杀', '出牌'))
+    lt.assertEquals('别的名字没动', 0, player:getLimitDelta('闪', '出牌'))
+    lt.assertEquals('别的阶段没动', 0, player:getLimitDelta('杀', '摸牌'))
+end)
+
+lt.test('玩家：addLimit 返回的撤销函数精确、幂等', function ()
+    local player = newPlayer(newSystem())
+
+    local undoOne = player:addLimit('杀', '出牌', 1)
+    local undoBig = player:addLimit('杀', '出牌', 1000)
+    lt.assertEquals('两笔都在', 1001, player:getLimitDelta('杀', '出牌'))
+
+    undoOne()
+    lt.assertEquals('只撤掉自己那笔', 1000, player:getLimitDelta('杀', '出牌'))
+    undoOne()
+    lt.assertEquals('重复撤销安全', 1000, player:getLimitDelta('杀', '出牌'))
+
+    undoBig()
+    lt.assertEquals('再撤另一笔', 0, player:getLimitDelta('杀', '出牌'))
+end)
+
 lt.test('玩家：标签原样存取', function ()
     local system = newSystem()
     local player = newPlayer(system)

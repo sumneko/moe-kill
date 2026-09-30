@@ -4,7 +4,6 @@
 ---@field private game Game
 ---@field private tags table<string, any>
 ---@field private useCounts table<string, integer> # 本阶段某名字用过的次数
----@field private limitDeltas table<string, integer> # 本阶段某名字的上限增减
 local M = Class 'Phase'
 
 ---@param game Game
@@ -16,7 +15,6 @@ function M:__init(game, player, name)
     self.name        = name
     self.tags        = {}
     self.useCounts   = {}
-    self.limitDeltas = {}
 end
 
 --- 挂一个标签（内容侧自己解释）
@@ -54,29 +52,6 @@ end
 ---@return integer
 function M:getUseCount(name)
     return self.useCounts[name] or 0
-end
-
---- 改本阶段某名字的上限（+1 = 可以多用一次；+1000 = 事实上不限次数）
----@param name string
----@param delta integer
----@return fun() # 撤销这次修改（精确减掉这一笔）
-function M:addLimit(name, delta)
-    self.limitDeltas[name] = (self.limitDeltas[name] or 0) + delta
-    local undone = false
-    return function ()
-        if undone then
-            return
-        end
-        undone = true
-        self.limitDeltas[name] = (self.limitDeltas[name] or 0) - delta
-    end
-end
-
---- 本阶段某名字的上限增减
----@param name string
----@return integer
-function M:getLimitDelta(name)
-    return self.limitDeltas[name] or 0
 end
 
 function M:__close()

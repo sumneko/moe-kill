@@ -127,12 +127,11 @@ lt.test('阶段：不按嵌套顺序离开要报错', function ()
     lt.assertEquals('内层离开后回到那个（已析构的）外层', outer, game.phase)
 end)
 
-lt.test('阶段：两本账都按名字记', function ()
+lt.test('阶段：用过次数的账按名字记', function ()
     local game, players = newGame()
     local phase = game:enterPhase(players[1], '出牌')
 
     lt.assertEquals('一开始没用过', 0, phase:getUseCount('杀'))
-    lt.assertEquals('一开始没有上限增减', 0, phase:getLimitDelta('杀'))
 
     phase:addUseCount('杀', 1)
     phase:addUseCount('杀', 1)
@@ -140,28 +139,6 @@ lt.test('阶段：两本账都按名字记', function ()
     phase:addUseCount('杀', -1)
     lt.assertEquals('可以退回来', 1, phase:getUseCount('杀'))
     lt.assertEquals('别的名字不受影响', 0, phase:getUseCount('闪'))
-
-    phase:addLimit('杀', 1)
-    phase:addLimit('杀', 1000)
-    lt.assertEquals('上限增减会累加', 1001, phase:getLimitDelta('杀'))
-    lt.assertEquals('别的名字的上限没动', 0, phase:getLimitDelta('闪'))
-end)
-
-lt.test('阶段：addLimit 返回的撤销函数精确、幂等', function ()
-    local game, players = newGame()
-    local phase = game:enterPhase(players[1], '出牌')
-
-    local undoOne = phase:addLimit('杀', 1)
-    local undoBig = phase:addLimit('杀', 1000)
-    lt.assertEquals('两笔都在', 1001, phase:getLimitDelta('杀'))
-
-    undoOne()
-    lt.assertEquals('只撤掉自己那笔', 1000, phase:getLimitDelta('杀'))
-    undoOne()
-    lt.assertEquals('重复撤销安全', 1000, phase:getLimitDelta('杀'))
-
-    undoBig()
-    lt.assertEquals('再撤另一笔', 0, phase:getLimitDelta('杀'))
 end)
 
 lt.test('阶段：玩家的 currentPhase 只给属于自己的当前阶段', function ()

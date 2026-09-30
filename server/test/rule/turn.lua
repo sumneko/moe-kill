@@ -391,7 +391,7 @@ lt.test('回合：【杀】每出牌阶段限一次，阶段外不受限', funct
     lt.assertEquals('阶段结束就不受限了', true, (run.game:canUse(user, second, target)))
 end)
 
-lt.test('回合：【杀】的两种放宽度各走阶段实例的接口', function ()
+lt.test('回合：【杀】的两种放宽度（不计次走阶段、上限走玩家）', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
@@ -414,13 +414,13 @@ lt.test('回合：【杀】的两种放宽度各走阶段实例的接口', funct
     run.game:useCard(user, cards[2], { target })
     lt.assertEquals('再满额又用不了了', false, (run.game:canUse(user, cards[3], target)))
 
-    phase:addLimit('杀', 1)
+    user:addLimit('杀', '出牌', 1)
     lt.assertEquals('上限加 1 就又能用了（可以多用一次）', true, (run.game:canUse(user, cards[3], target)))
 
     run.game:useCard(user, cards[3], { target })
     lt.assertEquals('加过的额度也会用光', false, (run.game:canUse(user, cards[4], target)))
 
-    phase:addLimit('杀', 1000)
+    user:addLimit('杀', '出牌', 1000)
     lt.assertEquals('加 1000 就是事实上不限次数', true, (run.game:canUse(user, cards[4], target)))
 end)
 

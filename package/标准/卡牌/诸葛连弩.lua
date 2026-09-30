@@ -10,21 +10,5 @@ Card '诸葛连弩'
         if not owner then
             return
         end
-        ---@type fun()?
-        local undoCurrent = nil
-
-        local function refresh(phase)
-            if phase?.name == '出牌' then
-                undoCurrent = phase?:addLimit('杀', 1000)
-            end
-        end
-
-        local unsubscribe = owner:on('阶段-开始', refresh)
-
-        refresh(owner:currentPhase())
-
-        return function ()
-            unsubscribe()
-            undoCurrent?()
-        end
+        return owner:addLimit('杀', '出牌', 1000)
     end)
