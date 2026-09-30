@@ -84,7 +84,7 @@ rule = nil
 ---@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
----@field on fun(self: Game, name: '卡牌-目标数修正', callback: fun(check: Game.Event.卡牌目标数修正): (integer?)): function
+---@field on fun(self: Game, name: '卡牌-目标数修正', callback: fun(check: Game.Event.卡牌目标数修正): (integer?)): function # 目标数修正的全局那份（使用者身上还有一份）
 ---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function
@@ -128,6 +128,7 @@ rule = nil
 ---@field fire fun(self: Player, name: '效果-收尾', effect: Effect): any
 ---@field on fun(self: Player, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function # 自己使用的牌开始结算时再发一份（全局那份之外、对使用者再发一份）
 ---@field fire fun(self: Player, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
+---@field on fun(self: Player, name: '卡牌-来源-目标数修正', callback: fun(check: Game.Event.卡牌目标数修正): (integer?)): function # 自己使用的牌改目标数量（全局那份之外、对使用者再发一份）
 ---@field on fun(self: Player, name: '卡牌-来源-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 自己使用的牌指定目标后（逐目标；全局那份之外、对使用者再发一份）
 ---@field fire fun(self: Player, name: '卡牌-来源-指定目标后', useCard: UseCard, target: Player): any
 ---@field on fun(self: Player, name: '卡牌-目标-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 自己被指定为目标后（逐目标；全局那份之外、对目标再发一份）

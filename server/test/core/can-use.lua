@@ -522,6 +522,37 @@ lt.test('校验：多个来源的目标数修正叠加', function ()
         (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
 end)
 
+lt.test('校验：目标数修正分全局与使用者两份，都收；玩家级只问使用者', function ()
+    local guard <close> = useProbe()
+    local run = newGame(ALL, 3)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    local seen = {}
+    run.game:on('卡牌-目标数修正', function (check)
+        seen[#seen + 1] = '全局'
+        lt.assertEquals('全局那份的载荷带使用者', run.user, check.user)
+        lt.assertEquals('全局那份的载荷带牌', card, check.card)
+        return 1
+    end)
+    run.user:on('卡牌-来源-目标数修正', function (check)
+        seen[#seen + 1] = '使用者'
+        lt.assertEquals('使用者那份的载荷也是这张牌', card, check.card)
+        return 1
+    end)
+
+    local otherAsked = 0
+    run.players[2]:on('卡牌-来源-目标数修正', function ()
+        otherAsked = otherAsked + 1
+        return 1
+    end)
+
+    lt.assertEquals('两份都收、叠成 +2：两名能用', true,
+        (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
+    lt.assertEquals('先全局、再使用者', '全局,使用者', table.concat(seen, ','))
+    lt.assertEquals('玩家级那份只问使用者本人，不问别人', 0, otherAsked)
+end)
+
 lt.test('校验：不能重复指定同一个目标', function ()
     local guard <close> = useProbe()
     local run = newGame(WIDE, 3)

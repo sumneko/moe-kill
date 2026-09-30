@@ -10,8 +10,8 @@ Card '方天画戟'
         if not owner then
             return
         end
-        return game:on('卡牌-目标数修正', function (check)
-            if check.card.name ~= '杀' or check.user ~= owner then
+        return owner:on('卡牌-来源-目标数修正', function (check)
+            if check.card.name ~= '杀' then
                 return
             end
             local hand = owner:getZone('手牌')
