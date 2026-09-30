@@ -105,3 +105,47 @@ lt.test('伤害：结算期间在栈上', function ()
     lt.assertEquals('种类标识', 'damage', assert(damageSeen).kind)
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
+
+lt.test('伤害-开始：扣血之前就发，全局先来源后', function ()
+    local game, players = newGame(2)
+
+    ---@type string[]
+    local seen = {}
+    ---@type integer? # 发时机时目标的体力（应当还没扣）
+    local hpWhenFired = nil
+
+    game:on('伤害-开始', function (damage)
+        seen[#seen + 1] = '全局'
+        hpWhenFired = damage.to:getAttr('体力')
+    end)
+    players[1]:on('伤害-来源-开始', function ()
+        seen[#seen + 1] = '来源'
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('全局先、来源后（两份都发了）', '全局,来源', table.concat(seen, ','))
+    lt.assertEquals('发的时候还没扣血', 4, hpWhenFired)
+    lt.assertEquals('结算完才扣', 3, players[2]:getAttr('体力'))
+end)
+
+lt.test('伤害-开始：无来源的伤害只发全局那份', function ()
+    local game, players = newGame(2)
+
+    local globalCount = 0
+    local sourceCount = 0
+    game:on('伤害-开始', function ()
+        globalCount = globalCount + 1
+    end)
+    for _, player in ipairs(players) do
+        player:on('伤害-来源-开始', function ()
+            sourceCount = sourceCount + 1
+        end)
+    end
+
+    game:damage(nil, players[2], 1)
+
+    lt.assertEquals('全局那份照发', 1, globalCount)
+    lt.assertEquals('没人收到来源那份', 0, sourceCount)
+    lt.assertEquals('伤害照常', 3, players[2]:getAttr('体力'))
+end)

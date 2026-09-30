@@ -2,26 +2,16 @@
 
 新会话请先读 `AGENTS.md`，再读本文件 —— 这里只记「做到哪、下一步、别推翻什么」，细节一律指到工件与技能文档。每次会话收尾由接手者改写本文件（保留有效口径，别堆流水账）。
 
-## 当前状态（2026-09-29 收尾）
+## 当前状态（2026-09-30）
 
-- 基线：`server/bin/moe-kill.exe --test` **664 用例 0 失败**（用时 ≈ 4 秒）；问题面板 information 及以上 0。
-- 最近提交：`4c99771`（收尾时机每次都发 + 两根安全阀）、`5a039d5`（装备区拆成四个普通子区）、`fe60d07`（区域禁用改成逻辑禁用）。
-- 工作区有**未提交**的改动（两批 + 归档）：
-  - **状态（`Buff`）内核 + 用例 + 文档**（`core/buff.lua`、`core/{game,player,init}.lua`、加载器两处注入与 `env-meta.lua`、`test/core/buff.lua`、`architecture.md` / `progress.md` / 本文件、`add-buff-system` 工件全勾）。
-  - **【青釭剑】**（含牌名改名）：`package/标准/卡牌/青釭剑.lua`、`package/标准/牌表.lua`、`server/test/rule/equip.lua`（+5 用例）、`sanguosha-rules` §9.11、`progress.md`、`add-qinggang-sword` 工件全勾。
-  - 三个已完成变更的**归档移动**（`archive/2026-09-29-*`）也还没提交。
-**都等用户「提交」口令**。
+- 基线：`server/bin/moe-kill.exe --test` **672 用例 0 失败**（用时 ≈ 4 秒）；问题面板 information 及以上 0。
+- 最近提交：本批 `add-qilin-bow`（麒麟弓 + 伤害「造成伤害时」时点；672 用例基线）；此前 `68a3db2`（Task 取消改裸让出）、`cd17b62`（删 add-zhuge-crossbow 空壳）、`b19a62b`（Buff 内核与【青釭剑】）。
+- 本批改动（已提交 + 已归档 `archive/2026-09-30-add-qilin-bow`）：`package/@基础/伤害.lua` / `meta.lua`（伤害的「造成伤害时」新时点）、`package/标准/卡牌/麒麟弓.lua`（技能）、`server/test/core/effect/damage.lua`（+2）、`server/test/rule/equip.lua`（+6）、`sanguosha-rules` §7 / §9.11、`progress.md`。
 
-## 正在做的一批（按顺序落地）
+## 正在做的一批
 
-四个变更的 `proposal.md` / `design.md` / `tasks.md` 里是完整口径，这里只给索引。后一个依赖前面：**4 依赖 1 + 2 + 3**（1 与 2 都已落地）。
-
-| 顺序 | 变更 | 一句话 | 状态 |
-| ---- | ---- | ---- | ---- |
-| 1 | `rework-zone-disable` | 区域禁用 = 逻辑禁用（区里的牌不能用 + 被动被压制）；计数可叠加、`disable()` 返回撤销函数；不再拦搬入搬出 | **已提交 `fe60d07` + 已归档**（`archive/2026-09-29-rework-zone-disable`） |
-| 2 | `replace-slot-zone-with-equip-zones` | 删掉 `SlotZone` 整套；内容侧在「游戏-开始」建 `武器` / `防具` / `进攻马` / `防御马` 四个普通子区；`equipCard` 承担「一个子区只能有一张」 | **已提交 `5a039d5` + 已归档**（`archive/2026-09-29-replace-slot-zone-with-equip-zones`） |
-| 3 | `add-buff-system` | 内核 `Buff`：挂在玩家上的有名状态；资源与订阅随移除撤销；生命周期由内容写 | **已落地（未提交）**；形状由用户定；工件已全勾，可归档 |
-| 4 | `add-qinggang-sword` | 【青釭剑】改名 + 效果（压 / 松 / 兜底）—— 原带的「效果收尾整理」**已提前单独落地（2026-09-29）**，不在本变更里 | **已落地（未提交）**；工件已全勾，可归档 |
+- 装备技能按「一张牌一个功能点」推进；**已做五张**：方天画戟 / 仁王盾 / 诸葛连弩 / 青釭剑（2026-09-29）、**麒麟弓**（2026-09-30，`add-qilin-bow`：伤害「造成伤害时」新时点 + 技能 —— 已实现、已归档、已提交）。
+- **下一个功能点由用户定**（`progress.md` §2 候选表）：其余装备自带技能（雌雄双股剑 / 青龙偃月刀 / 丈八蛇矛 / 贯石斧）、八卦阵的技能（要「替换 / 追加一次响应」）、装备区的协议层表达；另线 `add-worker-mode`（1/16）。
 
 ## 已拍板的口径（别推翻）
 
@@ -37,14 +27,14 @@
 - **`'效果-收尾'` 每次结算结完都发一次**（2026-09-29 用户定「先单独做」，已落地）；默认弃牌改批量 `discard:accept(zone:list())`。**代价：收尾变成可重入** —— 处理器里起的结算（`game:moveCard` / `game:damage`…）也会发收尾 ⇒ **订阅方按载荷过滤，且别在收尾里起新结算**。
 - **两根安全阀，判断都在 `bindFinish` 之前**（2026-09-29 用户定，已落地）：`Effect.MAX_DEPTH = 150`（嵌套深度）+ `Effect.MAX_CHILDS = 1000`（一次结算挂的子结算数）；越限那层**不结算也不发收尾** ⇒ 自激链截在 150 层（探针：改前约 276 层爆栈，改后正常返回）。
 - **任务模型（2026-09-29 用户逐条定，已落地）**：① `resolve` / `reject` **只记结果**，收口（叫回调 + 叫醒等待者 + 收掉执行体）**只有 `Delete` 会走到**（`Task:__del`）—— 驱动层在执行体末尾 `Delete(self)`；② `cancel` **优先级最高**（结果已定也强行改成「取消」），`setTimeout` / `__close` / `Effect:cancel` 全走它，「已完结就不能再取消」读 **`IsValid(self)`**（不另立字段）；③ **一个任务一条协程**（`executeSync` 立即跑 / `executeAsync` 排一笔调度），只能驱动一次；④ **停住自己的执行体**：`cancel` 里 `Delete` 之后让出一笔调度，`__del` 早先已把「关掉这条协程」**登记到下一笔调度**（`moe.await.wake`）—— **不要**在 `__del` 里让出（会把 `GCHost:__del` 放 GC 绑定那步丢掉），也不靠「不能关当前协程」（实测可以关）；⑤ **唤醒不内联**（`resolveAwaitings` 登记到下一笔调度）+ `Effect:apply` 用 `executeAsync` ⇒ C 栈与逻辑深度脱钩；⑥ **`apply()` 只驱动（排队）**，要「起了就等」写 **`apply():await()`** —— 用例里 `apply()` 之后立刻读结果会读到空值。
+- **伤害的「造成伤害时」时点**（用户 2026-09-30 定名与形状，`add-qilin-bow` 落地）：`Damage:settle()` 在扣体力**之前**发两个新时机 —— 全局 `'伤害-开始'`、再对来源发 **`'伤害-来源-开始'`**（没有来源不发第二份）；承伤侧将来叫 `'伤害-目标-开始'`（本批不开，没消费者）。**扣血前**依据 = 官方「造成伤害时」（寒冰剑在同点能**防止**伤害、古锭刀 -1 改点数；`sanguosha-rules` §7 有底本出处）。**麒麟弓条件按「渠道」判**：`damage.parent` 就是本人那次【杀】的 `CardEffect`（牌名【杀】 + `cardEffect.target == damage.to`）；「可以」用一个 `askCard` 表达（候选 = 目标的坐骑牌、不答 = 不发动）。
 
 ## 待办 / 悬着的事
 
-- **下一个功能点由用户定**（见 `progress.md` §2 的候选表）；`add-buff-system` 与 `add-qinggang-sword` 两批均已落地（**未提交**）—— 后者是 Buff 的第一个消费者（区级压制 + `bindGC`）。
-- `add-zhuge-crossbow` 是个**空壳**（目录里只有 `.openspec.yaml`，无工件；诸葛连弩的活已提交）—— 等用户定：删 / 补 / 归档。
+- **下一个功能点由用户定**（见 `progress.md` §2 的候选表）。
 - 另有 `add-worker-mode`（1/16，另一条线）：玩家时机表的重装退役挂它上面。
-- 已归档（本次会话）：`rework-zone-disable` / `replace-slot-zone-with-equip-zones` / `add-delayed-trick-cards` —— 三个归档目录的**移动尚未提交**（`git status` 里是 `??` / `R`）。
-- 已知边界（记在 `add-qinggang-sword` 的 non-goals 与 `sanguosha-rules` §9.11）：官方「窗口内失去防具、其『失去时』技能也不能发动」（【白银狮子】那类裁定）本批做不到 —— 牌离区时区级压制就松了。
+- 阵亡清算（判定区 / 手牌 / 装备的牌进弃牌堆）仍未做（记在 `progress.md` §3「死亡规则」批次）。
+- 已知边界（`sanguosha-rules` §9.11）：【青釭剑】窗口内失去防具、其「失去时」技能仍不能发动（【白银狮子】那类裁定）；【麒麟弓】的「借刀杀人 + 武圣把武器当实体牌」只做到「武器已离开子区就不发动」的效果面（武圣等武将系统未做）。
 
 ## 常用命令
 

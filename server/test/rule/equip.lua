@@ -770,3 +770,157 @@ lt.test('青釭剑：这次使用半路收场也不残留压制', function ()
     lt.assertEquals('没有残留状态', false, target:hasBuff('防具无效'))
     lt.assertEquals('防具区恢复启用', true, assert(target:getZone('防具')):isEnabled())
 end)
+
+lt.test('麒麟弓：用【杀】造成伤害时可以弃掉目标的一张坐骑', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '麒麟弓')
+    local horse  = equipCard(run, target, '赤兔')
+    local shield = equipCard(run, target, '的卢')
+    local blade  = equipCard(run, target, '青釭剑')
+    local card   = takeCard(run, user, '杀')
+
+    ---@type AskCard.Option[]?
+    local options = nil
+    ---@type integer? # 询问时点目标的体力（应当还没扣）
+    local hpWhenAsked = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askCard' or ask.reason ~= '麒麟弓' then
+            return
+        end
+        ---@cast ask AskCard
+        options = ask.options
+        hpWhenAsked = target:getAttr('体力')
+        ask:answer { card = shield }
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('询问时点还没扣血', 5, hpWhenAsked)
+    lt.assertEquals('候选只有坐骑（武器不入选）', 2, #assert(options))
+    lt.assertEquals('弃掉进弃牌堆的是答复那张', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), shield))
+    lt.assertEquals('另一张坐骑留着', horse, assert(target:getZone('进攻马')):list()[1])
+    lt.assertEquals('武器也没动', blade, assert(target:getZone('武器')):list()[1])
+    lt.assertEquals('防御修正回落（的卢没了）', 0, target:getAttr('防御修正'))
+    lt.assertEquals('进攻修正还在（赤兔还在）', -1, target:getAttr('进攻修正'))
+    lt.assertEquals('伤害照常', 4, target:getAttr('体力'))
+end)
+
+lt.test('麒麟弓：不答复就不发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '麒麟弓')
+    local horse = equipCard(run, target, '赤兔')
+    local card  = takeCard(run, user, '杀')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('问过（有坐骑）', 1, asked)
+    lt.assertEquals('坐骑还在原地', horse, assert(target:getZone('进攻马')):list()[1])
+    lt.assertEquals('照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('麒麟弓：目标没有坐骑就不问', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '麒麟弓')
+    equipCard(run, target, '青釭剑')   -- 有装备，但不是坐骑
+    local card = takeCard(run, user, '杀')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('麒麟弓：别的牌造成的伤害不发动（【决斗】）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '麒麟弓')
+    local horse = equipCard(run, target, '赤兔')
+    local card  = takeCard(run, user, '决斗')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('坐骑还在', horse, assert(target:getZone('进攻马')):list()[1])
+    lt.assertEquals('伤害照常（对方不出【杀】就掉血）', 4, target:getAttr('体力'))
+end)
+
+lt.test('麒麟弓：旁人用【杀】不发动', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local owner  = run.players[1]
+    local user   = run.players[2]
+    local target = run.players[3]
+
+    equipCard(run, owner, '麒麟弓')
+    local horse = equipCard(run, target, '赤兔')
+    local card  = takeCard(run, user, '杀')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('坐骑还在', horse, assert(target:getZone('进攻马')):list()[1])
+    lt.assertEquals('目标照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('麒麟弓：拆下后就不发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    local bow   = equipCard(run, user, '麒麟弓')
+    local horse = equipCard(run, target, '赤兔')
+    local card  = takeCard(run, user, '杀')
+
+    run.game:moveCard(bow, '弃牌')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('坐骑还在', horse, assert(target:getZone('进攻马')):list()[1])
+end)

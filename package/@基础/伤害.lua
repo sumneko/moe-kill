@@ -21,6 +21,9 @@ end
 ---@async
 function Damage:settle()
     local to = self.to
+    -- 伤害流程开始（= 官方「造成伤害时」，在扣体力之前）：全局一份、来源一份
+    self.game:fire('伤害-开始', self)
+    self.from?:fire('伤害-来源-开始', self)
     to:addAttr('体力', -self.amount)
     -- 扣到 ≤0 就进濒死（濒死就在这次伤害结算里，早于它结完）
     if to:getAttr('体力') <= 0 then

@@ -25,7 +25,14 @@
 ---@field on fun(self: Game, name: '判定-后', callback: fun(judge: Judge): any): function
 ---@field fire fun(self: Game, name: '判定-后', judge: Judge): any
 
---- 伤害的收尾时机也由本包提供：按名收窄 `on` / `fire` 的载荷
+--- 伤害的时机也由本包提供：按名收窄 `on` / `fire` 的载荷
+--- 「开始」= 官方「造成伤害时」、在扣体力之前：全局发 `'伤害-开始'`、再对来源发 `'伤害-来源-开始'`
 ---@class Game
+---@field on fun(self: Game, name: '伤害-开始', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Game, name: '伤害-开始', damage: Damage): any
 ---@field on fun(self: Game, name: '伤害-结束', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Game, name: '伤害-结束', damage: Damage): any
+
+---@class Player
+---@field on fun(self: Player, name: '伤害-来源-开始', callback: fun(damage: Damage): any): function # 自己造成的伤害开始了（全局那份之外、对来源再发一份）
+---@field fire fun(self: Player, name: '伤害-来源-开始', damage: Damage): any
