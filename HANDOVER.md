@@ -5,8 +5,8 @@
 ## 当前状态（2026-09-30）
 
 - 基线：`server/bin/moe-kill.exe --test` **717 用例 0 失败**（用时 ≈ 4 秒）；问题面板 information 及以上 0。
-- 最近提交：`ce59d15`（`add-guanshi-axe`：【贯石斧】+ `AskOffsetCard`「抵消」子类 + 青龙迁移；716 用例基线）、本笔（`Effect.task` 改 `protected`，纯注解）；此前 `6926651`（青龙偃月刀 +「使用选项」）、`93a3291`（雌雄双股剑 + ask 家族升级 + 逐目标「指定目标后」）、`82f525b`（麒麟弓 + 伤害「造成伤害时」）、`68a3db2`（Task 取消改裸让出）。
-- **未提交的一批**：「抵消」驳回改用 `ask:cancel`（含「问句用返回、事实用动作」作答规则与 `Effect:cancel` 注释）—— **等「提交」口令**。本会话已提交：① `add-guanshi-axe` 在 `ce59d15`；② `Effect.task` 改 `protected` 在 `32049f5`。
+- 最近提交：`545a83a`（「抵消」驳回改 `ask.cancel`；717 用例基线）、`32049f5`（`Effect.task` 改 `protected`，纯注解）、`ce59d15`（`add-guanshi-axe`：【贯石斧】+ `AskOffsetCard`「抵消」子类 + 青龙迁移）；此前 `6926651`（青龙偃月刀 +「使用选项」）、`93a3291`（雌雄双股剑 + ask 家族升级 + 逐目标「指定目标后」）、`82f525b`（麒麟弓 + 伤害「造成伤害时」）、`68a3db2`（Task 取消改裸让出）。
+- **未提交的一批**：无 —— 本会话三笔均已提交（`545a83a`：「抵消」驳回改 `ask.cancel`；`32049f5`：`Effect.task` 改 `protected`；`ce59d15`：`add-guanshi-axe`）。
 
 ## 正在做的一批
 
