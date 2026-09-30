@@ -86,6 +86,38 @@ lt.test('询问：一次往返（选项按条件算出来）', function ()
     lt.assertEquals('选项挂在询问上', jink, assert(ask.options)[1].card)
 end)
 
+lt.test('询问：条件构造时归一化（列表 + 默认张数）', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+
+    local ask = game:askCard(players[2], nil, { name = '闪' })
+
+    local condition = assert(ask.condition)
+    local names = assert(condition.names)
+    lt.assertEquals('牌名归一成列表', 1, #names)
+    lt.assertEquals('列表里就是给的那个名字', '闪', names[1])
+    lt.assertEquals('张数补上默认', '1,1', condition.min .. ',' .. condition.max)
+    lt.assertEquals('旧的单数名不再留着', nil, rawget(condition, 'name'))
+
+    local loose = game:askCard(players[2], nil)
+    lt.assertEquals('没给条件就是不限制（也不归一）', nil, loose.condition)
+end)
+
+lt.test('询问：条件里的区名构造时解析成区对象（解析不到的丢掉）', function ()
+    local game, players = newGame(2)
+    putInHand(players[2], { game:createCard('闪') })
+
+    local ask = game:askCard(players[2], nil, { zone = { '手牌', '没有这个区' } })
+
+    local zones = assert(assert(ask.condition).zones)
+    lt.assertEquals('解析到的留下、解析不到的丢掉', 1, #zones)
+    lt.assertEquals('留下的是被问者的手牌区', players[2]:getZone('手牌'), zones[1])
+
+    local none = game:askCard(players[2], nil, { zone = '没有这个区' })
+    lt.assertEquals('全解析不到 ⇒ 空表', 0, #assert(assert(none.condition).zones))
+end)
+
 lt.test('询问：结算之外的乱序答复不收（反向）', function ()
     local game, players = newGame(2)
     local early = game:createCard('闪')

@@ -89,12 +89,21 @@ function M:notifyMoved(moves)
     end
 end
 
---- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「离开区域」/「进入区域」）
+--- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「离开区域」/「进入区域」；虚拟牌进不了牌区 —— 收它就是注销它）
 ---@param cards Card|Card[] # 要收的牌（单张或一批）
 ---@return boolean # 收下了没有
 ---@return string? # 没收下的原因
 function M:accept(cards)
-    self:notifyMoved(self:takeIn(moe.util.toList(cards)))
+    ---@type Card[]
+    local list = {}
+    for _, card in ipairs(moe.util.toList(cards)) do
+        if card.virtual then
+            Delete(card)
+        else
+            list[#list + 1] = card
+        end
+    end
+    self:notifyMoved(self:takeIn(list))
     return true
 end
 

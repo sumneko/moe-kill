@@ -10,6 +10,7 @@
 
 --- 要什么样的牌：每个字段都是一条筛选条件（数组 = 满足其一；单值 = 当成只有一个的数组；不填 = 无要求）
 --- `min` / `max` 是「要给出几张」（不填 = 1 / 1）；「要一次使用」「要一张打出」恒为一张，别带这两个
+--- 传单值就行 —— 构造询问时归一化一次（见 `AskCard.NormalizedCondition`）
 ---@class AskCard.Condition
 ---@field name? string|string[] # 牌名
 ---@field zone? string|Zone|(string|Zone)[] # 牌在哪个区里（名字按「被问者 → 局上」解析；别人的区要传区对象）
@@ -17,16 +18,24 @@
 ---@field min? integer # 至少要给几张（省略 = 1）
 ---@field max? integer # 至多给几张（省略 = 1）
 
+--- 询问身上存的是归一化之后的形状：字段名带复数 —— `names` / `cards` 是列表、`zones` 还解析成了区对象，另有 `min` / `max` 一定给出（订阅者与 `collectOptions` 直接读）
+---@class AskCard.NormalizedCondition
+---@field names? string[]
+---@field zones? Zone[]
+---@field cards? Card[]
+---@field min integer
+---@field max integer
+
 ---@class AskCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@field condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@field condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制；构造时归一化）
 
 ---@class AskCard : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
----@field condition? AskCard.Condition # 要什么样的牌
+---@field condition? AskCard.NormalizedCondition # 要什么样的牌（构造时归一化）
 ---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
 ---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
@@ -34,20 +43,6 @@
 local M = Class 'AskCard'
 
 Extends('AskCard', 'Effect')
-
----@param game Game
----@param to Player
----@param reason string
----@param condition AskCard.Condition?
-function M:__init(game, to, reason, condition)
-    self.game      = game
-    self.kind      = 'askCard'
-    self.to        = to
-    self.reason    = reason
-    self.condition = condition
-    self.asked     = false
-end
-
 
 --- 找区：区对象直接用；名字按「被问者 → 局上」解析
 ---@param game Game
@@ -60,6 +55,59 @@ local function resolveZone(game, to, item)
     end
     return to:getZone(item) or game:getZone(item)
 end
+
+--- 把条件归一化一次：`name` → `names` / `card` → `cards` 成列表、`zone` → `zones` 解析成区对象（按「被问者 → 局上」，解析不到的丢掉）、`min` / `max` 补默认；子类自己加的字段（如 `target`）原样保留
+---@param game Game
+---@param to Player
+---@param condition AskCard.Condition?
+---@return AskCard.NormalizedCondition?
+local function normalizeCondition(game, to, condition)
+    if not condition then
+        return nil
+    end
+    local normalized = {}
+    for key, value in pairs(condition) do
+        normalized[key] = value
+    end
+    normalized.min  = condition.min or 1
+    normalized.max  = condition.max or 1
+    if condition.name then
+        normalized.names = moe.util.toList(condition.name)
+        normalized.name  = nil
+    end
+    if condition.zone then
+        ---@type Zone[]
+        local zones = {}
+        for _, item in ipairs(moe.util.toList(condition.zone)) do
+            local zone = resolveZone(game, to, item)
+            if zone then
+                zones[#zones + 1] = zone
+            end
+        end
+        normalized.zones = zones
+        normalized.zone  = nil
+    end
+    if condition.card then
+        normalized.cards = moe.util.toList(condition.card)
+        normalized.card  = nil
+    end
+    ---@cast normalized AskCard.NormalizedCondition
+    return normalized
+end
+
+---@param game Game
+---@param to Player
+---@param reason string
+---@param condition AskCard.Condition?
+function M:__init(game, to, reason, condition)
+    self.game      = game
+    self.kind      = 'askCard'
+    self.to        = to
+    self.reason    = reason
+    self.condition = normalizeCondition(game, to, condition)
+    self.asked     = false
+end
+
 
 --- 把一张牌装成一个选项（不算就返回空）—— 子类在这里补「能不能用、目标是谁」
 ---@param card Card
@@ -78,27 +126,23 @@ function M:collectOptions()
 
     ---@type Card[]
     local cards = {}
-    if condition.zone then
-        for _, item in ipairs(moe.util.toList(condition.zone)) do
-            local zone = resolveZone(self.game, self.to, item)
-            if zone then
-                local held = zone:list()
-                table.move(held, 1, #held, #cards + 1, cards)
-            end
+    if condition.zones then
+        for _, zone in ipairs(condition.zones) do
+            local held = zone:list()
+            table.move(held, 1, #held, #cards + 1, cards)
         end
     end
-    if condition.card then
-        local list = moe.util.toList(condition.card)
-        table.move(list, 1, #list, #cards + 1, cards)
+    if condition.cards then
+        table.move(condition.cards, 1, #condition.cards, #cards + 1, cards)
     end
-    if not condition.zone and not condition.card then
+    if not condition.zones and not condition.cards then
         for _, zone in ipairs(self.to:getZones()) do
             local held = zone:list()
             table.move(held, 1, #held, #cards + 1, cards)
         end
     end
 
-    local names = condition.name and moe.util.toList(condition.name) or nil
+    local names = condition.names
 
     ---@type AskCard.Option[]
     local options = {}
@@ -216,11 +260,17 @@ end
 function M:onAnswered()
 end
 
+--- 把问题交给应答方之前跑一次（子类在这里做别的事 —— 打出族用它开「替代」窗口）
+---@async
+function M:beforeAsk()
+end
+
 --- 把询问交给应答方（选项先摆好；答复一到，结果就定下了）
 ---@async
 function M:settle()
     self.options = self:collectOptions()
     self.asked   = true
+    self:beforeAsk()
     self.game:fire('卡牌-询问', self)
 
     if not self.result then

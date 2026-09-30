@@ -69,6 +69,18 @@ local function clearHandExcept(run, player, keep)
     end
 end
 
+--- 把「八卦阵」的判定换成指定的牌（判定-前 窗口）
+---@param run Test.RuleSupport
+---@param suit string
+---@param point integer
+local function decideBagua(run, suit, point)
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '八卦阵' then
+            judge:replace(run.game:createCard('杀', suit, point))
+        end
+    end)
+end
+
 lt.test('装备：游戏开始时给每个玩家建好四个装备子区', function ()
     local run = support.start { count = 3, packages = { '标准' } }
 
@@ -1598,4 +1610,186 @@ lt.test('贯石斧：拆下后就不发动', function ()
 
     lt.assertEquals('不问', 0, asked)
     lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
+end)
+
+lt.test('八卦阵：判红 ⇒ 视为打出【闪】（虚拟牌），【杀】不造成伤害', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, target, '八卦阵')
+    local card = takeCard(run, user, '杀')
+
+    ---@type string[]
+    local trace = {}
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '八卦阵' then
+            trace[#trace + 1] = '是否发动'
+            ---@cast ask AskChoice
+            ask:answer('发动')
+        end
+    end)
+    ---@type string[]
+    local judges = {}
+    run.game:on('判定-后', function (judge)
+        judges[#judges + 1] = assert(judge.reason)
+    end)
+    decideBagua(run, '红桃', 7)
+    ---@type Card?
+    local answered = nil
+    run.game:on('卡牌-答复', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            answered = ask.card
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('先问是否发动', '是否发动', table.concat(trace, ','))
+    lt.assertEquals('做了一次八卦阵判定', '八卦阵', table.concat(judges, ','))
+    lt.assertEquals('答复是一张虚拟牌', true, assert(answered).virtual)
+    lt.assertEquals('没打出实体牌（手牌是空的）', 0, assert(target:getZone('手牌')):count())
+    lt.assertEquals('没掉血', 5, target:getAttr('体力'))
+end)
+
+lt.test('八卦阵：判黑 ⇒ 照常要实体【闪】（打出来就不受伤）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, target, '八卦阵')
+    local card  = takeCard(run, user, '杀')
+    local dodge = takeCard(run, target, '闪')
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '八卦阵' then
+            ---@cast ask AskChoice
+            ask:answer('发动')
+        end
+    end)
+    decideBagua(run, '黑桃', 7)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        end
+    end)
+    ---@type Card?
+    local answered = nil
+    run.game:on('卡牌-答复', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            answered = ask.card
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('打的是实体【闪】', dodge, answered)
+    lt.assertEquals('没掉血', 5, target:getAttr('体力'))
+end)
+
+lt.test('八卦阵：判黑又没【闪】⇒ 照常受伤', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, target, '八卦阵')
+    local card = takeCard(run, user, '杀')
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '八卦阵' then
+            ---@cast ask AskChoice
+            ask:answer('发动')
+        end
+    end)
+    decideBagua(run, '黑桃', 7)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('掉 1 点血', 4, target:getAttr('体力'))
+end)
+
+lt.test('八卦阵：不发动 ⇒ 不判定、照常要实体【闪】', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, target, '八卦阵')
+    local card = takeCard(run, user, '杀')
+
+    ---@type integer
+    local judged = 0
+    run.game:on('判定-后', function () judged = judged + 1 end)
+    -- 「是否发动」不答 = 不发动
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('没判定', 0, judged)
+    lt.assertEquals('照常受伤', 4, target:getAttr('体力'))
+end)
+
+lt.test('八卦阵：拆下后就不发动（也不判定）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    local armor = equipCard(run, target, '八卦阵')
+    local card  = takeCard(run, user, '杀')
+
+    run.game:moveCard(armor, '弃牌')
+    decideBagua(run, '红桃', 7)
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '八卦阵' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问发动', 0, asked)
+    lt.assertEquals('掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('八卦阵：【万箭齐发】的【闪】照样能替代', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, target, '八卦阵')
+    local volley = takeCard(run, user, '万箭齐发')
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '八卦阵' then
+            ---@cast ask AskChoice
+            ask:answer('发动')
+        end
+    end)
+    decideBagua(run, '方块', 3)
+
+    run.game:useCard(user, volley, { target })
+
+    lt.assertEquals('没掉血', 5, target:getAttr('体力'))
+end)
+
+lt.test('八卦阵：要的不是【闪】不发动（【南蛮入侵】要【杀】）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, target, '八卦阵')
+    local nanman = takeCard(run, user, '南蛮入侵')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '八卦阵' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, nanman, { target })
+
+    lt.assertEquals('不问发动', 0, asked)
+    lt.assertEquals('照常受伤', 4, target:getAttr('体力'))
 end)

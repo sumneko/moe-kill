@@ -148,6 +148,26 @@ lt.test('收牌：被禁用的区照收（禁用是逻辑状态，不拦搬运�
     lt.assertEquals('归属跟着走', to, card:getZone())
 end)
 
+lt.test('收牌：虚拟牌直接注销、不进区', function ()
+    local zone    = lt.zone()
+    local virtual = lt.game():createVirtualCard('甲')
+
+    lt.assertEquals('报告收下', true, zone:accept(virtual))
+    lt.assertEquals('区里没有它', 0, zone:count())
+    lt.assertEquals('牌被注销', false, IsValid(virtual))
+end)
+
+lt.test('收牌：一批里混着虚拟牌 ⇒ 它被注销、其余照收', function ()
+    local zone    = lt.zone()
+    local real    = lt.card('乙')
+    local virtual = lt.game():createVirtualCard('甲')
+
+    lt.assertEquals('收下了', true, zone:accept({ real, virtual }))
+    lt.assertEquals('真实的牌进来了', 1, zone:count())
+    lt.assertEquals('收的就是那张', real, zone:peek(1))
+    lt.assertEquals('虚拟牌被注销', false, IsValid(virtual))
+end)
+
 lt.test('收牌：收进有序牌区是追加到底部，取顶拿到的还是原来那张', function ()
     local pile  = lt.orderedZone()
     local hand  = lt.zone()

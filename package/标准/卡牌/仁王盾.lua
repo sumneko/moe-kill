@@ -16,7 +16,7 @@ Card '仁王盾'
             if effect.card.name ~= '杀' then
                 return
             end
-            if effect.card.suit == '黑桃' or effect.card.suit == '梅花' then
+            if effect.card.color == '黑' then
                 return '仁王盾'
             end
         end)

@@ -3,6 +3,8 @@
 ---@field name string # 牌名（内容侧给的值，内核只存不解释）
 ---@field suit? string # 花色
 ---@field point? integer # 点数（1..13）
+---@field virtual boolean # 是不是虚拟牌（没有实体牌；进不了任何牌区）
+---@field subcards Card[] # 对应的实体牌（普通牌是空表）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
 ---@field game Game # 属于哪一局（读自己的内容定义时用）
@@ -17,11 +19,13 @@ local M = Class 'Card'
 ---@param suit? string # 花色
 ---@param point? integer # 点数
 function M:__init(game, name, id, suit, point)
-    self.game  = game
-    self.id    = id
-    self.name  = name
-    self.suit  = suit
-    self.point = point
+    self.game     = game
+    self.id       = id
+    self.name     = name
+    self.suit     = suit
+    self.point    = point
+    self.virtual  = false
+    self.subcards = {}
     local def = game:getCard(name)
     if not def then
         error('没有叫「{}」的内容定义' % { name }, 2)
@@ -138,6 +142,22 @@ M.__getter.fullName = function (self)
     return self.def.fullName
 end
 
+---@type string?
+M.color = nil
+
+---@param self Card
+---@return string? # 颜色（红桃 / 方块 = 红，黑桃 / 梅花 = 黑）
+M.__getter.color = function (self)
+    local suit = self.suit
+    if suit == '红桃' or suit == '方块' then
+        return '红'
+    end
+    if suit == '黑桃' or suit == '梅花' then
+        return '黑'
+    end
+    return nil
+end
+
 --- 这张牌现在在哪个牌区
 ---@return Zone? # 不在任何牌区时为「不存在」
 function M:getZone()
@@ -186,4 +206,22 @@ moe.card = {}
 ---@return Card
 function moe.card.create(game, name, id, suit, point)
     return New 'Card' (game, name, id, suit, point)
+end
+
+--- 建一张虚拟牌（原始牌可给一或多张；花色与点数默认：一张 ⇒ 抄它，其余 ⇒ 无）
+---@param game Game # 属于哪一局
+---@param name string # 牌名
+---@param id integer # 号由局发（`game:nextId`）
+---@param subcards? Card|Card[] # 对应的实体牌
+---@return Card
+function moe.card.createVirtual(game, name, id, subcards)
+    local list = subcards and moe.util.toList(subcards) or {}
+    local suit, point
+    if #list == 1 then
+        suit, point = list[1].suit, list[1].point
+    end
+    local card = moe.card.create(game, name, id, suit, point)
+    card.virtual  = true
+    card.subcards = list
+    return card
 end

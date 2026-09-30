@@ -71,7 +71,7 @@ lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', fu
         end
     end
     table.sort(keys)
-    lt.assertEquals('没给牌面时的字段就是这几样', 'def,game,id,name,passiveSuppress', table.concat(keys, ','))
+    lt.assertEquals('没给牌面时的字段就是这几样', 'def,game,id,name,passiveSuppress,subcards,virtual', table.concat(keys, ','))
 
     ---@type any
     local raw = card
@@ -88,6 +88,65 @@ lt.test('牌：花色与点数直接读字段', function ()
     local plain = moe.card.create(lt.game(), '闪', 8)
     lt.assertEquals('没给花色就是空', nil, plain.suit)
     lt.assertEquals('没给点数就是空', nil, plain.point)
+end)
+
+lt.test('牌：虚拟牌带标记、原始牌按创建时给的记下', function ()
+    local game   = lt.game()
+    local source = moe.card.create(game, '杀', 100, '黑桃', 9)
+    local plain  = moe.card.create(game, '闪', 101)
+
+    lt.assertEquals('普通牌不是虚拟牌', false, plain.virtual)
+    lt.assertEquals('普通牌没有原始牌', 0, #plain.subcards)
+
+    local virtual = game:createVirtualCard('闪', source)
+    lt.assertEquals('标记为虚拟牌', true, virtual.virtual)
+    lt.assertEquals('单张原始牌记在 subcards 里', source, virtual.subcards[1])
+    lt.assertEquals('号由局发、与别的牌都不同', false, virtual:getId() == source:getId())
+end)
+
+lt.test('牌：虚拟牌的花色与点数默认从原始牌算', function ()
+    local game   = lt.game()
+    local source = moe.card.create(game, '杀', 100, '黑桃', 9)
+
+    local single = game:createVirtualCard('闪', source)
+    lt.assertEquals('一张原始牌：花色抄它', '黑桃', single.suit)
+    lt.assertEquals('一张原始牌：点数抄它', 9, single.point)
+
+    local none = game:createVirtualCard('闪')
+    lt.assertEquals('没给原始牌：花色为空', nil, none.suit)
+    lt.assertEquals('没给原始牌：点数为空', nil, none.point)
+    lt.assertEquals('没给原始牌：subcards 空表', 0, #none.subcards)
+
+    local other = moe.card.create(game, '杀', 101, '红桃', 3)
+    local many  = game:createVirtualCard('闪', { source, other })
+    lt.assertEquals('多张原始牌：花色为空', nil, many.suit)
+    lt.assertEquals('多张原始牌：点数为空', nil, many.point)
+    lt.assertEquals('两张都记着', 2, #many.subcards)
+end)
+
+lt.test('牌：颜色由花色当场算（红桃 / 方块 = 红，黑桃 / 梅花 = 黑）', function ()
+    local game = lt.game()
+    local heart   = moe.card.create(game, '闪', 110, '红桃', 2)
+    local diamond = moe.card.create(game, '闪', 111, '方块', 3)
+    local spade   = moe.card.create(game, '杀', 112, '黑桃', 4)
+    local club    = moe.card.create(game, '杀', 113, '梅花', 5)
+
+    lt.assertEquals('红桃是红', '红', heart.color)
+    lt.assertEquals('方块是红', '红', diamond.color)
+    lt.assertEquals('黑桃是黑', '黑', spade.color)
+    lt.assertEquals('梅花是黑', '黑', club.color)
+
+    local plain = moe.card.create(game, '闪', 114)
+    lt.assertEquals('没有花色就没有颜色', nil, plain.color)
+
+    local virtual = game:createVirtualCard('闪', heart)
+    lt.assertEquals('抄了花色的虚拟牌颜色跟着算出来', '红', virtual.color)
+
+    local none = game:createVirtualCard('闪')
+    lt.assertEquals('没有花色的虚拟牌也没有颜色', nil, none.color)
+
+    spade.suit = '红桃'
+    lt.assertEquals('改了花色，颜色立刻跟着变（当场算）', '红', spade.color)
 end)
 
 lt.test('牌：被动出厂不生效，启用时才应用、停用时撤销', function ()

@@ -8,12 +8,24 @@ function M:__init()
     self.kind = 'askPlayCard'
 end
 
---- 交出来的牌进**发起这次结算的临时处理区**（由那次结算收尾时统一送弃牌堆）；没有外层结算就不动，交给内容侧
+--- 交出来的牌进**发起这次结算的临时处理区**（由那次结算收尾时统一送弃牌堆）；没有外层结算就不动，交给内容侧；
+--- 虚拟牌没有实体牌、不用交（它不进任何牌区）
 ---@async
 function M:onAnswered()
     local card = self.card
-    if card and self.parent then
+    if card and not card.virtual and self.parent then
         self.game:moveCard(card, self.parent:getTempZone())
+    end
+end
+
+--- 先让被问者的技能有机会替代这次打出（官方优先级：先武将技能、后装备技能）：返回一张牌即替代成立 —— 这张牌就当作答复给出的牌
+---@async
+function M:beforeAsk()
+    local substitute = self.to:fire('打出-技能替代', self)
+                    or self.to:fire('打出-装备替代', self)
+
+    if substitute ~= nil then
+        self.task:resolve { cards = { substitute } }
     end
 end
 

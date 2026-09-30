@@ -119,3 +119,127 @@ lt.test('打出：答复的牌不在候选里就拒收', function ()
     lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
     lt.assertEquals('牌没被动', 1, hand:count())
 end)
+
+lt.test('打出：替代窗口 —— 返回一张牌就顶替这次打出', function ()
+    local game, players = newGame(2)
+    local virtual = game:createVirtualCard('闪')
+    players[2]:on('打出-装备替代', function ()
+        return virtual
+    end)
+
+    ---@type AskPlayCard?
+    local answered = nil
+    game:on('卡牌-答复', function (askCard)
+        ---@cast askCard AskPlayCard
+        answered = askCard
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
+
+    lt.assertEquals('答复就是那张替代牌', virtual, ask.card)
+    lt.assertEquals('也算答过（答复时机照发）', virtual, assert(answered).card)
+    lt.assertEquals('替代牌没有实体牌、不进牌区', nil, virtual:getZone())
+end)
+
+lt.test('打出：替代成立时「卡牌-询问」照发，后到的答复不算', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    local virtual = game:createVirtualCard('闪')
+    players[2]:on('打出-装备替代', function ()
+        return virtual
+    end)
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = jink }
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
+
+    lt.assertEquals('先给出的（替代）算数', virtual, ask.card)
+    lt.assertEquals('实体牌还在手上', 1, assert(players[2]:getZone('手牌')):count())
+end)
+
+lt.test('打出：替代窗口只问被问者，没人替代就照常要实体牌', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+
+    ---@type integer
+    local others = 0
+    players[1]:on('打出-技能替代', function ()
+        others = others + 1
+    end)
+    players[1]:on('打出-装备替代', function ()
+        others = others + 1
+    end)
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = jink }
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
+
+    lt.assertEquals('旁人收不到这个窗口', 0, others)
+    lt.assertEquals('照常走实体牌', jink, ask.card)
+end)
+
+lt.test('打出：替代牌没有实体牌，不用交进临时区', function ()
+    local game, players = newGame(2)
+    local virtual = game:createVirtualCard('闪')
+    players[2]:on('打出-装备替代', function ()
+        return virtual
+    end)
+
+    ---@type AskPlayCard?
+    local asked = nil
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            asked = game:askPlayCard(players[2], '测试', { name = '闪' })
+        end
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    local ask = assert(asked, '没问到')
+    lt.assertEquals('答复就是替代牌', virtual, ask.card)
+    lt.assertEquals('没进任何牌区', nil, virtual:getZone())
+    lt.assertEquals('也没进弃牌堆', false, moe.util.arrayHas(assert(game:getZone('弃牌')):list(), virtual))
+end)
+
+lt.test('打出：替代窗口先问技能段、再问装备段', function ()
+    local game, players = newGame(2)
+    local virtual = game:createVirtualCard('闪')
+
+    ---@type string[]
+    local trace = {}
+    players[2]:on('打出-技能替代', function ()
+        trace[#trace + 1] = '技能'
+    end)
+    players[2]:on('打出-装备替代', function ()
+        trace[#trace + 1] = '装备'
+        return virtual
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
+
+    lt.assertEquals('先技能、后装备', '技能,装备', table.concat(trace, ','))
+    lt.assertEquals('装备段给出了替代', virtual, ask.card)
+end)
+
+lt.test('打出：技能段给了替代就不再问装备段', function ()
+    local game, players = newGame(2)
+    local virtual = game:createVirtualCard('闪')
+
+    ---@type integer
+    local equipment = 0
+    players[2]:on('打出-技能替代', function ()
+        return virtual
+    end)
+    players[2]:on('打出-装备替代', function ()
+        equipment = equipment + 1
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
+
+    lt.assertEquals('技能段顶掉了这次打出', virtual, ask.card)
+    lt.assertEquals('装备段没被问', 0, equipment)
+end)

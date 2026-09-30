@@ -2,6 +2,10 @@
 ---@class AskUseCardToCard.Condition : AskCard.Condition
 ---@field target Card # 要使用在哪张牌上（由发起方给定）
 
+--- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`target` 不归一）
+---@class AskUseCardToCard.NormalizedCondition : AskCard.NormalizedCondition
+---@field target Card # 要使用在哪张牌上
+
 --- 一个合法选项：一张能对目标牌使用的牌
 ---@class AskUseCardToCard.Option : AskCard.Option
 ---@field target Card # 它要用在哪张牌上（= 条件里给的那张）
@@ -14,7 +18,7 @@
 
 --- 要一次「对一张牌的使用」：候选逐张跑 `canUseToCard`（用不了的牌不进选项），答复只要给牌
 ---@class AskUseCardToCard : AskCard
----@field condition AskUseCardToCard.Condition # 要什么样的牌（比基类多一条 target）
+---@field condition AskUseCardToCard.NormalizedCondition # 要什么样的牌（比基类多一条 target）
 ---@field options? AskUseCardToCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好）
 ---@field useCardToCard? UseCardToCard # 把这次答复用出去得到的那次使用（没答复 / 还没用过就是空）
 local M = Class 'AskUseCardToCard'

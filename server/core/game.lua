@@ -687,6 +687,17 @@ function M:createCard(name, suit, point)
     return moe.card.create(self, name, self:nextId(), suit, point)
 end
 
+--- 按牌名建一张虚拟牌（原始牌可给一或多张；花色与点数默认：一张 ⇒ 抄它，其余 ⇒ 无）
+---@param name string
+---@param subcards? Card|Card[] # 对应的实体牌（可以不给、可以多张）
+---@return Card
+function M:createVirtualCard(name, subcards)
+    if type(name) ~= 'string' or name == '' then
+        error('牌名必须是非空字符串', 2)
+    end
+    return moe.card.createVirtual(self, name, self:nextId(), subcards)
+end
+
 --- 要一张牌
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）

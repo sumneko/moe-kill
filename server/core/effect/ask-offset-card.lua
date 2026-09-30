@@ -14,6 +14,7 @@ end
 function M:settle()
     self.options = self:collectOptions()
     self.asked   = true
+    self:beforeAsk()
     self.game:fire('卡牌-询问', self)
 
     if self.card == nil then
