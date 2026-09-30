@@ -170,11 +170,10 @@ lt.test('抵消：答复不在候选里 = 拒收（复用既有口径）', funct
     lt.assertEquals('不成立', false, ask.success)
 end)
 
-lt.test('抵消：替代出来的牌也算打出（两段时机照发）', function ()
+lt.test('抵消：声明成立的牌也算打出（两段时机照发）', function ()
     local game, players = newGame(2)
-    local virtual = game:createVirtualCard('闪')
-    players[2]:on('打出-装备替代', function ()
-        return virtual
+    players[2]:addViewAs('闪'):on('发动', function ()
+        return true
     end)
 
     ---@type Card?
@@ -185,7 +184,7 @@ lt.test('抵消：替代出来的牌也算打出（两段时机照发）', funct
 
     local ask = game:askOffsetCard(players[2], '测试', { name = '闪' })
 
-    lt.assertEquals('答复是替代牌', virtual, ask.card)
+    lt.assertEquals('答复是内核照声明造的虚拟牌', '闪', assert(ask.card).name)
     lt.assertEquals('抵消成立', true, ask.success)
-    lt.assertEquals('被抵消时机里拿到的就是替代牌', virtual, seen)
+    lt.assertEquals('被抵消时机里拿到的就是那张', ask.card, seen)
 end)

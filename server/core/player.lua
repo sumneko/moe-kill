@@ -8,6 +8,7 @@
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
 ---@field private buffs Buff[] # 挂在他身上的状态（按获得顺序）
+---@field private viewAsList ViewAs[] # 他身上的「视为」声明（按声明顺序）
 ---@field private tags table<string, any>
 ---@field private events Event # 他自己的时机表（内容侧用 player:on / player:fire）
 ---@field private alive boolean
@@ -25,6 +26,7 @@ function M:__init(game, attributes, name)
     self.zoneList    = {}
     self.zoneMap     = {}
     self.buffs       = {}
+    self.viewAsList  = {}
     self.tags        = {}
     self.events      = moe.event.create()
     self.alive       = true
@@ -157,6 +159,34 @@ function M:hasBuff(name)
         end
     end
     return false
+end
+
+--- 声明一份「视为某牌」（如【八卦阵】的「视为一张【闪】」）：撤销用 `viewAs:remove()`
+---@param name string # 视为哪张牌
+---@return ViewAs
+function M:addViewAs(name)
+    local viewAs = moe.viewAs.create(self.game, self, name)
+    self.viewAsList[#self.viewAsList + 1] = viewAs
+    return viewAs
+end
+
+--- 摘掉一份声明（`ViewAs:remove()` 里调）
+---@param viewAs ViewAs
+function M:removeViewAs(viewAs)
+    for i, item in ipairs(self.viewAsList) do
+        if item == viewAs then
+            table.remove(self.viewAsList, i)
+            return
+        end
+    end
+end
+
+---@return ViewAs[] # 他身上的「视为」声明（快照，按声明顺序）
+function M:getViewAsList()
+    ---@type ViewAs[]
+    local snapshot = {}
+    table.move(self.viewAsList, 1, #self.viewAsList, 1, snapshot)
+    return snapshot
 end
 
 --- 这张牌在他哪个牌区里、第几位

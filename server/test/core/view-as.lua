@@ -1,0 +1,110 @@
+local lt = require 'test.ltest'
+
+---@param count integer
+---@return Game
+---@return Player[]
+local function newGame(count)
+    local game = moe.game.create {
+        seats   = count,
+        random  = moe.random.create(1),
+        sources = { './package/*', lt.cardSource },
+    }
+    local desk = game.desk
+    local attributeSystem = game:getAttributeSystem()
+    attributeSystem:define('体力', { min = -999999, max = 999999, simple = true })
+    ---@type Player[]
+    local players = {}
+    for i = 1, count do
+        local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
+        desk:sit(i, player)
+        players[i] = player
+    end
+    return game, players
+end
+
+lt.test('视为声明：挂上就在列表里，名字与宿主读得到', function ()
+    local _, players = newGame(2)
+    local viewAs = players[1]:addViewAs('闪')
+
+    lt.assertEquals('视为的牌名', '闪', viewAs.name)
+    lt.assertEquals('宿主', players[1], viewAs.owner)
+    local list = players[1]:getViewAsList()
+    lt.assertEquals('列表里有一条', 1, #list)
+    lt.assertEquals('就是它', viewAs, list[1])
+    lt.assertEquals('别人身上没有', 0, #players[2]:getViewAsList())
+end)
+
+lt.test('视为声明：`on` 链式返回自己', function ()
+    local _, players = newGame(2)
+    local viewAs = players[1]:addViewAs('闪')
+    local chained = viewAs:on('发动', function () end)
+
+    lt.assertEquals('返回的是它自己', viewAs, chained)
+end)
+
+lt.test('视为声明：快照按声明顺序', function ()
+    local _, players = newGame(2)
+    local first  = players[1]:addViewAs('闪')
+    local second = players[1]:addViewAs('杀')
+
+    local list = players[1]:getViewAsList()
+    lt.assertEquals('两条', 2, #list)
+    lt.assertEquals('先声明在前', first, list[1])
+    lt.assertEquals('后声明在后', second, list[2])
+end)
+
+lt.test('视为声明：撤销从列表里摘掉，且幂等', function ()
+    local _, players = newGame(2)
+    local viewAs = players[1]:addViewAs('闪')
+
+    viewAs:remove()
+    lt.assertEquals('列表空了', 0, #players[1]:getViewAsList())
+    viewAs:remove()
+    lt.assertEquals('再撤一次也不出错', 0, #players[1]:getViewAsList())
+end)
+
+lt.test('视为声明：第一个说成立的就胜出，后面的不再跑', function ()
+    local game, players = newGame(2)
+    local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
+
+    ---@type string[]
+    local trace = {}
+    local viewAs = players[1]:addViewAs('闪')
+        : on('发动', function ()
+            trace[#trace + 1] = '第一'
+        end)
+        : on('发动', function ()
+            trace[#trace + 1] = '第二'
+            return true
+        end)
+        : on('发动', function ()
+            trace[#trace + 1] = '第三'
+            return true
+        end)
+
+    local produced = assert(viewAs:tryProduce(ask), '该产出')
+    lt.assertEquals('造出的就是声明的那张牌', '闪', produced.name)
+    lt.assertEquals('是虚拟牌', true, produced.virtual)
+    lt.assertEquals('第三个没被跑', '第一,第二', table.concat(trace, ','))
+end)
+
+lt.test('视为声明：都没说成立就是没产出', function ()
+    local game, players = newGame(2)
+    local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
+
+    local viewAs = players[1]:addViewAs('闪')
+        : on('发动', function ()
+            return nil
+        end)
+
+    lt.assertEquals('没产出', nil, viewAs:tryProduce(ask))
+end)
+
+lt.test('视为声明：没登记钩子时也试得出「没产出」', function ()
+    local game, players = newGame(2)
+    local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }
+
+    local viewAs = players[1]:addViewAs('闪')
+
+    lt.assertEquals('没产出', nil, viewAs:tryProduce(ask))
+end)

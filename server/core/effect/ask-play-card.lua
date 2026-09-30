@@ -18,15 +18,18 @@ function M:onAnswered()
     end
 end
 
---- 先让被问者的技能有机会替代这次打出（官方优先级：先武将技能、后装备技能）：返回一张牌即替代成立
---- —— 这张牌就当作答复给出的牌，**不再问应答方**（结果已经定下了）
+--- 依次试被问者身上的「视为」声明（按声明顺序）：牌名对上这次要的牌才试，谁先产出一张牌就当答复落定
 ---@async
 function M:beforeAsk()
-    local substitute = self.to:fire('打出-技能替代', self)
-                    or self.to:fire('打出-装备替代', self)
-
-    if substitute ~= nil then
-        self.task:resolve { cards = { substitute } }
+    local names = self.condition?.names
+    for _, viewAs in ipairs(self.to:getViewAsList()) do
+        if not names or moe.util.arrayHas(names, viewAs.name) then
+            local card = viewAs:tryProduce(self)
+            if card ~= nil then
+                self.task:resolve { cards = { card } }
+                return
+            end
+        end
     end
 end
 

@@ -120,11 +120,10 @@ lt.test('打出：答复的牌不在候选里就拒收', function ()
     lt.assertEquals('牌没被动', 1, hand:count())
 end)
 
-lt.test('打出：替代窗口 —— 返回一张牌就顶替这次打出', function ()
+lt.test('打出：视为声明 —— 说成立就顶替这次打出', function ()
     local game, players = newGame(2)
-    local virtual = game:createVirtualCard('闪')
-    players[2]:on('打出-装备替代', function ()
-        return virtual
+    players[2]:addViewAs('闪'):on('发动', function ()
+        return true
     end)
 
     ---@type AskPlayCard?
@@ -136,18 +135,18 @@ lt.test('打出：替代窗口 —— 返回一张牌就顶替这次打出', fun
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
 
-    lt.assertEquals('答复就是那张替代牌', virtual, ask.card)
-    lt.assertEquals('也算答过（答复时机照发）', virtual, assert(answered).card)
-    lt.assertEquals('替代牌没有实体牌、不进牌区', nil, virtual:getZone())
+    lt.assertEquals('答复是内核照声明造的虚拟牌', '闪', assert(ask.card).name)
+    lt.assertEquals('是虚拟牌', true, assert(ask.card).virtual)
+    lt.assertEquals('也算答过（答复时机照发）', ask.card, assert(answered).card)
+    lt.assertEquals('它没有实体牌、不进牌区', nil, assert(ask.card):getZone())
 end)
 
-lt.test('打出：替代成立时不再问应答方', function ()
+lt.test('打出：声明成立了就不再问应答方', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
-    local virtual = game:createVirtualCard('闪')
-    players[2]:on('打出-装备替代', function ()
-        return virtual
+    players[2]:addViewAs('闪'):on('发动', function ()
+        return true
     end)
     ---@type integer
     local asked = 0
@@ -157,23 +156,25 @@ lt.test('打出：替代成立时不再问应答方', function ()
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
 
-    lt.assertEquals('替代的算数', virtual, ask.card)
+    lt.assertEquals('声明成立的算数', '闪', assert(ask.card).name)
     lt.assertEquals('不再问应答方', 0, asked)
     lt.assertEquals('实体牌还在手上', 1, assert(players[2]:getZone('手牌')):count())
 end)
 
-lt.test('打出：替代窗口只问被问者，没人替代就照常要实体牌', function ()
+lt.test('打出：只试被问者身上的声明，全不成再问实体牌', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
 
     ---@type integer
     local others = 0
-    players[1]:on('打出-技能替代', function ()
+    players[1]:addViewAs('闪'):on('发动', function ()
         others = others + 1
     end)
-    players[1]:on('打出-装备替代', function ()
-        others = others + 1
+    ---@type integer
+    local tried = 0
+    players[2]:addViewAs('闪'):on('发动', function ()
+        tried = tried + 1
     end)
     game:on('卡牌-询问', function (ask)
         return { card = jink }
@@ -181,15 +182,15 @@ lt.test('打出：替代窗口只问被问者，没人替代就照常要实体�
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
 
-    lt.assertEquals('旁人收不到这个窗口', 0, others)
+    lt.assertEquals('旁人的声明不会被试', 0, others)
+    lt.assertEquals('自己的声明试过了', 1, tried)
     lt.assertEquals('照常走实体牌', jink, ask.card)
 end)
 
-lt.test('打出：替代牌没有实体牌，不用交进临时区', function ()
+lt.test('打出：声明造的牌不用交进临时区', function ()
     local game, players = newGame(2)
-    local virtual = game:createVirtualCard('闪')
-    players[2]:on('打出-装备替代', function ()
-        return virtual
+    players[2]:addViewAs('闪'):on('发动', function ()
+        return true
     end)
 
     ---@type AskPlayCard?
@@ -203,46 +204,67 @@ lt.test('打出：替代牌没有实体牌，不用交进临时区', function ()
     game:damage(players[1], players[2], 1)
 
     local ask = assert(asked, '没问到')
-    lt.assertEquals('答复就是替代牌', virtual, ask.card)
-    lt.assertEquals('没进任何牌区', nil, virtual:getZone())
-    lt.assertEquals('也没进弃牌堆', false, moe.util.arrayHas(assert(game:getZone('弃牌')):list(), virtual))
+    lt.assertEquals('答复是内核照声明造的虚拟牌', '闪', assert(ask.card).name)
+    lt.assertEquals('没进任何牌区', nil, assert(ask.card):getZone())
+    lt.assertEquals('也没进弃牌堆', false, moe.util.arrayHas(assert(game:getZone('弃牌')):list(), ask.card))
 end)
 
-lt.test('打出：替代窗口先问技能段、再问装备段', function ()
+lt.test('打出：按声明顺序依次试，第一个成立了就不试下一个', function ()
     local game, players = newGame(2)
-    local virtual = game:createVirtualCard('闪')
 
     ---@type string[]
     local trace = {}
-    players[2]:on('打出-技能替代', function ()
-        trace[#trace + 1] = '技能'
+    players[2]:addViewAs('闪'):on('发动', function ()
+        trace[#trace + 1] = '第一份'
+        return true
     end)
-    players[2]:on('打出-装备替代', function ()
-        trace[#trace + 1] = '装备'
-        return virtual
+    players[2]:addViewAs('闪'):on('发动', function ()
+        trace[#trace + 1] = '第二份'
+        return true
     end)
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
 
-    lt.assertEquals('先技能、后装备', '技能,装备', table.concat(trace, ','))
-    lt.assertEquals('装备段给出了替代', virtual, ask.card)
+    lt.assertEquals('只试了第一份', '第一份', table.concat(trace, ','))
+    lt.assertEquals('造出的还是声明的那张牌', '闪', assert(ask.card).name)
 end)
 
-lt.test('打出：技能段给了替代就不再问装备段', function ()
+lt.test('打出：前一份不成立才试下一份', function ()
     local game, players = newGame(2)
-    local virtual = game:createVirtualCard('闪')
 
-    ---@type integer
-    local equipment = 0
-    players[2]:on('打出-技能替代', function ()
-        return virtual
+    ---@type string[]
+    local trace = {}
+    players[2]:addViewAs('闪'):on('发动', function ()
+        trace[#trace + 1] = '第一份'
     end)
-    players[2]:on('打出-装备替代', function ()
-        equipment = equipment + 1
+    players[2]:addViewAs('闪'):on('发动', function ()
+        trace[#trace + 1] = '第二份'
+        return true
     end)
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
 
-    lt.assertEquals('技能段顶掉了这次打出', virtual, ask.card)
-    lt.assertEquals('装备段没被问', 0, equipment)
+    lt.assertEquals('两份都试了', '第一份,第二份', table.concat(trace, ','))
+    lt.assertEquals('第二份成立的算数', '闪', assert(ask.card).name)
+end)
+
+lt.test('打出：声明要的牌名对不上就不试', function ()
+    local game, players = newGame(2)
+    local slash = game:createCard('杀')
+    putInHand(players[2], { slash })
+
+    ---@type integer
+    local tried = 0
+    players[2]:addViewAs('闪'):on('发动', function ()
+        tried = tried + 1
+        return true
+    end)
+    game:on('卡牌-询问', function ()
+        return { card = slash }
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '杀' })
+
+    lt.assertEquals('要的是【杀】，声明不参与', 0, tried)
+    lt.assertEquals('走的是实体牌', slash, ask.card)
 end)
