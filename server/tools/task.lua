@@ -111,8 +111,10 @@ function M:cancel(err)
     self.err      = err or API.CANCELED
     Delete(self)
     if self.thread == coroutine.running() then
-        -- 自己就是那个执行体：让出去，本帧就此停住（收口时已经把这帧登记给了下一个调度）
-        self:delay()
+        -- 自己就是那个执行体：收口时已登记「下一笔关掉它」，就此让出（不会再被唤醒）
+        if coroutine.isyieldable() then
+            coroutine.yield()
+        end
     end
 end
 
