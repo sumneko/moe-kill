@@ -3,8 +3,10 @@
 ---@field user Player # 使用者
 ---@field card Card # 被使用的牌
 ---@field targets Player[] # 目标（可以为空表）
+---@field useOptions? Game.UseOptions # 这次使用的选项（放行 / 记账用）
 
 ---@class UseCard : Effect
+---@field useOptions? Game.UseOptions # 这次使用的选项
 local M = Class 'UseCard'
 
 Extends('UseCard', 'Effect')
@@ -13,11 +15,13 @@ Extends('UseCard', 'Effect')
 ---@param user Player
 ---@param card Card
 ---@param targets Player[]
-function M:__init(game, user, card, targets)
-    self.kind    = 'useCard'
-    self.user    = user
-    self.card    = card
-    self.targets = targets
+---@param useOptions? Game.UseOptions
+function M:__init(game, user, card, targets, useOptions)
+    self.kind       = 'useCard'
+    self.user       = user
+    self.card       = card
+    self.targets    = targets
+    self.useOptions = useOptions
 end
 
 ---@type Player
@@ -31,14 +35,14 @@ end
 
 ---@async
 function M:settle()
-    local ok, reason = self.game:canUse(self.user, self.card, self.targets)
+    local ok, reason = self.game:canUse(self.user, self.card, self.targets, self.useOptions)
     if not ok then
         self:cancel(reason)
     end
 
     local name = self.card.name
     local phase = self.game:getUsePhase(self.user)
-    if phase then
+    if phase and not self.useOptions?.notCounted then
         phase:addUseCount(name, 1)
     end
 
@@ -114,5 +118,5 @@ moe.useCard = {}
 ---@param options UseCard.CreateOptions
 ---@return UseCard
 function moe.useCard.create(options)
-    return New 'UseCard' (options.game, options.user, options.card, options.targets)
+    return New 'UseCard' (options.game, options.user, options.card, options.targets, options.useOptions)
 end

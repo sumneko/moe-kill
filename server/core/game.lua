@@ -316,6 +316,13 @@ end
 ---@field legal Player[] # 合法目标
 ---@field min integer # 最少几个
 ---@field max integer # 最多几个（已与合法目标数取小）
+
+--- 这次使用的选项：给这一次使用开的几条特殊通道（都不填 = 照常；由发起方给）
+---@class Game.UseOptions
+---@field ignoreDistance? boolean # 无视距离（`Player:isInRange` 认它：这次使用的射程判断直接算在）
+---@field ignoreUseLimit? boolean # 无视使用次数上限（不检查「本阶段用过没」）
+---@field notCounted? boolean # 不计入使用次数（不写 `useCount`）
+
 ---@class Game
 ---@field list string[] # 上一次用的加载清单
 ---@field private cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
@@ -702,13 +709,15 @@ end
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不做限制）
+---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 ---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，那次使用读 `.useCard`，失败读 `.err`）
-function M:askUseCard(to, reason, condition)
+function M:askUseCard(to, reason, condition, useOptions)
     local ask = moe.askUseCard.create {
-        game      = self,
-        to        = to,
-        reason    = reason,
-        condition = condition,
+        game       = self,
+        to         = to,
+        reason     = reason,
+        condition  = condition,
+        useOptions = useOptions,
     }
     ask:apply():await()
     ask:use()
@@ -844,10 +853,11 @@ end
 ---@param def CardDef
 ---@param event string
 ---@param ctx table
+---@param ... any # 追加给每个回调的参数（跟在上下文后面）
 ---@return any[][]? # 各声明给出的列表（按声明顺序）
 ---@return string? # 有声明没给列表时的原因
-local function collectLists(def, event, ctx)
-    local lists = def:collect(event, ctx)
+local function collectLists(def, event, ctx, ...)
+    local lists = def:collect(event, ctx, ...)
     if #lists ~= #def:getHandlers(event) then
         return nil, '「{}」的「{}」必须返回合法目标列表' % { def.fullName, event }
     end
@@ -863,9 +873,10 @@ end
 ---@param user Player
 ---@param card Card
 ---@param targets? Player[] # 期望的目标
+---@param useOptions? Game.UseOptions # 这次使用的选项（原样传给「获取目标」的回调）
 ---@return Player[]? # 各声明取交集后的合法目标
 ---@return string? # 不成立的原因
-local function collectLegalTargets(def, user, card, targets)
+local function collectLegalTargets(def, user, card, targets, useOptions)
     if #def:getHandlers('获取目标') == 0 then
         return nil, '「{}」没有声明「获取目标」，现在用不了' % { def.fullName }
     end
@@ -873,9 +884,9 @@ local function collectLegalTargets(def, user, card, targets)
     local ctx = {
         user = user,
         card = card,
-        targets = targets
+        targets = targets,
     }
-    local lists, reason = collectLists(def, '获取目标', ctx)
+    local lists, reason = collectLists(def, '获取目标', ctx, useOptions)
     if not lists then
         return nil, reason
     end
@@ -891,9 +902,10 @@ end
 ---@param game Game
 ---@param user Player
 ---@param card Card
+---@param useOptions? Game.UseOptions # 这次使用的选项（`ignoreUseLimit` 跳过次数检查）
 ---@return CardDef? # 能用时给出定义
 ---@return any # 不能时的原因
-local function checkCardItself(game, user, card)
+local function checkCardItself(game, user, card, useOptions)
     local name = card.name
     local def  = card.def
     local zone = user:findCard(card)
@@ -908,7 +920,7 @@ local function checkCardItself(game, user, card)
         return nil, '「{}」只能从「{}」里用' % { def.fullName, useZone }
     end
     local phase = game:getUsePhase(user)
-    if phase then
+    if phase and not useOptions?.ignoreUseLimit then
         local limit = def:getLimit(phase.name) + phase:getLimitDelta(name)
         if phase:getUseCount(name) >= limit then
             return nil, '本阶段已经用过「{}」了' % { name }
@@ -920,11 +932,12 @@ end
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
 ---@param target? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
+---@param useOptions? Game.UseOptions # 这次使用的选项（见 `Game.UseOptions`）
 ---@return boolean # 能这样用吗
 ---@return any # 不能的原因
 ---@return Game.UsableTargets? # 能用时的可用目标与数量区间（「不指定目标」的牌是 legal 空表、0、0）
-function M:canUse(user, card, target)
-    local def, problem = checkCardItself(self, user, card)
+function M:canUse(user, card, target, useOptions)
+    local def, problem = checkCardItself(self, user, card, useOptions)
     if not def then
         return false, problem
     end
@@ -941,7 +954,7 @@ function M:canUse(user, card, target)
             return false, '「{}」不需要指定目标' % { def.fullName }
         end
     else
-        local list, reason = collectLegalTargets(def, user, card, targets)
+        local list, reason = collectLegalTargets(def, user, card, targets, useOptions)
         if not list then
             return false, reason
         end
@@ -1025,13 +1038,15 @@ end
 ---@param user Player # 使用者
 ---@param card Card # 被使用的牌
 ---@param targets? Player|Player[] # 目标：单个或列表（无目标牌给空表或省略）
+---@param useOptions? Game.UseOptions # 这次使用的选项（放行 / 记账用；见 `Game.UseOptions`）
 ---@return UseCard # 这次用牌（已经结完：结果读 `.result`，失败读 `.err`）
-function M:useCard(user, card, targets)
+function M:useCard(user, card, targets, useOptions)
     local effect = moe.useCard.create {
-        game    = self,
-        user    = user,
-        card    = card,
-        targets = moe.util.toList(targets),
+        game       = self,
+        user       = user,
+        card       = card,
+        targets    = moe.util.toList(targets),
+        useOptions = useOptions,
     }
     effect:apply():await()
     return effect

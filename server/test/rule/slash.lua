@@ -68,6 +68,24 @@ lt.test('杀：攻击范围外的目标用不了', function ()
     lt.assertEquals('弃牌还是空的', 0, run.game:getZone('弃牌'):count())
 end)
 
+lt.test('杀：带「无视距离」的使用选项，范围外也够得着', function ()
+    local run    = support.start { count = 4, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[3]
+    local card   = takeSlash(run, user)
+
+    lt.assertEquals('隔一位的 3 号位距离 2（distance 只给真值）', 2, user:distance(target))
+    lt.assertEquals('照常不在射程内（攻击范围 1）', false, user:isInRange(target, 1))
+    lt.assertEquals('「无视距离」的选项：算在', true, user:isInRange(target, 1, { ignoreDistance = true }))
+
+    lt.assertFailed('照常够不着', run.game:useCard(user, card, { target }))
+
+    run.game:useCard(user, card, { target }, { ignoreDistance = true })
+
+    lt.assertEquals('带选项就打得着（掉 1 点体力）', 4, target:getAttr('体力'))
+    lt.assertEquals('牌也正常用出去进了弃牌', 1, run.game:getZone('弃牌'):count())
+end)
+
 lt.test('杀：不能对自己用', function ()
     local run  = support.start { count = 2, packages = { '标准' } }
     local user = run.players[1]

@@ -15,10 +15,12 @@
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@field condition? AskUseCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@field useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 
 --- 要一次「使用」：候选逐张跑 canUse（用不了的牌不进选项），答复必须带目标
 ---@class AskUseCard : AskCard
 ---@field condition? AskUseCard.Condition # 要什么样的牌（比基类多一条 target）
+---@field useOptions? Game.UseOptions # 这次使用的选项（照原样带去那次使用）
 ---@field options? AskUseCard.Option[] # 合法选项（覆写基类：带可用目标与数量区间）
 ---@field targets? Player[] # 答复指定的目标（= `.result.targets`；无目标牌是「不存在」）
 ---@field useCard? UseCard # 把这次答复用出去得到的那次使用（没答复 / 还没用过就是空）
@@ -26,15 +28,16 @@ local M = Class 'AskUseCard'
 
 Extends('AskUseCard', 'AskCard')
 
-function M:__init()
-    self.kind = 'askUseCard'
+function M:__init(_, _, _, _, useOptions)
+    self.kind       = 'askUseCard'
+    self.useOptions = useOptions
 end
 
 --- 能把这张牌用出去才进选项（条件里给了 `target` 的话，合法目标已由 `canUse` 收窄）
 ---@param card Card
 ---@return AskUseCard.Option?
 function M:makeOption(card)
-    local ok, _, plan = self.game:canUse(self.to, card, self.condition?.target)
+    local ok, _, plan = self.game:canUse(self.to, card, self.condition?.target, self.useOptions)
     if not ok then
         return nil
     end
@@ -100,7 +103,7 @@ function M:use()
     if not card then
         return nil
     end
-    self.useCard = self.game:useCard(self.to, card, self.targets)
+    self.useCard = self.game:useCard(self.to, card, self.targets, self.useOptions)
     return self.useCard
 end
 
@@ -110,5 +113,5 @@ moe.askUseCard = {}
 ---@param options AskUseCard.CreateOptions
 ---@return AskUseCard
 function moe.askUseCard.create(options)
-    return New 'AskUseCard' (options.game, options.to, options.reason, options.condition)
+    return New 'AskUseCard' (options.game, options.to, options.reason, options.condition, options.useOptions)
 end

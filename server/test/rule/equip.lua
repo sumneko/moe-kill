@@ -1189,3 +1189,223 @@ lt.test('雌雄双股剑：拆下后就不发动', function ()
 
     lt.assertEquals('不问', 0, asked)
 end)
+
+lt.test('青龙偃月刀：追加的【杀】打同一个目标（不计入次数）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青龙偃月刀')
+    local first  = takeCard(run, user, '杀')
+    local second = takeCard(run, user, '杀')
+    local dodge  = takeCard(run, target, '闪')
+    local phase <close> = run.game:enterPhase(user, '出牌')
+
+    ---@type string[]
+    local trace = {}
+    local dodged = false
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+            ---@cast ask AskUseCard
+            trace[#trace + 1] = '再杀'
+            ask:answer { card = second, targets = { target } }
+        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' and not dodged then
+            dodged = true
+            trace[#trace + 1] = '闪'
+            ask:answer { card = dodge }
+        end
+    end)
+
+    run.game:useCard(user, first, { target })
+
+    lt.assertEquals('顺序：闪 → 再杀', '闪,再杀', table.concat(trace, ','))
+    lt.assertEquals('第二张【杀】命中', 4, target:getAttr('体力'))
+    lt.assertEquals('追加的那张不计入次数（本阶段账还是 1）', 1, phase:getUseCount('杀'))
+    local discard = assert(run.game:getZone('弃牌')):list()
+    lt.assertEquals('两张【杀】都进了弃牌堆', true,
+        moe.util.arrayHas(discard, first) and moe.util.arrayHas(discard, second))
+end)
+
+lt.test('青龙偃月刀：不发动就什么都不做', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青龙偃月刀')
+    local first  = takeCard(run, user, '杀')
+    takeCard(run, user, '杀')
+    local dodge  = takeCard(run, target, '闪')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+            asked = asked + 1
+        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        end
+    end)
+
+    run.game:useCard(user, first, { target })
+
+    lt.assertEquals('问了再杀（不答 = 不发动）', 1, asked)
+    lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('第二张【杀】还留在手上', 1, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('青龙偃月刀：没有第二张【杀】就问不出（候选为空）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青龙偃月刀')
+    local first  = takeCard(run, user, '杀')
+    local dodge  = takeCard(run, target, '闪')
+
+    local asked = 0
+    ---@type integer?
+    local candidates = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+            ---@cast ask AskUseCard
+            asked = asked + 1
+            candidates = #assert(ask.options)
+        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        end
+    end)
+
+    run.game:useCard(user, first, { target })
+
+    lt.assertEquals('问了再杀', 1, asked)
+    lt.assertEquals('但没有候选', 0, assert(candidates))
+    lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
+end)
+
+lt.test('青龙偃月刀：第二张又被【闪】就接着问（链）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青龙偃月刀')
+    local first  = takeCard(run, user, '杀')
+    local second = takeCard(run, user, '杀')
+    ---@type Card[]
+    local dodges = { takeCard(run, target, '闪'), takeCard(run, target, '闪') }
+    local phase <close> = run.game:enterPhase(user, '出牌')
+
+    ---@type integer?
+    local lastCandidates = nil
+    local dodgeIndex = 0
+    local useAsked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+            ---@cast ask AskUseCard
+            useAsked = useAsked + 1
+            lastCandidates = #assert(ask.options)
+            if useAsked == 1 then
+                ask:answer { card = second, targets = { target } }
+            end
+        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+            dodgeIndex = dodgeIndex + 1
+            if dodges[dodgeIndex] then
+                ask:answer { card = dodges[dodgeIndex] }
+            end
+        end
+    end)
+
+    run.game:useCard(user, first, { target })
+
+    lt.assertEquals('两张都被闪 ⇒ 没掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('再杀问了两次（第二次不答）', 2, useAsked)
+    lt.assertEquals('第二次没候选', 0, assert(lastCandidates))
+    lt.assertEquals('账还是 1（两张追加的都不计入）', 1, phase:getUseCount('杀'))
+end)
+
+lt.test('青龙偃月刀：旁人用【杀】不发动', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local owner  = run.players[1]
+    local user   = run.players[2]
+    local target = run.players[3]
+
+    equipCard(run, owner, '青龙偃月刀')
+    local card  = takeCard(run, user, '杀')
+    local dodge = takeCard(run, target, '闪')
+
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '青龙偃月刀' then
+            asked = asked + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '青龙偃月刀' then
+            asked = asked + 1
+        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+end)
+
+lt.test('青龙偃月刀：不是【杀】的闪答复不问（万箭齐发）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '青龙偃月刀')
+    local volley = takeCard(run, user, '万箭齐发')
+    local dodge  = takeCard(run, target, '闪')
+
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '青龙偃月刀' then
+            asked = asked + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '青龙偃月刀' then
+            asked = asked + 1
+        elseif ask.kind == 'askPlayCard' and ask.reason == '万箭齐发' then
+            ask:answer { card = dodge }
+        end
+    end)
+
+    run.game:useCard(user, volley, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('目标照常没掉血', 5, target:getAttr('体力'))
+end)
+
+lt.test('青龙偃月刀：拆下后就不发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    local blade = equipCard(run, user, '青龙偃月刀')
+    local first = takeCard(run, user, '杀')
+    takeCard(run, user, '杀')
+    local dodge = takeCard(run, target, '闪')
+
+    run.game:moveCard(blade, '弃牌')
+
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '青龙偃月刀' then
+            asked = asked + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '青龙偃月刀' then
+            asked = asked + 1
+        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        end
+    end)
+
+    run.game:useCard(user, first, { target })
+
+    lt.assertEquals('不问', 0, asked)
+end)

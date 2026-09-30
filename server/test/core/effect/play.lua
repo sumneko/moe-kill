@@ -227,6 +227,108 @@ Card '测试杀'
     lt.assertEquals('别的牌名不受影响', 0, phase:getUseCount('闪'))
 end)
 
+lt.test('使用：使用选项：无视距离（「获取目标」的回调收到选项）', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '探针杀'
+    : on('获取目标', function (plan, useOptions)
+        ---@type Player[]
+        local list = {}
+        for _, player in ipairs(game.desk.players) do
+            if player ~= plan.user and useOptions?.ignoreDistance then
+                list[#list + 1] = player
+            end
+        end
+        return list
+    end)
+    : on('生效', function (cardEffect)
+        cardEffect.user:setTag('打到了', true)
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('探针杀')
+    hand:accept(card)
+
+    local ok, reason = game:canUse(user, card, { target })
+    lt.assertEquals('照常没有合法目标', false, ok)
+    lt.assertEquals('原因是「没有合法目标」', '「探针.探针杀」现在没有合法目标', reason)
+
+    lt.assertFailed('照常也打不出去', game:useCard(user, card, { target }))
+
+    local lifted = game:useCard(user, card, { target }, { ignoreDistance = true })
+    lt.assertEquals('带上「无视距离」就能用', nil, lifted.err)
+    lt.assertEquals('生效照常跑', true, user:getTag('打到了'))
+end)
+
+lt.test('使用：使用选项：无视次数上限、不计入次数', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '探针杀'
+    : limit('出牌', 1)
+    : on('获取目标', function (target)
+        return { game.desk:getPlayer(2) }
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local phase <close> = game:enterPhase(user, '出牌')
+    local a = game:createCard('探针杀')
+    local b = game:createCard('探针杀')
+    local c = game:createCard('探针杀')
+    hand:accept { a, b, c }
+
+    local quiet = game:useCard(user, c, { target }, { notCounted = true })
+    lt.assertEquals('不计入次数：照样能用', nil, quiet.err)
+    lt.assertEquals('不计入次数：账没涨', 0, phase:getUseCount('探针杀'))
+
+    game:useCard(user, a, { target })
+    lt.assertEquals('正常用一张记一笔', 1, phase:getUseCount('探针杀'))
+
+    local blocked = game:useCard(user, b, { target })
+    lt.assertFailed('到限额：正常再想用就不行', blocked)
+    lt.assertEquals('原因点明用过次数', '本阶段已经用过「探针杀」了', blocked.err)
+
+    local lifted = game:useCard(user, b, { target }, { ignoreUseLimit = true })
+    lt.assertEquals('无视上限：能用', nil, lifted.err)
+    lt.assertEquals('无视上限照常记账', 2, phase:getUseCount('探针杀'))
+end)
+
+lt.test('使用：要一次使用时，候选与用出去都按使用选项来', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '探针杀'
+    : on('获取目标', function (plan, useOptions)
+        ---@type Player[]
+        local list = {}
+        for _, player in ipairs(game.desk.players) do
+            if player ~= plan.user and useOptions?.ignoreDistance then
+                list[#list + 1] = player
+            end
+        end
+        return list
+    end)
+]])
+
+    local game, user, target, hand = newGame()
+    local card = game:createCard('探针杀')
+    hand:accept(card)
+
+    game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askUseCard' then
+            ask:answer { card = card, targets = { target } }
+        end
+    end)
+
+    local plain = game:askUseCard(user, '测试', { name = '探针杀', target = target })
+    lt.assertEquals('照常没有候选：答复被拒', '答复不在可选项里', plain.err)
+    lt.assertEquals('照常没有用出去', nil, plain.useCard)
+
+    local lifted = game:askUseCard(user, '测试', { name = '探针杀', target = target }, { ignoreDistance = true })
+    lt.assertEquals('带选项：答复收下了', card, lifted.card)
+    lt.assertEquals('带选项：也直接用了出去', nil, assert(lifted.useCard).err)
+end)
+
 lt.test('使用：阶段不是使用者的就不记账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
