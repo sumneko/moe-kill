@@ -14,7 +14,7 @@ Card '杀'
     end)
     : on('生效', function (cardEffect)
         local target = cardEffect.target
-        if game:askPlayCard(target, '杀', { name = '闪' }).card then
+        if game:askOffsetCard(target, '杀', { name = '闪' }).success then
             return
         end
         game:damage(cardEffect.user, target, 1)

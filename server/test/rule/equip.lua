@@ -521,7 +521,7 @@ lt.test('仁王盾：黑色的【杀】对装备者无效，连【闪】都不�
 
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askPlayCard' then
+        if ask.kind == 'askPlayCard' or ask.kind == 'askOffsetCard' then
             asked = asked + 1
         end
     end)
@@ -950,7 +950,7 @@ lt.test('雌雄双股剑：异性目标给出手牌就弃置', function ()
         if ask.reason == '雌雄双股剑' then
             trace[#trace + 1] = '要牌'
             ask:answer { card = held }
-        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             trace[#trace + 1] = '要闪'
         end
     end)
@@ -1209,7 +1209,7 @@ lt.test('青龙偃月刀：追加的【杀】打同一个目标（不计入次�
             ---@cast ask AskUseCard
             trace[#trace + 1] = '再杀'
             ask:answer { card = second, targets = { target } }
-        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' and not dodged then
+        elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' and not dodged then
             dodged = true
             trace[#trace + 1] = '闪'
             ask:answer { card = dodge }
@@ -1240,7 +1240,7 @@ lt.test('青龙偃月刀：不发动就什么都不做', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
             asked = asked + 1
-        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             ask:answer { card = dodge }
         end
     end)
@@ -1269,7 +1269,7 @@ lt.test('青龙偃月刀：没有第二张【杀】就问不出（候选为空�
             ---@cast ask AskUseCard
             asked = asked + 1
             candidates = #assert(ask.options)
-        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             ask:answer { card = dodge }
         end
     end)
@@ -1305,7 +1305,7 @@ lt.test('青龙偃月刀：第二张又被【闪】就接着问（链）', funct
             if useAsked == 1 then
                 ask:answer { card = second, targets = { target } }
             end
-        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             dodgeIndex = dodgeIndex + 1
             if dodges[dodgeIndex] then
                 ask:answer { card = dodges[dodgeIndex] }
@@ -1340,7 +1340,7 @@ lt.test('青龙偃月刀：旁人用【杀】不发动', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.reason == '青龙偃月刀' then
             asked = asked + 1
-        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             ask:answer { card = dodge }
         end
     end)
@@ -1400,7 +1400,7 @@ lt.test('青龙偃月刀：拆下后就不发动', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.reason == '青龙偃月刀' then
             asked = asked + 1
-        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             ask:answer { card = dodge }
         end
     end)
@@ -1408,4 +1408,194 @@ lt.test('青龙偃月刀：拆下后就不发动', function ()
     run.game:useCard(user, first, { target })
 
     lt.assertEquals('不问', 0, asked)
+end)
+
+lt.test('贯石斧：弃两张牌，被闪的【杀】依然造成伤害', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '贯石斧')
+    local card  = takeCard(run, user, '杀')
+    local one   = takeCard(run, user, '桃')
+    local two   = takeCard(run, user, '桃')
+    local dodge = takeCard(run, target, '闪')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+            ask:answer { card = { one, two } }
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('目标照样掉 1 点（闪白打了）', 4, target:getAttr('体力'))
+    lt.assertEquals('手牌清空（用的弃的都在弃牌堆）', 0, assert(user:getZone('手牌')):count())
+    local discard = assert(run.game:getZone('弃牌')):list()
+    lt.assertEquals('闪进了弃牌', true, moe.util.arrayHas(discard, dodge))
+    lt.assertEquals('弃的两张也进了弃牌', true,
+        moe.util.arrayHas(discard, one) and moe.util.arrayHas(discard, two))
+end)
+
+lt.test('贯石斧：不弃牌就不发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '贯石斧')
+    local card  = takeCard(run, user, '杀')
+    takeCard(run, user, '桃')
+    takeCard(run, user, '桃')
+    local dodge = takeCard(run, target, '闪')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('问了弃牌', 1, asked)
+    lt.assertEquals('不弃 ⇒ 目标没掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('两张牌没动', 2, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('贯石斧：能弃的凑不出两张就不问（斧子自己不能弃）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '贯石斧')
+    local card  = takeCard(run, user, '杀')
+    takeCard(run, user, '桃')
+    local dodge = takeCard(run, target, '闪')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('候选不足：连问都没问', 0, asked)
+    lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('那张牌还在手里', 1, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('贯石斧：手牌 + 坐骑混着弃也行', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '贯石斧')
+    local horse = equipCard(run, user, '的卢')
+    local card  = takeCard(run, user, '杀')
+    local spare = takeCard(run, user, '桃')
+    local dodge = takeCard(run, target, '闪')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+            ask:answer { card = { spare, horse } }
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('目标掉血', 4, target:getAttr('体力'))
+    lt.assertEquals('坐骑被弃（修正回落）', 0, user:getAttr('防御修正'))
+    lt.assertEquals('坐骑进了弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), horse))
+end)
+
+lt.test('贯石斧：旁人用【杀】不发动', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local owner  = run.players[1]
+    local user   = run.players[2]
+    local target = run.players[3]
+
+    equipCard(run, owner, '贯石斧')
+    local card  = takeCard(run, user, '杀')
+    takeCard(run, user, '桃')
+    takeCard(run, user, '桃')
+    local dodge = takeCard(run, target, '闪')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        elseif ask.reason == '贯石斧' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
+end)
+
+lt.test('贯石斧：不是【杀】被闪不问（万箭齐发）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    equipCard(run, user, '贯石斧')
+    local volley = takeCard(run, user, '万箭齐发')
+    takeCard(run, user, '桃')
+    takeCard(run, user, '桃')
+    local dodge  = takeCard(run, target, '闪')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askPlayCard' and ask.reason == '万箭齐发' then
+            ask:answer { card = dodge }
+        elseif ask.reason == '贯石斧' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, volley, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('目标没掉血（闪生效）', 5, target:getAttr('体力'))
+end)
+
+lt.test('贯石斧：拆下后就不发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+
+    local axe   = equipCard(run, user, '贯石斧')
+    local card  = takeCard(run, user, '杀')
+    takeCard(run, user, '桃')
+    takeCard(run, user, '桃')
+    local dodge = takeCard(run, target, '闪')
+
+    run.game:moveCard(axe, '弃牌')
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
+            ask:answer { card = dodge }
+        elseif ask.reason == '贯石斧' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('目标没掉血', 5, target:getAttr('体力'))
 end)

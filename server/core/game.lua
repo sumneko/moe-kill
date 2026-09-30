@@ -759,6 +759,23 @@ function M:askPlayCard(to, reason, condition)
     return ask
 end
 
+--- 要一张打出的牌来抵消（打出 = 抵消名义成立；发两段时机让外部驳回）
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@return AskOffsetCard # 这次询问（已经结完：**抵消最终成立吗读 `.success`**；打出读 `.card`，失败读 `.err`）
+function M:askOffsetCard(to, reason, condition)
+    local ask = moe.askOffsetCard.create {
+        game      = self,
+        to        = to,
+        reason    = reason,
+        condition = condition,
+    }
+    ask:apply():await()
+    return ask
+end
+
 --- 要一名角色（候选名单由内核摆好，答复必须是里面的一个）
 ---@async
 ---@param to Player # 被问者

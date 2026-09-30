@@ -118,6 +118,36 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     lt.assertEquals('杀也进了弃牌', true, moe.util.arrayHas(discard, card))
 end)
 
+lt.test('杀：被闪抵消会发「效果-被抵消」两份（全局 → 来源）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeSlash(run, user)
+    local jink   = takeCard(run, target, '闪')
+
+    ---@type string[]
+    local fired = {}
+    ---@type AskOffsetCard?
+    local seen = nil
+    run.game:on('效果-被抵消', function (ask)
+        fired[#fired + 1] = '全局'
+        seen = ask
+    end)
+    user:on('效果-来源-被抵消', function ()
+        fired[#fired + 1] = '来源'
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        ask:answer { card = jink }
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('两份、全局先', '全局,来源', table.concat(fired, ','))
+    lt.assertEquals('载荷就是这次询问', 'askOffsetCard', assert(seen).kind)
+    lt.assertEquals('抵消成立：没掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('闪也打掉了', 0, target:getZone('手牌'):count())
+end)
+
 lt.test('杀：默认只能指定一名目标', function ()
     local run    = support.start { count = 3, packages = { '标准' } }
     local user   = run.players[1]
