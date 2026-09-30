@@ -19,6 +19,9 @@
 --- 传单值就行 —— 构造询问时归一化一次（见 `AskCard.NormalizedCondition`）
 ---@class AskCard.Condition
 ---@field name? string|string[] # 牌名
+---@field suit? string|string[] # 花色
+---@field point? integer|integer[] # 点数
+---@field color? string|string[] # 颜色（红 / 黑）
 ---@field zone? string|Zone|(string|Zone)[] # 牌在哪个区里（名字按「被问者 → 局上」解析；别人的区要传区对象）
 ---@field card? Card|Card[] # 牌必须在这批里（可以不属于任何牌区）
 ---@field min? integer # 至少要给几张（省略 = 1）
@@ -27,6 +30,9 @@
 --- 询问身上存的是归一化之后的形状：字段名带复数 —— `names` / `cards` 是列表、`zones` 还解析成了区对象，另有 `min` / `max` 一定给出（订阅者与 `collectOptions` 直接读）
 ---@class AskCard.NormalizedCondition
 ---@field names? string[]
+---@field suits? string[]
+---@field points? integer[]
+---@field colors? string[]
 ---@field zones? Zone[]
 ---@field cards? Card[]
 ---@field min integer
@@ -80,6 +86,18 @@ local function normalizeCondition(game, to, condition)
         normalized.names = moe.util.toList(condition.name)
         normalized.name  = nil
     end
+    if condition.suit then
+        normalized.suits = moe.util.toList(condition.suit)
+        normalized.suit  = nil
+    end
+    if condition.point then
+        normalized.points = moe.util.toList(condition.point)
+        normalized.point  = nil
+    end
+    if condition.color then
+        normalized.colors = moe.util.toList(condition.color)
+        normalized.color  = nil
+    end
     if condition.zone then
         ---@type Zone[]
         local zones = {}
@@ -98,6 +116,63 @@ local function normalizeCondition(game, to, condition)
     end
     ---@cast normalized AskCard.NormalizedCondition
     return normalized
+end
+
+--- 这张牌过不过这些筛选项（每项都是列表：不填 = 无要求；牌上没有对应属性时算不过）
+---@param card Card
+---@param condition AskCard.NormalizedCondition
+---@return boolean
+local function matches(card, condition)
+    local names = condition.names
+    if names and not moe.util.arrayHas(names, card.name) then
+        return false
+    end
+    local suits = condition.suits
+    if suits and not moe.util.arrayHas(suits, card.suit) then
+        return false
+    end
+    local points = condition.points
+    if points and not moe.util.arrayHas(points, card.point) then
+        return false
+    end
+    local colors = condition.colors
+    if colors and not moe.util.arrayHas(colors, card.color) then
+        return false
+    end
+    return true
+end
+
+--- 按条件收集候选牌（`zones` / `cards` 指定来源，都不给就是被问者的所有牌区），再逐张过筛选项
+---@param to Player # 被问者
+---@param condition AskCard.NormalizedCondition
+---@return Card[]
+local function collectCandidates(to, condition)
+    ---@type Card[]
+    local cards = {}
+    if condition.zones then
+        for _, zone in ipairs(condition.zones) do
+            local held = zone:list()
+            table.move(held, 1, #held, #cards + 1, cards)
+        end
+    end
+    if condition.cards then
+        table.move(condition.cards, 1, #condition.cards, #cards + 1, cards)
+    end
+    if not condition.zones and not condition.cards then
+        for _, zone in ipairs(to:getZones()) do
+            local held = zone:list()
+            table.move(held, 1, #held, #cards + 1, cards)
+        end
+    end
+
+    ---@type Card[]
+    local result = {}
+    for _, card in ipairs(cards) do
+        if matches(card, condition) then
+            result[#result + 1] = card
+        end
+    end
+    return result
 end
 
 ---@param game Game
@@ -128,34 +203,12 @@ function M:collectOptions()
         return nil
     end
 
-    ---@type Card[]
-    local cards = {}
-    if condition.zones then
-        for _, zone in ipairs(condition.zones) do
-            local held = zone:list()
-            table.move(held, 1, #held, #cards + 1, cards)
-        end
-    end
-    if condition.cards then
-        table.move(condition.cards, 1, #condition.cards, #cards + 1, cards)
-    end
-    if not condition.zones and not condition.cards then
-        for _, zone in ipairs(self.to:getZones()) do
-            local held = zone:list()
-            table.move(held, 1, #held, #cards + 1, cards)
-        end
-    end
-
-    local names = condition.names
-
     ---@type AskCard.Option[]
     local options = {}
-    for _, card in ipairs(cards) do
-        if not names or moe.util.arrayHas(names, card.name) then
-            local option = self:makeOption(card)
-            if option then
-                options[#options + 1] = option
-            end
+    for _, card in ipairs(collectCandidates(self.to, condition)) do
+        local option = self:makeOption(card)
+        if option then
+            options[#options + 1] = option
         end
     end
     return options
@@ -296,6 +349,12 @@ end
 
 ---@class AskCard.API
 moe.askCard = {}
+
+--- 把条件归一化一次（`ViewAs` 声明素材时也用它）
+moe.askCard.normalizeCondition = normalizeCondition
+
+--- 按条件收集候选牌（`ViewAs` 判「素材够不够」时也用它）
+moe.askCard.collectCandidates = collectCandidates
 
 ---@param options AskCard.CreateOptions
 ---@return AskCard

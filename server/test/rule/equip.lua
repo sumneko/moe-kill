@@ -1793,3 +1793,87 @@ lt.test('八卦阵：要的不是【闪】不发动（【南蛮入侵】要【�
     lt.assertEquals('不问发动', 0, asked)
     lt.assertEquals('照常受伤', 4, target:getAttr('体力'))
 end)
+
+lt.test('丈八蛇矛：两张手牌当【杀】打出，两张手牌一起进弃牌堆', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local held = run.players[2]
+
+    equipCard(run, held, '丈八蛇矛')
+    local nanman = takeCard(run, user, '南蛮入侵')
+    local first  = takeCard(run, held, '桃')
+    local second = takeCard(run, held, '桃')
+
+    ---@type Card?
+    local answered = nil
+    run.game:on('卡牌-答复', function (ask)
+        if ask.kind == 'askPlayCard' and ask.reason == '南蛮入侵' then
+            answered = ask.card
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '杀' then
+            return { card = { first, second } }
+        end
+    end)
+
+    run.game:useCard(user, nanman, { held })
+
+    local played  = assert(answered)
+    local discard = assert(run.game:getZone('弃牌'))
+    lt.assertEquals('打出的是一张虚拟牌', true, played.virtual)
+    lt.assertEquals('视为的是【杀】', '杀', played.name)
+    lt.assertEquals('手牌空了', 0, assert(held:getZone('手牌')):count())
+    lt.assertEquals('第一张手牌进了弃牌堆', discard, first:getZone())
+    lt.assertEquals('第二张也进了弃牌堆', discard, second:getZone())
+    lt.assertEquals('没掉血', 5, held:getAttr('体力'))
+end)
+
+lt.test('丈八蛇矛：手牌不够两张就不发动（连问都不问）', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local held = run.players[2]
+
+    equipCard(run, held, '丈八蛇矛')
+    local nanman = takeCard(run, user, '南蛮入侵')
+    takeCard(run, held, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '杀' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, nanman, { held })
+
+    lt.assertEquals('没问过要不要换', 0, asked)
+    lt.assertEquals('照常受伤', 4, held:getAttr('体力'))
+end)
+
+lt.test('丈八蛇矛：拆下后就不发动', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local held = run.players[2]
+
+    local spear  = equipCard(run, held, '丈八蛇矛')
+    local nanman = takeCard(run, user, '南蛮入侵')
+    takeCard(run, held, '桃')
+    takeCard(run, held, '桃')
+
+    run.game:moveCard(spear, '弃牌')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '杀' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, nanman, { held })
+
+    lt.assertEquals('不问要不要换', 0, asked)
+    lt.assertEquals('照常受伤', 4, held:getAttr('体力'))
+end)

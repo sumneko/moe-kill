@@ -134,6 +134,19 @@ lt.test('收牌：一批里混着虚拟牌 ⇒ 它被注销、其余照收', fun
     lt.assertEquals('虚拟牌被注销', false, IsValid(virtual))
 end)
 
+lt.test('收牌：虚拟牌注销时，它的实体子牌替它进来', function ()
+    local zone    = lt.zone()
+    local first   = lt.card('丙')
+    local second  = lt.card('丁')
+    local virtual = lt.game():createVirtualCard('甲', { first, second })
+
+    lt.assertEquals('报告收下', true, zone:accept(virtual))
+    lt.assertEquals('进来的是两张子牌', 2, zone:count())
+    lt.assertEquals('第一张', first, zone:peek(1))
+    lt.assertEquals('第二张', second, zone:peek(2))
+    lt.assertEquals('虚拟牌被注销', false, IsValid(virtual))
+end)
+
 lt.test('收牌：收进有序牌区是追加到底部，取顶拿到的还是原来那张', function ()
     local pile  = lt.orderedZone()
     local hand  = lt.zone()

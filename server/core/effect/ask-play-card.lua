@@ -9,11 +9,11 @@ function M:__init()
 end
 
 --- 交出来的牌进**发起这次结算的临时处理区**（由那次结算收尾时统一送弃牌堆）；没有外层结算就不动，交给内容侧；
---- 虚拟牌没有实体牌、不用交（它不进任何牌区）
+--- 虚拟牌自己进不了牌区 —— 收它就是注销它、改收它的实体子牌（见 `Zone:accept`）
 ---@async
 function M:onAnswered()
     local card = self.card
-    if card and not card.virtual and self.parent then
+    if card and self.parent then
         self.game:moveCard(card, self.parent:getTempZone())
     end
 end

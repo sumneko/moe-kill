@@ -1,6 +1,7 @@
 ---@class ViewAs : Class.Base # 一份「视为某牌」的声明（挂在玩家身上，问牌时按声明顺序依次尝试）
 ---@field name string # 视为哪张牌
 ---@field owner Player # 挂在谁身上
+---@field condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材，牌由内核照牌名造）
 ---@field private game Game # 属于哪一局
 ---@field private handlers table<string, function[]>
 ---@field private removed boolean # 已经撤掉了
@@ -9,12 +10,14 @@ local M = Class 'ViewAs'
 ---@param game Game
 ---@param owner Player
 ---@param name string
-function M:__init(game, owner, name)
-    self.game     = game
-    self.owner    = owner
-    self.name     = name
-    self.handlers = {}
-    self.removed  = false
+---@param condition? AskCard.Condition
+function M:__init(game, owner, name, condition)
+    self.game      = game
+    self.owner     = owner
+    self.name      = name
+    self.condition = condition
+    self.handlers  = {}
+    self.removed   = false
 end
 
 --- 登记一个处理器（返回自己，供链式写法）
@@ -43,14 +46,46 @@ function M:getHandlers(event)
     return snapshot
 end
 
---- 试一次这份声明：第一个说成立的就照声明造一张虚拟牌交出去
+--- 素材收得到吗（同步判：收不够就跳过这份声明，连表态都不问）
+---@return boolean
+function M:canGatherMaterials()
+    local condition = moe.askCard.normalizeCondition(self.game, self.owner, self.condition)
+    if not condition then
+        return true
+    end
+    return #moe.askCard.collectCandidates(self.owner, condition) >= condition.min
+end
+
+--- 按声明的条件收素材（不要素材就直接造），拿到了就照声明造一张虚拟牌
+---@async
+---@return Card? # 产出的牌（素材没给够就是空）
+function M:produce()
+    if not self.condition then
+        return self.game:createVirtualCard(self.name)
+    end
+    local ask = self.game:askCard(self.owner, self.name, self.condition)
+    if #ask.cards == 0 then
+        return nil
+    end
+    return self.game:createVirtualCard(self.name, ask.cards)
+end
+
+--- 试一次这份声明：素材够，又有人表态成立，就照声明造一张虚拟牌交出去
 ---@async
 ---@param ask AskCard
 ---@return Card? # 产出的牌（不成给空）
 function M:tryProduce(ask)
-    for _, handler in ipairs(self:getHandlers('发动')) do
+    if not self:canGatherMaterials() then
+        return nil
+    end
+
+    local handlers = self:getHandlers('发动')
+    if #handlers == 0 then
+        return self:produce()
+    end
+    for _, handler in ipairs(handlers) do
         if handler(ask) then
-            return self.game:createVirtualCard(self.name)
+            return self:produce()
         end
     end
 end
@@ -76,7 +111,8 @@ moe.viewAs = {}
 ---@param game Game
 ---@param owner Player
 ---@param name string # 视为哪张牌
+---@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材）
 ---@return ViewAs
-function moe.viewAs.create(game, owner, name)
-    return New 'ViewAs' (game, owner, name)
+function moe.viewAs.create(game, owner, name, condition)
+    return New 'ViewAs' (game, owner, name, condition)
 end
