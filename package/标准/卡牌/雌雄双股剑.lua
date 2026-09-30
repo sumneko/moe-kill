@@ -26,10 +26,12 @@ Card '雌雄双股剑'
             end
             -- 给牌 = 弃置它；给不出（没牌 / 不答 / 答错）由 askCard 归一成空 ⇒ 令你摸一张
             local given = game:askCard(target, '雌雄双股剑', { zone = '手牌', min = 0, max = 1 }).card
-            if given then
-                game:moveCard(given, '弃牌')
-            else
-                owner:draw(1)
-            end
+            card:cast(function ()
+                if given then
+                    game:moveCard(given, '弃牌')
+                else
+                    owner:draw(1)
+                end
+            end)
         end))
     end)

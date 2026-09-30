@@ -20,10 +20,12 @@ Card '青龙偃月刀'
             end
             ---@cast killer CardEffect
             -- 再对其使用一张【杀】：无视距离、不受次数限制、不计入次数（不答 = 不发动）
-            game:askUseCard(owner, '青龙偃月刀', { name = '杀', target = killer.target }, {
-                ignoreDistance = true,
-                ignoreUseLimit = true,
-                notCounted     = true,
-            })
+            card:cast(function ()
+                game:askUseCard(owner, '青龙偃月刀', { name = '杀', target = killer.target }, {
+                    ignoreDistance = true,
+                    ignoreUseLimit = true,
+                    notCounted     = true,
+                })
+            end)
         end))
     end)

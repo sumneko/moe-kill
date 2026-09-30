@@ -31,7 +31,9 @@ Card '贯石斧'
             if #discarded.cards < 2 then
                 return
             end
-            game:moveCard(discarded.cards, '弃牌')
-            ask:cancel('贯石斧')
+            card:cast(function ()
+                game:moveCard(discarded.cards, '弃牌')
+                ask:cancel('贯石斧')
+            end)
         end))
     end)

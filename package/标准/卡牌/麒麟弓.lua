@@ -28,8 +28,11 @@ Card '麒麟弓'
                 return
             end
             local discarded = game:askCard(owner, '麒麟弓', { card = mounts }).card
-            if discarded then
-                game:moveCard(discarded, '弃牌')
+            if not discarded then
+                return
             end
+            card:cast(function ()
+                game:moveCard(discarded, '弃牌')
+            end)
         end))
     end)

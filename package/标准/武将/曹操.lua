@@ -20,6 +20,8 @@ Skill '奸雄'
             if not skill:confirm() then
                 return
             end
-            game:moveCard(cards, owner:getZone('手牌'))
+            skill:cast(function ()
+                game:moveCard(cards, owner:getZone('手牌'))
+            end)
         end))
     end)

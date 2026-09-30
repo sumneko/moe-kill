@@ -68,6 +68,16 @@ function M:doEffect()
     effect:apply():await()
 end
 
+--- 以这次装备发动为归因地跑一段（里面起的结算都挂在它下面；发动者 = 它所在区的主人）
+---@async
+---@param body fun() # 这次发动做的事
+---@return Cast # 这次发动
+function M:cast(body)
+    local cast = New 'Cast' (self.game, self, self:getZone()?.owner, body)
+    cast:apply():await()
+    return cast
+end
+
 --- 启用被动：松开一层压制（松开到 0 时应用）
 ---@return function # 撤销这一次松开
 function M:enablePassive()

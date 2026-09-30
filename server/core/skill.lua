@@ -136,6 +136,16 @@ function S:confirm()
     return self.game:askChoice(self.owner, self.name, { '发动' }).choice == '发动'
 end
 
+--- 以这次技能发动为归因地跑一段：里面起的结算都挂在它下面（`parent` 链上查得到「这是哪个技能做的」）
+---@async
+---@param body fun() # 这次发动做的事
+---@return Cast # 这次发动
+function S:cast(body)
+    local cast = New 'Cast' (self.game, self, self.owner, body)
+    cast:apply():await()
+    return cast
+end
+
 --- 摘掉这个技能（幂等，内部就是 `Delete(self)`）
 function S:remove()
     Delete(self)

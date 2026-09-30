@@ -15,8 +15,10 @@ Card '青釭剑'
             if useCard.card.name ~= '杀' then
                 return
             end
-            -- 兜底：这次使用收场（含半路取消）连带把状态删掉
-            useCard:bindGC(target:addBuff('防具无效', useCard))
+            card:cast(function ()
+                -- 兜底：这次使用收场（含半路取消）连带把状态删掉
+                useCard:bindGC(target:addBuff('防具无效', useCard))
+            end)
         end))
     end)
 
