@@ -32,6 +32,6 @@ Card '贯石斧'
                 return
             end
             game:moveCard(discarded.cards, '弃牌')
-            return '贯石斧'
+            ask:cancel('贯石斧')
         end)
     end)

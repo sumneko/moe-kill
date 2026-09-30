@@ -66,7 +66,7 @@ lt.test('抵消：没打出 = 不成立（原因写进 .err），也不发时机
     lt.assertEquals('没打出就不发事件', 0, fired)
 end)
 
-lt.test('抵消：订阅者返回原因 = 驳回这次抵消', function ()
+lt.test('抵消：订阅者在回调里 cancel = 驳回这次抵消（调用后不返回）', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
@@ -74,14 +74,17 @@ lt.test('抵消：订阅者返回原因 = 驳回这次抵消', function ()
         ask:answer { card = jink }
     end)
     local seen = false
+    local after = false
     game:on('效果-被抵消', function (ask)
         seen = ask.card == jink
-        return '测试驳回'
+        ask:cancel('测试驳回')
+        after = true
     end)
 
     local ask = game:askOffsetCard(players[2], '测试', { name = '闪' })
 
     lt.assertEquals('驳回时答复还读得到', true, seen)
+    lt.assertEquals('cancel 之后不会返回', false, after)
     lt.assertEquals('被驳回：不成立', false, ask.success)
     lt.assertEquals('驳回原因记在 .err', '测试驳回', ask.err)
     lt.assertEquals('被驳回后没有结果', nil, ask.card)
@@ -116,6 +119,39 @@ lt.test('抵消：两段时机（全局 → 来源）', function ()
 
     lt.assertEquals('两份、全局先', '全局,来源', table.concat(fired, ','))
     lt.assertEquals('打出成立', true, assert(asked).success)
+end)
+
+lt.test('抵消：全局段驳回 ⇒ 来源段不再被问', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = jink }
+    end)
+
+    ---@type string[]
+    local fired = {}
+    game:on('效果-被抵消', function (ask)
+        fired[#fired + 1] = '全局'
+        ask:cancel('全局驳回')
+    end)
+    players[1]:on('效果-来源-被抵消', function ()
+        fired[#fired + 1] = '来源'
+    end)
+
+    ---@type AskOffsetCard?
+    local asked = nil
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            asked = game:askOffsetCard(players[2], '测试', { name = '闪' })
+        end
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('只发了全局那份', '全局', table.concat(fired, ','))
+    lt.assertEquals('被驳回：不成立', false, assert(asked).success)
+    lt.assertEquals('驳回原因', '全局驳回', assert(asked).err)
 end)
 
 lt.test('抵消：答复不在候选里 = 拒收（复用既有口径）', function ()

@@ -1,5 +1,5 @@
 --- 要一张打出的牌来抵消一次生效：「打出 = 抵消名义成立」，答复一落定就发两段时机
---- （全局 `'效果-被抵消'` → 来源 `'效果-来源-被抵消'`），谁返回原因就驳回这次抵消；
+--- （全局 `'效果-被抵消'` → 来源 `'效果-来源-被抵消'`）；订阅者要驳回就在回调里 `ask:cancel(原因)`（不会返回）；
 --- 「抵消最终成没成立」读 `.success`（没打出 / 被驳回都为假）
 ---@class AskOffsetCard : AskPlayCard
 local M = Class 'AskOffsetCard'
@@ -25,14 +25,10 @@ function M:settle()
     self.game:fire('卡牌-答复', self)
     self.game:fire('卡牌-答复后', self)
 
-    local reason = self.game:fire('效果-被抵消', self)
+    -- 要驳回的订阅者会在回调里 ask:cancel（不会返回）；没人驳回 = 抵消成立
+    self.game:fire('效果-被抵消', self)
     local source = self.parent?.from
-    if not reason and source then
-        reason = source:fire('效果-来源-被抵消', self)
-    end
-    if reason then
-        self:cancel(reason)
-    end
+    source?:fire('效果-来源-被抵消', self)
 end
 
 ---@class AskOffsetCard.API

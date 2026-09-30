@@ -206,7 +206,8 @@ function M:await()
     return self
 end
 
---- 让这次生效以「不成立」收尾：原因记进 `.err`（不是报错），并就地停住执行体
+--- 让这次生效以「不成立」收尾：原因记进 `.err`（不是报错）
+--- 注意：从这次结算自己的执行体（含它发出的时机回调）里调用时不会返回 —— 代码当场中止；从别的上下文调用只把结果改成取消
 ---@param reason any # 不成立的原因
 function M:cancel(reason)
     local task = assert(self.task, '效果还没有发动')

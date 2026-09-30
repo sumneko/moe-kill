@@ -74,7 +74,7 @@ rule = nil
 ---@field fire fun(self: Game, name: '效果-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function # 每次结算结完都发一次（载荷 = 效果自己）
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
----@field on fun(self: Game, name: '效果-被抵消', callback: fun(ask: AskOffsetCard): any): function # 一次生效被响应牌抵消了（可以返回原因驳回这次抵消，返回值就是原因）
+---@field on fun(self: Game, name: '效果-被抵消', callback: fun(ask: AskOffsetCard): any): function # 一次生效被响应牌抵消了（要驳回就在回调里 `ask:cancel(原因)` —— 调用后不会返回；本时机不读返回值）
 ---@field fire fun(self: Game, name: '效果-被抵消', ask: AskOffsetCard): any
 ---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
@@ -128,7 +128,7 @@ rule = nil
 ---@field fire fun(self: Player, name: '卡牌-来源-指定目标后', useCard: UseCard, target: Player): any
 ---@field on fun(self: Player, name: '卡牌-目标-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 自己被指定为目标后（逐目标；全局那份之外、对目标再发一份）
 ---@field fire fun(self: Player, name: '卡牌-目标-指定目标后', useCard: UseCard, target: Player): any
----@field on fun(self: Player, name: '效果-来源-被抵消', callback: fun(ask: AskOffsetCard): any): function # 自己发起的那次生效被抵消了（全局那份之外、对来源再发一份）
+---@field on fun(self: Player, name: '效果-来源-被抵消', callback: fun(ask: AskOffsetCard): any): function # 自己发起的那次生效被抵消了（全局那份之外、对来源再发一份）；要驳回就用 `ask:cancel(原因)`（不会返回）
 ---@field fire fun(self: Player, name: '效果-来源-被抵消', ask: AskOffsetCard): any
 ---@field on fun(self: Player, name: string, callback: fun(payload: any): any): function
 ---@field fire fun(self: Player, name: string, ...: any): any # 第一个回调明确给出的返回值（快速返回）
