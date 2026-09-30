@@ -14,5 +14,5 @@ Card '南蛮入侵'
         if game:askPlayCard(target, '南蛮入侵', { name = '杀' }).card then
             return
         end
-        game:damage(cardEffect.user, target, 1)
+        game:damage(cardEffect.user, target, 1, cardEffect.card)
     end)

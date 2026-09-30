@@ -8,6 +8,7 @@
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
 ---@field private buffs Buff[] # 挂在他身上的状态（按获得顺序）
+---@field private skills Skill[] # 他拥有的技能（按获得顺序）
 ---@field private viewAsList ViewAs[] # 他身上的「视为」声明（按声明顺序）
 ---@field private tags table<string, any>
 ---@field private events Event # 他自己的时机表（内容侧用 player:on / player:fire）
@@ -26,6 +27,7 @@ function M:__init(game, attributes, name)
     self.zoneList    = {}
     self.zoneMap     = {}
     self.buffs       = {}
+    self.skills      = {}
     self.viewAsList  = {}
     self.tags        = {}
     self.events      = moe.event.create()
@@ -155,6 +157,50 @@ end
 function M:hasBuff(name)
     for _, buff in ipairs(self.buffs) do
         if buff.name == name then
+            return true
+        end
+    end
+    return false
+end
+
+--- 让这名角色拥有一个技能（挂上即启用：跑一次它的「被动」钩子，内容侧在那里订阅 / 建状态）
+---@param name string
+---@return Skill
+function M:addSkill(name)
+    local def = self.game:getSkill(name)
+    if not def then
+        error('没有叫「{}」的技能定义' % { name }, 2)
+    end
+    local skill = New 'Skill' (self.game, def, self)
+    self.skills[#self.skills + 1] = skill
+    skill:enablePassive()
+    return skill
+end
+
+--- 摘掉一个技能（`Skill:__del` 里调；内容侧用 `skill:remove()`）
+---@param skill Skill
+function M:removeSkill(skill)
+    for i, item in ipairs(self.skills) do
+        if item == skill then
+            table.remove(self.skills, i)
+            return
+        end
+    end
+end
+
+---@return Skill[] # 他拥有的技能（快照，按获得顺序）
+function M:getSkills()
+    ---@type Skill[]
+    local skills = {}
+    table.move(self.skills, 1, #self.skills, 1, skills)
+    return skills
+end
+
+---@param name string
+---@return boolean # 有没有拥有一个叫这个名字的技能
+function M:hasSkill(name)
+    for _, skill in ipairs(self.skills) do
+        if skill.name == name then
             return true
         end
     end

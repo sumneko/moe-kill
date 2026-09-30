@@ -331,6 +331,8 @@ end
 ---@field private buffPackages string[] # 声明过状态的包（首次出现的顺序）
 ---@field private heroes table<string, table<string, HeroDef>> # 武将表：包名 → 裸名 → 定义
 ---@field private heroPackages string[] # 声明过武将的包（首次出现的顺序）
+---@field private skills table<string, table<string, SkillDef>> # 技能表：包名 → 裸名 → 定义
+---@field private skillPackages string[] # 声明过技能的包（首次出现的顺序）
 ---@field meta table<string, Loader.PackageMeta> # 包元信息（装载器每次装完写入）
 ---@field private values table<string, any> # 规则数值（按加载顺序后者覆盖前者）
 ---@field loadedFiles string[] # 上一次实际执行过的文件（按执行完成顺序）
@@ -376,6 +378,8 @@ function M:resetContent()
     self.buffPackages = {}
     self.heroes      = {}
     self.heroPackages = {}
+    self.skills      = {}
+    self.skillPackages = {}
     self.meta        = {}
     self.values      = {}
     self.loadedFiles = {}
@@ -665,6 +669,61 @@ function M:getHero(name)
     for _, package in ipairs(self.heroPackages) do
         local heroes = self.heroes[package]
         local found = heroes and heroes[entry]
+        if found then
+            return found
+        end
+    end
+    return nil
+end
+
+--- 声明一个技能（只能写在加载期加载的那个包里）
+---@param name string
+---@return SkillDef
+function M:declareSkill(name)
+    local ctx = self.loading
+    if not ctx then
+        error('规则定义只能在加载规则集时声明', 2)
+    end
+    local owner = ctx.package
+    if not owner then
+        error('规则定义只能写在包目录里的文件里', 2)
+    end
+    checkSimpleName(name, 2)
+    local skills = self.skills[owner]
+    if not skills then
+        skills = {}
+        self.skills[owner] = skills
+        self.skillPackages[#self.skillPackages + 1] = owner
+    end
+    local existing = skills[name]
+    if existing then
+        error('同一个包里重复声明了 {}：{} 与 {}' % { name, existing.source, ctx.current }, 2)
+    end
+    local def = New 'SkillDef' (self, name, owner, ctx.current)
+    skills[name] = def
+    return def
+end
+
+---@param name string
+---@return SkillDef? # 按名字找技能定义
+function M:getSkill(name)
+    local owner, entry = splitName(name)
+    if owner then
+        local skills = self.skills[owner]
+        return skills and skills[entry] or nil
+    end
+    local ctx  = self.loading
+    local mine = ctx and ctx.package
+    if mine then
+        local skills = self.skills[mine]
+        local found = skills and skills[entry]
+        if found then
+            return found
+        end
+    end
+    for _, package in ipairs(self.skillPackages) do
+        local skills = self.skills[package]
+        local found = skills and skills[entry]
         if found then
             return found
         end

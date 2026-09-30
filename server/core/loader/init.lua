@@ -335,6 +335,8 @@ local function prepare(instance, list)
             Buff = function () end,
             -- 武将也一样：武将名与牌名是两个命名空间，同包重名在真跑时由 declareHero 报
             Hero = function () end,
+            -- 技能也是：技能名与牌名 / 武将名是三个命名空间，同包重名在真跑时由 declareSkill 报
+            Skill = function () end,
         }
 
         for name, value in pairs(probe) do
@@ -437,6 +439,7 @@ function moe.loader.install(game, options)
         Card    = function (name) return game:declareCard(name) end,
         Buff    = function (name) return game:declareBuff(name) end,
         Hero    = function (name) return game:declareHero(name) end,
+        Skill   = function (name) return game:declareSkill(name) end,
         Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
         Class   = Class,
         New     = New,

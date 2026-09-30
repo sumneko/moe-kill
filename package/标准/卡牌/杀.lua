@@ -17,5 +17,5 @@ Card '杀'
         if game:askOffsetCard(target, '杀', { name = '闪' }).success then
             return
         end
-        game:damage(cardEffect.user, target, 1)
+        game:damage(cardEffect.user, target, 1, cardEffect.card)
     end)

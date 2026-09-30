@@ -4,17 +4,20 @@
 ---@field from? Player # 伤害来源（无来源的伤害为空，如【闪电】）
 ---@field to Player # 承受者
 ---@field amount integer # 点数
+---@field card? Card # 造成这次伤害的牌（没有对应的牌时为空）
 local Damage = Class('Damage', 'Effect')
 
 ---@param game Game
 ---@param from? Player
 ---@param to Player
 ---@param amount integer
-function Damage:__init(game, from, to, amount)
+---@param card? Card # 造成这次伤害的牌
+function Damage:__init(game, from, to, amount, card)
     self.kind   = 'damage'
     self.from   = from
     self.to     = to
     self.amount = amount
+    self.card   = card
 end
 
 --- 伤害结算
@@ -30,6 +33,8 @@ function Damage:settle()
         to:enterDying(self)
     end
     self.game:fire('伤害-结束', self)
+    -- 承受侧那份（带方向词，见 architecture 的「对当事人再发一份」）：技能挂在他自己的时机表上
+    to:fire('伤害-目标-结束', self)
 end
 
 ---@class Game
@@ -40,9 +45,10 @@ local Game = Class 'Game'
 ---@param from? Player # 伤害来源
 ---@param to Player # 承受者
 ---@param amount integer # 点数
+---@param card? Card # 造成这次伤害的牌
 ---@return Damage # 这次伤害（已经结完：失败读 `.err`）
-function Game:damage(from, to, amount)
-    local damage = New 'Damage' (self, from, to, amount)
+function Game:damage(from, to, amount, card)
+    local damage = New 'Damage' (self, from, to, amount, card)
     damage:apply():await()
     return damage
 end

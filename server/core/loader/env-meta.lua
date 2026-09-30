@@ -16,6 +16,9 @@ Buff = nil
 ---@type fun(name: string): HeroDef
 Hero = nil
 
+---@type fun(name: string): SkillDef
+Skill = nil
+
 ---@type fun(items: string[])
 Depends = nil
 

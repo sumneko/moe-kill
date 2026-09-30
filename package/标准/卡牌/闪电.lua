@@ -53,7 +53,7 @@ Card '闪电'
     : on('生效', function (cardEffect)
         local judge = game:judge(cardEffect.target, cardEffect.card.name)
         if isHit(judge) then
-            game:damage(nil, cardEffect.target, 3)
+            game:damage(nil, cardEffect.target, 3, cardEffect.card)
         else
             passToNext(cardEffect)
         end

@@ -42,6 +42,17 @@
 ---@field on fun(self: Game, name: '伤害-结束', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Game, name: '伤害-结束', damage: Damage): any
 
----@class Player
+---@class Player: Class.Base
+--- 伤害（本包提供）：承受侧那份对当事人再发一份
 ---@field on fun(self: Player, name: '伤害-来源-开始', callback: fun(damage: Damage): any): function # 自己造成的伤害开始了（全局那份之外、对来源再发一份）
 ---@field fire fun(self: Player, name: '伤害-来源-开始', damage: Damage): any
+---@field on fun(self: Player, name: '伤害-目标-结束', callback: fun(damage: Damage): any): function # 自己受到了伤害（全局那份之外、对承受者再发一份）
+---@field fire fun(self: Player, name: '伤害-目标-结束', damage: Damage): any
+--- 兜底：跨文件加候选时必须自带（不带的话同名的整张候选表都不解析，见 architecture §9.6 配方）
+---@field on fun(self: Player, name: string, callback: fun(payload: any): any): function
+---@field fire fun(self: Player, name: string, ...: any): any
+
+--- 技能定义上的钩子：`'被动'` 在**每次启用**时跑一次（如技能被克制 / 封印后恢复），要挂什么就 `host:bindGC(…)`
+---@class SkillDef
+---@field on fun(self: SkillDef, event: '被动', handler: fun(skill: Skill, host: GCHost)): SkillDef
+---@field on fun(self: SkillDef, event: string, handler: function): SkillDef

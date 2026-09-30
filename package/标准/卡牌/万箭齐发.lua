@@ -14,5 +14,5 @@ Card '万箭齐发'
         if game:askPlayCard(target, '万箭齐发', { name = '闪' }).card then
             return
         end
-        game:damage(cardEffect.user, target, 1)
+        game:damage(cardEffect.user, target, 1, cardEffect.card)
     end)
