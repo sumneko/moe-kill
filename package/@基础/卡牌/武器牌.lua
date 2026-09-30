@@ -5,10 +5,10 @@ Depends { './装备牌' }
 Card '武器牌'
     : extends '装备牌'
     : addKind '武器'
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         local range = card:getValue('攻击范围')
         if not range then
             return
         end
-        return zone.owner:addAttr('攻击范围', range - 1)
+        host:bindGC(zone.owner:addAttr('攻击范围', range - 1))
     end)

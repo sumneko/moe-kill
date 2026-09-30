@@ -5,9 +5,9 @@ Depends { './装备牌' }
 Card '坐骑牌'
     : extends '装备牌'
     : addKind '坐骑'
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         local name = card:isKind('进攻马') and '进攻修正' or '防御修正'
-        return zone.owner:addAttr(name, card:getValue('距离修正'))
+        host:bindGC(zone.owner:addAttr(name, card:getValue('距离修正')))
     end)
 
 -- 进攻马（-1 马）：计算自己到别人的距离时减

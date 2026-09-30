@@ -5,16 +5,25 @@ local probeDir = moe.env.ROOT_PATH / 'tmp' / 'card-passive-probe'
 
 local probeSource = [[
 Card '被动牌'
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         game:setValue('应用', (game:getValue('应用') or 0) + 1)
-        return function ()
+        host:bindGC(function ()
             game:setValue('撤销', (game:getValue('撤销') or 0) + 1)
-        end
+        end)
     end)
 Card '记位置'
     : on('被动', function (card, zone)
         game:setValue('记下的牌', card)
         game:setValue('记下的区', zone)
+    end)
+Card '挂两份'
+    : on('被动', function (card, zone, host)
+        host:bindGC(function ()
+            game:setValue('第一份', (game:getValue('第一份') or 0) + 1)
+        end)
+        host:bindGC(function ()
+            game:setValue('第二份', (game:getValue('第二份') or 0) + 1)
+        end)
     end)
 Card '无撤销'
     : on('被动', function (card, zone)
@@ -228,7 +237,7 @@ lt.test('牌：被动回调拿到牌与它所在的区', function ()
     lt.assertEquals('回调收到的是它所在的区', zone, game:getValue('记下的区'))
 end)
 
-lt.test('牌：被动回调不返回撤销函数也能启用停用', function ()
+lt.test('牌：被动回调什么都不挂也能启用停用', function ()
     local guard <close> = useProbe()
     local game = newGame()
     local card = game:createCard('无撤销')
@@ -237,5 +246,17 @@ lt.test('牌：被动回调不返回撤销函数也能启用停用', function ()
     card:enablePassive()
     card:disablePassive()
     card:enablePassive()
-    lt.assertEquals('停用时没有东西可调、也不报错；再启用照常应用', 2, game:getValue('无撤销应用'))
+    lt.assertEquals('停用时没东西可释放、也不报错；再启用照常应用', 2, game:getValue('无撤销应用'))
+end)
+
+lt.test('牌：一个被动挂两份资源，停用时都释放', function ()
+    local guard <close> = useProbe()
+    local game = newGame()
+    local card = game:createCard('挂两份')
+    game:getZone('弃牌'):accept(card)
+
+    card:enablePassive()
+    card:disablePassive()
+    lt.assertEquals('第一份释放了', 1, game:getValue('第一份'))
+    lt.assertEquals('第二份也释放了', 1, game:getValue('第二份'))
 end)

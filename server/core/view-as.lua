@@ -64,6 +64,11 @@ function M:remove()
     self.owner:removeViewAs(self)
 end
 
+--- 被 `Delete` 时撤销（`host:bindGC(viewAs)` 这种用法）
+function M:__del()
+    self:remove()
+end
+
 ---@class ViewAs.API
 moe.viewAs = {}
 

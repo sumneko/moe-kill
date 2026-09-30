@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **749 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **748 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -170,6 +170,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **答复改走「询问时机的返回值」（2026-09-30，用户定）**：`'卡牌-询问'` / `'决策-询问'` 的应答方不再调 `ask:answer(...)`，改成**返回**答复（`return { card = … }` / `return 那名角色` / `return '发动'`）；**返回空 = 不表态、问下一位**；**第一个给出答复的胜出 —— 后面的订阅者根本不再被调**（`fire` 本来就是「第一个非空返回值即停」，以前是 `answer` 往对象里塞结果、遍历停不下来，只能靠 `task.resolved` + 一条 `log.info` 兜着）。① **`answer` 方法与 `asked` 字段整套删掉**（8 个 ask 类：「还没问出口不收答复」由返回值的天然语义取代）；② 校验与归一化搬回内核：`AskCard` 新增 **`collectAnswer()`**（替代窗口先跑 → 没人替代就 `fire('卡牌-询问')` → 拿到答复就 `checkAnswer` → `normalizeAnswer` 统一成 `{ cards, targets }`），`AskChoice` 顺势补上 `checkAnswer`（原来校验内联在 `answer` 里）；③ **替代窗口成立就不再发询问**（以前照发、后到答复被忽略）—— `ask-play-card` 的「替代成立时询问照发」用例改成「不再问应答方」；④ **答复必须是一张表**（`AskCard:checkAnswer` 加类型检查：非表 ⇒ 「答复必须是一张表（`{ card = ... }`）」，不再对 boolean 索引崩 —— 协议层的答复是外部输入）；⑤ 测试里 ~130 处应答写法从 `ask:answer{...}` 改成 `return {...}`，两个「重复应答先答的算数」「问出口之前抢答不算」用例改成 **「第一个表态的胜出、后面的订阅者不再调」**（后面的订阅者直接 `error` ⇒ 用 `lt.errors` 断言它没被调）。**验收基线 741 不变**（用例数未变），事件循环迭代 110 → 112。
 
 - **「视为」声明：产出一张虚拟牌（2026-09-30，`add-view-as`）**：内核新对象 **`ViewAs`**（`server/core/view-as.lua`）—— `player:addViewAs('闪')` 把一份「视为某牌」挂在玩家身上（撤销 `viewAs:remove()`，与 `addBuff` 同形；`player:getViewAsList()` 读快照、**按声明顺序**）；声明对象上登记 **`'发动'`** 钩子（**异步**：自己问发动 / 判定，返回真即这次视为成立；**牌由内核照声明的牌名造**）。**打出族**的询问在交给应答方之前**按声明顺序依次试**（`AskPlayCard:beforeAsk`）：牌名对上 `ask.condition?.names` 才试（没给名字也试），谁先产出一张牌就当答复落定（**不再问应答方**），全不成 ⇒ 照常要实体牌；**声明不参与** `zone` / `card` / `min` / `max`、也不走 `checkAnswer`。**删掉旧的 `'打出-技能替代'` / `'打出-装备替代'` 两个时机**（被声明集合取代）。【八卦阵】改写成新形状、**行为不变**（`rule.equip` 的八卦阵组一行不改）。用例 +8（新套件 `core.view-as` 7 条 + `core.effect.ask-play-card` 改写 6 条 / 新增 2 条）⇒ **验收基线 741 → 749**。
+
+- **被动改「传给回调一个 `GCHost`」（2026-09-30，`passive-bind-gc-host`）**：`'被动'` 钩子不再要求返回 disposer —— 回调改成 `fun(card, zone, host)`，要挂什么就 `host:bindGC(...)`；内核 `applyPassive()` 懒建 `GCHost` 记在 `Card.passiveHost`、`removePassive()` 先摘再 `Delete`（幂等）。**内容侧 11 处改写**（`武器牌` / `坐骑牌` 两个模板 + 9 张牌：全部 `return X` → `host:bindGC(X)`；【八卦阵】写成 `host:bindGC(viewAs)`，`ViewAs` 补了 `__del`）。**删掉 `Card:withZone` 与 `zoneGCHost` 字段**（内容侧零用户、与被动容器重复 —— 用户 2026-09-30 定），`bindZone` 简化成只记归属。**释放顺序变了**：原来「收集撤销函数、逆序调」，现在 `GC:__del` **按注册序**释放（现有装备都只挂一样，无影响）。于是**「要求返回 disposer 的钩子」一个不剩**。用例变化：`core.card` 探针改写 + 新增「一个被动挂两份资源都释放」1 条、`core.move` 删两条 `withZone` 用例、`core.zone` 探针改写 ⇒ **验收基线 749 → 748**。
 
 ## 2 下一步：待用户挑（**尚未开工**）
 

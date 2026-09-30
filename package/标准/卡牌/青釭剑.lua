@@ -5,19 +5,19 @@
 Card '青釭剑'
     : extends '武器牌'
     : value('攻击范围', 2)
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         local owner = zone.owner
         if not owner then
             return
         end
         -- 逐目标压（指定目标后）：窗口不随剑 / 使用者消失（官方 §1 司马懿条）
-        return owner:on('卡牌-来源-指定目标后', function (useCard, target)
+        host:bindGC(owner:on('卡牌-来源-指定目标后', function (useCard, target)
             if useCard.card.name ~= '杀' then
                 return
             end
-            -- 兜底：这次使用收场（含半路取消）时连带把状态删掉
+            -- 兜底：这次使用收场（含半路取消）连带把状态删掉
             useCard:bindGC(target:addBuff('防具无效', useCard))
-        end)
+        end))
     end)
 
 Buff '防具无效'

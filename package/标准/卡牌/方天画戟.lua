@@ -5,12 +5,12 @@
 Card '方天画戟'
     : extends '武器牌'
     : value('攻击范围', 4)
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         local owner = zone.owner
         if not owner then
             return
         end
-        return owner:on('卡牌-来源-目标数修正', function (check)
+        host:bindGC(owner:on('卡牌-来源-目标数修正', function (check)
             if check.card.name ~= '杀' then
                 return
             end
@@ -18,5 +18,5 @@ Card '方天画戟'
             if hand:count() == 1 and hand:list()[1] == check.card then
                 return 2
             end
-        end)
+        end))
     end)

@@ -5,12 +5,12 @@
 Card '青龙偃月刀'
     : extends '武器牌'
     : value('攻击范围', 3)
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         local owner = zone.owner
         if not owner then
             return
         end
-        return owner:on('效果-来源-被抵消', function (ask)
+        host:bindGC(owner:on('效果-来源-被抵消', function (ask)
             if ask.reason ~= '杀' or ask.card?.name ~= '闪' then
                 return
             end
@@ -25,5 +25,5 @@ Card '青龙偃月刀'
                 ignoreUseLimit = true,
                 notCounted     = true,
             })
-        end)
+        end))
     end)

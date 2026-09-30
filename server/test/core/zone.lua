@@ -7,11 +7,11 @@ local probeDir = moe.env.ROOT_PATH / 'tmp' / 'zone-probe'
 
 local probeSource = [[
 Card '被动牌'
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         game:setValue('应用', (game:getValue('应用') or 0) + 1)
-        return function ()
+        host:bindGC(function ()
             game:setValue('撤销', (game:getValue('撤销') or 0) + 1)
-        end
+        end)
     end)
 Card '装备样'
     : on('进入区域', function (card, zone)
@@ -24,11 +24,11 @@ Card '装备样'
             card:disablePassive()
         end
     end)
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         game:setValue('装备样应用', (game:getValue('装备样应用') or 0) + 1)
-        return function ()
+        host:bindGC(function ()
             game:setValue('装备样撤销', (game:getValue('装备样撤销') or 0) + 1)
-        end
+        end)
     end)
 ]]
 

@@ -6,11 +6,10 @@
 ---@field virtual boolean # 是不是虚拟牌（没有实体牌；进不了任何牌区）
 ---@field subcards Card[] # 对应的实体牌（普通牌是空表）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
----@field private zoneGCHost? GCHost # 随「这张牌在牌区里」存活的容器（懒建）
 ---@field game Game # 属于哪一局（读自己的内容定义时用）
 ---@field def CardDef # 内容定义（建牌时查一次就定格；查不到直接报错）
 ---@field private passiveSuppress integer # 被动被压制的层数（出厂 1 = 未启用）
----@field private passiveUndo? fun() # 本次应用的被动效果的撤销函数
+---@field private passiveHost? GCHost # 本次应用被动时给回调的容器（懒建；停用时释放）
 local M = Class 'Card'
 
 ---@param game Game # 属于哪一局（读自己的内容定义时用）
@@ -80,26 +79,24 @@ function M:disablePassive()
     end
 end
 
---- 跑『被动』钩子、把返回的撤销函数收成一只（后应用的先撤）
+--- 跑『被动』钩子：给它一个随本次应用存活的容器（要挂什么就 `host:bindGC(…)`）
 ---@private
 function M:applyPassive()
     local zone = assert(self:getZone())
-    ---@type fun()[]
-    local undos = self.def:collect('被动', self, zone)
-    self.passiveUndo = function ()
-        for i = #undos, 1, -1 do
-            undos[i]()
-        end
+    local host = moe.gc.host()
+    self.passiveHost = host
+    for _, handler in ipairs(self.def:getHandlers('被动')) do
+        handler(self, zone, host)
     end
 end
 
---- 把记下的撤销函数调掉（先清空再调，重复触发不会重复撤）
+--- 释放本次应用挂下的东西（先摘掉再释放，重复触发不会重复）
 ---@private
 function M:removePassive()
-    local undo = self.passiveUndo
-    self.passiveUndo = nil
-    if undo then
-        undo()
+    local host = self.passiveHost
+    self.passiveHost = nil
+    if host then
+        Delete(host)
     end
 end
 
@@ -168,15 +165,6 @@ function M:getZone()
     return self.zone
 end
 
---- 牌离开这个牌区时调它
----@param disposer function
-function M:withZone(disposer)
-    if not self.zoneGCHost then
-        self.zoneGCHost = moe.gc.host()
-    end
-    self.zoneGCHost:bindGC(disposer)
-end
-
 --- 解除和牌区的绑定（只清归属；牌区列表由搬牌的人自己摘）
 function M:unbindZone()
     self:bindZone(nil)
@@ -185,11 +173,6 @@ end
 --- 记下这张牌所在的牌区（只有牌区自己用：放进 / 取出时维护）
 ---@param zone Zone?
 function M:bindZone(zone)
-    -- 只在真的换区时扔掉容器：同区内部调序不算离开
-    if self.zone ~= zone and self.zoneGCHost then
-        Delete(self.zoneGCHost)
-        self.zoneGCHost = nil
-    end
     self.zone = zone
 end
 

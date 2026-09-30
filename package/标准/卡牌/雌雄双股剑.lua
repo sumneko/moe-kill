@@ -5,12 +5,12 @@
 Card '雌雄双股剑'
     : extends '武器牌'
     : value('攻击范围', 2)
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         local owner = zone.owner
         if not owner then
             return
         end
-        return owner:on('卡牌-来源-指定目标后', function (useCard, target)
+        host:bindGC(owner:on('卡牌-来源-指定目标后', function (useCard, target)
             if useCard.card.name ~= '杀' then
                 return
             end
@@ -31,5 +31,5 @@ Card '雌雄双股剑'
             else
                 owner:draw(1)
             end
-        end)
+        end))
     end)

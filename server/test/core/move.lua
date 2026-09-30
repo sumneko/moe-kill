@@ -70,40 +70,6 @@ lt.test('归属：清空后不再属于任何牌区', function ()
     lt.assertEquals('第二张没有归属了', nil, cards[2]:getZone())
 end)
 
-lt.test('随区容器：牌离开牌区时撤销挂在它上面的东西', function ()
-    local from = lt.zone()
-    local to   = lt.zone()
-    local card = lt.card('甲')
-    from:accept(card)
-
-    ---@type integer
-    local times = 0
-    card:withZone(function () times = times + 1 end)
-
-    to:accept(card)
-    lt.assertEquals('换区就跑了一次', 1, times)
-
-    to:clear()
-    lt.assertEquals('清空不会重复跑（容器已经扔掉）', 1, times)
-
-    to:accept(card)
-    to:clear()
-    lt.assertEquals('清空也算离开区', 1, times)
-end)
-
-lt.test('随区容器：没挂过东西的牌不建容器（懒建）', function ()
-    local zone = lt.zone()
-    local card = lt.card('甲')
-    zone:accept(card)
-
-    ---@diagnostic disable-next-line: invisible
-    lt.assertEquals('没挂过就没有容器', nil, card.zoneGCHost)
-
-    card:withZone(function () end)
-    ---@diagnostic disable-next-line: invisible
-    lt.assertEquals('挂过一次才有容器', true, card.zoneGCHost ~= nil)
-end)
-
 lt.test('归属：牌在别的区也能直接收过来（跨区搬运）', function ()
     local first  = lt.zone()
     local second = lt.zone()

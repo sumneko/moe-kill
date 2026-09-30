@@ -3,7 +3,7 @@
 
 Card '八卦阵'
     : extends '防具牌'
-    : on('被动', function (card, zone)
+    : on('被动', function (card, zone, host)
         local owner = zone.owner
         if not owner then
             return
@@ -18,7 +18,5 @@ Card '八卦阵'
                     return true
                 end
             end)
-        return function ()
-            viewAs:remove()
-        end
+        host:bindGC(viewAs)
     end)
