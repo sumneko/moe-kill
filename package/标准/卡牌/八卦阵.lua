@@ -13,12 +13,10 @@ Card '八卦阵'
                 if game:askChoice(owner, '八卦阵', { '发动' }).choice == nil then
                     return
                 end
-                ---@type Judge?
-                local judge = nil
-                card:cast(function ()
-                    judge = game:judge(owner, '八卦阵')
-                end)
-                return assert(judge).card?.color == '红'
+                local judge = game:judge(owner, '八卦阵')
+                if judge.card?.color == '红' then
+                    return true
+                end
             end)
         host:bindGC(viewAs)
     end)

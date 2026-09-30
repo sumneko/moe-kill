@@ -209,7 +209,7 @@ end
 
 --- 声明一份「视为某牌」（如【八卦阵】的「视为一张【闪】」）：撤销用 `viewAs:remove()`
 ---@param name string # 视为哪张牌
----@param source? any # 关联的来源（装备传那张牌实例、技能传技能实例；内核只存不解释）
+---@param source? Card|Skill # 关联的来源（装备传那张牌、技能传技能实例；发动归因到它名下）
 ---@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材，牌由内核照牌名造）
 ---@return ViewAs
 function M:addViewAs(name, source, condition)

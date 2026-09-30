@@ -63,6 +63,30 @@ lt.test('视为声明：撤销从列表里摘掉，且幂等', function ()
     lt.assertEquals('再撤一次也不出错', 0, #players[1]:getViewAsList())
 end)
 
+---@async
+lt.test('视为：发动时把归因记到关联来源上', function ()
+    local game, players = newGame(2)
+    local ask    = moe.askCard.create { game = game, to = players[1], reason = '测试' }
+    local zone   = game:createZone('暂存')
+    local card   = game:createCard('闪')
+    local source = game:createCard('杀')
+
+    local viewAs = players[1]:addViewAs('闪', source)
+    ---@type MoveCard?
+    local move = nil
+    viewAs:on('发动', function ()
+        move = game:moveCard(card, zone)
+        return true
+    end)
+
+    local produced = assert(viewAs:tryProduce(ask), '该产出')
+    local cast     = assert(assert(move).parent)
+    ---@cast cast Cast
+
+    lt.assertEquals('钩子里那次挪牌挂在关联来源名下', source, cast.source)
+    lt.assertEquals('产出的照旧是虚拟牌', true, produced.virtual)
+end)
+
 lt.test('视为声明：第一个说成立的就胜出，后面的不再跑', function ()
     local game, players = newGame(2)
     local ask = moe.askCard.create { game = game, to = players[1], reason = '测试' }

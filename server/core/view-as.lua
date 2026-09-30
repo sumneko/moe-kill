@@ -1,7 +1,7 @@
 ---@class ViewAs : Class.Base # 一份「视为某牌」的声明（挂在玩家身上，问牌时按声明顺序依次尝试）
 ---@field name string # 视为哪张牌
 ---@field owner Player # 挂在谁身上
----@field source? any # 关联的来源（装备传那张牌实例、技能传技能实例；客户端先点它再选牌与目标，内核只存不解释）
+---@field source? Card|Skill # 关联的来源（装备传那张牌、技能传技能实例；客户端先点它再选牌与目标；发动归因到它名下）
 ---@field condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材，牌由内核照牌名造）
 ---@field private game Game # 属于哪一局
 ---@field private handlers table<string, function[]>
@@ -11,7 +11,7 @@ local M = Class 'ViewAs'
 ---@param game Game
 ---@param owner Player
 ---@param name string
----@param source? any
+---@param source? Card|Skill
 ---@param condition? AskCard.Condition
 function M:__init(game, owner, name, source, condition)
     self.game      = game
@@ -74,6 +74,7 @@ function M:produce()
 end
 
 --- 试一次这份声明：素材够，又有人表态成立，就照声明造一张虚拟牌交出去
+--- 有关联来源（`source`）就把整段包成一次「发动」，归因到它名下 —— 装备（`Card:cast`）与技能（`Skill:cast`）共用同一个写法
 ---@async
 ---@param ask AskCard
 ---@return Card? # 产出的牌（不成给空）
@@ -81,7 +82,24 @@ function M:tryProduce(ask)
     if not self:canGatherMaterials() then
         return nil
     end
+    local source = self.source
+    if not source then
+        return self:launch(ask)
+    end
+    ---@type Card?
+    local card = nil
+    source:cast(function ()
+        card = self:launch(ask)
+    end)
+    return card
+end
 
+--- 跑「发动」表态，成立就造牌
+---@private
+---@async
+---@param ask AskCard
+---@return Card? # 产出的牌（不成给空）
+function M:launch(ask)
     local handlers = self:getHandlers('发动')
     if #handlers == 0 then
         return self:produce()
@@ -114,7 +132,7 @@ moe.viewAs = {}
 ---@param game Game
 ---@param owner Player
 ---@param name string # 视为哪张牌
----@param source? any # 关联的来源（内核只存不解释）
+---@param source? Card|Skill # 关联的来源
 ---@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材）
 ---@return ViewAs
 function moe.viewAs.create(game, owner, name, source, condition)
