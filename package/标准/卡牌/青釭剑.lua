@@ -10,16 +10,13 @@ Card '青釭剑'
         if not owner then
             return
         end
-        -- 压在使用结算开始时一次做完：窗口不随剑 / 使用者消失（官方 §1 司马懿条）
-        return owner:on('卡牌-结算前', function (useCard)
+        -- 逐目标压（指定目标后）：窗口不随剑 / 使用者消失（官方 §1 司马懿条）
+        return owner:on('卡牌-来源-指定目标后', function (useCard, target)
             if useCard.card.name ~= '杀' then
                 return
             end
-            ---@cast useCard UseCard
-            for _, target in ipairs(useCard.targets) do
-                -- 兜底：这次使用收场（含半路取消）时连带把状态删掉
-                useCard:bindGC(target:addBuff('防具无效', useCard))
-            end
+            -- 兜底：这次使用收场（含半路取消）时连带把状态删掉
+            useCard:bindGC(target:addBuff('防具无效', useCard))
         end)
     end)
 

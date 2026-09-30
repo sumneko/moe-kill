@@ -1,6 +1,6 @@
---- 一次答复：给出哪张牌（要一次使用时再带上目标）
+--- 一次答复：给出哪张牌（要一次使用时再带上目标）；单张或一张列表都行，入库前统一成列表
 ---@class AskCard.Answer
----@field card? Card # 给出的牌（答不上就是不给）
+---@field card? Card|Card[] # 给出的牌（答不上就是不给）
 ---@field targets? Player|Player[] # 目标：只有 `AskUseCard` 接受（`AskCard` 给了会被拒收）
 
 --- 一个合法选项：可以给出的一张牌
@@ -9,10 +9,13 @@
 ---@field targets? Player[] # 这张牌的可用目标（「要一次使用」才有；有它就代表答复必须给目标、且要落在这里）
 
 --- 要什么样的牌：每个字段都是一条筛选条件（数组 = 满足其一；单值 = 当成只有一个的数组；不填 = 无要求）
+--- `min` / `max` 是「要给出几张」（不填 = 1 / 1）；「要一次使用」「要一张打出」恒为一张，别带这两个
 ---@class AskCard.Condition
 ---@field name? string|string[] # 牌名
 ---@field zone? string|Zone|(string|Zone)[] # 牌在哪个区里（名字按「被问者 → 局上」解析；别人的区要传区对象）
 ---@field card? Card|Card[] # 牌必须在这批里（可以不属于任何牌区）
+---@field min? integer # 至少要给几张（省略 = 1）
+---@field max? integer # 至多给几张（省略 = 1）
 
 ---@class AskCard.CreateOptions
 ---@field game Game
@@ -26,7 +29,8 @@
 ---@field condition? AskCard.Condition # 要什么样的牌
 ---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
 ---@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
----@field card? Card # 答复给出的那张牌（= `.result.card`）
+---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
+---@field cards Card[] # 答复给出的牌（没答就是空表）
 ---@field package task? Task # 父类里是 package：这里要再声明一次才能在本文件访问
 local M = Class 'AskCard'
 
@@ -121,20 +125,47 @@ function M:checkOption(option, value)
     return nil
 end
 
---- 答复落在合法选项里吗（不在就给原因）
+--- 答复落在张数区间与合法选项里吗（不在就给原因）
 ---@param value AskCard.Answer
 ---@return any # 通过就是空
 function M:checkAnswer(value)
+    local cards = moe.util.toList(value.card)
+    local min   = self.condition?.min or 1
+    local max   = self.condition?.max or 1
+    if #cards < min then
+        return '至少要给 {} 张牌' % { min }
+    end
+    if #cards > max then
+        return '至多给 {} 张牌' % { max }
+    end
     local options = self.options
-    if not options then
+    if not options or #cards == 0 then
         return nil
     end
-    for _, option in ipairs(options) do
-        if option.card == value.card then
-            return self:checkOption(option, value)
+    ---@type table<Card, true>
+    local seen = {}
+    for _, card in ipairs(cards) do
+        if seen[card] then
+            return '答复的牌重复了'
         end
+        seen[card] = true
     end
-    return '答复不在可选项里'
+    ---@type AskCard.Option?
+    local matched = nil
+    for _, card in ipairs(cards) do
+        local found = nil
+        for _, option in ipairs(options) do
+            if option.card == card then
+                found = option
+                break
+            end
+        end
+        if not found then
+            return '答复不在可选项里'
+        end
+        matched = matched or found
+    end
+    return self:checkOption(assert(matched), value)
 end
 
 --- 应答这次询问：给出的答复当场成为这次询问的结果（读 `.result`）
@@ -162,16 +193,23 @@ function M:answer(value)
         targets = moe.util.toList(value.targets)
     end
     self.task:resolve {
-        card    = value.card,
+        cards   = moe.util.toList(value.card),
         targets = targets,
     }
 end
 
---- 答复给出的那张牌
+--- 答复给出的那些牌（没答就是空表）
+---@param self AskCard
+---@return Card[]
+M.__getter.cards = function (self)
+    return self.result?.cards or {}
+end
+
+--- 答复给出的第一张牌（没答就是空）
 ---@param self AskCard
 ---@return Card?
 M.__getter.card = function (self)
-    return self.result?.card
+    return self.cards[1]
 end
 
 --- 答复已定下、答复时机之前跑一次（子类在这里处置那张牌）

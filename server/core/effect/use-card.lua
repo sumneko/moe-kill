@@ -45,6 +45,12 @@ function M:settle()
     self.game:moveCard(self.card, self:getTempZone())
     self.game:fire('卡牌-结算前', self)
     self.user:fire('卡牌-结算前', self)
+    -- 指定目标后：逐目标发三份（全局 → 使用者 → 目标），在牌的结算（'使用' 钩子）之前
+    for target in self.game.desk:actionOrder(self.targets) do
+        self.game:fire('卡牌-指定目标后', self, target)
+        self.user:fire('卡牌-来源-指定目标后', self, target)
+        target:fire('卡牌-目标-指定目标后', self, target)
+    end
     self.card:fireHandlers('使用', self)
     if not self.card.def.skipsEffect then
         for target in self.game.desk:actionOrder(self.targets) do

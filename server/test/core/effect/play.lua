@@ -140,9 +140,15 @@ Card '测试延时'
     local card = game:createCard('测试延时')
     hand:accept(card)
 
+    local fired = 0
+    game:on('卡牌-指定目标后', function () fired = fired + 1 end)
+    user:on('卡牌-来源-指定目标后', function () fired = fired + 1 end)
+    target:on('卡牌-目标-指定目标后', function () fired = fired + 1 end)
+
     game:useCard(user, card, { target })
 
     lt.assertEquals('只跑了「使用」段', '使用;', user:getTag('记录'))
+    lt.assertEquals('指定目标后照发（全局 / 来源 / 目标各一份）', 3, fired)
 end)
 
 lt.test('使用：没声明 skipEffect 的牌两段都跑（不互斥）', function ()
@@ -913,6 +919,51 @@ Card '测试杀'
     lt.assertEquals('使用者收到一份', 1, mine)
     lt.assertEquals('不是使用者就收不到', 0, his)
     lt.assertEquals('全局那份照发', 1, global)
+end)
+
+lt.test('使用：指定目标后逐目标发三份（全局 / 来源 / 目标）', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : targetCount(1, 1000)
+    : on('获取目标', function (target)
+        return game.desk.players
+    end)
+    : on('使用', function (useCard)
+        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用;')
+    end)
+    : on('生效', function (cardEffect)
+        local user = cardEffect.user
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '生效' .. tostring(game.desk:getIndex(cardEffect.target)) .. ';')
+    end)
+]])
+
+    local game, players = newWideGame(3)
+    local user = players[1]
+    local card = game:createCard('测试杀')
+    assert(user:getZone('手牌')):accept(card)
+
+    game:on('卡牌-指定目标后', function (_, target)
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '全局' .. tostring(game.desk:getIndex(target)) .. ';')
+    end)
+    user:on('卡牌-来源-指定目标后', function (_, target)
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '来源' .. tostring(game.desk:getIndex(target)) .. ';')
+    end)
+    players[1]:on('卡牌-目标-指定目标后', function (_, target)
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '目标1收到' .. tostring(game.desk:getIndex(target)) .. ';')
+    end)
+    players[2]:on('卡牌-目标-指定目标后', function (_, target)
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '目标2收到' .. tostring(game.desk:getIndex(target)) .. ';')
+    end)
+    players[3]:on('卡牌-目标-指定目标后', function (_, target)
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '目标3收到' .. tostring(game.desk:getIndex(target)) .. ';')
+    end)
+
+    game:useCard(user, card, { players[2], players[3] })
+
+    lt.assertEquals('逐目标、每目标三份（全局 → 来源 → 目标），在「使用」与「生效」之前',
+        '全局2;来源2;目标2收到2;全局3;来源3;目标3收到3;使用;生效2;生效3;',
+        user:getTag('顺序'))
 end)
 
 lt.test('定义：数据袋读得回来，重复写以后写的为准', function ()

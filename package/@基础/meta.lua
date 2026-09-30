@@ -10,7 +10,11 @@
 ---@field setValue fun(self: Game, name: '默认体力'|'主公额外体力', value: integer)
 ---@field setValue fun(self: Game, name: string, value: any)
 
+--- 性别（由将来的武将系统写入；没有武将时常常没有 —— 官方：没有性别的角色不能判断别人与其性别是否相同）
+---@alias 基础.性别 '男'|'女'
+
 ---@class Player: Class.Base
+---@field sex? 基础.性别
 ---@field getAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正'): number
 ---@field getAttr fun(self: Player, name: string): any
 ---@field setAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正', value: number)

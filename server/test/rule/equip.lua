@@ -729,9 +729,9 @@ lt.test('青釭剑：窗口内换防具，换上来的同样无效', function ()
     local black = run.game:createCard('杀', '黑桃', 7)
     assert(user:getZone('手牌')):accept(black)
 
-    -- 压完之后把目标的防具换新：新区就是那块被禁的区
+    -- 压完之后把目标的防具换新：新区就是那块被禁的区（订在同一份事件上、注册在青釭之后）
     local swapped = false
-    run.game:on('卡牌-结算前', function (useCard)
+    user:on('卡牌-来源-指定目标后', function (useCard)
         if swapped or useCard.card ~= black then
             return
         end
@@ -758,8 +758,8 @@ lt.test('青釭剑：这次使用半路收场也不残留压制', function ()
     local black = run.game:createCard('杀', '黑桃', 7)
     assert(user:getZone('手牌')):accept(black)
 
-    -- 压完之后当场收局：目标那一次生效根本没轮到
-    run.game:on('卡牌-结算前', function (useCard)
+    -- 压完之后当场收局：目标那一次生效根本没轮到（同一份事件、注册在青釭之后）
+    user:on('卡牌-来源-指定目标后', function (useCard)
         if useCard.card == black then
             run.game:endGame { side = '平局', reason = '测试' }
         end
@@ -923,4 +923,269 @@ lt.test('麒麟弓：拆下后就不发动', function ()
 
     lt.assertEquals('不问', 0, asked)
     lt.assertEquals('坐骑还在', horse, assert(target:getZone('进攻马')):list()[1])
+end)
+
+lt.test('雌雄双股剑：异性目标给出手牌就弃置', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'
+    target.sex = '女'
+
+    equipCard(run, user, '雌雄双股剑')
+    local held = takeCard(run, target, '桃')
+    local hand = assert(target:getZone('手牌'))
+    local card = takeCard(run, user, '杀')
+
+    ---@type string[]
+    local trace = {}
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            ---@cast ask AskChoice
+            trace[#trace + 1] = '是否发动'
+            ask:answer('发动')
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            trace[#trace + 1] = '要牌'
+            ask:answer { card = held }
+        elseif ask.kind == 'askPlayCard' and ask.reason == '杀' then
+            trace[#trace + 1] = '要闪'
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('顺序：是否发动 → 要牌 → 要闪', '是否发动,要牌,要闪', table.concat(trace, ','))
+    lt.assertEquals('手牌被弃掉', 0, hand:count())
+    lt.assertEquals('进的是弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), held))
+    lt.assertEquals('目标照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('雌雄双股剑：目标不给牌 ⇒ 令装备主摸一张', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'
+    target.sex = '女'
+
+    equipCard(run, user, '雌雄双股剑')
+    takeCard(run, target, '桃')
+    local card = takeCard(run, user, '杀')
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            ---@cast ask AskChoice
+            ask:answer('发动')
+        end
+    end)
+    -- 目标对要牌的询问不答复 = 不给
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('目标的手牌没动', 1, assert(target:getZone('手牌')):count())
+    lt.assertEquals('装备主多摸一张（用掉的【杀】不算）', 1, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('雌雄双股剑：目标没手牌 ⇒ 照样归一化到摸牌', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'
+    target.sex = '女'
+
+    equipCard(run, user, '雌雄双股剑')
+    local card = takeCard(run, user, '杀')
+
+    ---@type AskCard?
+    local giveAsk = nil
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            ---@cast ask AskChoice
+            ask:answer('发动')
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '雌雄双股剑' then
+            ---@cast ask AskCard
+            giveAsk = ask
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('问了，但没有候选', 0, #assert(assert(giveAsk).options))
+    lt.assertEquals('装备主摸了一张', 1, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('雌雄双股剑：目标答错 ⇒ 一样归一化到摸牌', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'
+    target.sex = '女'
+
+    equipCard(run, user, '雌雄双股剑')
+    takeCard(run, target, '桃')
+    local card  = takeCard(run, user, '杀')
+    local other = run.game:createCard('闪')   -- 不在目标手里
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            ---@cast ask AskChoice
+            ask:answer('发动')
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '雌雄双股剑' then
+            ask:answer { card = other }
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('目标的手牌没动', 1, assert(target:getZone('手牌')):count())
+    lt.assertEquals('装备主摸了一张', 1, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('雌雄双股剑：不发动就什么都不做', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'
+    target.sex = '女'
+
+    equipCard(run, user, '雌雄双股剑')
+    takeCard(run, target, '桃')
+    local card = takeCard(run, user, '杀')
+
+    local gave = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '雌雄双股剑' then
+            gave = gave + 1
+        end
+    end)
+    -- 是否发动的询问不答复 = 不发动
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('没问要牌', 0, gave)
+    lt.assertEquals('目标的手牌没动', 1, assert(target:getZone('手牌')):count())
+    lt.assertEquals('装备主没多摸', 0, assert(user:getZone('手牌')):count())
+    lt.assertEquals('目标照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('雌雄双股剑：同性不发动（问都不问）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'
+    target.sex = '男'
+
+    equipCard(run, user, '雌雄双股剑')
+    local card = takeCard(run, user, '杀')
+
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('雌雄双股剑：缺性别就不发动（不能判断异性）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'   -- 目标没写性别
+
+    equipCard(run, user, '雌雄双股剑')
+    local card = takeCard(run, user, '杀')
+
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('雌雄双股剑：旁人用【杀】不发动', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local owner  = run.players[1]
+    local user   = run.players[2]
+    local target = run.players[3]
+    owner.sex  = '男'
+    user.sex   = '男'
+    target.sex = '女'
+
+    equipCard(run, owner, '雌雄双股剑')
+    local card = takeCard(run, user, '杀')
+
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
+    lt.assertEquals('目标照常掉血', 4, target:getAttr('体力'))
+end)
+
+lt.test('雌雄双股剑：拆下后就不发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    user.sex   = '男'
+    target.sex = '女'
+
+    local sword = equipCard(run, user, '雌雄双股剑')
+    local card  = takeCard(run, user, '杀')
+    run.game:moveCard(sword, '弃牌')
+
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '雌雄双股剑' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('不问', 0, asked)
 end)

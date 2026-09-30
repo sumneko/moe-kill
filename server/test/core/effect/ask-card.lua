@@ -196,6 +196,7 @@ lt.test('询问：没人应答时没有答复，也不算失败', function ()
     local ask = game:askCard(players[2], nil, { name = '闪' })
 
     lt.assertEquals('没有答复', nil, ask.card)
+    lt.assertEquals('cards 是空表', 0, #ask.cards)
     lt.assertEquals('不算失败', nil, ask.err)
     lt.assertEquals('没有记下错误', 0, #lt.errors)
 end)
@@ -257,6 +258,69 @@ lt.test('询问：被阻止的询问以「没有答复」结束，结算其余�
 
     lt.assertEquals('询问没答上，伤害照常结算', '前,答复 nil', table.concat(trace, ','))
     lt.assertEquals('目标掉了血', 3, players[2]:getAttr('体力'))
+end)
+
+lt.test('询问：张数区间 2、2 收两张，`.cards` 是全部、`.card` 是第一张', function ()
+    local game, players = newGame(2)
+    local first  = game:createCard('闪')
+    local second = game:createCard('杀')
+    local third  = game:createCard('桃')
+    putInHand(players[1], { first, second, third })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = { second, first } }
+    end)
+
+    local ask = game:askCard(players[1], '测试', { name = { '闪', '杀', '桃' }, min = 2, max = 2 })
+
+    lt.assertEquals('两张都收下', 2, #ask.cards)
+    lt.assertEquals('按答复的顺序（第一张）', second, ask.cards[1])
+    lt.assertEquals('按答复的顺序（第二张）', first, ask.cards[2])
+    lt.assertEquals('card 就是第一张', second, ask.card)
+    lt.assertEquals('不算失败', nil, ask.err)
+end)
+
+lt.test('询问：张数不在区间就拒收（默认只收一张）', function ()
+    local game, players = newGame(2)
+    local first  = game:createCard('闪')
+    local second = game:createCard('闪')
+    putInHand(players[1], { first, second })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = { first, second } }
+    end)
+
+    local ask = game:askCard(players[1], '测试', { name = '闪' })
+
+    lt.assertEquals('两张被拒', nil, ask.card)
+    lt.assertEquals('原因', '至多给 1 张牌', ask.err)
+end)
+
+lt.test('询问：min 0 ⇒ 不给也算答复（空表）', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = {} }
+    end)
+
+    local ask = game:askCard(players[2], '测试', { name = '闪', min = 0, max = 1 })
+
+    lt.assertEquals('没有牌', nil, ask.card)
+    lt.assertEquals('cards 是空表', 0, #ask.cards)
+    lt.assertEquals('不算失败', nil, ask.err)
+end)
+
+lt.test('询问：重复给同一张牌 ⇒ 拒收', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function (ask)
+        ask:answer { card = { jink, jink } }
+    end)
+
+    local ask = game:askCard(players[2], '测试', { name = '闪', min = 1, max = 2 })
+
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('原因', '答复的牌重复了', ask.err)
 end)
 
 lt.test('答复：有答复才触发答复时机，上下文是这次询问', function ()
@@ -328,7 +392,7 @@ lt.test('询问：答复是空表 ⇒ 一样拒收（连牌都没给）', functi
     local ask = game:askCard(players[2], '测试', { name = '闪' })
 
     lt.assertEquals('没拿到答复', nil, ask.card)
-    lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
+    lt.assertEquals('原因是「至少要给 1 张牌」', '至少要给 1 张牌', ask.err)
 end)
 
 lt.test('询问：`AskCard` 不要目标，答复多给会被拒收', function ()

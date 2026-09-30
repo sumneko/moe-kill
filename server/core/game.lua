@@ -684,7 +684,7 @@ end
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
----@return AskCard # 这次询问（已经结完：答复读 `.card` / `.targets`，失败读 `.err`）
+---@return AskCard # 这次询问（已经结完：答复读 `.card`（第一张）/ `.cards`（全部）/ `.targets`，失败读 `.err`）
 ---@async
 function M:askCard(to, reason, condition)
     local ask = moe.askCard.create {
@@ -779,6 +779,23 @@ function M:ask(to, reason, question)
         to       = to,
         reason   = reason,
         question = question,
+    }
+    ask:apply():await()
+    return ask
+end
+
+--- 要他在若干选项里挑一个（选项由发起方给，答复必须是其中之一）
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param options any[] # 有哪些可选项（内容由发起方定，应答方自己解释）
+---@return AskChoice # 这次询问（已经结完：答复读 `.choice`，失败读 `.err`）
+function M:askChoice(to, reason, options)
+    local ask = moe.askChoice.create {
+        game    = self,
+        to      = to,
+        reason  = reason,
+        options = options,
     }
     ask:apply():await()
     return ask

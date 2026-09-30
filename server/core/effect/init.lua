@@ -1,6 +1,7 @@
 -- 先基类、再子类（子类要 Extends 父类）—— 装载顺序只在这里负责
 include 'core.effect.effect'
 include 'core.effect.ask'
+include 'core.effect.ask-choice'
 include 'core.effect.ask-card'
 include 'core.effect.ask-player'
 include 'core.effect.ask-use-card'
