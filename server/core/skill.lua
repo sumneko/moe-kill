@@ -1,14 +1,11 @@
---- 技能的发动方式（只影响「能不能主动发动」，与强制与否无关）
----@alias 技能类型 '主动'|'被动'|'自动'
-
---- 技能的内容定义（名字 / 发动方式 / 标签；内核只存不解释）
---- **发动方式与标签是两个正交维度**：底本 Chapter1/Section2「是否必须发动……与此技能是否带有"锁定技"标签无关」+ Chapter2/Section5「"锁定技"……已经成为了一个标签」
+--- 技能的内容定义（名字 / 自动同意 / 标签；内核只存不解释）
+--- **「自动同意」是玩家的偏好默认值，与「是否必须发动」无关** —— 强制发动的技能自己不问（底本 Chapter1/Section2 与 Chapter2/Section5 讲的是「必须发动」与「锁定技」标签正交）
 ---@class SkillDef
 ---@field name string # 裸名（= 技能名）
 ---@field public package string # 所属包名（显式写 public：否则 package 会被当成访问修饰符）
 ---@field fullName string # 完整名（包名.名字）
 ---@field source string # 声明它的文件（逻辑路径）
----@field private kindName 技能类型 # 发动方式（默认「主动」；只影响「能不能主动发动」，与强制与否无关）
+---@field package autoFire boolean # 自动同意的默认值（不写 = 每次问）
 ---@field private game Game # 所属的局
 ---@field private tagSet table<string, true> # 标签集合
 ---@field private handlers table<string, function[]> # 各时机上的回调（按登记顺序）
@@ -30,7 +27,7 @@ function M:__init(game, name, owner, source)
     self.package  = owner
     self.fullName = owner .. '.' .. name
     self.source   = source
-    self.kindName = '主动'
+    self.autoFire = false
     self.tagSet   = {}
     self.handlers = {}
 end
@@ -61,17 +58,12 @@ function M:getHandlers(event)
     return snapshot
 end
 
---- 声明发动方式（主动 / 被动 / 自动）
----@param kind 技能类型
+--- 声明「自动同意」的默认值（不写 = false = 被动触发时每次都问）
+---@param value boolean
 ---@return SkillDef
-function M:kind(kind)
-    self.kindName = kind
+function M:auto(value)
+    self.autoFire = value
     return self
-end
-
----@return 技能类型 # 发动方式
-function M:getKind()
-    return self.kindName
 end
 
 --- 声明标签（可多次调，取并集）
@@ -113,6 +105,7 @@ end
 ---@class Skill : GCHost
 ---@field name string # 定义名（裸名）
 ---@field owner Player # 谁拥有
+---@field auto boolean # 被动触发时要不要自动同意（不询问；玩家 / 客户端可切）
 ---@field private def SkillDef # 内容定义
 ---@field private game Game # 属于哪一局
 ---@field private passiveSuppress integer # 被压制的层数（出厂 1 = 未启用）
@@ -129,7 +122,18 @@ function S:__init(game, def, owner)
     self.def   = def
     self.name  = def.name
     self.owner = owner
+    self.auto  = def.autoFire
     self.passiveSuppress = 1
+end
+
+--- 问一次要不要发动：自动同意开着就直接放行，否则问「发动」这一句（技能自己决定在哪儿问）
+---@async
+---@return boolean # 要不要发动
+function S:confirm()
+    if self.auto then
+        return true
+    end
+    return self.game:askChoice(self.owner, self.name, { '发动' }).choice == '发动'
 end
 
 --- 摘掉这个技能（幂等，内部就是 `Delete(self)`）

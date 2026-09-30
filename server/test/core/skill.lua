@@ -36,7 +36,7 @@ end
 local PROBE = [[
 Skill '奸雄'
     : tags { '锁定技' }
-    : kind '被动'
+    : auto(true)
 
 Skill '制衡'
 ]]
@@ -52,21 +52,46 @@ lt.test('技能定义：声明与读回', function ()
     lt.assertEquals('来源是声明它的文件', '探针/技能.lua', skill.source)
 end)
 
-lt.test('技能定义：不写发动方式就是「主动」', function ()
+lt.test('技能定义：不写自动同意就是关（每次问）', function ()
     useProbe()
-    local game = newGame(PROBE)
+    local game   = newGame(PROBE)
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
 
-    lt.assertEquals('显式写的', '被动', assert(game:getSkill('奸雄')):getKind())
-    lt.assertEquals('不写就是主动', '主动', assert(game:getSkill('制衡')):getKind())
+    lt.assertEquals('显式写的', true, player:addSkill('奸雄').auto)
+    lt.assertEquals('不写就是关', false, player:addSkill('制衡').auto)
 end)
 
-lt.test('技能定义：发动方式三个取值', function ()
+lt.test('技能：自动同意开着就不问，关着问一次', function ()
     useProbe()
-    local game = newGame("Skill '甲' : kind '主动'\nSkill '乙' : kind '被动'\nSkill '丙' : kind '自动'")
+    local game   = newGame("Skill '甲' : auto(true)\nSkill '乙'")
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
 
-    lt.assertEquals('主动', '主动', assert(game:getSkill('甲')):getKind())
-    lt.assertEquals('被动', '被动', assert(game:getSkill('乙')):getKind())
-    lt.assertEquals('自动', '自动', assert(game:getSkill('丙')):getKind())
+    ---@type string[]
+    local asked = {}
+    local answer = '发动'
+    game:on('决策-询问', function (ask)
+        ---@cast ask AskChoice
+        asked[#asked + 1] = ask.reason
+        return answer
+    end)
+
+    local jia = player:addSkill('甲')
+    lt.assertEquals('开关跟着定义走', true, jia.auto)
+    lt.assertEquals('开着：直接放行', true, jia:confirm())
+    lt.assertEquals('一次都没问', 0, #asked)
+
+    local yi = player:addSkill('乙')
+    lt.assertEquals('不写就是关', false, yi.auto)
+    lt.assertEquals('关着 + 答发动 ⇒ 要发动', true, yi:confirm())
+    lt.assertEquals('问的是技能名', '乙', table.concat(asked, ','))
+
+    answer = '不发动'
+    lt.assertEquals('关着 + 答不发动 ⇒ 不发动', false, yi:confirm())
+    lt.assertEquals('又问了一次', '乙,乙', table.concat(asked, ','))
+
+    jia.auto = false
+    lt.assertEquals('切回手动：也会问', false, jia:confirm())
+    lt.assertEquals('这次问的是甲', '乙,乙,甲', table.concat(asked, ','))
 end)
 
 lt.test('技能定义：标签', function ()

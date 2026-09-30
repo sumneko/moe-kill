@@ -16,7 +16,7 @@ local function takeCard(run, player, name)
     error('牌堆里没有「' .. name .. '」')
 end
 
-lt.test('奸雄：受到伤害后可以拿到那张牌', function ()
+lt.test('奸雄：默认自动同意 ⇒ 不问也拿到那张牌', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local caocao = run.players[2]
@@ -24,19 +24,18 @@ lt.test('奸雄：受到伤害后可以拿到那张牌', function ()
 
     local slash = takeCard(run, user, '杀')
 
-    ---@type string[]
-    local trace = {}
+    local asked = false
     run.game:on('决策-询问', function (ask)
         if ask.reason == '奸雄' then
             ---@cast ask AskChoice
-            trace[#trace + 1] = '是否发动'
+            asked = true
             return '发动'
         end
     end)
 
     run.game:useCard(user, slash, { caocao })
 
-    lt.assertEquals('问了一次「要不要发动」', '是否发动', table.concat(trace, ','))
+    lt.assertEquals('没问过', false, asked)
     lt.assertEquals('那张【杀】到了曹操手里', true,
         moe.util.arrayHas(caocao:getZone('手牌'):list(), slash))
     lt.assertEquals('伤害照常结算', 4, caocao:getAttr('体力'))
@@ -44,11 +43,12 @@ lt.test('奸雄：受到伤害后可以拿到那张牌', function ()
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), slash))
 end)
 
-lt.test('奸雄：不发动就不拿', function ()
+lt.test('奸雄：关掉自动同意后，不发动就不拿', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local caocao = run.players[2]
-    caocao:addSkill('奸雄')
+    local skill  = caocao:addSkill('奸雄')
+    skill.auto = false
 
     local slash = takeCard(run, user, '杀')
     -- 应答方对「奸雄」不表态 = 不发动
@@ -178,7 +178,7 @@ lt.test('奸雄：素材只剩一张在原处 ⇒ 能拿的那张照拿', functi
 
     run.game:damage(nil, caocao, 1, virtual)
 
-    lt.assertEquals('问过「要不要发动」', true, asked)
+    lt.assertEquals('自动同意：没问过', false, asked)
     lt.assertEquals('还在原位的那张拿到了', true,
         moe.util.arrayHas(caocao:getZone('手牌'):list(), first))
     lt.assertEquals('被挪走的那张没拿', false,
