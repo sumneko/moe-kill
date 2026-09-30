@@ -36,6 +36,16 @@ lt.test('武将装配：装上之后读到牌面数据与体力', function ()
     lt.assertEquals('体力是初始值', 4, player:getAttr('体力'))
 end)
 
+lt.test('武将装配：装上就把他的技能挂上', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local player = run.players[1]
+
+    player:setHero(assert(run.game:getHero('曹操')))
+
+    lt.assertEquals('有【奸雄】', true, player:hasSkill('奸雄'))
+    lt.assertEquals('没装身份场 ⇒ 主公技不挂', false, player:hasSkill('护驾'))
+end)
+
 lt.test('武将牌面：势力与性别的声明与读法', function ()
     useProbe()
     write('探针/武将.lua', [[

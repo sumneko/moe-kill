@@ -56,7 +56,7 @@ end
 ---@class Player
 local M = Class 'Player'
 
---- 让这名角色用上某张武将（写武将 / 性别 / 势力 / 体力）
+--- 让这名角色用上某张武将（写武将 / 性别 / 势力 / 体力，并把他的技能挂上）
 ---@param hero HeroDef
 function M:setHero(hero)
     local maxHp, hp = hero:getHp()
@@ -65,6 +65,34 @@ function M:setHero(hero)
     self.kingdom = hero:getKingdom()
     self:setAttr('体力上限', maxHp)
     self:setAttr('体力', hp)
+    self:refreshSkills()
+end
+
+--- 按当前武将 + 当前身份重算该有的技能（挂上缺的、摘掉不该有的；**主公技只在是主公时才挂**）
+function M:refreshSkills()
+    local hero = self.hero
+    if not hero then
+        return
+    end
+    ---@type table<string, true>
+    local wanted = {}
+    for _, name in ipairs(hero:getSkills()) do
+        local def = assert(game:getSkill(name), '没有叫「{}」的技能定义' % { name })
+        if not def:hasTag('主公技') or self.identity == '主公' then
+            wanted[name] = true
+        end
+    end
+    -- 挂上缺的（按武将声明的顺序，技能之间的时机顺序才有保证）
+    for _, name in ipairs(hero:getSkills()) do
+        if wanted[name] and not self:hasSkill(name) then
+            self:addSkill(name)
+        end
+    end
+    for _, skill in ipairs(self:getSkills()) do
+        if not wanted[skill.name] then
+            skill:remove()
+        end
+    end
 end
 
 --- 这名角色当前的体力

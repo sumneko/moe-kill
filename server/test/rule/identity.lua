@@ -28,6 +28,24 @@ local function identity(player)
     return player.identity
 end
 
+lt.test('主公技：选将在身份之前也照样对（非主公不挂、主公补挂）', function ()
+    local run = support.start {
+        count = 4,
+        packages = { '标准', '身份场' },
+        beforeStart = function (game, players)
+            -- 选将发生在分身份之前（装配侧的常规顺序）
+            for _, player in ipairs(players) do
+                player:setHero(assert(game:getHero('曹操')))
+            end
+        end,
+    }
+
+    lt.assertEquals('主公（1 号位）补挂了主公技', true, run.players[1]:hasSkill('护驾'))
+    lt.assertEquals('非主公没有主公技', false, run.players[2]:hasSkill('护驾'))
+    lt.assertEquals('【奸雄】两边都在', true,
+        run.players[1]:hasSkill('奸雄') and run.players[3]:hasSkill('奸雄'))
+end)
+
 ---@param sources? string[]
 ---@param items? string[]
 ---@return Game
