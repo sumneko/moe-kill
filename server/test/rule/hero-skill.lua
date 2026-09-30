@@ -29,6 +29,10 @@ Hero '魏队友'
     : kingdom '魏'
     : hp(4)
 
+Hero '蜀队友'
+    : kingdom '蜀'
+    : hp(4)
+
 Hero '蜀对手'
     : kingdom '蜀'
     : hp(4)
@@ -176,6 +180,79 @@ lt.test('护驾：非魏势力角色不参与（有【闪】也不问）', funct
 
     lt.assertEquals('曹操掉血（蜀势力帮不上）', 4, caocao:getAttr('体力'))
     lt.assertEquals('那张【闪】没被问到、还在手上', 1, helper:getZone('手牌'):count())
+end)
+
+lt.test('激将：刘备被要【杀】时，令其他蜀势力角色打出一张【杀】顶上', function ()
+    useProbe()
+    defineHelpers()
+
+    local run      = startWithHeroes { '刘备', nil, '蜀队友' }
+    local liubei   = run.players[1]
+    local attacker = run.players[2]
+    local helper   = run.players[3]
+
+    lt.assertEquals('1 号位是主公，主公技挂上了', true, liubei:hasSkill('激将'))
+
+    local havoc = takeCard(run, attacker, '南蛮入侵')
+    local slash = takeCard(run, helper, '杀')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.to == helper and ask.kind == 'askCard' then
+            return { card = slash }
+        end
+    end)
+
+    run.game:useCard(attacker, havoc, { helper, run.players[4], liubei })
+
+    lt.assertEquals('刘备没掉血', 5, liubei:getAttr('体力'))
+    lt.assertEquals('帮手交出了【杀】', 0, helper:getZone('手牌'):count())
+    lt.assertEquals('【杀】进了弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), slash))
+end)
+
+lt.test('激将：其他蜀势力角色不给，刘备照常挨打', function ()
+    useProbe()
+    defineHelpers()
+
+    local run      = startWithHeroes { '刘备', nil, '蜀队友' }
+    local liubei   = run.players[1]
+    local attacker = run.players[2]
+    local helper   = run.players[3]
+
+    local havoc = takeCard(run, attacker, '南蛮入侵')
+    local slash = takeCard(run, helper, '杀')
+
+    run.game:useCard(attacker, havoc, { helper, run.players[4], liubei })
+
+    lt.assertEquals('刘备掉 1 点体力', 4, liubei:getAttr('体力'))
+    lt.assertEquals('帮手的【杀】还在手上', 1, helper:getZone('手牌'):count())
+    lt.assertEquals('那张【杀】没动过', slash, helper:getZone('手牌'):list()[1])
+end)
+
+lt.test('激将：非蜀势力角色不参与（有【杀】也不问）', function ()
+    useProbe()
+    defineHelpers()
+
+    local run      = startWithHeroes { '刘备', nil, '魏队友' }
+    local liubei   = run.players[1]
+    local attacker = run.players[2]
+    local helper   = run.players[3]
+
+    lt.assertEquals('帮手是魏势力', '魏', helper.kingdom)
+
+    local havoc = takeCard(run, attacker, '南蛮入侵')
+    local slash = takeCard(run, helper, '杀')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.to == helper and ask.kind == 'askCard' then
+            return { card = slash }
+        end
+    end)
+
+    run.game:useCard(attacker, havoc, { helper, run.players[4], liubei })
+
+    lt.assertEquals('刘备掉血（魏势力帮不上）', 4, liubei:getAttr('体力'))
+    lt.assertEquals('那张【杀】没被问到、还在手上', 1, helper:getZone('手牌'):count())
 end)
 
 lt.test('护驾：直接要【闪】也能发动（不经过【杀】）', function ()
