@@ -80,7 +80,7 @@ lt.test('要一次使用：只收能用的牌，选项带可用目标', function
     local plain  = game:createCard('闪')
     putInHand(players[1], { usable, plain })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = usable, targets = { players[2] } }
+        return { card = usable, targets = { players[2] } }
     end)
 
     local ask     = game:askUseCard(players[1], '出牌', { zone = '手牌' })
@@ -109,7 +109,7 @@ lt.test('要一次使用：选项的区间带上目标数修正，并取小到�
             return
         end
         lt.assertEquals('修正 +1：区间带上、并取小到可用目标数 2', '1,2', option.plan.min .. ',' .. option.plan.max)
-        ask:answer { card = option.card, targets = { players[2] } }
+        return { card = option.card, targets = { players[2] } }
     end)
 
     local first = game:askUseCard(players[1], '出牌', { zone = '手牌' })
@@ -134,7 +134,7 @@ lt.test('要一次使用：无目标牌的选项不带 targets，答复也不用
     local index = 0
     game:on('卡牌-询问', function (ask)
         index = index + 1
-        ask:answer(replies[index])
+        return replies[index]
     end)
 
     local refused = game:askUseCard(players[1], '测试', { name = '无目标牌' })
@@ -180,7 +180,7 @@ lt.test('要一次使用：答复必须给目标，且只能从可用目标里�
     local index = 0
     game:on('卡牌-询问', function (ask)
         index = index + 1
-        ask:answer(replies[index])
+        return replies[index]
     end)
 
     local missing = game:askUseCard(players[1], '测试', { name = '测试牌' })
@@ -207,7 +207,7 @@ lt.test('要一次使用：答复的目标个数要落在选项的区间里', fu
     local index = 0
     game:on('卡牌-询问', function (ask)
         index = index + 1
-        ask:answer(replies[index])
+        return replies[index]
     end)
 
     local over = game:askUseCard(players[1], '测试', { name = '窄牌' })
@@ -227,7 +227,7 @@ lt.test('要一次使用：答复的目标重复会被拒收', function ()
     local card = game:createCard('测试牌')
     putInHand(players[1], { card })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = card, targets = { players[2], players[2] } }
+        return { card = card, targets = { players[2], players[2] } }
     end)
 
     local ask = game:askUseCard(players[1], '测试', { name = '测试牌' })
@@ -245,9 +245,9 @@ lt.test('要一次使用：答复的目标给单个或一张列表都行', funct
     game:on('卡牌-询问', function (ask)
         if order == 1 then
             order = 2
-            ask:answer { card = card, targets = players[2] }
+            return { card = card, targets = players[2] }
         else
-            ask:answer { card = another, targets = { players[2], players[3] } }
+            return { card = another, targets = { players[2], players[3] } }
         end
     end)
 
@@ -282,7 +282,7 @@ lt.test('要一次使用：答复到手就自动用出去，那次使用记在�
     putInHand(players[1], { card })
     local hand = assert(players[1]:getZone('手牌'))
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = card, targets = { players[2] } }
+        return { card = card, targets = { players[2] } }
     end)
 
     local ask = game:askUseCard(players[1], '出牌', { zone = '手牌' })
@@ -299,7 +299,7 @@ lt.test('要一次使用：没人应答就没有那次使用', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('测试牌') })
     game:on('卡牌-询问', function (ask)
-        ask:answer(nil)
+        return nil
     end)
 
     local ask = game:askUseCard(players[1], '测试', { name = '测试牌' })

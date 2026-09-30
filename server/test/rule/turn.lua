@@ -45,7 +45,7 @@ local function startTurn(options)
             return
         end
         moe.await.sleep(0)
-        ask:answer(options.answer(ask, run))
+        return options.answer(ask, run)
     end)
     run.game:on('决策-询问', function (ask)
         ---@cast ask Ask
@@ -53,7 +53,7 @@ local function startTurn(options)
             return
         end
         moe.await.sleep(0)
-        ask:answer(options.discard(ask, run))
+        return options.discard(ask, run)
     end)
 
     state.task = run.game:runFlow()

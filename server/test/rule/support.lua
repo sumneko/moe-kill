@@ -13,7 +13,7 @@ local M = {}
 ---@field answers? Card[] # 脚本化的答复（按顺序给出牌；省略时一律不响应）
 
 ---@param answers Card[]?
----@return fun(ask: AskCard)
+---@return fun(ask: AskCard): AskCard.Answer?
 local function scripted(answers)
     local index = 0
     return function (ask)
@@ -24,7 +24,7 @@ local function scripted(answers)
         if index > #answers then
             error('脚本里没有更多牌了', 2)
         end
-        ask:answer { card = answers[index] }
+        return { card = answers[index] }
     end
 end
 

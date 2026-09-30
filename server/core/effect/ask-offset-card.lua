@@ -13,11 +13,8 @@ end
 ---@async
 function M:settle()
     self.options = self:collectOptions()
-    self.asked   = true
-    self:beforeAsk()
-    self.game:fire('卡牌-询问', self)
 
-    if self.card == nil then
+    if not self:collectAnswer() then
         self.task:reject('没有打出')
         return
     end

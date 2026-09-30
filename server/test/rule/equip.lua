@@ -134,7 +134,7 @@ lt.test('装备：装备牌没有目标，出牌阶段能选中它并用出去',
         ---@cast ask AskUseCard
         local options = assert(ask.options)
         option = options[1]
-        ask:answer(support.pickFirst(ask))
+        return support.pickFirst(ask)
     end)
 
     local ask = run.game:askUseCard(user, '出牌', { zone = '手牌' })
@@ -200,7 +200,7 @@ lt.test('装备：被【过河拆桥】拆走后修正回落，子区也空了',
     local zone   = assert(target:getZone('武器'))
 
     run.game:on('卡牌-询问', function (ask)
-        ask:answer { card = weapon }
+        return { card = weapon }
     end)
 
     run.game:useCard(user, trick, { target })
@@ -405,7 +405,7 @@ lt.test('方天画戟：两名目标依次结算，一个目标的响应不影�
 
     run.game:on('卡牌-询问', function (ask)
         if ask.to == first then
-            ask:answer { card = jink }
+            return { card = jink }
         end
     end)
 
@@ -509,7 +509,7 @@ lt.test('方天画戟：出牌阶段的选项带上放宽后的数量区间', fu
         end
         ---@cast ask AskUseCard
         option = assert(assert(ask.options)[1], '选项里没有这张杀')
-        ask:answer(support.pickFirst(ask))
+        return support.pickFirst(ask)
     end)
 
     run.game:askUseCard(user, '出牌', { zone = '手牌' })
@@ -805,7 +805,7 @@ lt.test('麒麟弓：用【杀】造成伤害时可以弃掉目标的一张坐�
         ---@cast ask AskCard
         options = ask.options
         hpWhenAsked = target:getAttr('体力')
-        ask:answer { card = shield }
+        return { card = shield }
     end)
 
     run.game:useCard(user, card, { target })
@@ -955,13 +955,13 @@ lt.test('雌雄双股剑：异性目标给出手牌就弃置', function ()
         if ask.reason == '雌雄双股剑' then
             ---@cast ask AskChoice
             trace[#trace + 1] = '是否发动'
-            ask:answer('发动')
+            return '发动'
         end
     end)
     run.game:on('卡牌-询问', function (ask)
         if ask.reason == '雌雄双股剑' then
             trace[#trace + 1] = '要牌'
-            ask:answer { card = held }
+            return { card = held }
         elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             trace[#trace + 1] = '要闪'
         end
@@ -990,7 +990,7 @@ lt.test('雌雄双股剑：目标不给牌 ⇒ 令装备主摸一张', function 
     run.game:on('决策-询问', function (ask)
         if ask.reason == '雌雄双股剑' then
             ---@cast ask AskChoice
-            ask:answer('发动')
+            return '发动'
         end
     end)
     -- 目标对要牌的询问不答复 = 不给
@@ -1016,7 +1016,7 @@ lt.test('雌雄双股剑：目标没手牌 ⇒ 照样归一化到摸牌', functi
     run.game:on('决策-询问', function (ask)
         if ask.reason == '雌雄双股剑' then
             ---@cast ask AskChoice
-            ask:answer('发动')
+            return '发动'
         end
     end)
     run.game:on('卡牌-询问', function (ask)
@@ -1047,12 +1047,12 @@ lt.test('雌雄双股剑：目标答错 ⇒ 一样归一化到摸牌', function 
     run.game:on('决策-询问', function (ask)
         if ask.reason == '雌雄双股剑' then
             ---@cast ask AskChoice
-            ask:answer('发动')
+            return '发动'
         end
     end)
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askCard' and ask.reason == '雌雄双股剑' then
-            ask:answer { card = other }
+            return { card = other }
         end
     end)
 
@@ -1220,11 +1220,11 @@ lt.test('青龙偃月刀：追加的【杀】打同一个目标（不计入次�
         if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
             ---@cast ask AskUseCard
             trace[#trace + 1] = '再杀'
-            ask:answer { card = second, targets = { target } }
+            return { card = second, targets = { target } }
         elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' and not dodged then
             dodged = true
             trace[#trace + 1] = '闪'
-            ask:answer { card = dodge }
+            return { card = dodge }
         end
     end)
 
@@ -1253,7 +1253,7 @@ lt.test('青龙偃月刀：不发动就什么都不做', function ()
         if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
             asked = asked + 1
         elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         end
     end)
 
@@ -1282,7 +1282,7 @@ lt.test('青龙偃月刀：没有第二张【杀】就问不出（候选为空�
             asked = asked + 1
             candidates = #assert(ask.options)
         elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         end
     end)
 
@@ -1315,12 +1315,12 @@ lt.test('青龙偃月刀：第二张又被【闪】就接着问（链）', funct
             useAsked = useAsked + 1
             lastCandidates = #assert(ask.options)
             if useAsked == 1 then
-                ask:answer { card = second, targets = { target } }
+                return { card = second, targets = { target } }
             end
         elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
             dodgeIndex = dodgeIndex + 1
             if dodges[dodgeIndex] then
-                ask:answer { card = dodges[dodgeIndex] }
+                return { card = dodges[dodgeIndex] }
             end
         end
     end)
@@ -1353,7 +1353,7 @@ lt.test('青龙偃月刀：旁人用【杀】不发动', function ()
         if ask.reason == '青龙偃月刀' then
             asked = asked + 1
         elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         end
     end)
 
@@ -1381,7 +1381,7 @@ lt.test('青龙偃月刀：不是【杀】的闪答复不问（万箭齐发）',
         if ask.reason == '青龙偃月刀' then
             asked = asked + 1
         elseif ask.kind == 'askPlayCard' and ask.reason == '万箭齐发' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         end
     end)
 
@@ -1413,7 +1413,7 @@ lt.test('青龙偃月刀：拆下后就不发动', function ()
         if ask.reason == '青龙偃月刀' then
             asked = asked + 1
         elseif ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         end
     end)
 
@@ -1435,9 +1435,9 @@ lt.test('贯石斧：弃两张牌，被闪的【杀】依然造成伤害', funct
 
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
-            ask:answer { card = { one, two } }
+            return { card = { one, two } }
         end
     end)
 
@@ -1465,7 +1465,7 @@ lt.test('贯石斧：不弃牌就不发动', function ()
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
             asked = asked + 1
         end
@@ -1491,7 +1491,7 @@ lt.test('贯石斧：能弃的凑不出两张就不问（斧子自己不能弃�
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
             asked = asked + 1
         end
@@ -1517,9 +1517,9 @@ lt.test('贯石斧：手牌 + 坐骑混着弃也行', function ()
 
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
-            ask:answer { card = { spare, horse } }
+            return { card = { spare, horse } }
         end
     end)
 
@@ -1546,7 +1546,7 @@ lt.test('贯石斧：旁人用【杀】不发动', function ()
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         elseif ask.reason == '贯石斧' then
             asked = asked + 1
         end
@@ -1572,7 +1572,7 @@ lt.test('贯石斧：不是【杀】被闪不问（万箭齐发）', function ()
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.reason == '万箭齐发' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         elseif ask.reason == '贯石斧' then
             asked = asked + 1
         end
@@ -1600,7 +1600,7 @@ lt.test('贯石斧：拆下后就不发动', function ()
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         elseif ask.reason == '贯石斧' then
             asked = asked + 1
         end
@@ -1626,7 +1626,7 @@ lt.test('八卦阵：判红 ⇒ 视为打出【闪】（虚拟牌），【杀】
         if ask.reason == '八卦阵' then
             trace[#trace + 1] = '是否发动'
             ---@cast ask AskChoice
-            ask:answer('发动')
+            return '发动'
         end
     end)
     ---@type string[]
@@ -1664,13 +1664,13 @@ lt.test('八卦阵：判黑 ⇒ 照常要实体【闪】（打出来就不受伤
     run.game:on('决策-询问', function (ask)
         if ask.reason == '八卦阵' then
             ---@cast ask AskChoice
-            ask:answer('发动')
+            return '发动'
         end
     end)
     decideBagua(run, '黑桃', 7)
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askOffsetCard' and ask.reason == '杀' then
-            ask:answer { card = dodge }
+            return { card = dodge }
         end
     end)
     ---@type Card?
@@ -1698,7 +1698,7 @@ lt.test('八卦阵：判黑又没【闪】⇒ 照常受伤', function ()
     run.game:on('决策-询问', function (ask)
         if ask.reason == '八卦阵' then
             ---@cast ask AskChoice
-            ask:answer('发动')
+            return '发动'
         end
     end)
     decideBagua(run, '黑桃', 7)
@@ -1762,7 +1762,7 @@ lt.test('八卦阵：【万箭齐发】的【闪】照样能替代', function ()
     run.game:on('决策-询问', function (ask)
         if ask.reason == '八卦阵' then
             ---@cast ask AskChoice
-            ask:answer('发动')
+            return '发动'
         end
     end)
     decideBagua(run, '方块', 3)

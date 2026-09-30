@@ -76,8 +76,8 @@ rule = nil
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
 ---@field on fun(self: Game, name: '效果-被抵消', callback: fun(ask: AskOffsetCard): any): function # 一次生效被响应牌抵消了（要驳回就在回调里 `ask:cancel(原因)` —— 调用后不会返回；本时机不读返回值）
 ---@field fire fun(self: Game, name: '效果-被抵消', ask: AskOffsetCard): any
----@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
----@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
+---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any # 返回值就是答复（`AskCard.Answer`；没人表态给空）
 ---@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
 ---@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
@@ -101,8 +101,8 @@ rule = nil
 ---@field fire fun(self: Game, name: '阶段-开始', phase: Phase): any
 ---@field on fun(self: Game, name: '阶段-结束', callback: fun(phase: Phase): any): function
 ---@field fire fun(self: Game, name: '阶段-结束', phase: Phase): any
----@field on fun(self: Game, name: '决策-询问', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function
----@field fire fun(self: Game, name: '决策-询问', ask: Ask|AskPlayer|AskChoice): any
+---@field on fun(self: Game, name: '决策-询问', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '决策-询问', ask: Ask|AskPlayer|AskChoice): any # 返回值就是答复（`Ask` / `AskChoice` 是任意值、`AskPlayer` 是一名角色；没人表态给空）
 ---@field on fun(self: Game, name: '决策-答复', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function
 ---@field fire fun(self: Game, name: '决策-答复', ask: Ask|AskPlayer|AskChoice): any
 ---@field on fun(self: Game, name: '游戏-结束', callback: fun(result: Game.Result): any): function
@@ -120,9 +120,9 @@ rule = nil
 ---@field fire fun(self: Player, name: '效果-来源-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Player, name: '效果-目标-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第三段：问目标）：返回非 nil 即阻止（返回值就是原因）
 ---@field fire fun(self: Player, name: '效果-目标-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
----@field on fun(self: Player, name: '打出-技能替代', callback: fun(ask: AskPlayCard|AskOffsetCard): (Card?)): function # 这次要打出的牌能不能由武将技能替代（先于装备）：返回一张牌即替代成立（这张牌就当作答复给出的牌）
+---@field on fun(self: Player, name: '打出-技能替代', callback: fun(ask: AskPlayCard|AskOffsetCard): (Card?)): function # 这次要打出的牌能不能由武将技能替代（先于装备）：返回一张牌即替代成立（这张牌就当作答复给出的牌，**不再问应答方**）
 ---@field fire fun(self: Player, name: '打出-技能替代', ask: AskPlayCard|AskOffsetCard): any # 返回值就是替代成的那张牌（没人替代给空）
----@field on fun(self: Player, name: '打出-装备替代', callback: fun(ask: AskPlayCard|AskOffsetCard): (Card?)): function # 这次要打出的牌能不能由装备技能替代（如【八卦阵】）：返回一张牌即替代成立（这张牌就当作答复给出的牌）
+---@field on fun(self: Player, name: '打出-装备替代', callback: fun(ask: AskPlayCard|AskOffsetCard): (Card?)): function # 这次要打出的牌能不能由装备技能替代（如【八卦阵】）：返回一张牌即替代成立（这张牌就当作答复给出的牌，**不再问应答方**）
 ---@field fire fun(self: Player, name: '打出-装备替代', ask: AskPlayCard|AskOffsetCard): any # 返回值就是替代成的那张牌（没人替代给空）
 ---@field on fun(self: Player, name: '效果-收尾', callback: fun(effect: Effect): any): function # 冲自己来的效果结完时再发一份（全局那份之外、对当事人再发一份）
 ---@field fire fun(self: Player, name: '效果-收尾', effect: Effect): any

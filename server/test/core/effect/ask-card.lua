@@ -61,7 +61,7 @@ local function answerWith(game, answers)
         if index > #answers then
             error('脚本里没有更多牌了', 2)
         end
-        ask:answer { card = answers[index] }
+        return { card = answers[index] }
     end)
 end
 
@@ -118,7 +118,7 @@ lt.test('询问：条件里的区名构造时解析成区对象（解析不到�
     lt.assertEquals('全解析不到 ⇒ 空表', 0, #assert(assert(none.condition).zones))
 end)
 
-lt.test('询问：结算之外的乱序答复不收（反向）', function ()
+lt.test('询问：第一个表态的胜出，后面的订阅者不再调', function ()
     local game, players = newGame(2)
     local early = game:createCard('闪')
     local late  = game:createCard('杀')
@@ -130,13 +130,16 @@ lt.test('询问：结算之外的乱序答复不收（反向）', function ()
         reason    = '测试',
         condition = { name = { '闪', '杀' } },
     }
-    -- 问出口之前抢答：不收，这次询问照旧等真正的答复
-    ask:answer { card = early }
-    answerWith(game, { late })
+    game:on('卡牌-询问', function ()
+        return { card = early }
+    end)
+    answerWith(game, {})
+    lt.clearErrors()
 
     ask:apply():await()
 
-    lt.assertEquals('抢答不算数，算的是问出口之后那次', late, ask.card)
+    lt.assertEquals('先表态的算数', early, ask.card)
+    lt.assertEquals('后面的订阅者没被调（脚本没报「没有更多牌」）', 0, #lt.errors)
 end)
 
 lt.test('询问：候选可以来自给定的一批牌（不看被问者的牌区）', function ()
@@ -175,7 +178,7 @@ lt.test('询问：被问者与选项挂在询问上，父效果是发起它的�
     local asked = nil
     game:on('卡牌-询问', function (ask)
         asked = ask
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     game:on('效果-能否生效', function (effect)
@@ -233,21 +236,22 @@ lt.test('询问：没人应答时没有答复，也不算失败', function ()
     lt.assertEquals('没有记下错误', 0, #lt.errors)
 end)
 
-lt.test('询问：重复应答不报错，先答的算数', function ()
+lt.test('询问：第一个返回答复的胜出，后面的订阅者不再调', function ()
     local game, players = newGame(2)
     local first  = game:createCard('闪')
     local second = game:createCard('闪')
     putInHand(players[2], { first, second })
-    game:on('卡牌-询问', function (ask)
-        ask:answer { card = first }
-        ask:answer { card = second }
+    game:on('卡牌-询问', function ()
+        return { card = first }
+    end)
+    game:on('卡牌-询问', function ()
+        error('后面的订阅者不该被调', 2)
     end)
     lt.clearErrors()
 
     local ask = game:askCard(players[2], nil, { name = '闪' })
     lt.assertEquals('先答的算数', first, ask.card)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('后面的订阅者没被调', 0, #lt.errors)
 end)
 
 ---@async
@@ -257,7 +261,7 @@ lt.test('询问：应答方可以让出，稍后再答复', function ()
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
         moe.await.sleep(0)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     lt.assertEquals('答复照旧拿到', jink, game:askCard(players[2], nil, { name = '闪' }).card)
@@ -299,7 +303,7 @@ lt.test('询问：张数区间 2、2 收两张，`.cards` 是全部、`.card` �
     local third  = game:createCard('桃')
     putInHand(players[1], { first, second, third })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = { second, first } }
+        return { card = { second, first } }
     end)
 
     local ask = game:askCard(players[1], '测试', { name = { '闪', '杀', '桃' }, min = 2, max = 2 })
@@ -317,7 +321,7 @@ lt.test('询问：张数不在区间就拒收（默认只收一张）', function
     local second = game:createCard('闪')
     putInHand(players[1], { first, second })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = { first, second } }
+        return { card = { first, second } }
     end)
 
     local ask = game:askCard(players[1], '测试', { name = '闪' })
@@ -331,7 +335,7 @@ lt.test('询问：min 0 ⇒ 不给也算答复（空表）', function ()
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = {} }
+        return { card = {} }
     end)
 
     local ask = game:askCard(players[2], '测试', { name = '闪', min = 0, max = 1 })
@@ -346,7 +350,7 @@ lt.test('询问：重复给同一张牌 ⇒ 拒收', function ()
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = { jink, jink } }
+        return { card = { jink, jink } }
     end)
 
     local ask = game:askCard(players[2], '测试', { name = '闪', min = 1, max = 2 })
@@ -418,7 +422,7 @@ lt.test('询问：答复是空表 ⇒ 一样拒收（连牌都没给）', functi
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
-        ask:answer {}
+        return {}
     end)
 
     local ask = game:askCard(players[2], '测试', { name = '闪' })
@@ -432,7 +436,7 @@ lt.test('询问：`AskCard` 不要目标，答复多给会被拒收', function (
     local plain = game:createCard('闪')
     putInHand(players[1], { plain })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = plain, targets = { players[2] } }
+        return { card = plain, targets = { players[2] } }
     end)
 
     local ask = game:askCard(players[1], '测试', { name = '闪' })

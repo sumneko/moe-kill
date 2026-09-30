@@ -106,7 +106,7 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     local jink   = takeCard(run, target, '闪')
 
     run.game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     run.game:useCard(user, card, { target })
@@ -137,7 +137,7 @@ lt.test('杀：被闪抵消会发「效果-被抵消」两份（全局 → 来�
         fired[#fired + 1] = '来源'
     end)
     run.game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     run.game:useCard(user, card, { target })
@@ -169,7 +169,7 @@ lt.test('杀：应答方不给牌时照常结算，不会挂住', function ()
     local card   = takeSlash(run, user)
 
     run.game:on('卡牌-询问', function ()
-        -- 不调 ask:answer ⇒ 没答上
+        -- 不表态 ⇒ 没答上
     end)
 
     run.game:useCard(user, card, { target })
@@ -186,7 +186,7 @@ lt.test('杀：目标答一张不是【闪】的牌会被拒收，等于没打�
     local other  = takeCard(run, target, '杀')
 
     run.game:on('卡牌-询问', function (ask)
-        ask:answer { card = other }
+        return { card = other }
     end)
 
     run.game:useCard(user, card, { target })

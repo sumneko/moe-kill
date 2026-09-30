@@ -33,7 +33,7 @@ lt.test('询问：一次往返（候选名单摆在询问上）', function ()
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
         asked = ask
-        ask:answer(players[3])
+        return players[3]
     end)
 
     local ask = game:askPlayer(players[1], '测试', { players = candidates })
@@ -47,24 +47,28 @@ lt.test('询问：一次往返（候选名单摆在询问上）', function ()
     lt.assertEquals('答复成为结果', players[3], ask.player)
 end)
 
-lt.test('询问：结算之外的乱序答复不收（反向）', function ()
+lt.test('询问：第一个表态的胜出，后面的订阅者不再调', function ()
     local game, players = newGame(3)
     local ask = moe.askPlayer.create {
         game      = game,
         to        = players[1],
         reason    = '测试',
-        condition = { players = { players[2] } },
+        condition = { players = { players[2], players[3] } },
     }
 
-    ask:answer(players[3])
     game:on('决策-询问', function (payload)
         ---@cast payload AskPlayer
-        payload:answer(players[2])
+        return players[3]
     end)
+    game:on('决策-询问', function ()
+        error('后面的订阅者不该被调', 2)
+    end)
+    lt.clearErrors()
 
     ask:apply():await()
 
-    lt.assertEquals('抢答不算数，算的是问出口之后那次', players[2], ask.player)
+    lt.assertEquals('先表态的算数', players[3], ask.player)
+    lt.assertEquals('后面的订阅者没被调', 0, #lt.errors)
 end)
 
 lt.test('询问：答复不在候选里 ⇒ 拒收，原因记在 `.err`', function ()
@@ -72,7 +76,7 @@ lt.test('询问：答复不在候选里 ⇒ 拒收，原因记在 `.err`', funct
 
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(players[3]) -- 候选里只有 2 号位
+        return players[3] -- 候选里只有 2 号位
     end)
 
     local ask = game:askPlayer(players[1], '测试', { players = { players[2] } })
@@ -98,7 +102,7 @@ lt.test('询问：不给条件就不做限制', function ()
 
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(players[3])
+        return players[3]
     end)
 
     local ask = game:askPlayer(players[1], '测试', nil)
@@ -108,21 +112,22 @@ lt.test('询问：不给条件就不做限制', function ()
     lt.assertEquals('不算失败', nil, ask.err)
 end)
 
-lt.test('询问：重复应答不报错，先答的算数', function ()
+lt.test('询问：第一个返回答复的胜出，后面的订阅者不再调', function ()
     local game, players = newGame(3)
 
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(players[2])
-        ask:answer(players[3])
+        return players[2]
+    end)
+    game:on('决策-询问', function ()
+        error('后面的订阅者不该被调', 2)
     end)
     lt.clearErrors()
 
     local ask = game:askPlayer(players[1], '测试', { players = { players[2], players[3] } })
 
     lt.assertEquals('先答的算数', players[2], ask.player)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('后面的订阅者没被调', 0, #lt.errors)
 end)
 
 ---@async
@@ -132,7 +137,7 @@ lt.test('询问：应答方可以让出，稍后再答复', function ()
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
         moe.await.sleep(0)
-        ask:answer(players[3])
+        return players[3]
     end)
 
     lt.assertEquals('答复照旧拿到', players[3],
@@ -147,7 +152,7 @@ lt.test('询问：被问者与父效果挂在询问上', function ()
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
         asked = ask
-        ask:answer(players[2])
+        return players[2]
     end)
 
     game:on('效果-能否生效', function (effect)
@@ -174,7 +179,7 @@ lt.test('询问：被阻止的询问以「没有答复」结束，结算其余�
     end)
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(players[2])
+        return players[2]
     end)
 
     local ask = game:askPlayer(players[1], '测试', { players = { players[2] } })
@@ -198,7 +203,7 @@ lt.test('答复：有答复才触发答复时机，上下文是这次询问', fu
 
     game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(players[2])
+        return players[2]
     end)
     local answered = game:askPlayer(players[1], '测试', { players = { players[2] } })
     lt.assertEquals('有人应答触发了一次', 1, #seen)

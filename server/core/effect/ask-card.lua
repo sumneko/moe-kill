@@ -1,7 +1,13 @@
 --- 一次答复：给出哪张牌（要一次使用时再带上目标）；单张或一张列表都行，入库前统一成列表
+--- 由应答方从 `'卡牌-询问'` 里**返回**（返回空 = 不表态，问下一位）；答复不合法由内核拒收
 ---@class AskCard.Answer
 ---@field card? Card|Card[] # 给出的牌（答不上就是不给）
 ---@field targets? Player|Player[] # 目标：只有 `AskUseCard` 接受（`AskCard` 给了会被拒收）
+
+--- 归一化之后存进结果里的形状
+---@class AskCard.Result
+---@field cards Card[] # 答复给出的牌（没答就是空表）
+---@field targets? Player[] # 答复指定的目标（`AskUseCard` 用；别的类没有）
 
 --- 一个合法选项：可以给出的一张牌
 ---@class AskCard.Option
@@ -37,7 +43,6 @@
 ---@field reason string # 这次为什么问
 ---@field condition? AskCard.NormalizedCondition # 要什么样的牌（构造时归一化）
 ---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
----@field asked boolean # 问题已经交出去了（没问出口之前不收答复）
 ---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
 ---@field cards Card[] # 答复给出的牌（没答就是空表）
 local M = Class 'AskCard'
@@ -105,7 +110,6 @@ function M:__init(game, to, reason, condition)
     self.to        = to
     self.reason    = reason
     self.condition = normalizeCondition(game, to, condition)
-    self.asked     = false
 end
 
 
@@ -172,6 +176,9 @@ end
 ---@param value AskCard.Answer
 ---@return any # 通过就是空
 function M:checkAnswer(value)
+    if type(value) ~= 'table' then
+        return '答复必须是一张表（`{ card = ... }`）'
+    end
     local cards = moe.util.toList(value.card)
     local min   = self.condition?.min or 1
     local max   = self.condition?.max or 1
@@ -211,31 +218,16 @@ function M:checkAnswer(value)
     return self:checkOption(assert(matched), value)
 end
 
---- 应答这次询问：给出的答复当场成为这次询问的结果（读 `.result`）
----@param value AskCard.Answer? # 答不上就给 nil（等同没答）
-function M:answer(value)
-    if value == nil then
-        return
-    end
-    if not self.asked then
-        log.info('这次询问还没问出口，这条答复不收')
-        return
-    end
-    if self.task.resolved then
-        log.info('这次询问已经答过了，先给出的算数')
-        return
-    end
-    local problem = self:checkAnswer(value)
-    if problem then
-        self.task:reject(problem)
-        return
-    end
+--- 答复入库前统一成 `{ cards = 列表, targets = 列表? }` 的形状（单张或一列都收）
+---@param value AskCard.Answer
+---@return AskCard.Result
+function M:normalizeAnswer(value)
     ---@type Player[]?
     local targets = nil
     if value.targets ~= nil then
         targets = moe.util.toList(value.targets)
     end
-    self.task:resolve {
+    return {
         cards   = moe.util.toList(value.card),
         targets = targets,
     }
@@ -265,15 +257,35 @@ end
 function M:beforeAsk()
 end
 
+--- 取值：先开替代窗口，没人替代就问应答方（**第一个给出答复的胜出，后面的订阅者不再调**）
+---@async
+---@return boolean # 有没有拿到答复（答复不合法时也已经拒收）
+function M:collectAnswer()
+    self:beforeAsk()
+    if self.task.resolved then
+        return true
+    end
+
+    local answer = self.game:fire('卡牌-询问', self)
+    if answer == nil then
+        return false
+    end
+
+    local problem = self:checkAnswer(answer)
+    if problem then
+        self.task:reject(problem)
+        return false
+    end
+    self.task:resolve(self:normalizeAnswer(answer))
+    return true
+end
+
 --- 把询问交给应答方（选项先摆好；答复一到，结果就定下了）
 ---@async
 function M:settle()
     self.options = self:collectOptions()
-    self.asked   = true
-    self:beforeAsk()
-    self.game:fire('卡牌-询问', self)
 
-    if not self.result then
+    if not self:collectAnswer() then
         return
     end
 

@@ -69,7 +69,7 @@ end)
     game:on('决策-询问', function (ask)
         -- 让出一次：流程此刻正挂在这条询问上
         moe.await.sleep(0)
-        ask:answer('继续')
+        return '继续'
     end)
 
     local task = game:runFlow()

@@ -316,7 +316,7 @@ Card '探针杀'
 
     game:on('卡牌-询问', function (ask)
         if ask.kind == 'askUseCard' then
-            ask:answer { card = card, targets = { target } }
+            return { card = card, targets = { target } }
         end
     end)
 

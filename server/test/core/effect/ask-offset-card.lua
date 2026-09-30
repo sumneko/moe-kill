@@ -41,7 +41,7 @@ lt.test('抵消：打出 = 抵消成立，读 .success', function ()
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     local ask = game:askOffsetCard(players[2], '测试', { name = '闪' })
@@ -71,7 +71,7 @@ lt.test('抵消：订阅者在回调里 cancel = 驳回这次抵消（调用后�
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
     local seen = false
     local after = false
@@ -95,7 +95,7 @@ lt.test('抵消：两段时机（全局 → 来源）', function ()
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     ---@type string[]
@@ -126,7 +126,7 @@ lt.test('抵消：全局段驳回 ⇒ 来源段不再被问', function ()
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     ---@type string[]
@@ -160,7 +160,7 @@ lt.test('抵消：答复不在候选里 = 拒收（复用既有口径）', funct
     putInHand(players[2], { held })
     local other = game:createCard('闪')
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = other }
+        return { card = other }
     end)
 
     local ask = game:askOffsetCard(players[2], '测试', { name = '闪' })

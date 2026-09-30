@@ -69,7 +69,7 @@ lt.test('要对牌使用：候选逐张跑校验，选项带上目标牌', funct
     local target = game:createCard('没声明牌')
 
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = usable }
+        return { card = usable }
     end)
 
     local ask     = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
@@ -88,7 +88,7 @@ lt.test('要对牌使用：答复多给目标会被拒收', function ()
     local target = game:createCard('没声明牌')
 
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = usable, targets = { players[2] } }
+        return { card = usable, targets = { players[2] } }
     end)
 
     local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
@@ -104,7 +104,7 @@ lt.test('要对牌使用：答复不在选项里 ⇒ 拒收，牌不动', functi
     local target = game:createCard('没声明牌')
 
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = other }
+        return { card = other }
     end)
 
     local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
@@ -119,7 +119,7 @@ lt.test('要对牌使用：没人应答 ⇒ 不存在，不算失败', function 
     local target = game:createCard('没声明牌')
 
     game:on('卡牌-询问', function (ask)
-        ask:answer(nil)
+        return nil
     end)
 
     local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
@@ -137,7 +137,7 @@ lt.test('要对牌使用：缘由与被问者原样带到应答方', function ()
     local seen = nil
     game:on('卡牌-询问', function (ask)
         seen = ask
-        ask:answer { card = usable }
+        return { card = usable }
     end)
 
     local ask = game:askUseCardToCard(players[2], '没声明牌', { name = '抵消牌', target = target })
@@ -153,7 +153,7 @@ lt.test('要对牌使用：答复到手就自动用出去，那次使用记在�
     putInHand(players[1], { usable })
     local target = game:createCard('没声明牌')
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = usable }
+        return { card = usable }
     end)
 
     local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })

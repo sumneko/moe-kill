@@ -106,7 +106,7 @@ lt.test('南蛮入侵：所有其他角色各挨一次，打出杀的就不受�
 
     run.game:on('卡牌-询问', function (ask)
         if ask.to == run.players[2] then
-            ask:answer { card = slash }
+            return { card = slash }
         end
     end)
 
@@ -126,7 +126,7 @@ lt.test('万箭齐发：所有其他角色各挨一次，打出闪的就不受�
 
     run.game:on('卡牌-询问', function (ask)
         if ask.to == run.players[3] then
-            ask:answer { card = jink }
+            return { card = jink }
         end
     end)
 
@@ -202,7 +202,7 @@ lt.test('决斗：由目标先打出杀，先不出的挨 1 点', function ()
         asked[#asked + 1] = to
         local cards = script[to]
         if cards and #cards > 0 then
-            ask:answer { card = table.remove(cards, 1) }
+            return { card = table.remove(cards, 1) }
         end
     end)
 
@@ -251,7 +251,7 @@ lt.test('五谷丰登：亮出等同于目标数的牌，每人拿一张，剩�
     run.game:on('卡牌-询问', function (ask)
         local answer = support.pickFirst(ask)
         if answer then
-            ask:answer(answer)
+            return answer
         end
     end)
 
@@ -273,7 +273,7 @@ lt.test('五谷丰登：没人答的那一轮拿不到牌，剩下的进弃牌',
         if ask.to == user then
             local answer = support.pickFirst(ask)
             if answer then
-                ask:answer(answer)
+                return answer
             end
         end
     end)
@@ -300,7 +300,7 @@ lt.test('五谷丰登：从顺序锚点起依次选牌', function ()
         asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
         local answer = support.pickFirst(ask)
         if answer then
-            ask:answer(answer)
+            return answer
         end
     end)
 
@@ -325,7 +325,7 @@ lt.test('五谷丰登：起点是顺序锚点，不是使用者', function ()
         asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
         local answer = support.pickFirst(ask)
         if answer then
-            ask:answer(answer)
+            return answer
         end
     end)
 
@@ -350,7 +350,7 @@ lt.test('过河拆桥：目标身上有牌的区都逐张当候选，弃掉挑�
     run.game:on('卡牌-询问', function (ask)
         asked   = ask
         options = assert(ask.options)
-        ask:answer { card = hidden }
+        return { card = hidden }
     end)
 
     run.game:useCard(user, card, { target })
@@ -383,7 +383,7 @@ lt.test('过河拆桥：目标只有手牌时，候选就是那几张手牌', fu
             return
         end
         options = assert(ask.options)
-        ask:answer { card = options[2].card }
+        return { card = options[2].card }
     end)
 
     run.game:useCard(user, card, { target })
@@ -425,11 +425,11 @@ lt.test('借刀杀人：被借刀者用出【杀】，武器留在自己身上',
         ---@cast ask AskPlayer
         asked      = ask.to
         candidates = ask.options
-        ask:answer(victim)
+        return victim
     end)
     run.game:on('卡牌-询问', function (ask)
         if ask.reason == '借刀杀人' then
-            ask:answer { card = slash, targets = { victim } }
+            return { card = slash, targets = { victim } }
         end
     end)
 
@@ -456,7 +456,7 @@ lt.test('借刀杀人：被借刀者手上没【杀】⇒ 武器交给使用者'
 
     run.game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(victim)
+        return victim
     end)
 
     run.game:useCard(user, card, { holder })
@@ -482,7 +482,7 @@ lt.test('借刀杀人：这阶段已经用过【杀】⇒ 也用不出来，武�
 
     run.game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(victim)
+        return victim
     end)
 
     run.game:useCard(user, card, { holder })
@@ -524,7 +524,7 @@ lt.test('借刀杀人：使用者没指定角色（答复不在候选里）⇒ �
 
     run.game:on('决策-询问', function (ask)
         ---@cast ask AskPlayer
-        ask:answer(out)   -- 距离 2，不在他攻击范围内
+        return out   -- 距离 2，不在他攻击范围内
     end)
 
     run.game:useCard(user, card, { holder })
@@ -560,7 +560,7 @@ lt.test('顺手牵羊：挑中目标哪张，就把哪张拿进自己的手牌',
     local options = {}
     run.game:on('卡牌-询问', function (ask)
         options = assert(ask.options)
-        ask:answer { card = weapon }
+        return { card = weapon }
     end)
 
     run.game:useCard(user, card, { target })
@@ -585,7 +585,7 @@ lt.test('顺手牵羊：手牌也在候选里，挑中就直接拿走', function
         end
         local option = assert(assert(ask.options)[1])
         lt.assertEquals('候选带的是牌（不是区）', true, option.card ~= nil)
-        ask:answer { card = option.card }
+        return { card = option.card }
     end)
 
     run.game:useCard(user, card, { target })
@@ -645,7 +645,7 @@ lt.test('无懈可击：有人用它 ⇒ 那张锦囊对这个目标不生效', 
         end
         if ask.to == run.players[2] then
             answered = true
-            ask:answer { card = nullify }
+            return { card = nullify }
         end
     end)
 
@@ -676,7 +676,7 @@ lt.test('无懈可击：它自己也能被抵消 ⇒ 原锦囊照常生效', fun
         local to = assert(ask.to)
         if hand[to] and not done[to] then
             done[to] = true
-            ask:answer { card = hand[to] }
+            return { card = hand[to] }
         end
     end)
 
@@ -716,8 +716,7 @@ lt.test('无懈可击：那张无懈自己又被抵消 ⇒ 这一圈没走完，
         for _, step in ipairs(script) do
             if not step.used and step.player == ask.to and step.target == condition.target then
                 step.used = true
-                ask:answer { card = step.card }
-                return
+                return { card = step.card }
             end
         end
     end)
@@ -749,7 +748,7 @@ lt.test('无懈可击：多目标锦囊可以对某一个目标单独抵消', fu
         local pending = pendingEffect(ask)
         if ask.to == run.players[3] and pending and pending.target == run.players[2] then
             answered = true
-            ask:answer { card = nullify }
+            return { card = nullify }
         end
     end)
 
@@ -813,7 +812,7 @@ lt.test('无懈可击：答复的牌不在选项里 ⇒ 按没用处理，锦囊
         end
         if ask.to == target then
             answered = true
-            ask:answer { card = other }   -- 手里没无懈可击，给一张别的
+            return { card = other }   -- 手里没无懈可击，给一张别的
         end
     end)
 

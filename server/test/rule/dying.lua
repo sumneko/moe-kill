@@ -53,7 +53,7 @@ lt.test('濒死：自己给一张桃就能活下来', function ()
 
     run.game:on('卡牌-询问', function (ask)
         if ask.to == target then
-            ask:answer { card = peach, targets = { target } }
+            return { card = peach, targets = { target } }
         end
     end)
 
@@ -78,7 +78,7 @@ lt.test('濒死：从当前回合角色开始按行动顺序问，下家的桃�
     run.game:on('卡牌-询问', function (ask)
         asked[#asked + 1] = assert(ask.to)
         if ask.to == helper then
-            ask:answer { card = peach, targets = { target } }
+            return { card = peach, targets = { target } }
         end
     end)
 
@@ -146,7 +146,7 @@ lt.test('濒死：差 2 点时同一个人可以连给两张', function ()
     run.game:on('卡牌-询问', function (ask)
         asked[#asked + 1] = assert(ask.to)
         if ask.to == target and #remaining > 0 then
-            ask:answer { card = table.remove(remaining, 1), targets = { target } }
+            return { card = table.remove(remaining, 1), targets = { target } }
         end
     end)
 
@@ -201,7 +201,7 @@ lt.test('濒死：被救活 ⇒ 当场脱离，账清掉', function ()
     run.game:on('卡牌-询问', function (ask)
         seen = target.dying                                  -- 求桃那一刻他正在濒死中
         if ask.to == target then
-            ask:answer { card = peach, targets = { target } }
+            return { card = peach, targets = { target } }
         end
     end)
 

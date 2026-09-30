@@ -38,7 +38,7 @@ lt.test('决策询问：一次往返', function ()
     game:on('决策-询问', function (ask)
         ---@cast ask Ask
         asked = ask
-        ask:answer { card = card, targets = {} }
+        return { card = card, targets = {} }
     end)
 
     local ask = game:ask(players[1], '出牌', { hand = { card } })
@@ -52,7 +52,7 @@ lt.test('决策询问：一次往返', function ()
     lt.assertEquals('答复成为结果', card, ask.reply.card)
 end)
 
-lt.test('决策询问：结算之外的乱序答复不收（反向）', function ()
+lt.test('决策询问：第一个表态的胜出，后面的订阅者不再调', function ()
     local game, players = newGame(1)
     local ask = moe.ask.create {
         game     = game,
@@ -61,15 +61,19 @@ lt.test('决策询问：结算之外的乱序答复不收（反向）', function
         question = {},
     }
 
-    ask:answer('抢答')
     game:on('决策-询问', function (payload)
         ---@cast payload Ask
-        payload:answer('正经答复')
+        return '正经答复'
     end)
+    game:on('决策-询问', function ()
+        error('后面的订阅者不该被调', 2)
+    end)
+    lt.clearErrors()
 
     ask:apply():await()
 
-    lt.assertEquals('抢答不算数，算的是问出口之后那次', '正经答复', ask.reply)
+    lt.assertEquals('先表态的算数', '正经答复', ask.reply)
+    lt.assertEquals('后面的订阅者没被调', 0, #lt.errors)
 end)
 
 lt.test('决策询问：没人应答不算失败', function ()
@@ -94,23 +98,27 @@ lt.test('决策询问：有答复才触发「决策-答复」', function ()
     lt.assertEquals('没答上时不触发', 0, fired)
 
     game:on('决策-询问', function (ask)
-        ask:answer('出牌')
+        return '出牌'
     end)
     local ask = game:ask(players[1], '出牌', {})
     lt.assertEquals('有答复就触发一次', 1, fired)
     lt.assertEquals('答复挂在询问上', '出牌', ask.reply)
 end)
 
-lt.test('决策询问：重复应答先给出的算数', function ()
+lt.test('决策询问：第一个返回答复的胜出，后面的订阅者不再调', function ()
     local game, players = newGame(2)
 
     game:on('决策-询问', function (ask)
-        ask:answer('第一次')
-        ask:answer('第二次')
+        return '第一次'
     end)
+    game:on('决策-询问', function ()
+        error('后面的订阅者不该被调', 2)
+    end)
+    lt.clearErrors()
 
     local ask = game:ask(players[1], '出牌', {})
     lt.assertEquals('结果仍是第一次给的', '第一次', ask.reply)
+    lt.assertEquals('后面的订阅者没被调', 0, #lt.errors)
 end)
 
 lt.test('决策询问：自己不动任何状态', function ()
@@ -121,7 +129,7 @@ lt.test('决策询问：自己不动任何状态', function ()
 
     game:on('决策-询问', function (ask)
         ---@cast ask Ask
-        ask:answer { cards = { card } }
+        return { cards = { card } }
     end)
 
     local ask = game:ask(players[1], '弃牌', {})

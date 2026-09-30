@@ -42,7 +42,7 @@ lt.test('打出：答复的牌当场交出来，进发起那次结算的临时�
     local jink = game:createCard('闪')
     hand:accept(jink)
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     ---@type AskPlayCard?
@@ -76,7 +76,7 @@ lt.test('打出：没有父结算时不动那张牌（交给内容侧）', funct
     local jink = game:createCard('闪')
     hand:accept(jink)
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
@@ -93,7 +93,7 @@ lt.test('打出：候选按条件筛，答复多给目标会被拒收', function
     hand:accept(jink)
     hand:accept(slash)
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink, targets = { players[2] } }
+        return { card = jink, targets = { players[2] } }
     end)
 
     local ask = game:askPlayCard(players[1], '测试', { name = '闪' })
@@ -110,7 +110,7 @@ lt.test('打出：答复的牌不在候选里就拒收', function ()
     local other = game:createCard('闪')
     hand:accept(jink)
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = other }
+        return { card = other }
     end)
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
@@ -141,7 +141,7 @@ lt.test('打出：替代窗口 —— 返回一张牌就顶替这次打出', fun
     lt.assertEquals('替代牌没有实体牌、不进牌区', nil, virtual:getZone())
 end)
 
-lt.test('打出：替代成立时「卡牌-询问」照发，后到的答复不算', function ()
+lt.test('打出：替代成立时不再问应答方', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
@@ -149,13 +149,16 @@ lt.test('打出：替代成立时「卡牌-询问」照发，后到的答复不�
     players[2]:on('打出-装备替代', function ()
         return virtual
     end)
-    game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+    ---@type integer
+    local asked = 0
+    game:on('卡牌-询问', function ()
+        asked = asked + 1
     end)
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
 
-    lt.assertEquals('先给出的（替代）算数', virtual, ask.card)
+    lt.assertEquals('替代的算数', virtual, ask.card)
+    lt.assertEquals('不再问应答方', 0, asked)
     lt.assertEquals('实体牌还在手上', 1, assert(players[2]:getZone('手牌')):count())
 end)
 
@@ -173,7 +176,7 @@ lt.test('打出：替代窗口只问被问者，没人替代就照常要实体�
         others = others + 1
     end)
     game:on('卡牌-询问', function (ask)
-        ask:answer { card = jink }
+        return { card = jink }
     end)
 
     local ask = game:askPlayCard(players[2], '测试', { name = '闪' })

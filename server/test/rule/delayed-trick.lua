@@ -142,7 +142,7 @@ local function nullifyAtJudge(run, answerer, wuxie, target)
         ---@cast parent CardEffect
         if parent.card == target then
             moe.await.sleep(0)
-            ask:answer { card = wuxie }
+            return { card = wuxie }
         end
     end)
 end
