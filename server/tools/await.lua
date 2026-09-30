@@ -107,6 +107,44 @@ function API.waitAll(callbacks)
     return results
 end
 
+---当前协程并发跑多个异步函数，返回**最先结束的那一路**（报错也算结束；其余各跑各的，这里**不管**它们 —— 要连取消一起做用 `moe.task.race`，要「第一个成功」的用 `moe.task.any`）
+---@async
+---@param callbacks (async fun(): any)[] # 若干路（各自的返回值就是它这一路的结果）
+---@return integer # 先结束的那条路的编号
+---@return [boolean, ...][]
+function API.race(callbacks)
+    local cur = coroutine.running()
+    local count = #callbacks
+    ---@type thread[]
+    local cos = {}
+    ---@type integer?
+    local winner = nil
+    local results = {}
+
+    for i = 1, count do
+        local callback = callbacks[i]
+        local co = coroutine.create(function ()
+            results[i] = { xpcall(callback, errorHandler) }
+            if winner == nil then
+                winner = i
+                if coroutine.status(cur) == 'suspended' then
+                    presume(cur)
+                end
+            end
+        end)
+        cos[i] = co
+    end
+    for i = 1, count do
+        local co = cos[i]
+        presume(co)
+    end
+    if not winner then
+        coroutine.yield()
+    end
+    ---@cast winner -?
+    return winner, results
+end
+
 --把一笔回调登记到下一个调度（不让当前协程让出）
 ---@param callback fun()
 function API.wake(callback)

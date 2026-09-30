@@ -156,11 +156,14 @@ local caseTotal = 0
 local stopResults = {}
 local stuckAt
 
--- 墙钟看门狗：它同时是事件循环等待时长的上限（循环只会等到「下一个定时任务」）
-local watchdog = moe.timer.wait(timeLimit, function ()
-    stuckAt = lt.currentName or '（还没有用例在跑）'
-    moe.eventLoop.stop()
-end)
+--- 把虚拟时钟推进 seconds 秒（测试里时间**冻结** —— 不显式推进，定时任务永远不会到点）
+---@param seconds number
+function test.advance(seconds)
+    moe.timer.update(moe.timer.clock() + seconds * 1000)
+end
+
+-- 看门狗走真墙钟（虚拟时钟下定时器不会自己到点，不能用 timer.wait）
+local startWallClock = os.clock()
 
 ---@async
 moe.await.call(function ()
@@ -185,6 +188,10 @@ end)
 
 moe.eventLoop.addTask(function ()
     test.loopTicks = test.loopTicks + 1
+    if not stuckAt and not bodyDone and os.clock() - startWallClock > timeLimit then
+        stuckAt = lt.currentName or '（还没有用例在跑）'
+        moe.eventLoop.stop()
+    end
     if bodyDone and not stopResults[1] then
         stopResults[1] = moe.eventLoop.stop()
         stopResults[2] = moe.eventLoop.stop()
@@ -198,8 +205,6 @@ if stuckAt then
         name    = '看门狗',
         message = '{} 秒还没跑完，卡在「{}」' % { timeLimit, stuckAt },
     }
-else
-    watchdog:remove()
 end
 
 if not stuckAt and not bodyDone then

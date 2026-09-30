@@ -26,5 +26,12 @@ print = log.debug
 
 moe.server.start()
 
+-- 时钟由这里驱动：timer 不认识真实时间，每轮循环把「当前真实毫秒」告诉它
+local beeTime = require 'bee.time'
+local startMS = beeTime.monotonic()
+moe.eventLoop.addHighTask(function ()
+    moe.timer.update(beeTime.monotonic() - startMS)
+end)
+
 log.info('enter service mode')
 moe.eventLoop.start(moe.eventLoopOptions(), log.error)

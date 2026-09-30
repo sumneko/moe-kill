@@ -15,13 +15,12 @@ lt.test('协程可挂起并由定时器恢复', function ()
         resumed = true
     end)
 
-    local waited = 0
-    while not resumed and waited < 1000 do
-        moe.await.sleep(0.001)
-        waited = waited + 1
-    end
+    moe.await.sleep(0)
+    lt.assertEquals('时钟不动：定时器不到点，没恢复', false, resumed)
 
-    lt.assertEquals('协程已恢复', true, resumed)
+    test.advance(0.001)
+    moe.await.sleep(0)
+    lt.assertEquals('推到点：恢复了', true, resumed)
     lt.assertEquals('第一个返回值', 'value', first)
     lt.assertEquals('第二个返回值', 42, second)
 end)
@@ -37,14 +36,13 @@ lt.test('协程可按时长休眠', function ()
         finished = true
     end)
 
-    local waited = 0
-    while not finished and waited < 2000 do
-        moe.await.sleep(0.001)
-        waited = waited + 1
-    end
+    moe.await.sleep(0)
+    lt.assertEquals('时钟不动：还睡着', false, finished)
 
-    lt.assertEquals('休眠后继续执行', true, finished)
-    lt.assertNotEquals('时间已推进', started, moe.timer.clock())
+    test.advance(0.01)
+    moe.await.sleep(0)
+    lt.assertEquals('推到点：醒过来了', true, finished)
+    lt.assertNotEquals('时钟前进了', started, moe.timer.clock())
 end)
 
 ---@async
@@ -61,11 +59,7 @@ lt.test('协程内未捕获错误进入统一错误处理器', function ()
         error('smoke-await-error')
     end)
 
-    local waited = 0
-    while not captured and waited < 1000 do
-        moe.await.sleep(0.001)
-        waited = waited + 1
-    end
+    moe.await.sleep(0)
 
     moe.await.setErrorHandler(function (traceback)
         log.error(traceback)

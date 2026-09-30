@@ -1,5 +1,3 @@
-local beeTime = require 'bee.time'
-
 ---@class Timer
 ---@field package id integer
 ---@field private count integer
@@ -265,13 +263,9 @@ end
 ---@type Timer[]
 local desk = {}
 
-local startMS = beeTime.monotonic()
-local fixMS = 0
-function M.update(deltaMS)
-    if deltaMS then
-        fixMS = fixMS + deltaMS
-    end
-    local targetMS = beeTime.monotonic() - startMS + fixMS
+--- 把时钟推到 targetMS（毫秒），并把经过的这段时间里到期的定时任务都叫醒
+---@param targetMS number
+function M.update(targetMS)
     for ti = curMS, targetMS do
         local queue = timerQueues[ti]
         if queue then

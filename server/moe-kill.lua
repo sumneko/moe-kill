@@ -141,8 +141,6 @@ moe.eventLoop.addHighTask(function ()
     moe.loopWaiter.poll()
 end)
 
-moe.eventLoop.addHighTask(moe.timer.update)
-
 ---@return EventLoop.Options
 function moe.eventLoopOptions()
     return {

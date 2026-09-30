@@ -7,7 +7,6 @@ lt.test('日志目录与日志文件已建立', function ()
 end)
 
 lt.test('日志落盘并包含启动日志与本次标记', function ()
-    moe.timer.update()
     local marker = 'MOE-KILL-SMOKE-{}' % { os.time() }
     log.info(marker)
     local content = moe.fsu.loadFile(moe.env.LOG_FILE:string()) or ''
@@ -17,7 +16,6 @@ end)
 
 lt.test('错误日志写入日志文件', function ()
     lt.expectErrors(1)
-    moe.timer.update()
     local marker = 'MOE-KILL-SMOKE-ERROR-{}' % { os.time() }
     log.error(marker)
     local content = moe.fsu.loadFile(moe.env.LOG_FILE:string()) or ''

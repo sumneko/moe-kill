@@ -543,15 +543,17 @@ lt.test('效果：自动失败交给任务的错误处理器，阻止不交', fu
 end)
 
 ---@async
+---@async
 lt.test('任务：到点没结完以超时失败', function ()
     local task = moe.task.create()
     task:setTimeout(0.01)
     lt.clearErrors()
 
-    local result, err = task:await()
+    test.advance(0.01)
+    moe.await.sleep(0)
 
-    lt.assertEquals('没有结果', nil, result)
-    lt.assertEquals('失败原因是超时', 'timeout', err)
+    lt.assertEquals('没有结果', nil, task.result)
+    lt.assertEquals('失败原因是超时', 'timeout', task.err)
     lt.assertEquals('超时不算报错，不交给处理器', 0, #lt.errors)
 end)
 

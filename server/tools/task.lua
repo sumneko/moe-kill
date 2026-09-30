@@ -213,6 +213,82 @@ function M:await()
     end)
 end
 
+--- 一次 race 的赢家
+---@class Task.RaceWinner
+---@field win integer # 赢家编号
+---@field task Task
+
+--- 并发跑多路，**谁先结完算谁赢、其余当场取消**（取消会连带收掉挂在它们下面的结算）
+---@async
+---@param branches (fun(task: Task): any)[] # 各路（各自同步风格地写；要用自己的 task 就收参数）
+---@return Task.RaceWinner # 赢家（一路都没结完 = nil）
+function API.race(branches)
+    local count = #branches
+    ---@type Task[]
+    local tasks = {}
+
+    for i = 1, count do
+        tasks[i] = API.create():executeAsync(branches[i])
+    end
+
+    local win = moe.await.race(moe.util.map(tasks, function (task)
+        return function () task:await() end
+    end))
+
+    for i = 1, count do
+        if i ~= win then
+            tasks[i]:cancel()
+        end
+    end
+
+    local winner = {
+        win = win,
+        task = tasks[win],
+    }
+
+    return winner
+end
+
+---@param branches (fun(task: Task): any)[] # 各路（各自同步风格地写；要用自己的 task 就收参数）
+---@return Task.RaceWinner? # 赢家（一路都没结完 = nil）
+function API.any(branches)
+    local count = #branches
+    ---@type Task[]
+    local tasks = {}
+
+    local win = moe.await.yield(function (resume)
+        local alive = count
+        for i = 1, count do
+            tasks[i] = API.create()
+                : onResolved(function ()
+                    resume(i)
+                end)
+                : onRejected(function ()
+                    alive = alive - 1
+                    if alive == 0 then
+                        resume(nil)
+                    end
+                end)
+                : executeAsync(branches[i])
+        end
+    end)
+
+    if not win then
+        return nil
+    end
+
+    for i = 1, count do
+        if i ~= win then
+            tasks[i]:cancel()
+        end
+    end
+
+    return {
+        win = win,
+        task = tasks[win],
+    }
+end
+
 --- 设置全局错误处理器（自动失败前先调它）
 ---@param handler? fun(err: any): any
 function API.setErrorHandler(handler)
