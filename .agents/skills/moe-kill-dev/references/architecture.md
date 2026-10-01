@@ -121,10 +121,11 @@ sequenceDiagram
 
 | 动作 | 说明 |
 | ---- | ---- |
-| `session:getPendingRequest()` | 读当前待处理事项（没有时返回 `nil`），形状 `{ kind, payload? }` |
-| `session:submit(...)` | 提交结果，支持多个值；没有等待中的请求时报错 |
-| `session:cancelRequest(reason?)` | 取消等待中的请求，挂起方收到取消错误 |
+| `session:getPendingRequests()` | 读当前**所有**在等的请求（快照，按登记顺序），形状 `{ kind, payload? }` |
+| `session:submit(request, ...)` | 答复其中一条（把名单里拿到的那条给它），支持多个值；这条不在名单里时报错 |
+| `session:cancelRequest(request, reason?)` | 取消其中一条，挂起方收到取消错误 |
 
+- **可以有很多条请求同时在等**（互不干扰、各自带各自的超时）：`requestInput` 不再独占会话。会话结束 / 中止 / 销毁时，所有挂起方一起被叫醒。
 - 事件的形状同为 `{ kind, payload? }`，`session:getEvents()` 返回只读快照（后续发出的事件不会影响已取得的快照）。
 - `requestInput` 的第三个参数是超时（秒），超时会以错误交回发起方，不静默卡住。
 

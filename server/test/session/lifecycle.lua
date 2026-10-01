@@ -8,6 +8,13 @@ function IdleHandler:run(session)
     session:finish()
 end
 
+-- 只为触发「阶段不对」：不会被真的用上
+---@type Server.Request
+local dummyRequest = {
+    kind   = '输入',
+    resume = function () end,
+}
+
 lt.test('服务器可重复启停并交回控制权', function ()
     lt.assertEquals('初始未启动', false, moe.server.isStarted())
     lt.assertEquals('首次启动生效', true, moe.server.start())
@@ -41,7 +48,7 @@ lt.test('非法阶段迁移被拒绝', function ()
     local session = moe.server.createSession(New 'Test.Server.IdleHandler' ())
 
     lt.assertError('未开始时提交输入', function ()
-        session:submit('输入')
+        session:submit(dummyRequest)
     end)
     lt.assertError('未开始时结束', function ()
         session:finish()
@@ -61,7 +68,7 @@ lt.test('非法阶段迁移被拒绝', function ()
         session:start()
     end)
     lt.assertError('已销毁会话无法提交', function ()
-        session:submit('输入')
+        session:submit(dummyRequest)
     end)
     lt.assertError('已销毁会话无法发出事件', function ()
         session:emit('事件')

@@ -4,22 +4,19 @@
 ---@field run async fun(self: Server.Handler, session: Server.Session)
 
 ---@class Server.Request
----@field kind string
----@field payload? table
+---@field kind string # 类型标识（驱动者据此决定怎么问）
+---@field payload? table # 随请求带走的信息
+---@field resume fun(ok: boolean, ...) # 内部用：挂起方（有答复 / 被取消 / 超时的时候叫醒它）
+---@field timer? Timer # 内部用：这次请求的超时定时器
 
 ---@class Server.Event
 ---@field kind string
 ---@field payload? table
 
----@class Server.Waiter
----@field resume fun(ok: boolean, ...)
----@field timer? Timer
-
 ---@class Server.Session
 ---@field private reason? string
 ---@field private events Server.Event[]
----@field private pendingRequest? Server.Request
----@field private waiter? Server.Waiter
+---@field private pendingRequests Server.Request[] # 同时在等的请求（互不干扰，可以有好几条）
 local Session = Class 'Server.Session'
 
 ---@type table<string, Server.Phase>
@@ -41,6 +38,17 @@ local function unregister(session)
     end
 end
 
+---@param requests Server.Request[]
+---@param request Server.Request
+---@return integer? # 它排在第几条
+local function findRequest(requests, request)
+    for i = 1, #requests do
+        if requests[i] == request then
+            return i
+        end
+    end
+end
+
 ---@private
 ---@param action string
 ---@param ... Server.Phase
@@ -57,23 +65,37 @@ function Session:checkPhase(action, ...)
     error('会话当前阶段为 {}，无法{}' % { self.phase, action }, 3)
 end
 
+--- 定下一条请求：从等候名单摘掉、停掉它的超时、叫醒挂起方
+---@private
+---@param request Server.Request
+---@param ok boolean
+---@param ... any
+---@return boolean # 它是否确实还在等
+function Session:settle(request, ok, ...)
+    local index = findRequest(self.pendingRequests, request)
+    if not index then
+        return false
+    end
+    table.remove(self.pendingRequests, index)
+    local timer = request.timer
+    if timer then
+        timer:remove()
+        request.timer = nil
+    end
+    request.resume(ok, ...)
+    return true
+end
+
+--- 叫醒所有挂起方（会话结束 / 中止 / 销毁的时候）
 ---@private
 ---@param ok boolean
 ---@param ... any
----@return boolean
 function Session:wake(ok, ...)
-    local waiter = self.waiter
-    if not waiter then
-        return false
+    ---@type Server.Request[]
+    local requests = table.move(self.pendingRequests, 1, #self.pendingRequests, 1, {})
+    for _, request in ipairs(requests) do
+        self:settle(request, ok, ...)
     end
-    self.pendingRequest = nil
-    self.waiter = nil
-    if waiter.timer then
-        waiter.timer:remove()
-        waiter.timer = nil
-    end
-    waiter.resume(ok, ...)
-    return true
 end
 
 ---@param handler Server.Handler
@@ -81,6 +103,7 @@ function Session:__init(handler)
     self.handler = handler
     self.phase   = Phase.PENDING
     self.events  = {}
+    self.pendingRequests = {}
 end
 
 ---@return Server.Phase
@@ -114,9 +137,7 @@ end
 function Session:finish()
     self:checkPhase('结束', Phase.RUNNING)
     self.phase = Phase.FINISHED
-    if self.waiter then
-        self:wake(false, '会话已结束')
-    end
+    self:wake(false, '会话已结束')
 end
 
 ---@param reason? string
@@ -124,9 +145,7 @@ function Session:abort(reason)
     self:checkPhase('中止', Phase.PENDING, Phase.RUNNING)
     self.phase  = Phase.ABORTED
     self.reason = reason
-    if self.waiter then
-        self:wake(false, reason or '会话已中止')
-    end
+    self:wake(false, reason or '会话已中止')
 end
 
 ---@return boolean
@@ -136,9 +155,7 @@ function Session:destroy()
     end
     self.phase = Phase.DESTROYED
     unregister(self)
-    if self.waiter then
-        self:wake(false, '会话已销毁')
-    end
+    self:wake(false, '会话已销毁')
     return true
 end
 
@@ -152,25 +169,22 @@ function Session:requestInput(kind, payload, timeout)
     if type(kind) ~= 'string' or kind == '' then
         error('决策请求的类型标识必须是非空字符串', 2)
     end
-    if self.pendingRequest then
-        error('已存在等待中的决策请求', 2)
-    end
     if not coroutine.isyieldable() then
         error('决策请求必须在会话协程内发起', 2)
     end
-    self.pendingRequest = {
-        kind    = kind,
-        payload = payload,
-    }
+
+    ---@type Server.Request
+    local request
     local settled = table.pack(moe.await.yield(function (resume)
-        ---@type Server.Waiter
-        local waiter = {
-            resume = resume,
+        request = {
+            kind    = kind,
+            payload = payload,
+            resume  = resume,
         }
-        self.waiter = waiter
+        self.pendingRequests[#self.pendingRequests + 1] = request
         if timeout then
-            waiter.timer = moe.timer.wait(timeout, function ()
-                self:wake(false, '决策等待超时')
+            request.timer = moe.timer.wait(timeout, function ()
+                self:settle(request, false, '决策等待超时')
             end)
         end
     end))
@@ -180,27 +194,30 @@ function Session:requestInput(kind, payload, timeout)
     return table.unpack(settled, 2, settled.n)
 end
 
----@return Server.Request?
-function Session:getPendingRequest()
-    return self.pendingRequest
+--- 读当前所有在等的请求（快照）
+---@return Server.Request[]
+function Session:getPendingRequests()
+    ---@type Server.Request[]
+    local snapshot = {}
+    return table.move(self.pendingRequests, 1, #self.pendingRequests, 1, snapshot)
 end
 
+---@param request Server.Request
 ---@param ... any
-function Session:submit(...)
+function Session:submit(request, ...)
     self:checkPhase('提交输入', Phase.RUNNING)
-    if not self.waiter then
-        error('当前没有等待中的决策请求', 2)
+    if not self:settle(request, true, ...) then
+        error('没有这条等待中的决策请求', 2)
     end
-    self:wake(true, ...)
 end
 
+---@param request Server.Request
 ---@param reason? string
-function Session:cancelRequest(reason)
+function Session:cancelRequest(request, reason)
     self:checkPhase('取消决策请求', Phase.RUNNING)
-    if not self.waiter then
-        error('当前没有等待中的决策请求', 2)
+    if not self:settle(request, false, reason or '决策请求已取消') then
+        error('没有这条等待中的决策请求', 2)
     end
-    self:wake(false, reason or '决策请求已取消')
 end
 
 ---@param kind string

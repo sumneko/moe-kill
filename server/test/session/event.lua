@@ -30,7 +30,8 @@ lt.test('事件按发出顺序记录', function ()
     lt.assertEquals('第二个事件', 'round/ready', before[2].kind)
     lt.assertEquals('负载可读', 1, before[1].payload?.round)
 
-    session:submit('打')
+    local request = session:getPendingRequests()[1]
+    session:submit(request, '打')
 
     lt.assertEquals('快照不随后续事件变化', 2, #before)
     local after = session:getEvents()

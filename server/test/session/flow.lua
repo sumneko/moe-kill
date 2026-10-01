@@ -20,10 +20,10 @@ lt.test('无外部客户端可跑通全流程', function ()
     lt.assertEquals('会话已登记', session, moe.server.getSession())
     session:start()
 
-    local pending = session:getPendingRequest()
+    local pending = session:getPendingRequests()[1]
     lt.assertEquals('等待外部输入', 'game/choose', pending?.kind)
 
-    session:submit('a')
+    session:submit(pending, 'a')
     lt.assertEquals('决策交回逻辑侧', 'a', handler.decision)
     lt.assertEquals('会话正常结束', moe.server.Phase.FINISHED, session:getPhase())
 
