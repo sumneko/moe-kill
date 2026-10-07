@@ -9,9 +9,21 @@ local PLAY_PHASE_CONDITION = { zone = '手牌' }
 ---@param player Player
 local function playPhase(player)
     for _ = 1, MAX_PLAY_COUNT do
-        local ask = game:askUseCard(player, '出牌', PLAY_PHASE_CONDITION)
-        if not ask.useCard then
+        local useCard  = game:startAskUseCard(player, '出牌', PLAY_PHASE_CONDITION)
+        local useSkill = game:startAskUseSkill(player, '出牌')
+        -- 谁先给出答复算谁；两路都没答复 = 他自己不想出了，这个阶段就到这
+        local result = game:effectRace({ useCard, useSkill }, function (effect)
+            ---@cast effect AskUseCard|AskUseSkill
+            return effect.card ~= nil or effect.skill ~= nil
+        end)
+
+        if not result then
             return
+        end
+        if result.win == 1 then
+            useCard:use()
+        else
+            useSkill:use()
         end
     end
 end

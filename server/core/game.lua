@@ -833,6 +833,24 @@ function M:askCard(to, reason, condition)
     return ask
 end
 
+--- 起一次「要一张牌并使用」的询问：**只到 apply** —— 不等它、也不替你用出去
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不做限制）
+---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
+---@return AskUseCard # 这次询问（还没结完：等它用 `:await()`，用出去用 `:use()`）
+function M:startAskUseCard(to, reason, condition, useOptions)
+    local ask = moe.askUseCard.create {
+        game       = self,
+        to         = to,
+        reason     = reason,
+        condition  = condition,
+        useOptions = useOptions,
+    }
+    ask:apply()
+    return ask
+end
+
 --- 要一张牌（要一次使用：能用的牌 + 目标）—— 答复到手后**直接把它用出去**（结果读 `ask.useCard`）
 ---@async
 ---@param to Player # 被问者
@@ -841,14 +859,34 @@ end
 ---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 ---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，那次使用读 `.useCard`，失败读 `.err`）
 function M:askUseCard(to, reason, condition, useOptions)
-    local ask = moe.askUseCard.create {
-        game       = self,
-        to         = to,
-        reason     = reason,
-        condition  = condition,
-        useOptions = useOptions,
+    local ask = self:startAskUseCard(to, reason, condition, useOptions)
+    ask:await()
+    ask:use()
+    return ask
+end
+
+--- 起一次「要一个技能发动」的询问：**只到 apply** —— 不等它、也不替你发动出去
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@return AskUseSkill # 这次询问（还没结完：等它用 `:await()`，发动用 `:use()`）
+function M:startAskUseSkill(to, reason)
+    local ask = moe.askUseSkill.create {
+        game   = self,
+        to     = to,
+        reason = reason,
     }
-    ask:apply():await()
+    ask:apply()
+    return ask
+end
+
+--- 要一个技能发动（候选 = 他身上的主动技）—— 答复到手后**直接发动它**（结果读 `ask.cast`）
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@return AskUseSkill # 这次询问（已经结完：答复读 `.skill`，那次发动读 `.cast`，失败读 `.err`）
+function M:askUseSkill(to, reason)
+    local ask = self:startAskUseSkill(to, reason)
+    ask:await()
     ask:use()
     return ask
 end
@@ -954,6 +992,54 @@ function M:askChoice(to, reason, options)
     }
     ask:apply():await()
     return ask
+end
+
+--- 一次「几路取先」的赢家
+---@class Game.AnyWinner
+---@field win integer # 赢家编号
+---@field effect Effect # 赢家那一路
+
+--- 等这几路，**第一个「算数」的算赢、其余当场取消**
+---@async
+---@param effects Effect[] # 已经起好的几路（`start` 系列入口的产物）
+---@param accept? fun(effect: Effect): boolean # 这一路算不算数（省略 = 结完就算）；不算数的路接着等别的路
+---@return Game.AnyWinner? # 赢家（都结完还没一路算数 = nil）
+function M:effectRace(effects, accept)
+    local count = #effects
+    local win = moe.await.yield(function (resume)
+        local alive = count
+        local function done()
+            alive = alive - 1
+            if alive == 0 then
+                resume(nil)
+            end
+        end
+        for i = 1, count do
+            local effect = effects[i]
+            local task   = effect.task
+            assert(task, '这一路还没有起（先用 start 系列入口起好）')
+            task:onResolved(function ()
+                if not accept or accept(effect) then
+                    resume(i)
+                else
+                    done()
+                end
+            end)
+            task:onRejected(done)
+        end
+    end)
+    if not win then
+        return nil
+    end
+    for i = 1, count do
+        if i ~= win then
+            effects[i]:cancel()
+        end
+    end
+    return {
+        win    = win,
+        effect = effects[win],
+    }
 end
 
 --- 造一次撑牌、驱动并等它结完

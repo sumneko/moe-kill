@@ -276,3 +276,48 @@ lt.test('护驾：直接要【闪】也能发动（不经过【杀】）', funct
     lt.assertEquals('问过帮手了', true, asked)
     lt.assertEquals('抵消成立', true, ask.success)
 end)
+
+lt.test('主动技：出牌阶段答「发动技能」那一路就发动', function ()
+    useProbe()
+    write('探针/主动技.lua', [[
+Skill '探针技'
+    : on('使用', function (skill, cast)
+        cast:setTag('跑过', skill.name)
+    end)
+]])
+
+    local run    = startWithHeroes {}
+    local player = run.players[1]
+    local skill  = player:addSkill('探针技')
+
+    ---@type AskUseSkill?
+    local asked = nil
+    local asks  = 0
+    run.game:on('技能-询问', function (ask)
+        moe.await.sleep(0)
+        asks = asks + 1
+        if asks > 1 then
+            -- 第二轮不答 ⇒ 出牌阶段到此结束
+            return nil
+        end
+        asked = ask
+        return skill
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason ~= '出牌' then
+            return
+        end
+        -- 牌那一路永远不答：这一轮该由技能那一路说了算
+        moe.await.sleep(0)
+        return nil
+    end)
+
+    local _ <close> = run.game:enterPhase(player, '出牌')
+
+    local skillAsk = assert(asked, '该问过技能那一路')
+    local cast     = assert(skillAsk.cast, '该把它发动出去')
+    lt.assertEquals('归因到技能名下', skill, cast.source)
+    lt.assertEquals('发动者是他', player, cast.from)
+    lt.assertEquals('钩子跑过了', '探针技', cast:getTag('跑过'))
+    lt.assertEquals('问过两轮就收工（没答 ⇒ 结束出牌阶段）', 2, asks)
+end)

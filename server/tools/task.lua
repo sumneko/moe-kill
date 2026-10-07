@@ -33,9 +33,19 @@ function M:__del()
         if self._onResolved then
             self._onResolved(self.result)
         end
+        if self._onResolveds then
+            for _, cb in ipairs(self._onResolveds) do
+                cb(self.result)
+            end
+        end
     else
         if self._onRejected then
             self._onRejected(self.err)
+        end
+        if self._onRejecteds then
+            for _, cb in ipairs(self._onRejecteds) do
+                cb(self.err)
+            end
         end
     end
     self:resolveAwaitings()
@@ -63,7 +73,15 @@ end
 ---@param callback fun(result: any)
 ---@return Task
 function M:onResolved(callback)
-    self._onResolved = callback
+    if self._onResolved then
+        if self._onResolveds then
+            self._onResolveds[#self._onResolveds + 1] = callback
+        else
+            self._onResolveds = { callback }
+        end
+    else
+        self._onResolved = callback
+    end
     if self.resolved then
         callback(self.result)
     end
@@ -73,7 +91,15 @@ end
 ---@param callback fun(err: any)
 ---@return Task
 function M:onRejected(callback)
-    self._onRejected = callback
+    if self._onRejected then
+        if self._onRejecteds then
+            self._onRejecteds[#self._onRejecteds + 1] = callback
+        else
+            self._onRejecteds = { callback }
+        end
+    else
+        self._onRejected = callback
+    end
     if self.resolved and self.err then
         callback(self.err)
     end
@@ -248,6 +274,46 @@ function API.race(branches)
     }
 
     return winner
+end
+
+--- 并发跑多路，**第一个成功算赢、报错的不算赢**（等别的路；全失败给 nil），其余当场取消
+---@async
+---@param tasks Task[] # 各路（已经起好的任务）
+---@return Task.RaceWinner? # 赢家（一路都没成功 = nil）
+function API.anyTask(tasks)
+    local count = #tasks
+
+    local win = moe.await.yield(function (resume)
+        local alive = count
+        for i = 1, count do
+            tasks[i]
+                : onResolved(function ()
+                    resume(i)
+                end)
+                : onRejected(function ()
+                    -- 报错的不算赢；都倒下了才收工
+                    alive = alive - 1
+                    if alive == 0 then
+                        resume(nil)
+                    end
+                end)
+        end
+    end)
+
+    if not win then
+        return nil
+    end
+
+    for i = 1, count do
+        if i ~= win then
+            tasks[i]:cancel()
+        end
+    end
+
+    return {
+        win = win,
+        task = tasks[win],
+    }
 end
 
 --- 并发跑多路，**第一个成功算赢、报错的不算赢**（等别的路；全失败给 nil），其余当场取消

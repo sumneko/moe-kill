@@ -111,6 +111,8 @@ rule = nil
 ---@field fire fun(self: Game, name: '决策-询问', ask: Ask|AskPlayer|AskChoice): any # 返回值就是答复（`Ask` / `AskChoice` 是任意值、`AskPlayer` 是一名角色；没人表态给空）
 ---@field on fun(self: Game, name: '决策-答复', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function
 ---@field fire fun(self: Game, name: '决策-答复', ask: Ask|AskPlayer|AskChoice): any
+---@field on fun(self: Game, name: '技能-询问', callback: fun(ask: AskUseSkill): any): function # 问应答方要发动哪个技能：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '技能-询问', ask: AskUseSkill): any # 返回值就是答复（答复必须是他身上的一个技能实例；没人表态给空）
 ---@field on fun(self: Game, name: '游戏-结束', callback: fun(result: Game.Result): any): function
 ---@field fire fun(self: Game, name: '游戏-结束', result: Game.Result): any
 ---@field on fun(self: Game, name: string, callback: fun(payload: any): any): function

@@ -423,3 +423,26 @@ lt.test('要一次使用：声明选项的答复给错目标会被拒收', funct
     lt.assertEquals('没拿到答复', nil, ask.card)
     lt.assertEquals('原因是目标不在可选范围里', '答复的目标不在可选项里', ask.err)
 end)
+
+lt.test('只到 apply：不等它、也不替你用出去', function ()
+    local game, players = newGame(3)
+    local card = game:createCard('测试牌')
+    putInHand(players[1], { card })
+    local hand = assert(players[1]:getZone('手牌'))
+    game:on('卡牌-询问', function (ask)
+        return { card = card, targets = { players[2] } }
+    end)
+
+    local ask = game:startAskUseCard(players[1], '出牌', { zone = '手牌' })
+    lt.assertEquals('刚起完：还没跑（选项都还没有）', nil, ask.options)
+
+    ask:await()
+    lt.assertEquals('等它才结：答复到手', card, ask.card)
+    lt.assertEquals('不等你点头就不动牌', 1, hand:count())
+    lt.assertEquals('也还没有那次使用', nil, ask.useCard)
+
+    local useCard = ask:use()
+    lt.assertEquals('用出去才有那次使用', card, assert(useCard).card)
+    lt.assertEquals('牌这时才离开手牌', 0, hand:count())
+    lt.assertEquals('再调一次不会用第二遍', useCard, ask:use())
+end)

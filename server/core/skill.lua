@@ -138,12 +138,31 @@ end
 
 --- 以这次技能发动为归因地跑一段：里面起的结算都挂在它下面（`parent` 链上查得到「这是哪个技能做的」）
 ---@async
----@param body fun() # 这次发动做的事
+---@param body fun(cast: Cast) # 这次发动做的事
 ---@return Cast # 这次发动
 function S:cast(body)
     local cast = New 'Cast' (self.game, self, self.owner, body)
     cast:apply():await()
     return cast
+end
+
+--- 这个技能上登记过这条钩子吗（有「使用」钩子 = 可以作为主动技发动）
+---@param event string
+---@return boolean
+function S:hasHandler(event)
+    return #self.def:getHandlers(event) > 0
+end
+
+--- 主动发动这个技能：跑「使用」钩子（归因到这次发动名下）
+---@async
+---@return Cast # 这次发动
+function S:use()
+    local handlers = self.def:getHandlers('使用')
+    return self:cast(function (cast)
+        for _, handler in ipairs(handlers) do
+            handler(self, cast)
+        end
+    end)
 end
 
 --- 摘掉这个技能（幂等，内部就是 `Delete(self)`）
