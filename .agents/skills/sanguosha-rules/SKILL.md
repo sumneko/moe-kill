@@ -688,6 +688,36 @@ end
 - **因它死亡不奖不惩**是天然结果：`player:enterDying()` 不带伤害 ⇒ `'玩家-死亡'` 里读 `player.dying?.damage` 为空（奖惩那条就是拿它当凶手）。
 - **【苦肉】已实现**（`package/标准/武将/黄盖.lua`）：主动技 `on('使用', …)`，**先 `owner:loseHp(1)`，再判 `owner:isAlive()` 才 `owner:draw(2)`** —— 顺序就是技能文本的「失去 1 点体力，**然后**摸两张牌」；体力 1 时发动 ⇒ 先走濒死，**救回来才摸两张**、没救回来就不摸。**没有前置声明**（不要牌不要目标）；文本里没有「限一次」⇒ **可反复发动**。
 
+### 9.18 夏侯惇【刚烈】（已落地，2026-10-08）
+
+```lua
+Skill '刚烈'
+    : on('被动', function (skill, host)
+        local owner = skill.owner
+        host:bindGC(owner:on('伤害-目标-结束', function (damage)
+            local from = damage.from
+            if not from then return end              -- 无来源伤害（【闪电】那类）不发动
+            if not skill:confirm() then return end
+            skill:cast(function ()
+                local judge = game:judge(owner, '刚烈')
+                if judge.card?.suit == '红桃' then return end
+                -- 一次要两张，允许取消：给不满或取消 ⇒ 挨那 1 点
+                local cards = game:askCard(from, '刚烈', { zone = '手牌', min = 2, max = 2 }).cards
+                if #cards == 2 then
+                    game:moveCard(cards, '弃牌')
+                    return
+                end
+                game:damage(owner, from, 1)
+            end)
+        end))
+    end)
+```
+
+- **那 1 点伤害有来源，就是发动者本人**（底本：`Chapter1/Section1.md`「郭嘉-曹仁选择受到荀彧-夏侯惇造成的 1 点普通伤害」；`Chapter2/Section5.md`「夏侯惇-张辽在受到自己造成的 1 点伤害后再次发动【刚烈】」）—— 不要写 `game:damage(nil, …)`。
+- **手牌不足两张 ⇒ 只能挨那 1 点、不弃牌**：官方「选择一项」时**不能选无法执行的选项**（`Chapter2/Section5.md:193`：「对于包含消耗的选项，其不能选择……不能执行的选项」）。
+- **实现口径（用户 2026-10-08 定）**：不另开「二选一」询问，改成**一次 `askCard(min = 2, max = 2)`** —— 交满两张就是「弃两张」、给不满或直接取消就是「挨 1 点」。与官方在「手牌不足」这一点上结果一致；差别只在于官方允许手牌够的人**主动**选挨打，我们靠「取消」实现同一件事。
+- **`cancelable` 是本次新加的内核能力**（**默认允许取消** —— 这里用默认值就够了；`false` 只留给「玩家无权拒收」的那几处）：见 `architecture.md` 的 `askCard` 行。
+
 ## 10. 待确认口径
 
 - 规则版本：仅标准版，还是含军争篇（酒、属性伤害、铁索连环、藤甲等）？

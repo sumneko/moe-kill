@@ -10,7 +10,7 @@ Card '过河拆桥'
         end,
     }
     : on('生效', function (cardEffect)
-        local card = game:askCard(cardEffect.user, '过河拆桥', { zone = cardEffect.target:getZones() }).card
+        local card = game:askCard(cardEffect.user, '过河拆桥', { zone = cardEffect.target:getZones(), cancelable = false }).card
         if not card then
             return
         end

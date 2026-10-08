@@ -169,7 +169,7 @@ lt.test('给出：不给候选名单就不限制目标；`minTarget` 为 0 时�
     lt.assertEquals('不算失败', nil, loose.err)
 end)
 
-lt.test('给出：没人应答时没有答复，也不算失败', function ()
+lt.test('给出：允许取消时，没人应答就是空答复、不算失败', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('杀') })
     lt.clearErrors()

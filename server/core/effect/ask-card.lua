@@ -28,6 +28,7 @@
 ---@field card? Card|Card[] # 牌必须在这批里（可以不属于任何牌区）
 ---@field min? integer # 至少要给几张（省略 = 1）
 ---@field max? integer # 至多给几张（省略 = min）
+---@field cancelable? boolean # 允不允许主动取消（省略 = 允许：玩家可以不选 —— 没答复就是空答复；写 `false` 就是不给取消入口，没答复算拒收）
 
 --- 询问身上存的是归一化之后的形状：字段名带复数 —— `names` / `cards` 是列表、`zones` 还解析成了区对象，另有 `min` / `max` 一定给出（订阅者与 `collectOptions` 直接读）
 ---@class AskCard.NormalizedCondition
@@ -39,6 +40,7 @@
 ---@field cards? Card[]
 ---@field min integer
 ---@field max integer
+---@field cancelable boolean # 允不允许主动取消（归一化时补默认：省略 = true）
 
 ---@class AskCard.CreateOptions
 ---@field game Game
@@ -53,6 +55,7 @@
 ---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
 ---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
 ---@field cards Card[] # 答复给出的牌（没答就是空表）
+---@field cancelable boolean # 这次允许主动取消吗（= 条件的 `cancelable`，省略就是允许）
 local M = Class 'AskCard'
 
 Extends('AskCard', 'Effect')
@@ -84,6 +87,7 @@ local function normalizeCondition(game, to, condition)
     end
     normalized.min  = condition.min or 1
     normalized.max  = condition.max or normalized.min
+    normalized.cancelable = condition.cancelable ~= false
     if condition.name then
         normalized.names = moe.util.toList(condition.name)
         normalized.name  = nil
@@ -274,6 +278,10 @@ function M:checkAnswer(value)
         return '答复不在可选项里'
     end
     local cards = moe.util.toList(value.card)
+    -- 允许取消的询问：空答复就是「取消」，不算不合法
+    if #cards == 0 and self.cancelable then
+        return nil
+    end
     local min   = self.condition?.min or 1
     local max   = self.condition?.max or min
     if #cards < min then
@@ -341,6 +349,13 @@ M.__getter.card = function (self)
     return self.cards[1]
 end
 
+--- 这次允许主动取消吗
+---@param self AskCard
+---@return boolean
+M.__getter.cancelable = function (self)
+    return self.condition?.cancelable ~= false
+end
+
 --- 答复已定下、答复时机之前跑一次（子类在这里处置那张牌）
 ---@async
 function M:onAnswered()
@@ -370,6 +385,10 @@ function M:collectAnswer()
 
     local answer = self.game:fire('卡牌-询问', self)
     if answer == nil then
+        -- 不允许取消的询问：不表态不是合法结局，记成拒收
+        if not self.cancelable then
+            self.task:reject('这次询问必须给出答复')
+        end
         return false
     end
 

@@ -41,7 +41,7 @@ Skill '反馈'
                 return
             end
             skill:cast(function ()
-                local card = game:askCard(owner, '反馈', { zone = from:getZones() }).card
+                local card = game:askCard(owner, '反馈', { zone = from:getZones(), cancelable = false }).card
                 if card then
                     game:moveCard(card, owner:getZone('手牌'))
                 end

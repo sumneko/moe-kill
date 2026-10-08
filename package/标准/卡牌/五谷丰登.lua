@@ -10,7 +10,7 @@ Card '五谷丰登'
     end)
     : on('生效', function (cardEffect, useCard)
         local revealed = useCard:getTempZone():list()
-        local card = game:askCard(cardEffect.target, '五谷丰登', { card = revealed }).card
+        local card = game:askCard(cardEffect.target, '五谷丰登', { card = revealed, cancelable = false }).card
         if not card then
             return
         end

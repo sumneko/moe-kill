@@ -281,7 +281,7 @@ lt.test('要一次使用：条件里的 target 构造时归一成 targets 列表
     lt.assertEquals('答复照旧读得到', players[2], assert(ask.targets)[1])
 end)
 
-lt.test('要一次使用：没人应答时没有答复，也不算失败', function ()
+lt.test('要一次使用：允许取消时，没人应答就是空答复、不算失败', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('测试牌') })
     lt.clearErrors()

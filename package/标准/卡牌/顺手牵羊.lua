@@ -13,7 +13,7 @@ Card '顺手牵羊'
         end,
     }
     : on('生效', function (cardEffect)
-        local card = game:askCard(cardEffect.user, '顺手牵羊', { zone = cardEffect.target:getZones() }).card
+        local card = game:askCard(cardEffect.user, '顺手牵羊', { zone = cardEffect.target:getZones(), cancelable = false }).card
         if not card then
             return
         end

@@ -1309,3 +1309,182 @@ lt.test('倾国：红色牌当不了【闪】（进不了选项）', function ()
     lt.assertEquals('没问过要素材', 0, asked)
     lt.assertEquals('照常受伤', 2, zhenji:getAttr('体力'))
 end)
+
+lt.test('刚烈：判红桃就什么都不发生（连来源都不问）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local xiahou = run.players[2]
+    xiahou:setHero(assert(run.game:getHero('夏侯惇')))
+
+    lt.assertEquals('技能随武将挂上', true, xiahou:hasSkill('刚烈'))
+
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '刚烈' then
+            judge:replace(run.game:createCard('杀', '红桃', 7))
+        end
+    end)
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '刚烈' then
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '刚烈' then
+            asked = asked + 1
+        end
+    end)
+
+    local slash      = takeCard(run, user, '杀')
+    local hpBefore   = xiahou:getAttr('体力')
+    local fromBefore = user:getAttr('体力')
+    run.game:useCard(user, slash, { xiahou })
+
+    lt.assertEquals('夏侯惇照常掉 1 点', hpBefore - 1, xiahou:getAttr('体力'))
+    lt.assertEquals('红桃 ⇒ 不问来源', 0, asked)
+    lt.assertEquals('来源毫发无伤', fromBefore, user:getAttr('体力'))
+end)
+
+lt.test('刚烈：判非红桃就让来源弃两张手牌，他自己不掉血', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local xiahou = run.players[2]
+    xiahou:setHero(assert(run.game:getHero('夏侯惇')))
+
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '刚烈' then
+            judge:replace(run.game:createCard('杀', '黑桃', 7))
+        end
+    end)
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '刚烈' then
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    local first  = takeCard(run, user, '杀')
+    local second = takeCard(run, user, '闪')
+    local slash  = takeCard(run, user, '杀')
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '刚烈' then
+            return { card = { first, second } }
+        end
+    end)
+
+    local hpBefore = user:getAttr('体力')
+    run.game:useCard(user, slash, { xiahou })
+
+    lt.assertEquals('三张里用掉一张、弃掉两张 ⇒ 手里空了', 0, user:getZone('手牌'):count())
+    lt.assertEquals('弃的两张进了弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), first))
+    lt.assertEquals('第二张也在弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), second))
+    lt.assertEquals('来源没掉血', hpBefore, user:getAttr('体力'))
+end)
+
+lt.test('刚烈：给不满两张就挨那 1 点（伤害来源是夏侯惇）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local xiahou = run.players[2]
+    xiahou:setHero(assert(run.game:getHero('夏侯惇')))
+
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '刚烈' then
+            judge:replace(run.game:createCard('杀', '梅花', 7))
+        end
+    end)
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '刚烈' then
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    local only  = takeCard(run, user, '杀')
+    local slash = takeCard(run, user, '杀')
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '刚烈' then
+            return { card = only }
+        end
+    end)
+
+    ---@type Damage?
+    local caused = nil
+    run.game:on('伤害-结束', function (damage)
+        if damage.to == user and damage.from ~= nil then
+            caused = damage
+        end
+    end)
+
+    local hpBefore = user:getAttr('体力')
+    run.game:useCard(user, slash, { xiahou })
+
+    lt.assertEquals('来源掉 1 点', hpBefore - 1, user:getAttr('体力'))
+    lt.assertEquals('只有那一张手牌，没被弃掉', true,
+        moe.util.arrayHas(user:getZone('手牌'):list(), only))
+    local damage = assert(caused, '该造成那 1 点伤害')
+    lt.assertEquals('伤害来源是夏侯惇', xiahou, damage.from)
+end)
+
+lt.test('刚烈：来源取消不给，也一样挨那 1 点', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local xiahou = run.players[2]
+    xiahou:setHero(assert(run.game:getHero('夏侯惇')))
+
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '刚烈' then
+            judge:replace(run.game:createCard('杀', '方块', 7))
+        end
+    end)
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '刚烈' then
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    takeCard(run, user, '杀')
+    takeCard(run, user, '闪')
+    local slash = takeCard(run, user, '杀')
+    -- 卡牌-询问不表态 = 取消（这次的询问允许取消）
+
+    ---@type Damage?
+    local caused = nil
+    run.game:on('伤害-结束', function (damage)
+        if damage.to == user and damage.from ~= nil then
+            caused = damage
+        end
+    end)
+
+    local hpBefore = user:getAttr('体力')
+    run.game:useCard(user, slash, { xiahou })
+
+    lt.assertEquals('来源掉 1 点', hpBefore - 1, user:getAttr('体力'))
+    lt.assertEquals('两张手牌都还在', 2, user:getZone('手牌'):count())
+    lt.assertEquals('伤害来源是夏侯惇', xiahou, assert(caused, '该造成那 1 点伤害').from)
+end)
+
+lt.test('刚烈：无来源的伤害不发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local xiahou = run.players[2]
+    xiahou:setHero(assert(run.game:getHero('夏侯惇')))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '刚烈' then
+            asked = asked + 1
+        end
+    end)
+
+    local hpBefore = xiahou:getAttr('体力')
+    run.game:damage(nil, xiahou, 1)
+
+    lt.assertEquals('照常掉 1 点', hpBefore - 1, xiahou:getAttr('体力'))
+    lt.assertEquals('没来源 ⇒ 连问都不问', 0, asked)
+end)

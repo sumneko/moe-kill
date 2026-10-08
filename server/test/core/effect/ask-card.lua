@@ -222,7 +222,7 @@ lt.test('询问：同一结算里问多次互不串', function ()
     lt.assertEquals('第二次拿到的牌', second, answers[2])
 end)
 
-lt.test('询问：没人应答时没有答复，也不算失败', function ()
+lt.test('询问：默认允许取消 ⇒ 没人应答就是空答复、不算失败', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
@@ -230,10 +230,24 @@ lt.test('询问：没人应答时没有答复，也不算失败', function ()
 
     local ask = game:askCard(players[2], nil, { name = '闪' })
 
+    lt.assertEquals('默认允许取消', true, ask.cancelable)
     lt.assertEquals('没有答复', nil, ask.card)
     lt.assertEquals('cards 是空表', 0, #ask.cards)
     lt.assertEquals('不算失败', nil, ask.err)
     lt.assertEquals('没有记下错误', 0, #lt.errors)
+end)
+
+lt.test('询问：写 `cancelable = false` ⇒ 没人应答就是拒收', function ()
+    local game, players = newGame(2)
+    putInHand(players[2], { game:createCard('闪') })
+    lt.clearErrors()
+
+    local ask = game:askCard(players[2], nil, { name = '闪', cancelable = false })
+
+    lt.assertEquals('这次不允许取消', false, ask.cancelable)
+    lt.assertEquals('没有答复', nil, ask.card)
+    lt.assertEquals('拒收：记下失败原因', '这次询问必须给出答复', ask.err)
+    lt.assertEquals('拒收不是故障，不进错误日志', 0, #lt.errors)
 end)
 
 lt.test('询问：第一个返回答复的胜出，后面的订阅者不再调', function ()
@@ -443,7 +457,7 @@ lt.test('询问：答复不在可选项里时拒收，原因记在 `.err`', func
     lt.assertEquals('选项里只有手上那一张', 1, #assert(ask.options))
 end)
 
-lt.test('询问：答复是空表 ⇒ 一样拒收（连牌都没给）', function ()
+lt.test('询问：不允许取消时，答复是空表 ⇒ 一样拒收（连牌都没给）', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
@@ -451,7 +465,7 @@ lt.test('询问：答复是空表 ⇒ 一样拒收（连牌都没给）', functi
         return {}
     end)
 
-    local ask = game:askCard(players[2], '测试', { name = '闪' })
+    local ask = game:askCard(players[2], '测试', { name = '闪', cancelable = false })
 
     lt.assertEquals('没拿到答复', nil, ask.card)
     lt.assertEquals('原因是「至少要给 1 张牌」', '至少要给 1 张牌', ask.err)

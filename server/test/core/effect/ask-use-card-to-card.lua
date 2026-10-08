@@ -108,7 +108,7 @@ lt.test('要对牌使用：答复不在选项里 ⇒ 拒收，牌不动', functi
     lt.assertEquals('手上那张还在', true, moe.util.arrayHas(players[1]:getZone('手牌'):list(), usable))
 end)
 
-lt.test('要对牌使用：没人应答 ⇒ 不存在，不算失败', function ()
+lt.test('要对牌使用：允许取消时，没人应答 ⇒ 不存在，不算失败', function ()
     local game, players = newGame(3)
     local usable = game:createCard('抵消牌')
     putInHand(players[1], { usable })
