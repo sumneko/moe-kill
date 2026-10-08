@@ -55,7 +55,7 @@ local function resolveBans(value, targets)
     return moe.util.toList(value)
 end
 
---- 把一份选项片段并进选项表（返回新表，不改原来的）：`unrespondable` 是**累加**（四种写法先按 `targets` 解算），其余字段覆盖
+--- 把一份选项片段并进选项表（返回新表，不改原来的）：`unrespondable` / `extraTargets` 是**累加**（前者四种写法先按 `targets` 解算），其余字段覆盖
 ---@param base? Game.UseOptions
 ---@param part Game.UseOptionsInput
 ---@param targets Player[]? # 这次使用的目标（解算 `true` / 谓词用）
@@ -73,6 +73,9 @@ local function mergeOptions(base, part, targets)
             ---@cast value Player|Player[]|true|fun(player: Player): boolean
             result.unrespondable = result.unrespondable or {}
             moe.util.arrayMerge(result.unrespondable, resolveBans(value, targets or {}))
+        elseif key == 'extraTargets' then
+            ---@cast value integer
+            result.extraTargets = (result.extraTargets or 0) + value
         else
             result[key] = value
         end
@@ -181,7 +184,7 @@ end
 ---@class UseCard.API
 moe.useCard = {}
 
---- 把一份选项片段并进选项表（返回新表）：`unrespondable` 累加（四种写法按 `targets` 解算），其余字段覆盖
+--- 把一份选项片段并进选项表（返回新表）：`unrespondable` / `extraTargets` 累加（前者按 `targets` 解算），其余字段覆盖
 ---@param base? Game.UseOptions
 ---@param part Game.UseOptionsInput
 ---@param targets? Player[] # 这次使用的目标（解算 `true` / 谓词用）

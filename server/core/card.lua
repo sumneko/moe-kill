@@ -147,24 +147,16 @@ function M:getValue(name)
     return self.def:getValue(name)
 end
 
---- 这次使用最少 / 最多几个目标（声明值 + 「卡牌-目标数修正」的全局与「卡牌-来源-目标数修正」的使用者两份；与打算选谁无关；「0、0」恒为「0、0」）
----@param user Player # 谁在用
+--- 这次使用最少 / 最多几个目标（声明值 + 这次使用的选项里的额外目标数；与打算选谁无关；「0、0」恒为「0、0」）
+---@param useOptions? Game.UseOptions # 这次使用的选项（`extraTargets` 加在上限上）
 ---@return integer # 最少几个
 ---@return integer # 最多几个
-function M:getTargetCount(user)
+function M:getTargetCount(useOptions)
     local min, max = self.def:getTargetCount()
     if max == 0 then
         return min, max
     end
-    local check = { user = user, card = self }
-    local extra = 0
-    for _, delta in ipairs(self.game:collect('卡牌-目标数修正', check)) do
-        extra = extra + delta
-    end
-    for _, delta in ipairs(user:collect('卡牌-来源-目标数修正', check)) do
-        extra = extra + delta
-    end
-    return min, max + extra
+    return min, max + (useOptions?.extraTargets or 0)
 end
 
 ---@type string

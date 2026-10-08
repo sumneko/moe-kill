@@ -427,8 +427,9 @@ Card '无目标牌'
     run.hand:accept(card)
 
     local asked = 0
-    run.game:on('卡牌-目标数修正', function ()
+    run.game:on('卡牌-使用选项', function ()
         asked = asked + 1
+        return { extraTargets = 2 }
     end)
 
     lt.assertEquals('不传目标能用（也不用写 filter）', true, (run.game:canUse(run.user, card)))
@@ -440,18 +441,19 @@ Card '无目标牌'
     local ok, reason = run.game:canUse(run.user, card, { run.target })
     lt.assertEquals('给目标反而不行', false, ok)
     lt.assertEquals('原因是「不需要指定目标」', '「探针.无目标牌」不需要指定目标', reason)
-    lt.assertEquals('无目标牌不收集修正', 0, asked)
+    lt.assertEquals('额外目标数对无目标牌不起作用', '0,0', plan.min .. ',' .. plan.max)
+    lt.assertEquals('（选项照问，只是用不上）', 4, asked)
 end)
 
-lt.test('校验：目标数修正放宽与收紧，上限跟合法目标数取较小值', function ()
+lt.test('校验：额外目标数放宽与收紧，上限跟合法目标数取较小值', function ()
     local guard <close> = useProbe()
     local run = newGame(TWO, 3)
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
 
     local extra = 0
-    run.game:on('卡牌-目标数修正', function (check)
-        return extra
+    run.game:on('卡牌-使用选项', function (check)
+        return { extraTargets = extra }
     end)
 
     local ok, reason = run.game:canUse(run.user, card, { run.players[2], run.players[3] })
@@ -473,71 +475,87 @@ lt.test('校验：目标数修正放宽与收紧，上限跟合法目标数取�
     lt.assertEquals('上限收到 0', '「探针.测试杀」至多指定 0 个目标', tightReason)
 end)
 
-lt.test('校验：没给目标也问一次修正（拿区间），但不判数量', function ()
+lt.test('校验：没给目标也问一次使用选项（拿区间），但不判数量', function ()
     local guard <close> = useProbe()
     local run = newGame(ALL, 3)
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
 
     local asked = 0
-    run.game:on('卡牌-目标数修正', function ()
+    run.game:on('卡牌-使用选项', function ()
         asked = asked + 1
-        return 1
+        return { extraTargets = 1 }
     end)
 
     local ok, _, plan = run.game:canUse(run.user, card)
     ---@cast plan Game.UsableTargets
     lt.assertEquals('没给目标时照常能用', true, ok)
     lt.assertEquals('问了一次（给区间用）', 1, asked)
-    lt.assertEquals('区间带上修正、也取小', '1,2', plan.min .. ',' .. plan.max)
+    lt.assertEquals('区间带上额外目标数、也取小', '1,2', plan.min .. ',' .. plan.max)
     lt.assertEquals('合法目标照给（选项要用）', 3, #assert(plan.legal))
 
     run.game:canUse(run.user, card, { run.players[2] })
     lt.assertEquals('给了目标再问一次', 2, asked)
 end)
 
-lt.test('校验：多个来源的目标数修正叠加', function ()
+lt.test('校验：多个来源的额外目标数叠加', function ()
     local guard <close> = useProbe()
     local run = newGame(ALL, 3)
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
 
-    run.game:on('卡牌-目标数修正', function () return 1 end)
-    run.game:on('卡牌-目标数修正', function () return 1 end)
+    run.game:on('卡牌-使用选项', function () return { extraTargets = 1 } end)
+    run.game:on('卡牌-使用选项', function () return { extraTargets = 1 } end)
 
     lt.assertEquals('两个 +1 叠成 +2：两名能用', true,
         (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
 end)
 
-lt.test('校验：目标数修正分全局与使用者两份，都收；玩家级只问使用者', function ()
+lt.test('校验：使用选项分全局与使用者两份，都收；玩家级只问使用者', function ()
     local guard <close> = useProbe()
     local run = newGame(ALL, 3)
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
 
     local seen = {}
-    run.game:on('卡牌-目标数修正', function (check)
+    run.game:on('卡牌-使用选项', function (check)
         seen[#seen + 1] = '全局'
         lt.assertEquals('全局那份的载荷带使用者', run.user, check.user)
         lt.assertEquals('全局那份的载荷带牌', card, check.card)
-        return 1
+        return { extraTargets = 1 }
     end)
-    run.user:on('卡牌-来源-目标数修正', function (check)
+    run.user:on('卡牌-来源-使用选项', function (check)
         seen[#seen + 1] = '使用者'
         lt.assertEquals('使用者那份的载荷也是这张牌', card, check.card)
-        return 1
+        return { extraTargets = 1 }
     end)
 
     local otherAsked = 0
-    run.players[2]:on('卡牌-来源-目标数修正', function ()
+    run.players[2]:on('卡牌-来源-使用选项', function ()
         otherAsked = otherAsked + 1
-        return 1
+        return { extraTargets = 1 }
     end)
 
     lt.assertEquals('两份都收、叠成 +2：两名能用', true,
         (run.game:canUse(run.user, card, { run.players[2], run.players[3] })))
     lt.assertEquals('先全局、再使用者', '全局,使用者', table.concat(seen, ','))
     lt.assertEquals('玩家级那份只问使用者本人，不问别人', 0, otherAsked)
+end)
+
+lt.test('校验：调用方给的额外目标数与内容侧给的累加', function ()
+    local guard <close> = useProbe()
+    local run = newGame(ALL, 4)
+    local card = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    run.game:on('卡牌-使用选项', function ()
+        return { extraTargets = 2 }
+    end)
+
+    -- 声明上限 1：调用方给 1、内容侧给 2 ⇒ 累加 3 ⇒ 上限 4（覆盖语义下只剩 2，四名会被拒）
+    local targets = { run.players[2], run.players[3], run.players[4], run.user }
+    lt.assertEquals('两份贡献累加：四名也能用', true,
+        (run.game:canUse(run.user, card, targets, { extraTargets = 1 })))
 end)
 
 lt.test('校验：不能重复指定同一个目标', function ()
@@ -558,9 +576,9 @@ lt.test('校验：结果连同数量区间一起给出（在合法目标里选�
     run.hand:accept(card)
 
     local asked = 0
-    run.game:on('卡牌-目标数修正', function ()
+    run.game:on('卡牌-使用选项', function ()
         asked = asked + 1
-        return 1
+        return { extraTargets = 1 }
     end)
 
     local ok, _, plan = run.game:canUse(run.user, card, { run.players[2] })
@@ -568,11 +586,11 @@ lt.test('校验：结果连同数量区间一起给出（在合法目标里选�
     lt.assertEquals('能用', true, ok)
     lt.assertEquals('合法目标照给', run.players[2], assert(plan.legal)[1])
     lt.assertEquals('最少几个不变', 1, plan.min)
-    lt.assertEquals('最多几个带上修正', 2, plan.max)
+    lt.assertEquals('最多几个带上额外目标数', 2, plan.max)
 
     local ok2, _, plan2 = run.game:canUse(run.user, card)
     ---@cast plan2 Game.UsableTargets
     lt.assertEquals('没给目标也能用', true, ok2)
-    lt.assertEquals('区间也带上修正、也取小', '1,2', plan2.min .. ',' .. plan2.max)
-    lt.assertEquals('两次都问过修正', 2, asked)
+    lt.assertEquals('区间也带上额外目标数、也取小', '1,2', plan2.min .. ',' .. plan2.max)
+    lt.assertEquals('两次都问过选项', 2, asked)
 end)

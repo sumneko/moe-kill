@@ -398,6 +398,7 @@ end
 ---@field ignoreDistance? boolean # 无视距离（`Player:isInRange` 认它：这次使用的射程判断直接算在）
 ---@field ignoreUseLimit? boolean # 无视使用次数上限（不检查「本阶段用过没」）
 ---@field notCounted? boolean # 不计入使用次数（不写 `useCount`）
+---@field extraTargets? integer # 最多能多指定几个目标（加在上限上，可负；多份选项累加；最终仍与合法目标数取小）
 ---@field unrespondable? Player[] # 这些目标不能对此牌做出响应（写入收四种写法、见 `Game.UseOptionsInput`；**读用 `UseCard:isResponseBanned`**）
 
 --- 追加使用选项时可给的形状（`Game.UseOptions` 的宽松版：`unrespondable` 收四种写法，写入时归一）
@@ -405,6 +406,7 @@ end
 ---@field ignoreDistance? boolean
 ---@field ignoreUseLimit? boolean
 ---@field notCounted? boolean
+---@field extraTargets? integer # 最多能多指定几个目标（可负；多份选项累加）
 ---@field unrespondable? Player|Player[]|true|fun(player: Player): boolean # 一个角色 / 一串角色 / `true` = 谁都拦 / 谓词（这些目标不能对此牌做出响应）
 
 ---@class Game
@@ -1294,7 +1296,7 @@ function M:canUse(user, card, target, useOptions)
     end
 
     -- 目标：给了目标才判个数与归属；「最少 0、最多 0」就是不指定目标
-    local min, max = card:getTargetCount(user)
+    local min, max = card:getTargetCount(useOptions)
     ---@type Player[] # 能用时的合法目标（「不指定目标」的牌是空表）
     local legal = {}
     if min == 0 and max == 0 then

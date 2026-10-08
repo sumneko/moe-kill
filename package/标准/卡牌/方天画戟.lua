@@ -10,13 +10,13 @@ Card '方天画戟'
         if not owner then
             return
         end
-        host:bindGC(owner:on('卡牌-来源-目标数修正', function (check)
+        host:bindGC(owner:on('卡牌-来源-使用选项', function (check)
             if check.card.name ~= '杀' then
                 return
             end
             local hand = owner:getZone('手牌')
             if hand:count() == 1 and hand:list()[1] == check.card then
-                return 2
+                return { extraTargets = 2 }
             end
         end))
     end)

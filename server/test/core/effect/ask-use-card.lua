@@ -94,7 +94,7 @@ lt.test('要一次使用：只收能用的牌，选项带可用目标', function
     lt.assertEquals('答复里的目标也收下', 1, #assert(ask.targets))
 end)
 
-lt.test('要一次使用：选项的区间带上目标数修正，并取小到可用目标数', function ()
+lt.test('要一次使用：选项的区间带上额外目标数，并取小到可用目标数', function ()
     local game, players = newGame(3)
     local card = game:createCard('窄牌')
     putInHand(players[1], { card })
@@ -104,17 +104,17 @@ lt.test('要一次使用：选项的区间带上目标数修正，并取小到�
         index = index + 1
         local option = assert(assert(ask.options)[1], '该有一个选项')
         if index == 1 then
-            lt.assertEquals('没修正：区间就是声明的 1、1', '1,1', option.plan.min .. ',' .. option.plan.max)
+            lt.assertEquals('没给选项：区间就是声明的 1、1', '1,1', option.plan.min .. ',' .. option.plan.max)
             return
         end
-        lt.assertEquals('修正 +1：区间带上、并取小到可用目标数 2', '1,2', option.plan.min .. ',' .. option.plan.max)
+        lt.assertEquals('多给 1 个目标：区间带上、并取小到可用目标数 2', '1,2', option.plan.min .. ',' .. option.plan.max)
         return { card = option.card, targets = { players[2] } }
     end)
 
     local first = game:askUseCard(players[1], '出牌', { zone = '手牌' })
     lt.assertEquals('第一次没答复 ⇒ 牌还在', nil, first.card)
 
-    game:on('卡牌-目标数修正', function () return 1 end)
+    game:on('卡牌-使用选项', function () return { extraTargets = 1 } end)
 
     local second = game:askUseCard(players[1], '出牌', { zone = '手牌' })
     lt.assertEquals('第二次答上了', card, second.card)
