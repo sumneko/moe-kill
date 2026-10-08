@@ -718,6 +718,35 @@ Skill '刚烈'
 - **实现口径（用户 2026-10-08 定）**：不另开「二选一」询问，改成**一次 `askCard(min = 2, max = 2)`** —— 交满两张就是「弃两张」、给不满或直接取消就是「挨 1 点」。与官方在「手牌不足」这一点上结果一致；差别只在于官方允许手牌够的人**主动**选挨打，我们靠「取消」实现同一件事。
 - **`cancelable` 是本次新加的内核能力**（**默认允许取消** —— 这里用默认值就够了；`false` 只留给「玩家无权拒收」的那几处）：见 `architecture.md` 的 `askCard` 行。
 
+### 9.19 华佗【青囊】【急救】（已落地，2026-10-08）
+
+```lua
+Skill '青囊'
+    : limit('出牌', 1)
+    : cards { zone = '手牌' }
+    : targets { filter = function (player)
+        return player:getLostHp() > 0
+    end }
+    : on('使用', function (cast)
+        local target = cast.use.targets[1]
+        if not target then
+            return
+        end
+        game:moveCard(cast.use.cards, '弃牌')
+        game:heal(target, 1)
+    end)
+
+Skill '急救'
+    : viewAs('桃', { color = '红' }, function (ask, skill)
+        return skill.owner.turn == nil
+    end)
+```
+
+- **【青囊】的「限一次」靠新内核能力 `SkillDef:limit`**（照牌的 `CardDef:limit`）：次数用尽的技能**根本不进出牌阶段的技能选项**（不是「进了选项再拒」）。账记在自己的阶段上，key = `def.fullName`。
+- **【急救】的「红色牌」不限于手牌**（官方文本是「一张红色**牌**」，与【倾国】的「黑色**手牌**」对照）⇒ 声明里**不写 `zone`**，装备区的红牌同样是合法素材。
+- **答复里的值（`cast.use.targets[1]`）要判空**（用户 2026-10-08 定）：**`---@cast` 不能代替判空** —— 它只是分析期断言、运行时填不了空（`game:heal(nil, 1)` 照样炸）；也**不要用 `assert`**（内核已校验过、拿用户的结果惩罚服务器没意义）。写法就是 `if not target then return end`（顺手让 LuaLS 自动收窄类型，连 cast 都不必写）。
+- **「回合外」= `skill.owner.turn == nil`**（回合对象只在自己回合里挂在他身上）。
+
 ## 10. 待确认口径
 
 - 规则版本：仅标准版，还是含军争篇（酒、属性伤害、铁索连环、藤甲等）？

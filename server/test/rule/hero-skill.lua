@@ -1488,3 +1488,180 @@ lt.test('刚烈：无来源的伤害不发动', function ()
     lt.assertEquals('照常掉 1 点', hpBefore - 1, xiahou:getAttr('体力'))
     lt.assertEquals('没来源 ⇒ 连问都不问', 0, asked)
 end)
+
+lt.test('青囊：弃一张手牌让已受伤的角色回 1 点', function ()
+    useProbe()
+    defineHelpers()
+
+    local run      = startWithHeroes { '华佗', '魏队友' }
+    local huatuo   = run.players[1]
+    local friend   = run.players[2]
+    local qingnang = findSkill(huatuo, '青囊')
+
+    lt.assertEquals('技能随武将挂上', true, huatuo:hasSkill('青囊'))
+
+    local cost = takeCard(run, huatuo, '闪')
+    friend:setAttr('体力', 3)
+
+    local asked = 0
+    run.game:on('技能-询问', function ()
+        asked = asked + 1
+        if asked > 1 then
+            return nil -- 没答 ⇒ 结束出牌阶段
+        end
+        return { skill = qingnang, cards = cost, targets = friend }
+    end)
+
+    local _ <close> = run.game:enterPhase(huatuo, '出牌')
+
+    lt.assertEquals('弃掉的那张进了弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), cost))
+    lt.assertEquals('目标回 1 点（3 → 4）', 4, friend:getAttr('体力'))
+end)
+
+lt.test('青囊：没人受伤就不进选项（凑不齐前置）', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '华佗', '魏队友' }
+    local huatuo = run.players[1]
+    takeCard(run, huatuo, '闪') -- 手里有牌，排除「没牌」那条
+
+    ---@type AskUseSkill?
+    local asked = nil
+    run.game:on('技能-询问', function (ask)
+        moe.await.sleep(0)
+        asked = asked or ask
+        return nil
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '出牌' then
+            moe.await.sleep(0)
+            return nil
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(huatuo, '出牌')
+
+    lt.assertEquals('都满血 ⇒ 青囊不进选项', 0, #assert(asked, '该问过技能那一路').options)
+end)
+
+lt.test('青囊：本阶段发动过一次就不再进选项', function ()
+    useProbe()
+    defineHelpers()
+
+    local run      = startWithHeroes { '华佗', '魏队友' }
+    local huatuo   = run.players[1]
+    local friend   = run.players[2]
+    local qingnang = findSkill(huatuo, '青囊')
+
+    local cost = takeCard(run, huatuo, '闪')
+    friend:setAttr('体力', 2)
+
+    local asked = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        if asked == 1 then
+            return { skill = qingnang, cards = cost, targets = friend }
+        end
+        lt.assertEquals('第二次问时它已经不在选项里', 0, #ask.options)
+        return nil
+    end)
+
+    local _ <close> = run.game:enterPhase(huatuo, '出牌')
+
+    lt.assertEquals('问过两轮（第二次没答 ⇒ 收工）', 2, asked)
+    lt.assertEquals('只回了 1 点', 3, friend:getAttr('体力'))
+end)
+
+lt.test('急救：回合外用一张红色牌当【桃】救濒死的人', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '华佗', '魏队友' }
+    local huatuo = run.players[1]
+    local friend = run.players[2]
+
+    lt.assertEquals('技能随武将挂上', true, huatuo:hasSkill('急救'))
+
+    local red = run.game:createCard('杀', '红桃', 7)
+    assert(huatuo:getZone('手牌')):accept(red)
+    friend:setAttr('体力', 1)
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = red }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { friend } }
+            end
+        end
+    end)
+
+    friend:loseHp(1) -- 体力 1 → 0 ⇒ 进濒死，问他给不给【桃】
+
+    lt.assertEquals('被【桃】救回来了', 1, friend:getAttr('体力'))
+    lt.assertEquals('用的是急救', findSkill(huatuo, '急救'), assert(chosen).source)
+end)
+
+lt.test('急救：黑色牌当不了【桃】', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '华佗', '魏队友' }
+    local huatuo = run.players[1]
+    local friend = run.players[2]
+
+    local black = run.game:createCard('杀', '黑桃', 7)
+    assert(huatuo:getZone('手牌')):accept(black)
+    friend:setAttr('体力', 1)
+
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            asked = asked + 1
+        end
+    end)
+
+    friend:loseHp(1)
+
+    lt.assertEquals('收不到素材 ⇒ 连要素材都不问', 0, asked)
+    lt.assertEquals('没救回来', 0, friend:getAttr('体力'))
+end)
+
+lt.test('急救：自己的回合里就不能把红牌当【桃】了', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '华佗' }
+    local huatuo = run.players[1]
+    huatuo:setAttr('体力', 1)
+
+    local red = run.game:createCard('杀', '红桃', 7)
+    assert(huatuo:getZone('手牌')):accept(red)
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = red } -- 收素材那次
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                return { viewAs = option.viewAs, targets = { huatuo } }
+            end
+        end
+    end)
+
+    huatuo.turn = New 'Turn' (run.game, huatuo) -- 造出「正在他自己的回合里」
+    huatuo:loseHp(1)                            -- 1 → 0 ⇒ 进濒死，问他救不救自己
+    huatuo.turn = nil
+
+    lt.assertEquals('回合里 ⇒ 急救不成立，没救回来', 0, huatuo:getAttr('体力'))
+    lt.assertEquals('红牌还在手上（没被当素材用掉）', true,
+        moe.util.arrayHas(assert(huatuo:getZone('手牌')):list(), red))
+end)

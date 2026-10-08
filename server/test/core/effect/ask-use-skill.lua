@@ -37,6 +37,11 @@ Skill '双目标'
     : on('使用', function (cast)
         cast:setTag('目标数', #cast.use.targets)
     end)
+Skill '限一次'
+    : limit('出牌', 1)
+    : on('使用', function (cast)
+        cast:setTag('跑过', cast.source.name)
+    end)
 Skill '奸雄'
 ]])
     assert(ok, err)
@@ -358,4 +363,45 @@ lt.test('要一次技能使用：min / max 不写就是 1 / 1', function ()
     local one = game:askUseSkill(player, '出牌')
     lt.assertEquals('给 1 张就过', '突袭', assert(one.skill).name)
     lt.assertEquals('钩子收到 1 张', 1, assert(one.cast):getTag('拿过'))
+end)
+
+lt.test('要一次技能使用：自己的阶段里次数用尽就不进选项', function ()
+    local game   = newGame()
+    local player = newPlayer(game)
+    local skill  = player:addSkill('限一次')
+    game:on('技能-询问', function (ask)
+        local option = ask.options[1]
+        if not option then
+            return nil
+        end
+        return { skill = option.skill }
+    end)
+
+    local phase <close> = game:enterPhase(player, '出牌')
+
+    local first = game:askUseSkill(player, '出牌')
+    lt.assertEquals('第一次能发动', skill, first.skill)
+    lt.assertEquals('账记在自己这个阶段上', 1, phase:getUseCount(skill.def.fullName))
+
+    local second = game:askUseSkill(player, '出牌')
+    lt.assertEquals('次数用尽 ⇒ 不进选项', 0, #second.options)
+    lt.assertEquals('也就没发动', nil, second.skill)
+end)
+
+lt.test('要一次技能使用：不在自己的阶段里就不记账', function ()
+    local game   = newGame(2)
+    local player = newPlayer(game)
+    local other  = newPlayer(game)
+    game.desk:sit(1, player)
+    game.desk:sit(2, other)
+    local skill  = player:addSkill('限一次')
+    game:on('技能-询问', function (ask)
+        return { skill = ask.options[1].skill }
+    end)
+
+    local phase <close> = game:enterPhase(other, '出牌') -- 阶段是别人的
+
+    local ask = game:askUseSkill(player, '出牌')
+    lt.assertEquals('照常能发动', skill, ask.skill)
+    lt.assertEquals('不记在别人的阶段上', 0, phase:getUseCount(skill.def.fullName))
 end)

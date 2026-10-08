@@ -73,10 +73,24 @@ function M:collectTargets(skill, condition)
     return targets
 end
 
---- 把一个技能装成选项（前置凑不齐就返回空）
+--- 这个技能现在还能发动吗（自己回合的阶段里次数有没有用尽）
+---@param skill Skill
+---@return boolean
+function M:canFire(skill)
+    local phase = self.game:getUsePhase(skill.owner)
+    if not phase then
+        return true
+    end
+    return phase:getUseCount(skill.def.fullName) < skill.def:getLimit(phase.name)
+end
+
+--- 把一个技能装成选项（前置凑不齐 / 次数用尽就返回空）
 ---@param skill Skill
 ---@return AskUseSkill.Option?
 function M:makeOption(skill)
+    if not self:canFire(skill) then
+        return nil
+    end
     ---@type AskUseSkill.Option
     local option = { skill = skill }
 
@@ -240,6 +254,10 @@ function M:use()
         cards   = result.cards or {},
         targets = result.targets or {},
     }
+    local phase = self.game:getUsePhase(skill.owner)
+    if phase then
+        phase:addUseCount(skill.def.fullName, 1)
+    end
     return self.cast
 end
 

@@ -15,6 +15,7 @@
 ---@field cardCondition? AskCard.Condition # 这次发动要带的牌（`cards()` 声明；不写 = 不要牌）
 ---@field targetCondition? SkillDef.TargetCondition # 这次发动要的目标（`targets()` 声明；不写 = 不要目标）
 ---@field private viewAsList ViewAs.Decl[] # 声明过的「视为」（`viewAs()` 声明）
+---@field private limits table<string, integer> # 每个阶段最多发动几次（照 `CardDef:limit`）
 ---@field private game Game # 所属的局
 ---@field private tagSet table<string, true> # 标签集合
 ---@field private handlers table<string, function[]> # 各时机上的回调（按登记顺序）
@@ -25,6 +26,9 @@ local M = Class 'SkillDef'
 local IMPLIED_TAGS = {
     觉醒技 = { '锁定技', '限定技' },
 }
+
+---@type integer # 没声明次数上限时的默认值（事实上不限）
+local DEFAULT_LIMIT = 1000
 
 ---@param game Game
 ---@param name string
@@ -40,6 +44,7 @@ function M:__init(game, name, owner, source)
     self.tagSet   = {}
     self.handlers = {}
     self.viewAsList = {}
+    self.limits     = {}
 end
 
 --- 登记这个技能的一个钩子（`'被动'` 在技能挂上时跑一次，内容侧在那里订阅 / 建状态）
@@ -88,6 +93,22 @@ end
 function M:targets(condition)
     self.targetCondition = condition
     return self
+end
+
+--- 声明「自己回合的这个阶段最多发动几次」（照牌的 `limit`；不写 = 不限）
+---@param phase string # 阶段名
+---@param count integer # 最多几次
+---@return SkillDef
+function M:limit(phase, count)
+    self.limits[phase] = count
+    return self
+end
+
+--- 这个阶段最多发动几次（没声明就是 1000 = 事实上不限）
+---@param phase string # 阶段名
+---@return integer
+function M:getLimit(phase)
+    return self.limits[phase] or DEFAULT_LIMIT
 end
 
 --- 声明一份「视为」（可多次调）：技能启用时内核照它建 `ViewAs` 挂在主人身上，停用自动撤

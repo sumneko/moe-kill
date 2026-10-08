@@ -13,7 +13,10 @@ Skill '仁德'
         return player ~= skill.owner
     end }
     : on('使用', function (cast)
-        local receiver = assert(cast.use.targets[1])
+        local receiver = cast.use.targets[1]
+        if not receiver then
+            return
+        end
         game:moveCard(cast.use.cards, receiver:getZone('手牌'))
         local phase = assert(cast.from:currentPhase())
         local given = phase:getTag('仁德') or 0
