@@ -9,6 +9,8 @@ Hero '甘宁'
 -- 【奇袭】你可以将一张黑色牌当【过河拆桥】使用。
 Skill '奇袭'
     : viewAs('过河拆桥', {
-        color = '黑',
-        zone  = rule.ownZones,
+        condition = {
+            color = '黑',
+            zone  = rule.ownZones,
+        },
     })

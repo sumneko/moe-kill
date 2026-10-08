@@ -233,11 +233,11 @@ end
 
 --- 声明一份「视为」（可多次调）：被动启用时内核照它建 `ViewAs` 挂在持有者身上，停用自动撤
 ---@param name string # 视为哪张牌
----@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材）
+---@param options? ViewAs.Options # 这份声明的选项（素材条件、要不要先问一句）
 ---@param on? fun(ask: AskCard, source: Card): (boolean|Card|Card[]?) # 发动回调（不填 = 直接成立）
 ---@return CardDef
-function CardDef:viewAs(name, condition, on)
-    self.viewAsList[#self.viewAsList + 1] = { name = name, condition = condition, on = on }
+function CardDef:viewAs(name, options, on)
+    self.viewAsList[#self.viewAsList + 1] = { name = name, options = options, on = on }
     return self
 end
 

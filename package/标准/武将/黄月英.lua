@@ -18,10 +18,7 @@ Skill '集智'
             if not useCard.card:isKind('非延时锦囊') then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
+            skill:tryCast(function ()
                 owner:draw(1)
             end)
         end))

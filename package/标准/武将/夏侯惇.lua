@@ -15,10 +15,7 @@ Skill '刚烈'
             if not from then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
+            skill:tryCast(function ()
                 local judge = game:judge(owner, '刚烈')
                 if judge.card?.suit == '红桃' then
                     return

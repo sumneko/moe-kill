@@ -24,6 +24,6 @@ Skill '青囊'
 
 -- 【急救】你的回合外，你可以将一张红色牌当【桃】使用。
 Skill '急救'
-    : viewAs('桃', { color = '红', zone = rule.ownZones }, function (ask, skill)
+    : viewAs('桃', { condition = { color = '红', zone = rule.ownZones } }, function (ask, skill)
         return skill.owner.turn == nil
     end)

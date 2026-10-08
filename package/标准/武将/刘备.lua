@@ -31,10 +31,7 @@ Skill '仁德'
 Skill '激将'
     : auto(true)
     : tags '主公技'
-    : viewAs('杀', nil, function (ask, skill)
-        if not skill:confirm() then
-            return
-        end
+    : viewAs('杀', { confirm = true }, function (ask, skill)
         local helpers = table.filter(game.desk.alivePlayers, function (player)
             return player ~= skill.owner and player.kingdom == skill.owner.kingdom
         end)

@@ -15,10 +15,7 @@ Skill '鬼才'
             if owner:getZone('手牌'):count() == 0 then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
+            skill:tryCast(function ()
                 local card = game:askCard(owner, '鬼才', { zone = '手牌' }).card
                 if card then
                     judge:replace(card)
@@ -37,10 +34,7 @@ Skill '反馈'
             if not from or not from:hasCard() then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
+            skill:tryCast(function ()
                 local card = game:askCard(owner, '反馈', { zone = from:getZones(), cancelable = false }).card
                 if card then
                     game:moveCard(card, owner:getZone('手牌'))

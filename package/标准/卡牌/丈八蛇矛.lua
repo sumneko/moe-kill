@@ -5,4 +5,4 @@
 Card '丈八蛇矛'
     : extends '武器牌'
     : value('攻击范围', 3)
-    : viewAs('杀', { zone = '手牌', min = 2 })
+    : viewAs('杀', { condition = { zone = '手牌', min = 2 } })

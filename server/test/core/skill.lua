@@ -94,6 +94,35 @@ lt.test('技能：自动同意开着就不问，关着问一次', function ()
     lt.assertEquals('这次问的是甲', '乙,乙,甲', table.concat(asked, ','))
 end)
 
+lt.test('技能：tryCast 先问一句再发动，不同意就不发动', function ()
+    useProbe()
+    local game   = newGame("Skill '甲' : auto(true)\nSkill '乙'")
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+
+    local answer = '发动'
+    game:on('决策-询问', function ()
+        return answer
+    end)
+
+    local jia = player:addSkill('甲')
+    ---@type integer
+    local ran = 0
+    local cast = jia:tryCast(function ()
+        ran = ran + 1
+    end)
+    lt.assertEquals('自动同意⇒直接发动', 1, ran)
+    lt.assertEquals('给回那次发动', jia, assert(cast).source)
+
+    local yi = player:addSkill('乙')
+    answer = '不发动'
+    ran = 0
+    local refused = yi:tryCast(function ()
+        ran = ran + 1
+    end)
+    lt.assertEquals('问了但没同意⇒不发动', 0, ran)
+    lt.assertEquals('没发动就没给实例', nil, refused)
+end)
+
 lt.test('技能定义：标签', function ()
     useProbe()
     local game = newGame(PROBE)

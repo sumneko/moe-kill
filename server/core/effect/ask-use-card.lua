@@ -86,7 +86,7 @@ function M:viewAsPlan(viewAs)
     return plan
 end
 
---- 选了某份「视为」声明 ⇒ 让它表态、按声明收素材、照牌名造牌；拿不到牌这次就作废
+--- 选了某份「视为」声明（玩家亲手选的）⇒ 让它表态、按声明收素材、照牌名造牌；拿不到牌这次就作废
 ---@async
 ---@param value AskCard.Answer
 ---@return AskCard.Answer?
@@ -95,7 +95,7 @@ function M:beforeResolve(value)
     if not viewAs then
         return value
     end
-    local card = viewAs:tryProduce(self)
+    local card = viewAs:tryProduce(self, true)
     if card == nil then
         self.task:reject('没有给出视为【{}】的素材' % { viewAs.name })
         return nil

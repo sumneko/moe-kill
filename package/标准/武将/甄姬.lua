@@ -14,16 +14,22 @@ Skill '洛神'
             local card = judge.card
             if judge.reason == '洛神' and card and card.color == '黑' then
                 -- 判定牌还在这次判定的临时区里，趁收尾送弃牌之前搬进手牌
-                game:moveCard(card, owner:getZone('手牌'))
+                skill:cast(function ()
+                    game:moveCard(card, owner:getZone('手牌'))
+                end)
             end
         end))
         host:bindGC(owner:on('阶段-开始', function (phase)
             if phase.name ~= '准备' then
                 return
             end
-            while skill:confirm() do
-                local judge = game:judge(owner, '洛神')
-                if judge.card?.color ~= '黑' then
+            -- 上限 1000 次，防止答复不前进时死循环
+            for _ = 1, 1000 do
+                -- 每问一次就是一次发动：这次发动做的事 = 判定（判黑才算成功）
+                local cast = skill:tryCast(function ()
+                    return game:judge(owner, '洛神').card?.color == '黑'
+                end)
+                if not cast or not cast.result then
                     break
                 end
             end
@@ -32,4 +38,4 @@ Skill '洛神'
 
 -- 【倾国】你可以将一张黑色手牌当【闪】使用或打出。
 Skill '倾国'
-    : viewAs('闪', { color = '黑', zone = '手牌' })
+    : viewAs('闪', { condition = { color = '黑', zone = '手牌' } })

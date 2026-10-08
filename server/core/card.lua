@@ -78,6 +78,14 @@ function M:cast(body)
     return cast
 end
 
+--- 问一次要不要发动（装备没有「自动同意」的开关，每次都问）
+---@async
+---@return boolean
+function M:confirm()
+    local owner = assert(self:getZone()?.owner)
+    return self.game:askChoice(owner, self.name, { '发动' }).choice ~= nil
+end
+
 --- 启用被动：松开一层压制（松开到 0 时应用）
 ---@return function # 撤销这一次松开
 function M:enablePassive()
@@ -114,7 +122,7 @@ function M:applyPassive()
     end
     if owner then
         for _, decl in ipairs(self.def:getViewAsList()) do
-            local viewAs = owner:addViewAs(decl.name, self, decl.condition)
+            local viewAs = owner:addViewAs(decl.name, self, decl.options)
             if decl.on then
                 viewAs:on('发动', decl.on)
             end

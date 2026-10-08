@@ -8,5 +8,5 @@ Hero '赵云'
 
 -- 【龙胆】你可以将一张【杀】当【闪】使用或打出，或将一张【闪】当普通【杀】使用或打出。
 Skill '龙胆'
-    : viewAs('闪', { name = '杀', zone = '手牌' })
-    : viewAs('杀', { name = '闪', zone = '手牌' })
+    : viewAs('闪', { condition = { name = '杀', zone = '手牌' } })
+    : viewAs('杀', { condition = { name = '闪', zone = '手牌' } })

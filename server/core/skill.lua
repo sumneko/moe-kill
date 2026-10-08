@@ -113,11 +113,11 @@ end
 
 --- 声明一份「视为」（可多次调）：技能启用时内核照它建 `ViewAs` 挂在主人身上，停用自动撤
 ---@param name string # 视为哪张牌
----@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材）
+---@param options? ViewAs.Options # 这份声明的选项（素材条件、要不要先问一句）
 ---@param on? fun(ask: AskCard, source: Skill): (boolean|Card|Card[]?) # 发动回调（不填 = 直接成立）
 ---@return SkillDef
-function M:viewAs(name, condition, on)
-    self.viewAsList[#self.viewAsList + 1] = { name = name, condition = condition, on = on }
+function M:viewAs(name, options, on)
+    self.viewAsList[#self.viewAsList + 1] = { name = name, options = options, on = on }
     return self
 end
 
@@ -191,7 +191,7 @@ function S:__init(game, def, owner)
     self.passiveSuppress = 1
 end
 
---- 问一次要不要发动：自动同意开着就直接放行，否则问「发动」这一句（技能自己决定在哪儿问）
+--- 问一次要不要发动：自动同意开着就直接放行，否则问「发动」这一句
 ---@async
 ---@return boolean # 要不要发动
 function S:confirm()
@@ -201,9 +201,21 @@ function S:confirm()
     return self.game:askChoice(self.owner, self.name, { '发动' }).choice == '发动'
 end
 
+--- 问一句再发动：同意才起这次发动（`confirm()` + `cast()` 的合并写法 —— 免得两者嵌套顺序写反）
+---@async
+---@param body fun(cast: SkillCast): any # 这次发动做的事（返回值读 `cast.result`）
+---@param use? Skill.Use # 这次发动带的牌与目标（没声明前置的可以不给）
+---@return SkillCast? # 那次发动（没发动就是空）
+function S:tryCast(body, use)
+    if not self:confirm() then
+        return nil
+    end
+    return self:cast(body, use)
+end
+
 --- 以这次技能发动为归因地跑一段：里面起的结算都挂在它下面（`parent` 链上查得到「这是哪个技能做的」）
 ---@async
----@param body fun(cast: SkillCast) # 这次发动做的事
+---@param body fun(cast: SkillCast): any # 这次发动做的事（返回值读 `cast.result`）
 ---@param use? Skill.Use # 这次发动带的牌与目标（没声明前置的可以不给）
 ---@return SkillCast # 这次发动
 function S:cast(body, use)
@@ -271,7 +283,7 @@ function S:applyPassive()
         handler(self, host)
     end
     for _, decl in ipairs(self.def:getViewAsList()) do
-        local viewAs = self.owner:addViewAs(decl.name, self, decl.condition)
+        local viewAs = self.owner:addViewAs(decl.name, self, decl.options)
         if decl.on then
             viewAs:on('发动', decl.on)
         end

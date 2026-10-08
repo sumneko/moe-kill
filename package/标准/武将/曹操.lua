@@ -17,10 +17,7 @@ Skill '奸雄'
             if #cards == 0 then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
+            skill:tryCast(function ()
                 game:moveCard(cards, owner:getZone('手牌'))
             end)
         end))
@@ -30,10 +27,7 @@ Skill '奸雄'
 Skill '护驾'
     : auto(true)
     : tags '主公技'
-    : viewAs('闪', nil, function (ask, skill)
-        if not skill:confirm() then
-            return
-        end
+    : viewAs('闪', { confirm = true }, function (ask, skill)
         local helpers = table.filter(game.desk.alivePlayers, function (player)
             return player ~= skill.owner and player.kingdom == skill.owner.kingdom
         end)

@@ -1188,6 +1188,15 @@ lt.test('洛神：准备阶段判黑就拿到那张判定牌，再问重复时�
     zhenji:setHero(assert(run.game:getHero('甄姬')))
 
     lt.assertEquals('技能随武将挂上', true, zhenji:hasSkill('洛神'))
+    local luoshen = findSkill(zhenji, '洛神')
+
+    ---@type Effect?
+    local holder = nil
+    run.game:on('效果-能否生效', function (effect)
+        if effect.kind == 'moveCard' then
+            holder = effect.parent
+        end
+    end)
 
     ---@type Card?
     local decided = nil
@@ -1217,6 +1226,48 @@ lt.test('洛神：准备阶段判黑就拿到那张判定牌，再问重复时�
     local hand = assert(zhenji:getZone('手牌'))
     lt.assertEquals('拿到了那张判定牌', 1, hand:count())
     lt.assertEquals('就是判出来那张', decided, hand:peek(1))
+    local cast = assert(holder)
+    ---@cast cast SkillCast
+    lt.assertEquals('拿牌那一手归因在【洛神】名下', luoshen, cast.source)
+end)
+
+lt.test('洛神：连判两次黑 ⇒ 每轮各是一次发动', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhenji = run.players[1]
+    zhenji:setHero(assert(run.game:getHero('甄姬')))
+
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '洛神' then
+            judge:replace(run.game:createCard('杀', '黑桃', 7))
+        end
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '洛神' then
+            return
+        end
+        ---@cast ask AskChoice
+        asked = asked + 1
+        if asked <= 2 then
+            return '发动'
+        end
+    end)
+
+    ---@type integer
+    local casts = 0
+    run.game:on('效果-能否生效', function (effect)
+        if effect.kind == 'cast' then
+            casts = casts + 1
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(zhenji, '准备')
+
+    lt.assertEquals('问了三轮（第三轮答否就停）', 3, asked)
+    lt.assertEquals('两次判定各一张判定牌', 2, assert(zhenji:getZone('手牌')):count())
+    lt.assertEquals('四次发动：两次判定 + 两次拿牌', 4, casts)
 end)
 
 lt.test('洛神：判红就不拿，也不再问重复', function ()
@@ -2021,10 +2072,20 @@ lt.test('救援：其他吴势力角色使用【桃】令他回复时，回复�
     lt.assertEquals('帮手是吴势力', '吴', helper.kingdom)
 
     local peach = run.game:createCard('桃')
+
+    ---@type integer
+    local casts = 0
+    run.game:on('效果-能否生效', function (effect)
+        if effect.kind == 'cast' then
+            casts = casts + 1
+        end
+    end)
+
     sunquan:setAttr('体力', 1)
     run.game:heal(sunquan, 1, helper, peach)
 
     lt.assertEquals('1 点回复变 2 点（1 → 3）', 3, sunquan:getAttr('体力'))
+    lt.assertEquals('改值归因在【救援】名下（起了一次 cast）', 1, casts)
 end)
 
 lt.test('救援：不是吴势力 / 自己 / 不是【桃】都没有加成', function ()

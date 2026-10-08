@@ -28,6 +28,8 @@ Skill '救援'
             if heal.card?.name ~= '桃' then
                 return
             end
-            heal.amount = heal.amount + 1
+            skill:cast(function ()
+                heal.amount = heal.amount + 1
+            end)
         end))
     end)

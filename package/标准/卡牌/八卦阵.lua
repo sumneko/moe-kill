@@ -3,10 +3,7 @@
 
 Card '八卦阵'
     : extends '防具牌'
-    : viewAs('闪', nil, function (ask)
-        if game:askChoice(ask.to, '八卦阵', { '发动' }).choice == nil then
-            return
-        end
+    : viewAs('闪', { confirm = true }, function (ask)
         local judge = game:judge(ask.to, '八卦阵')
         if judge.card?.color == '红' then
             return true

@@ -17,10 +17,7 @@ Skill '克己'
             if phase:getUseCount('杀') > 0 or phase:getPlayCount('杀') > 0 then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
+            skill:tryCast(function ()
                 local turn = skill.owner.turn
                 if turn then
                     turn:skipPhase('弃牌')

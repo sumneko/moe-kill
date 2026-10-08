@@ -9,6 +9,8 @@ Hero '关羽'
 -- 【武圣】你可以将一张红色牌当【杀】使用或打出。
 Skill '武圣'
     : viewAs('杀', {
-        color = '红',
-        zone  = rule.ownZones,
+        condition = {
+            color = '红',
+            zone  = rule.ownZones,
+        },
     })

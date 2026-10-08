@@ -21,10 +21,7 @@ Skill '铁骑'
             if useCard.card.name ~= '杀' then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
+            skill:tryCast(function ()
                 local judge = game:judge(owner, '铁骑')
                 if judge.card?.color ~= '红' then
                     return
