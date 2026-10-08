@@ -10,9 +10,9 @@
 ---@class AskUseCard.Condition : AskCard.Condition
 ---@field target? Player|Player[] # 可用目标要与它至少有一个重合
 
---- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`target` 不归一）
+--- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`target` 归一成 `targets` 列表）
 ---@class AskUseCard.NormalizedCondition : AskCard.NormalizedCondition
----@field target? Player|Player[] # 可用目标要与它至少有一个重合
+---@field targets? Player[] # 可用目标要与它至少有一个重合
 
 ---@class AskUseCard.CreateOptions
 ---@field game Game
@@ -23,7 +23,7 @@
 
 --- 要一次「使用」：候选逐张跑 canUse（用不了的牌不进选项），答复必须带目标
 ---@class AskUseCard : AskCard
----@field condition? AskUseCard.NormalizedCondition # 要什么样的牌（比基类多一条 target）
+---@field condition? AskUseCard.NormalizedCondition # 要什么样的牌（比基类多一条 targets）
 ---@field useOptions? Game.UseOptions # 这次使用的选项（照原样带去那次使用）
 ---@field options? AskUseCard.Option[] # 合法选项（覆写基类：带可用目标与数量区间）
 ---@field targets? Player[] # 答复指定的目标（= `.result.targets`；无目标牌是「不存在」）
@@ -32,16 +32,23 @@ local M = Class 'AskUseCard'
 
 Extends('AskUseCard', 'AskCard')
 
-function M:__init(_, _, _, _, useOptions)
+---@param condition AskUseCard.Condition? # 要什么样的牌（父类已归一遍基类字段，这里补归 `target`）
+---@param useOptions Game.UseOptions? # 这次使用的选项（照原样带去那次使用）
+function M:__init(_, _, _, condition, useOptions)
     self.kind       = 'askUseCard'
     self.useOptions = useOptions
+    if condition and condition.target then
+        local normalized = assert(self.condition)
+        normalized.targets = moe.util.toList(condition.target)
+        rawset(normalized, 'target', nil)
+    end
 end
 
---- 能把这张牌用出去才进选项（条件里给了 `target` 的话，合法目标已由 `canUse` 收窄）
+--- 能把这张牌用出去才进选项（条件里给了 `targets` 的话，合法目标已由 `canUse` 收窄）
 ---@param card Card
 ---@return AskUseCard.Option?
 function M:makeOption(card)
-    local ok, _, plan = self.game:canUse(self.to, card, self.condition?.target, self.useOptions)
+    local ok, _, plan = self.game:canUse(self.to, card, self.condition?.targets, self.useOptions)
     if not ok then
         return nil
     end
@@ -71,7 +78,7 @@ function M:viewAsPlan(viewAs)
         return nil
     end
     local probe = self.game:createVirtualCard(viewAs.name)
-    local ok, _, plan = self.game:canUse(self.to, probe, self.condition?.target, self.useOptions)
+    local ok, _, plan = self.game:canUse(self.to, probe, self.condition?.targets, self.useOptions)
     Delete(probe)
     if not ok then
         return nil

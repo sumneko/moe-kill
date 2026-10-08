@@ -21,3 +21,17 @@ end
 function M:settle()
     return self.body(self)
 end
+
+--- 技能发动的 `Cast`（`Skill:cast` / `Skill:use` 造它）：`source` 一定是技能实例、`from` 一定有、`use` 是这次发动带的牌与目标（没声明前置的给空表）
+---@class SkillCast : Cast
+---@field source Skill # 发动的技能
+---@field from Player # 发动者（技能拥有者）
+---@field use Skill.Use # 这次发动带的牌与目标
+local SC = Class 'SkillCast'
+
+Extends('SkillCast', 'Cast')
+
+---@param use Skill.Use # 这次发动带的牌与目标（构造前已补空）
+function SC:__init(_, _, _, _, use)
+    self.use = use
+end

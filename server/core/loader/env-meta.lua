@@ -54,6 +54,11 @@ rule = nil
 ---@field on fun(self: BuffDef, event: '获得', handler: fun(buff: Buff)): BuffDef # 挂到某人身上之后跑一次（在这里挂资源 / 订阅：`buff:bindGC(...)`）
 ---@field on fun(self: BuffDef, event: '失去', handler: fun(buff: Buff)): BuffDef # 失去时跑一次（资源已经挂在 bindGC 上，这里只在「真的需要知道」时才用）
 
+--- 技能的钩子是**固定**的：名字由内核约定、与启用的包无关（清单以本文件为准，不留 string 兜底）
+---@class SkillDef
+---@field on fun(self: SkillDef, event: '被动', handler: fun(skill: Skill, host: GCHost)): SkillDef # 技能挂上时跑一次（要挂什么就 `host:bindGC(…)`；停用时内核释放容器）
+---@field on fun(self: SkillDef, event: '使用', handler: fun(cast: SkillCast)): SkillDef # 主动发动时跑（`cast` = 这次发动：`cast.source` 技能 / `cast.from` 发动者 / `cast.use` 带的牌与目标）
+
 --- 目前没有事件参数：触发时给空表，环境对象从 game 取
 ---@class Game.Event.游戏开始
 
@@ -82,12 +87,12 @@ rule = nil
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
 ---@field on fun(self: Game, name: '效果-被抵消', callback: fun(ask: AskOffsetCard): any): function # 一次生效被响应牌抵消了（要驳回就在回调里 `ask:cancel(原因)` —— 调用后不会返回；本时机不读返回值）
 ---@field fire fun(self: Game, name: '效果-被抵消', ask: AskOffsetCard): any
----@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
----@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any # 返回值就是答复（`AskCard.Answer`；没人表态给空）
----@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
----@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
+---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any # 返回值就是答复（`AskCard.Answer`；没人表态给空）
+---@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
+---@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
 ---@field on fun(self: Game, name: '卡牌-目标数修正', callback: fun(check: Game.Event.卡牌目标数修正): (integer?)): function # 目标数修正的全局那份（使用者身上还有一份）
@@ -112,7 +117,7 @@ rule = nil
 ---@field on fun(self: Game, name: '决策-答复', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function
 ---@field fire fun(self: Game, name: '决策-答复', ask: Ask|AskPlayer|AskChoice): any
 ---@field on fun(self: Game, name: '技能-询问', callback: fun(ask: AskUseSkill): any): function # 问应答方要发动哪个技能：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
----@field fire fun(self: Game, name: '技能-询问', ask: AskUseSkill): any # 返回值就是答复（答复必须是他身上的一个技能实例；没人表态给空）
+---@field fire fun(self: Game, name: '技能-询问', ask: AskUseSkill): any # 返回值就是答复（`{ skill = …, cards = …, targets = … }`；没人表态给空）
 ---@field on fun(self: Game, name: '游戏-结束', callback: fun(result: Game.Result): any): function
 ---@field fire fun(self: Game, name: '游戏-结束', result: Game.Result): any
 ---@field on fun(self: Game, name: string, callback: fun(payload: any): any): function

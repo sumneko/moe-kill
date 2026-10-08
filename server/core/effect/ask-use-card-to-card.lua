@@ -2,7 +2,7 @@
 ---@class AskUseCardToCard.Condition : AskCard.Condition
 ---@field target Card # 要使用在哪张牌上（由发起方给定）
 
---- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`target` 不归一）
+--- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`target` 是一张牌，原样保留）
 ---@class AskUseCardToCard.NormalizedCondition : AskCard.NormalizedCondition
 ---@field target Card # 要使用在哪张牌上
 

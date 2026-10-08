@@ -264,6 +264,24 @@ lt.test('要一次使用：答复的目标给单个或一张列表都行', funct
     lt.assertEquals('目标读得到（一张列表）', 2, #assert(many.targets))
 end)
 
+lt.test('要一次使用：条件里的 target 构造时归一成 targets 列表', function ()
+    local game, players = newGame(3)
+    local card = game:createCard('测试牌')
+    putInHand(players[1], { card })
+    game:on('卡牌-询问', function ()
+        return { card = card, targets = players[2] }
+    end)
+
+    local ask = game:askUseCard(players[1], '测试', { name = '测试牌', target = players[2] })
+
+    local condition = assert(ask.condition)
+    local targets   = assert(condition.targets, '归一成 targets')
+    lt.assertEquals('单值归一成列表', 1, #targets)
+    lt.assertEquals('列表里就是他', players[2], targets[1])
+    lt.assertEquals('旧的单字名不再留着', nil, rawget(condition, 'target'))
+    lt.assertEquals('答复照旧读得到', players[2], assert(ask.targets)[1])
+end)
+
 lt.test('要一次使用：没人应答时没有答复，也不算失败', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('测试牌') })

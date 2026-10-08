@@ -1,3 +1,9 @@
+--- 技能的目标条件：个数区间 + 逐角色谓词（`: targets { … }` 声明的形状）
+---@class SkillDef.TargetCondition
+---@field min? integer # 至少几个目标（省略 = 1）
+---@field max? integer # 至多几个目标（省略 = 1）
+---@field filter? fun(player: Player, skill: Skill): boolean # 留下哪些角色（省略 = 全部存活角色）
+
 --- 技能的内容定义（名字 / 自动同意 / 标签；内核只存不解释）
 --- **「自动同意」是玩家的偏好默认值，与「是否必须发动」无关** —— 强制发动的技能自己不问（底本 Chapter1/Section2 与 Chapter2/Section5 讲的是「必须发动」与「锁定技」标签正交）
 ---@class SkillDef
@@ -6,6 +12,8 @@
 ---@field fullName string # 完整名（包名.名字）
 ---@field source string # 声明它的文件（逻辑路径）
 ---@field package autoFire boolean # 自动同意的默认值（不写 = 每次问）
+---@field cardCondition? AskCard.Condition # 这次发动要带的牌（`cards()` 声明；不写 = 不要牌）
+---@field targetCondition? SkillDef.TargetCondition # 这次发动要的目标（`targets()` 声明；不写 = 不要目标）
 ---@field private game Game # 所属的局
 ---@field private tagSet table<string, true> # 标签集合
 ---@field private handlers table<string, function[]> # 各时机上的回调（按登记顺序）
@@ -66,6 +74,22 @@ function M:auto(value)
     return self
 end
 
+--- 声明「这次发动要带的牌」（筛选条件照 `AskCard.Condition`，`min` / `max` 不写 = 1 / 1；不写整条 = 不要牌）
+---@param condition AskCard.Condition
+---@return SkillDef
+function M:cards(condition)
+    self.cardCondition = condition
+    return self
+end
+
+--- 声明「这次发动要的目标」（`min` / `max` 不写 = 1 / 1；不写整条 = 不要目标）
+---@param condition SkillDef.TargetCondition
+---@return SkillDef
+function M:targets(condition)
+    self.targetCondition = condition
+    return self
+end
+
 --- 声明标签（可多次调，取并集）
 ---@param names string|string[]
 ---@return SkillDef
@@ -101,12 +125,17 @@ function M:getTags()
     return snapshot
 end
 
+--- 这次发动带的牌与目标（内核按技能声明收集、答复校验之后给；= `SkillCast.use` —— 没声明的那半是空表）
+---@class Skill.Use
+---@field cards Card[] # 这次发动带的牌
+---@field targets Player[] # 这次发动指定的目标
+
 --- 挂在角色身上的一个技能：订阅与资源由内容侧在「被动」钩子里 `host:bindGC(…)` 挂上，停用时内核释放容器
 ---@class Skill : GCHost
 ---@field name string # 定义名（裸名）
 ---@field owner Player # 谁拥有
 ---@field auto boolean # 被动触发时要不要自动同意（不询问；玩家 / 客户端可切）
----@field private def SkillDef # 内容定义
+---@field def SkillDef # 内容定义（公开字段；收集选项时内核读它的声明）
 ---@field private game Game # 属于哪一局
 ---@field private passiveSuppress integer # 被压制的层数（出厂 1 = 未启用）
 ---@field private passiveHost? GCHost # 本次应用时给回调的容器（懒建；停用时释放）
@@ -138,10 +167,12 @@ end
 
 --- 以这次技能发动为归因地跑一段：里面起的结算都挂在它下面（`parent` 链上查得到「这是哪个技能做的」）
 ---@async
----@param body fun(cast: Cast) # 这次发动做的事
----@return Cast # 这次发动
-function S:cast(body)
-    local cast = New 'Cast' (self.game, self, self.owner, body)
+---@param body fun(cast: SkillCast) # 这次发动做的事
+---@param use? Skill.Use # 这次发动带的牌与目标（没声明前置的可以不给）
+---@return SkillCast # 这次发动
+function S:cast(body, use)
+    use = use or { cards = {}, targets = {} }
+    local cast = New 'SkillCast' (self.game, self, self.owner, body, use)
     cast:apply():await()
     return cast
 end
@@ -154,15 +185,16 @@ function S:hasHandler(event)
 end
 
 --- 主动发动这个技能：跑「使用」钩子（归因到这次发动名下）
+---@param use? Skill.Use # 这次发动带的牌与目标（没声明前置的可以不给）
 ---@async
----@return Cast # 这次发动
-function S:use()
+---@return SkillCast # 这次发动
+function S:use(use)
     local handlers = self.def:getHandlers('使用')
     return self:cast(function (cast)
         for _, handler in ipairs(handlers) do
-            handler(self, cast)
+            handler(cast)
         end
-    end)
+    end, use)
 end
 
 --- 摘掉这个技能（幂等，内部就是 `Delete(self)`）

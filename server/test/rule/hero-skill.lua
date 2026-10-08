@@ -281,8 +281,8 @@ lt.test('主动技：出牌阶段答「发动技能」那一路就发动', funct
     useProbe()
     write('探针/主动技.lua', [[
 Skill '探针技'
-    : on('使用', function (skill, cast)
-        cast:setTag('跑过', skill.name)
+    : on('使用', function (cast)
+        cast:setTag('跑过', cast.source.name)
     end)
 ]])
 
@@ -301,7 +301,7 @@ Skill '探针技'
             return nil
         end
         asked = ask
-        return skill
+        return { skill = skill }
     end)
     run.game:on('卡牌-询问', function (ask)
         if ask.reason ~= '出牌' then
@@ -320,4 +320,156 @@ Skill '探针技'
     lt.assertEquals('发动者是他', player, cast.from)
     lt.assertEquals('钩子跑过了', '探针技', cast:getTag('跑过'))
     lt.assertEquals('问过两轮就收工（没答 ⇒ 结束出牌阶段）', 2, asks)
+end)
+
+lt.test('仁德：给 1 张不回，本阶段累计到 2 张时回 1 点', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '刘备' }
+    local liubei = run.players[1]
+    local friend = run.players[2]
+    local renDe  = findSkill(liubei, '仁德')
+
+    local first  = takeCard(run, liubei, '杀')
+    local second = takeCard(run, liubei, '闪')
+    liubei:setAttr('体力', 3)
+
+    ---@type Card[]
+    local plan  = { first, second }
+    local index = 0
+    local asked = 0
+    run.game:on('技能-询问', function ()
+        asked = asked + 1
+        if asked == 2 then
+            lt.assertEquals('给第 1 张后还没回血', 3, liubei:getAttr('体力'))
+        end
+        if asked > 2 then
+            return nil -- 没答 ⇒ 结束出牌阶段
+        end
+        index = index + 1
+        return { skill = renDe, cards = plan[index], targets = friend }
+    end)
+
+    local _ <close> = run.game:enterPhase(liubei, '出牌')
+
+    lt.assertEquals('两张都给了朋友', 2, friend:getZone('手牌'):count())
+    lt.assertEquals('累计到 2 张后回了 1 点（3 → 4）', 4, liubei:getAttr('体力'))
+end)
+
+lt.test('仁德：一次给 2 张直接回，此后不再回（每阶段只回一次）', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '刘备' }
+    local liubei = run.players[1]
+    local friend = run.players[2]
+    local renDe  = findSkill(liubei, '仁德')
+
+    local first  = takeCard(run, liubei, '杀')
+    local second = takeCard(run, liubei, '闪')
+    local third  = takeCard(run, liubei, '桃')
+    liubei:setAttr('体力', 3)
+
+    ---@type (Card|Card[])[]
+    local plan  = { { first, second }, third }
+    local index = 0
+    local asked = 0
+    run.game:on('技能-询问', function ()
+        asked = asked + 1
+        if asked == 2 then
+            lt.assertEquals('第一次给 2 张后已经回过（3 → 4）', 4, liubei:getAttr('体力'))
+        end
+        if asked > 2 then
+            return nil
+        end
+        index = index + 1
+        return { skill = renDe, cards = plan[index], targets = friend }
+    end)
+
+    local _ <close> = run.game:enterPhase(liubei, '出牌')
+
+    lt.assertEquals('三张都给了朋友', 3, friend:getZone('手牌'):count())
+    lt.assertEquals('第二次给 1 张不再回（还是 4）', 4, liubei:getAttr('体力'))
+end)
+
+lt.test('仁德：账挂在自己的出牌阶段上，跨阶段重新累计', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '刘备' }
+    local liubei = run.players[1]
+    local friend = run.players[2]
+    local renDe  = findSkill(liubei, '仁德')
+
+    local first  = takeCard(run, liubei, '杀')
+    local second = takeCard(run, liubei, '闪')
+    local third  = takeCard(run, liubei, '桃')
+    liubei:setAttr('体力', 3)
+
+    ---@type Card[]
+    local plan  = { first, second, third }
+    local index = 0
+    local asked = 0
+    run.game:on('技能-询问', function ()
+        asked = asked + 1
+        if asked == 2 or asked > 4 then
+            -- 第 2 次不答 ⇒ 结束第一个阶段；第 5 次不答 ⇒ 结束第二个阶段
+            return nil
+        end
+        index = index + 1
+        return { skill = renDe, cards = plan[index], targets = friend }
+    end)
+
+    do
+        local _ <close> = run.game:enterPhase(liubei, '出牌')
+    end
+    lt.assertEquals('第 1 个阶段只给 1 张（不回）', 3, liubei:getAttr('体力'))
+
+    do
+        local _ <close> = run.game:enterPhase(liubei, '出牌')
+    end
+    lt.assertEquals('第 2 个阶段给到 2 张才回（3 → 4）', 4, liubei:getAttr('体力'))
+end)
+
+lt.test('仁德：目标只能选别人；牌给到对方手上，归因在技能名下', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { '刘备' }
+    local liubei = run.players[1]
+    local friend = run.players[2]
+    local renDe  = findSkill(liubei, '仁德')
+
+    local card = takeCard(run, liubei, '杀')
+
+    ---@type AskUseSkill?
+    local skillAsk = nil
+    local asked    = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        if asked > 1 then
+            return nil
+        end
+        ---@cast ask AskUseSkill
+        skillAsk = ask
+        return { skill = renDe, cards = card, targets = friend }
+    end)
+
+    local _ <close> = run.game:enterPhase(liubei, '出牌')
+
+    local fromAnswerer = assert(skillAsk, '该问过技能那一路')
+    local option = assert(fromAnswerer.options[1], '仁德该在选项里')
+    lt.assertEquals('就是仁德', renDe, option.skill)
+    local candidates = assert(option.targets, '仁德该带目标那半').legal
+    lt.assertEquals('候选是其他三个人', 3, #candidates)
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(candidates, liubei))
+    lt.assertEquals('牌那半摆的是手牌', 1, #assert(option.cards, '仁德该带牌那半').legal)
+
+    lt.assertEquals('朋友手里就是那张牌', card, friend:getZone('手牌'):list()[1])
+    lt.assertEquals('自己的手牌空了', 0, liubei:getZone('手牌'):count())
+
+    local cast = assert(fromAnswerer.cast, '该把技能发动出去')
+    lt.assertEquals('归因到技能名下', renDe, cast.source)
+    lt.assertEquals('发动者是他', liubei, cast.from)
 end)

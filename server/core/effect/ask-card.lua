@@ -3,12 +3,12 @@
 ---@class AskCard.Answer
 ---@field card? Card|Card[] # 给出的牌（答不上就是不给）
 ---@field viewAs? ViewAs # 选了哪份「视为」声明（与 `card` 互斥；只有使用族会出现）
----@field targets? Player|Player[] # 目标：只有 `AskUseCard` 接受（`AskCard` 给了会被拒收）
+---@field targets? Player|Player[] # 目标：`AskUseCard` / `AskCardWithTarget` 接受（别的类给了会被拒收）
 
 --- 归一化之后存进结果里的形状
 ---@class AskCard.Result
 ---@field cards Card[] # 答复给出的牌（没答就是空表）
----@field targets? Player[] # 答复指定的目标（`AskUseCard` 用；别的类没有）
+---@field targets? Player[] # 答复指定的目标（`AskUseCard` / `AskCardWithTarget` 用；别的类没有）
 
 --- 一个合法选项：可以给出的一张牌
 ---@class AskCard.Option
@@ -69,7 +69,7 @@ local function resolveZone(game, to, item)
     return to:getZone(item) or game:getZone(item)
 end
 
---- 把条件归一化一次：`name` → `names` / `card` → `cards` 成列表、`zone` → `zones` 解析成区对象（按「被问者 → 局上」，解析不到的丢掉）、`min` / `max` 补默认；子类自己加的字段（如 `target`）原样保留
+--- 把条件归一化一次：`name` → `names` / `card` → `cards` 成列表、`zone` → `zones` 解析成区对象（按「被问者 → 局上」，解析不到的丢掉）、`min` / `max` 补默认；子类自己加的字段原样保留（要归一就由子类自己补）
 ---@param game Game
 ---@param to Player
 ---@param condition AskCard.Condition?
@@ -175,6 +175,33 @@ local function collectCandidates(to, condition)
         end
     end
     return result
+end
+
+--- 一组目标过不过约束：个数落在区间里、都在可选项里（没给就不限制）、不重复
+---@param list Player[] # 待校验的目标
+---@param legal? Player[] # 可选项（不填 = 不做限制）
+---@param min integer
+---@param max integer
+---@return any # 通过就是空
+local function checkTargets(list, legal, min, max)
+    if #list < min then
+        return '至少要指定 {} 个目标' % { min }
+    end
+    if #list > max then
+        return '至多指定 {} 个目标' % { max }
+    end
+    ---@type table<Player, true>
+    local seen = {}
+    for _, target in ipairs(list) do
+        if legal and not moe.util.arrayHas(legal, target) then
+            return '答复的目标不在可选项里'
+        end
+        if seen[target] then
+            return '答复的目标重复了'
+        end
+        seen[target] = true
+    end
+    return nil
 end
 
 ---@param game Game
@@ -385,6 +412,9 @@ moe.askCard.normalizeCondition = normalizeCondition
 
 --- 按条件收集候选牌（`ViewAs` 判「素材够不够」时也用它）
 moe.askCard.collectCandidates = collectCandidates
+
+--- 校验一组目标（个数 / 归属 / 重复；`AskCardWithTarget` 与 `AskUseSkill` 共用）
+moe.askCard.checkTargets = checkTargets
 
 ---@param options AskCard.CreateOptions
 ---@return AskCard
