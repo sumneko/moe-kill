@@ -1074,3 +1074,110 @@ lt.test('鬼才：自己手里没牌就不问', function ()
 
     lt.assertEquals('没问过', 0, asked)
 end)
+
+lt.test('苦肉：出牌阶段失去 1 点体力摸两张牌（不是伤害，也不限次数）', function ()
+    local run      = support.start { count = 2, packages = { '标准' } }
+    local huanggai = run.players[1]
+    huanggai:setHero(assert(run.game:getHero('黄盖')))
+
+    lt.assertEquals('技能随武将挂上', true, huanggai:hasSkill('苦肉'))
+
+    local skill = findSkill(huanggai, '苦肉')
+    ---@type integer
+    local round = 0
+    run.game:on('技能-询问', function (ask)
+        moe.await.sleep(0)
+        round = round + 1
+        if round > 2 then
+            return nil
+        end
+        return { skill = skill }
+    end)
+
+    ---@type integer
+    local damages = 0
+    run.game:on('伤害-开始', function ()
+        damages = damages + 1
+    end)
+    run.game:on('伤害-结束', function ()
+        damages = damages + 1
+    end)
+
+    local _ <close> = run.game:enterPhase(huanggai, '出牌')
+
+    lt.assertEquals('问了三轮（第三次不答就收工）', 3, round)
+    lt.assertEquals('连发两次，失去 2 点体力', 2, huanggai:getAttr('体力'))
+    lt.assertEquals('一共摸了 4 张', 4, assert(huanggai:getZone('手牌')):count())
+    lt.assertEquals('一次伤害时机都没发', 0, damages)
+end)
+
+lt.test('苦肉：体力 1 时发动会进濒死，被【桃】救回来再摸两张', function ()
+    local run      = support.start { count = 2, packages = { '标准' } }
+    local huanggai = run.players[1]
+    local saver    = run.players[2]
+    huanggai:setHero(assert(run.game:getHero('黄盖')))
+
+    local skill = findSkill(huanggai, '苦肉')
+    huanggai:setAttr('体力', 1)
+    local peach = takeCard(run, saver, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('技能-询问', function (ask)
+        moe.await.sleep(0)
+        asked = asked + 1
+        if asked > 1 then
+            return nil
+        end
+        return { skill = skill }
+    end)
+
+    ---@type integer
+    local dyingAsked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askUseCard' and ask.reason == '濒死' and ask.to == saver then
+            dyingAsked = dyingAsked + 1
+            return { card = peach, targets = { huanggai } }
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(huanggai, '出牌')
+
+    lt.assertEquals('问过濒死求桃', 1, dyingAsked)
+    lt.assertEquals('救回来了', true, huanggai:isAlive())
+    lt.assertEquals('体力回到 1', 1, huanggai:getAttr('体力'))
+    lt.assertEquals('活下来才摸的两张', 2, assert(huanggai:getZone('手牌')):count())
+end)
+
+lt.test('苦肉：没人救就阵亡，也不再摸牌', function ()
+    local run      = support.start { count = 2, packages = { '标准' } }
+    local huanggai = run.players[1]
+    huanggai:setHero(assert(run.game:getHero('黄盖')))
+
+    local skill = findSkill(huanggai, '苦肉')
+    huanggai:setAttr('体力', 1)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('技能-询问', function (ask)
+        moe.await.sleep(0)
+        asked = asked + 1
+        if asked > 1 then
+            return nil
+        end
+        return { skill = skill }
+    end)
+
+    ---@type Damage?
+    local killerDamage = nil
+    run.game:on('玩家-死亡', function (player)
+        killerDamage = player.dying?.damage
+    end)
+
+    local _ <close> = run.game:enterPhase(huanggai, '出牌')
+
+    lt.assertEquals('阵亡', false, huanggai:isAlive())
+    lt.assertEquals('体力是 0', 0, huanggai:getAttr('体力'))
+    lt.assertEquals('一张牌也没摸', 0, assert(huanggai:getZone('手牌')):count())
+    lt.assertEquals('因失去体力而死，没有致死伤害', nil, killerDamage)
+end)
