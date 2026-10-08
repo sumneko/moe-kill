@@ -20,7 +20,7 @@ Card '贯石斧'
             if #candidates < 2 then
                 return
             end
-            local discarded = game:askCard(owner, '贯石斧', { card = candidates, min = 2, max = 2 })
+            local discarded = game:askCard(owner, '贯石斧', { card = candidates, min = 2 })
             if #discarded.cards < 2 then
                 return
             end

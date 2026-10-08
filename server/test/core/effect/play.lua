@@ -902,7 +902,7 @@ lt.test('使用：声明了「最少 0、最多 0」就不需要目标', functio
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : targets { min = 0, max = 0 }
+    : targets { min = 0 }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('生效过', true)
     end)
@@ -928,7 +928,7 @@ lt.test('使用：无目标牌给目标时给出的原因', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : targets { min = 0, max = 0 }
+    : targets { min = 0 }
 ]])
 
     local game, user, target, hand = newGame()
@@ -964,7 +964,7 @@ lt.test('使用：零目标也跑完使用钩子与收尾', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : targets { min = 0, max = 0 }
+    : targets { min = 0 }
     : on('使用', function (useCard)
         useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用')
     end)

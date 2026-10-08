@@ -1,7 +1,7 @@
 --- 一张牌的目标条件（`targets()` 声明归一后的形状；filter 是列表 —— 多次声明叠加、逐条都要过）
 ---@class CardDef.TargetCondition
 ---@field min? integer # 至少几个目标（省略 = 1）
----@field max? integer # 至多几个目标（省略 = 1；事实不限写 1000）
+---@field max? integer # 至多几个目标（省略 = min；事实不限写 1000）
 ---@field filter (fun(player: Player, plan: CardDef.TargetPlan): boolean)[] # 逐角色谓词（空 = 全部存活角色）
 
 --- 目标条件的上下文：谁在用、哪张牌、打算打谁、这次使用的选项（谓词收它）
@@ -217,13 +217,14 @@ function CardDef:cardTargets(condition)
     return self
 end
 
---- 一次能指定几个目标（看目标条件的 min / max，省略 = 1；没声明也是 1、1）
+--- 一次能指定几个目标（`min` 省略 = 1、`max` 省略 = `min`；没声明也是 1、1）
 ---@return integer # 最少几个
 ---@return integer # 最多几个
 function CardDef:getTargetCount()
     local condition = self.targetCondition
     if condition then
-        return condition.min or 1, condition.max or 1
+        local min = condition.min or 1
+        return min, condition.max or min
     end
     return 1, 1
 end

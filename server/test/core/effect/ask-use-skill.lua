@@ -30,6 +30,13 @@ Skill '突袭'
     : on('使用', function (cast)
         cast:setTag('拿过', #cast.use.cards)
     end)
+Skill '双目标'
+    : targets { min = 2, filter = function (player, skill)
+        return player ~= skill.owner
+    end }
+    : on('使用', function (cast)
+        cast:setTag('目标数', #cast.use.targets)
+    end)
 Skill '奸雄'
 ]])
     assert(ok, err)
@@ -169,6 +176,26 @@ lt.test('要一次技能使用：选项带上前置（能挑的牌与目标、�
     local zhiheng = ask.options[2]
     lt.assertEquals('制衡没声明牌', nil, zhiheng.cards)
     lt.assertEquals('制衡没声明目标', nil, zhiheng.targets)
+end)
+
+lt.test('要一次技能使用：前置只写 min ⇒ 上限跟 min 一样', function ()
+    local game   = newGame(3)
+    local player = newPlayer(game)
+    local other  = newPlayer(game)
+    local third  = newPlayer(game)
+    game.desk:sit(1, player)
+    game.desk:sit(2, other)
+    game.desk:sit(3, third)
+    player:addSkill('双目标')
+
+    game:on('技能-询问', function ()
+        return nil
+    end)
+
+    local ask     = game:askUseSkill(player, '出牌')
+    local option  = assert(ask.options[1])
+    local targets = assert(option.targets)
+    lt.assertEquals('区间就是 2、2', '2,2', targets.min .. ',' .. targets.max)
 end)
 
 lt.test('要一次技能使用：凑不齐前置的技能不进选项', function ()

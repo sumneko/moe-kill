@@ -306,7 +306,7 @@ lt.test('询问：张数区间 2、2 收两张，`.cards` 是全部、`.card` �
         return { card = { second, first } }
     end)
 
-    local ask = game:askCard(players[1], '测试', { name = { '闪', '杀', '桃' }, min = 2, max = 2 })
+    local ask = game:askCard(players[1], '测试', { name = { '闪', '杀', '桃' }, min = 2 })
 
     lt.assertEquals('两张都收下', 2, #ask.cards)
     lt.assertEquals('按答复的顺序（第一张）', second, ask.cards[1])
@@ -328,6 +328,32 @@ lt.test('询问：张数不在区间就拒收（默认只收一张）', function
 
     lt.assertEquals('两张被拒', nil, ask.card)
     lt.assertEquals('原因', '至多给 1 张牌', ask.err)
+end)
+
+lt.test('询问：只写 min ⇒ 至多同最少（要正好那么多张）', function ()
+    local game, players = newGame(2)
+    local first  = game:createCard('闪')
+    local second = game:createCard('闪')
+    local third  = game:createCard('闪')
+    putInHand(players[1], { first, second, third })
+
+    ---@type Card[]
+    local answer = { first, second }
+    game:on('卡牌-询问', function ()
+        return { card = answer }
+    end)
+
+    local ask = game:askCard(players[1], '测试', { name = '闪', min = 2 })
+    lt.assertEquals('正好两张：过', nil, ask.err)
+    lt.assertEquals('收到了两张', 2, #ask.cards)
+
+    answer = { first }
+    local few = game:askCard(players[1], '测试', { name = '闪', min = 2 })
+    lt.assertEquals('只给一张：拒收', '至少要给 2 张牌', few.err)
+
+    answer = { first, second, third }
+    local many = game:askCard(players[1], '测试', { name = '闪', min = 2 })
+    lt.assertEquals('给三张也被拒（上限就是 min）', '至多给 2 张牌', many.err)
 end)
 
 lt.test('询问：min 0 ⇒ 不给也算答复（空表）', function ()

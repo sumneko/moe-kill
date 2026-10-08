@@ -1,7 +1,7 @@
 --- 技能的目标条件：个数区间 + 逐角色谓词（`: targets { … }` 声明的形状）
 ---@class SkillDef.TargetCondition
 ---@field min? integer # 至少几个目标（省略 = 1）
----@field max? integer # 至多几个目标（省略 = 1）
+---@field max? integer # 至多几个目标（省略 = min）
 ---@field filter? fun(player: Player, skill: Skill): boolean # 留下哪些角色（省略 = 全部存活角色）
 
 --- 技能的内容定义（名字 / 自动同意 / 标签；内核只存不解释）
@@ -72,7 +72,7 @@ function M:auto(value)
     return self
 end
 
---- 声明「这次发动要带的牌」（筛选条件照 `AskCard.Condition`，`min` / `max` 不写 = 1 / 1；不写整条 = 不要牌）
+--- 声明「这次发动要带的牌」（筛选条件照 `AskCard.Condition`，`min` 不写 = 1、`max` 不写 = `min`；不写整条 = 不要牌）
 ---@param condition AskCard.Condition
 ---@return SkillDef
 function M:cards(condition)
@@ -80,7 +80,7 @@ function M:cards(condition)
     return self
 end
 
---- 声明「这次发动要的目标」（`min` / `max` 不写 = 1 / 1；不写整条 = 不要目标）
+--- 声明「这次发动要的目标」（`min` 不写 = 1、`max` 不写 = `min`；不写整条 = 不要目标）
 ---@param condition SkillDef.TargetCondition
 ---@return SkillDef
 function M:targets(condition)

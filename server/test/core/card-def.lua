@@ -345,6 +345,18 @@ lt.test('定义：不声明就是「最少 1、最多 1」', function ()
     lt.assertEquals('默认最多', 1, max)
 end)
 
+lt.test('定义：只写 min ⇒ 最多也是 min', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '甲'
+    : targets { min = 2 }
+]])
+
+    local min, max = assert(game:getCard('甲')):getTargetCount()
+    lt.assertEquals('最少', 2, min)
+    lt.assertEquals('最多跟着最少', 2, max)
+end)
+
 lt.test('定义：extends 抄目标条件，自己写的覆盖基类', function ()
     local guard <close> = useProbe()
     local game = newGame([[

@@ -421,7 +421,7 @@ lt.test('校验：「最少 0、最多 0」谁都不指定，给目标反而不�
     local guard <close> = useProbe()
     local run = newGame([[
 Card '无目标牌'
-    : targets { min = 0, max = 0 }
+    : targets { min = 0 }
 ]])
     local card = run.game:createCard('无目标牌')
     run.hand:accept(card)

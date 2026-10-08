@@ -2,7 +2,7 @@
 ---@class AskCardWithTarget.Condition : AskCard.Condition
 ---@field targets? Player|Player[] # 候选目标（答复必须落在里面；不填 = 不做限制）
 ---@field minTarget? integer # 至少要给几个目标（省略 = 1）
----@field maxTarget? integer # 至多给几个目标（省略 = 1000）
+---@field maxTarget? integer # 至多给几个目标（省略 = minTarget）
 
 --- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`targets` 归一成列表、`minTarget` / `maxTarget` 补上默认）
 ---@class AskCardWithTarget.NormalizedCondition : AskCard.NormalizedCondition
@@ -35,7 +35,7 @@ function M:__init(_, _, _, condition)
             normalized.targets = moe.util.toList(normalized.targets)
         end
         normalized.minTarget = condition.minTarget or 1
-        normalized.maxTarget = condition.maxTarget or 1000
+        normalized.maxTarget = condition.maxTarget or normalized.minTarget
     end
 end
 
@@ -45,7 +45,7 @@ end
 ---@return any # 通过就是空
 function M:checkOption(option, value)
     local min = self.condition?.minTarget or 1
-    local max = self.condition?.maxTarget or 1000
+    local max = self.condition?.maxTarget or min
     ---@type Player[]
     local list = {}
     if value.targets ~= nil then

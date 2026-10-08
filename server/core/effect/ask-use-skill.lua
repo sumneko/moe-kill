@@ -93,7 +93,7 @@ function M:makeOption(skill)
     local targetCondition = skill.def.targetCondition
     if targetCondition then
         local min     = targetCondition.min or 1
-        local max     = targetCondition.max or 1
+        local max     = targetCondition.max or min
         local targets = self:collectTargets(skill, targetCondition)
         if #targets < min then
             return nil

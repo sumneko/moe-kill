@@ -17,7 +17,7 @@
 ---@field targets? Player[] # 这张牌的可用目标（「要一次使用」才有；有它就代表答复必须给目标、且要落在这里）
 
 --- 要什么样的牌：每个字段都是一条筛选条件（数组 = 满足其一；单值 = 当成只有一个的数组；不填 = 无要求）
---- `min` / `max` 是「要给出几张」（不填 = 1 / 1）；「要一次使用」「要一张打出」恒为一张，别带这两个
+--- `min` / `max` 是「要给出几张」（`min` 不填 = 1、`max` 不填 = `min`）；「要一次使用」「要一张打出」恒为一张，别带这两个
 --- 传单值就行 —— 构造询问时归一化一次（见 `AskCard.NormalizedCondition`）
 ---@class AskCard.Condition
 ---@field name? string|string[] # 牌名
@@ -27,7 +27,7 @@
 ---@field zone? string|Zone|(string|Zone)[] # 牌在哪个区里（名字按「被问者 → 局上」解析；别人的区要传区对象）
 ---@field card? Card|Card[] # 牌必须在这批里（可以不属于任何牌区）
 ---@field min? integer # 至少要给几张（省略 = 1）
----@field max? integer # 至多给几张（省略 = 1）
+---@field max? integer # 至多给几张（省略 = min）
 
 --- 询问身上存的是归一化之后的形状：字段名带复数 —— `names` / `cards` 是列表、`zones` 还解析成了区对象，另有 `min` / `max` 一定给出（订阅者与 `collectOptions` 直接读）
 ---@class AskCard.NormalizedCondition
@@ -83,7 +83,7 @@ local function normalizeCondition(game, to, condition)
         normalized[key] = value
     end
     normalized.min  = condition.min or 1
-    normalized.max  = condition.max or 1
+    normalized.max  = condition.max or normalized.min
     if condition.name then
         normalized.names = moe.util.toList(condition.name)
         normalized.name  = nil
@@ -275,7 +275,7 @@ function M:checkAnswer(value)
     end
     local cards = moe.util.toList(value.card)
     local min   = self.condition?.min or 1
-    local max   = self.condition?.max or 1
+    local max   = self.condition?.max or min
     if #cards < min then
         return '至少要给 {} 张牌' % { min }
     end

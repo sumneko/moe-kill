@@ -47,7 +47,6 @@ lt.test('给出：一次往返（答复 = 牌 + 目标，候选与区间摆在�
         max       = 2,
         targets   = { players[2], players[3] },
         minTarget = 1,
-        maxTarget = 1,
     })
 
     lt.assertEquals('种类标识', 'askCardWithTarget', ask.kind)
@@ -74,7 +73,11 @@ lt.test('给出：条件里的目标与区间构造时归一（单值 → 列表
     lt.assertEquals('单值归一成列表', 1, #targets)
     lt.assertEquals('列表里就是他', players[2], targets[1])
     lt.assertEquals('默认至少一个目标', 1, condition.minTarget)
-    lt.assertEquals('默认至多不限', 1000, condition.maxTarget)
+    lt.assertEquals('默认至多同最少', 1, condition.maxTarget)
+
+    local exact = game:askCardWithTarget(players[1], '测试', { minTarget = 2 })
+    local bare  = assert(exact.condition)
+    lt.assertEquals('只写 minTarget ⇒ 上限也是它', '2,2', bare.minTarget .. ',' .. bare.maxTarget)
 
     local many  = game:askCardWithTarget(players[1], '测试', {
         targets   = { players[2], players[3] },
@@ -122,7 +125,7 @@ lt.test('给出：目标重复 ⇒ 拒收', function ()
         return { card = slash, targets = { players[2], players[2] } }
     end)
 
-    local ask = game:askCardWithTarget(players[1], '测试', { zone = '手牌' })
+    local ask = game:askCardWithTarget(players[1], '测试', { zone = '手牌', maxTarget = 2 })
 
     lt.assertEquals('没拿到答复', nil, ask.target)
     lt.assertEquals('原因', '答复的目标重复了', ask.err)
@@ -136,10 +139,10 @@ lt.test('给出：目标个数不在区间 ⇒ 拒收', function ()
         return { card = slash, targets = { players[2], players[3] } }
     end)
 
-    local tooFew = game:askCardWithTarget(players[1], '测试', { zone = '手牌', minTarget = 3, maxTarget = 3 })
+    local tooFew = game:askCardWithTarget(players[1], '测试', { zone = '手牌', minTarget = 3 })
     lt.assertEquals('不够 ⇒ 拒收', '至少要指定 3 个目标', tooFew.err)
 
-    local tooMany = game:askCardWithTarget(players[1], '测试', { zone = '手牌', minTarget = 1, maxTarget = 1 })
+    local tooMany = game:askCardWithTarget(players[1], '测试', { zone = '手牌', minTarget = 1 })
     lt.assertEquals('超了 ⇒ 拒收', '至多指定 1 个目标', tooMany.err)
 end)
 
@@ -160,7 +163,7 @@ lt.test('给出：不给候选名单就不限制目标；`minTarget` 为 0 时�
     local ask = game:askCardWithTarget(players[1], '测试', { zone = '手牌' })
     lt.assertEquals('没有名单照样收下答复', players[3], ask.target)
 
-    local loose = game:askCardWithTarget(players[1], '测试', { zone = '手牌', minTarget = 0, maxTarget = 0 })
+    local loose = game:askCardWithTarget(players[1], '测试', { zone = '手牌', minTarget = 0 })
     lt.assertEquals('允许不给 ⇒ 也收下', nil, loose.target)
     lt.assertEquals('目标为空表', 0, #loose.targets)
     lt.assertEquals('不算失败', nil, loose.err)
