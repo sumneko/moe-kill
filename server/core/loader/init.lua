@@ -14,7 +14,7 @@ local preparse = require 'core.loader.preparse'
 ---@field public package? string # 正在执行的文件的所属包
 ---@field excludes table<string, string> # 互斥项 → 声明者
 ---@field env table # **整轮装载共用**的书写环境（包定义的全局函数就落在这里 ⇒ 包之间可以共享）
----@field injected table<string, any> # 注入项（game / Card / Depends / Class / New / rule）：每个文件加载前都会刷回 env
+---@field injected table<string, any> # 注入项（game / Card / Buff / Hero / Skill / Depends / Class / New / Extends / Delete / rule）：每个文件加载前都会刷回 env
 
 ---@class Loader.MetaFile
 ---@field logical string
@@ -51,7 +51,7 @@ local ALLOWED_GLOBALS = {
     'string', 'table', 'tonumber', 'tostring', 'type', 'utf8', 'xpcall',
 }
 
----@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends / Class / New / rule）
+---@param extra table<string, any> # 除标准库白名单外，额外注入的东西（game / Card / Depends / Class / New / Extends / Delete / rule）
 ---@return table
 local function makeEnv(extra)
     ---@type table<string, any>
@@ -443,6 +443,8 @@ function moe.loader.install(game, options)
         Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
         Class   = Class,
         New     = New,
+        Extends = Extends,
+        Delete  = Delete,
         rule    = {},
     }
     ctx.env = makeEnv(ctx.injected)

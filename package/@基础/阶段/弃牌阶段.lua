@@ -22,7 +22,7 @@ local function discardPhase(player)
     end
 end
 
-game:on('阶段-开始', function (phase)
+game:on('阶段-生效', function (phase)
     if phase.name == '弃牌' then
         discardPhase(phase.player)
     end

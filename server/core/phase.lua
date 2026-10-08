@@ -1,4 +1,4 @@
----@class Phase
+---@class Phase : GCHost
 ---@field name string # 阶段名（内容侧定的）
 ---@field player Player # 这个阶段属于谁
 ---@field private game Game
@@ -6,6 +6,8 @@
 ---@field private useCounts table<string, integer> # 本阶段某名字用过的次数
 ---@field private playCounts table<string, integer> # 本阶段某名字打出过的次数
 local M = Class 'Phase'
+
+Extends('Phase', 'GCHost')
 
 ---@param game Game
 ---@param player Player

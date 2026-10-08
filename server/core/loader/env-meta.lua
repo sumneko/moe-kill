@@ -96,6 +96,8 @@ rule = nil
 ---@field fire fun(self: Game, name: '回合-结束', turn: Game.Event.Turn): any
 ---@field on fun(self: Game, name: '阶段-开始', callback: fun(phase: Phase): any): function
 ---@field fire fun(self: Game, name: '阶段-开始', phase: Phase): any
+---@field on fun(self: Game, name: '阶段-生效', callback: fun(phase: Phase): any): function
+---@field fire fun(self: Game, name: '阶段-生效', phase: Phase): any
 ---@field on fun(self: Game, name: '阶段-结束', callback: fun(phase: Phase): any): function
 ---@field fire fun(self: Game, name: '阶段-结束', phase: Phase): any
 ---@field on fun(self: Game, name: '决策-询问', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
@@ -113,6 +115,8 @@ rule = nil
 ---@class Player
 ---@field on fun(self: Player, name: '阶段-开始', callback: fun(phase: Phase): any): function # 自己这个玩家的阶段开始（全局那份之外、对当事人再发一份）
 ---@field fire fun(self: Player, name: '阶段-开始', phase: Phase): any
+---@field on fun(self: Player, name: '阶段-生效', callback: fun(phase: Phase): any): function # 自己这个玩家的阶段生效（全局那份之外、对当事人再发一份）
+---@field fire fun(self: Player, name: '阶段-生效', phase: Phase): any
 ---@field on fun(self: Player, name: '阶段-结束', callback: fun(phase: Phase): any): function # 自己这个玩家的阶段结束（全局那份之外、对当事人再发一份）
 ---@field fire fun(self: Player, name: '阶段-结束', phase: Phase): any
 ---@field on fun(self: Player, name: '效果-来源-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第二段：问来源）：返回非 nil 即阻止（返回值就是原因）

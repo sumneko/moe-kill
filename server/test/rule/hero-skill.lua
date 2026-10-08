@@ -2125,3 +2125,139 @@ lt.test('救援：不是主公就不挂这个技能', function ()
     lt.assertEquals('制衡照挂', true, other:hasSkill('制衡'))
     lt.assertEquals('救援不挂', false, other:hasSkill('救援'))
 end)
+
+--- 许褚上场（2 人局）
+---@return Test.RuleSupport
+---@return Player # 许褚
+local function startXuchu()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local xuchu = run.players[1]
+    xuchu:setHero(assert(run.game:getHero('许褚')))
+    return run, xuchu
+end
+
+--- 让他走一次自己的摸牌阶段（真业务在「阶段-生效」里；回合对象是造的，这样才有 `owner.turn`）
+---@param run Test.RuleSupport
+---@param xuchu Player
+local function drawPhase(run, xuchu)
+    xuchu.turn = New 'Turn' (run.game, xuchu)
+    local phase = run.game:enterPhase(xuchu, '摸牌')
+    Delete(phase)
+end
+
+--- 答复脚本：问【裸衣】就按给定的答
+---@param run Test.RuleSupport
+---@param answer string
+---@return fun(): integer # 问了几次
+local function answerLuoyi(run, answer)
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '裸衣' then
+            return
+        end
+        asked = asked + 1
+        return answer
+    end)
+    return function () return asked end
+end
+
+lt.test('裸衣：发动就少摸一张，改的「摸牌数」随阶段复原', function ()
+    local run, xuchu = startXuchu()
+    local asked = answerLuoyi(run, '发动')
+
+    drawPhase(run, xuchu)
+
+    lt.assertEquals('问过一次（这一次就是一次发动）', 1, asked())
+    lt.assertEquals('只摸 1 张', 1, assert(xuchu:getZone('手牌')):count())
+    lt.assertEquals('摸牌数回到 2（修正随阶段撤了）', 2, xuchu:getAttr('摸牌数'))
+    lt.assertEquals('本回合挂上了那只延时状态', true, xuchu:hasBuff('裸衣'))
+end)
+
+lt.test('裸衣：不发动就照常摸两张，也不挂状态', function ()
+    local run, xuchu = startXuchu()
+    local asked = answerLuoyi(run, '不发动')
+
+    drawPhase(run, xuchu)
+
+    lt.assertEquals('照常摸 2 张', 2, assert(xuchu:getZone('手牌')):count())
+    lt.assertEquals('问了这一次', 1, asked())
+    lt.assertEquals('没挂状态', false, xuchu:hasBuff('裸衣'))
+end)
+
+lt.test('裸衣：发动后用【杀】造成 2 点伤害', function ()
+    local run, xuchu = startXuchu()
+    local foe       = run.players[2]
+    answerLuoyi(run, '发动')
+    drawPhase(run, xuchu)
+
+    local slash  = takeCard(run, xuchu, '杀')
+    local before = foe:getAttr('体力')
+    run.game:useCard(xuchu, slash, { foe })
+
+    lt.assertEquals('1 点 + 【裸衣】1 点', before - 2, foe:getAttr('体力'))
+end)
+
+lt.test('裸衣：发动后用【决斗】也是 2 点', function ()
+    local run, xuchu = startXuchu()
+    local foe       = run.players[2]
+    answerLuoyi(run, '发动')
+    drawPhase(run, xuchu)
+
+    local duel   = takeCard(run, xuchu, '决斗')
+    local before = foe:getAttr('体力')
+    run.game:useCard(xuchu, duel, { foe })
+
+    lt.assertEquals('1 点 + 【裸衣】1 点', before - 2, foe:getAttr('体力'))
+end)
+
+lt.test('裸衣：别人用【杀】打他不受影响', function ()
+    local run, xuchu = startXuchu()
+    local foe       = run.players[2]
+    answerLuoyi(run, '发动')
+    drawPhase(run, xuchu)
+
+    local slash  = takeCard(run, foe, '杀')
+    local before = xuchu:getAttr('体力')
+    run.game:useCard(foe, slash, { xuchu })
+
+    lt.assertEquals('照常 1 点（不是他造成的伤害）', before - 1, xuchu:getAttr('体力'))
+end)
+
+lt.test('裸衣：效果只到回合结束', function ()
+    local run, xuchu = startXuchu()
+    local foe       = run.players[2]
+    answerLuoyi(run, '发动')
+    drawPhase(run, xuchu)
+
+    local first  = takeCard(run, xuchu, '杀')
+    local before = foe:getAttr('体力')
+    run.game:useCard(xuchu, first, { foe })
+    lt.assertEquals('本回合第一次：2 点', before - 2, foe:getAttr('体力'))
+
+    Delete(assert(xuchu.turn))
+    xuchu.turn = nil
+
+    lt.assertEquals('回合结束，状态跟着散了', false, xuchu:hasBuff('裸衣'))
+
+    local second = takeCard(run, xuchu, '杀')
+    local now    = foe:getAttr('体力')
+    run.game:useCard(xuchu, second, { foe })
+    lt.assertEquals('下一回合照常 1 点', now - 1, foe:getAttr('体力'))
+end)
+
+lt.test('裸衣：发动之后技能无效，本回合的 +1 照旧执行', function ()
+    local run, xuchu = startXuchu()
+    local foe       = run.players[2]
+    answerLuoyi(run, '发动')
+    drawPhase(run, xuchu)
+
+    local luoyi  = findSkill(xuchu, '裸衣')
+    local enable = luoyi:disablePassive()
+
+    local slash  = takeCard(run, xuchu, '杀')
+    local before = foe:getAttr('体力')
+    run.game:useCard(xuchu, slash, { foe })
+
+    lt.assertEquals('技能没了，效果还在（延时类效果）', before - 2, foe:getAttr('体力'))
+    enable()
+end)

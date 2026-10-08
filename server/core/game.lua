@@ -559,7 +559,7 @@ function M:collect(name, ...)
     return self.events:collect(name, ...)
 end
 
---- 进入一个回合阶段（返回的阶段可以当 `<close>` 用：作用域结束就离开）
+--- 进入一个回合阶段（返回的阶段可以当 `<close>` 用：作用域结束就离开；先发「开始」（只通知，技能在这里改「摸牌数」这类参数）再发「生效」（这个阶段的业务））
 ---@param player Player # 这个阶段属于谁
 ---@param name string # 阶段名（取值由你定）
 ---@return Phase
@@ -572,6 +572,8 @@ function M:enterPhase(player, name)
     self.phase = phase
     self:fire('阶段-开始', phase)
     player:fire('阶段-开始', phase)
+    self:fire('阶段-生效', phase)
+    player:fire('阶段-生效', phase)
     return phase
 end
 

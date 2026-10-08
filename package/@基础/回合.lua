@@ -1,10 +1,12 @@
--- 回合流程：一个「回合」对象 + 六个阶段（进出各发一个时机）；各阶段业务见「阶段」目录
+-- 回合流程：一个「回合」对象 + 六个阶段（进发「开始」与「生效」、出发「结束」）；各阶段业务见「阶段」目录
 local PHASES = { '准备', '判定', '摸牌', '出牌', '弃牌', '结束' }
 
----@class Turn
+---@class Turn : GCHost
 ---@field player Player # 这个回合属于谁
 ---@field private skippedPhases table<string, true> # 这个回合里要跳过的阶段
 local Turn = Class 'Turn'
+
+Extends('Turn', 'GCHost')
 
 ---@param game Game
 ---@param player Player
@@ -31,12 +33,17 @@ function Turn:takePhaseSkip(name)
     return true
 end
 
+-- 离开这个回合（`<close>` 用）：本回合挂上来的东西（`turn:bindGC(…)`）随它一起放掉
+function Turn:__close()
+    Delete(self)
+end
+
 ---@class Player
 ---@field turn? Turn # 他正在进行的那个回合（不在他的回合就是空）
 
 ---@param player Player
 local function runTurn(player)
-    local turn = New 'Turn' (game, player)
+    local turn <close> = New 'Turn' (game, player)
     player.turn         = turn
     game.turnPlayer     = player
     game.lastTurnPlayer = player

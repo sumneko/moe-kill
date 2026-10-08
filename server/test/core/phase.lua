@@ -79,6 +79,36 @@ lt.test('阶段：先问全局、再发当事人', function ()
     lt.assertEquals('全局先、当事人后', '全局,当事人', table.concat(trace, ','))
 end)
 
+lt.test('阶段：「开始」（只通知）先于「生效」（业务），两份都发给当事人', function ()
+    local game, players = newGame()
+    ---@type string[]
+    local trace = {}
+    game:on('阶段-开始', function () trace[#trace + 1] = '全局开始' end)
+    game:on('阶段-生效', function () trace[#trace + 1] = '全局生效' end)
+    players[1]:on('阶段-开始', function () trace[#trace + 1] = '当事人开始' end)
+    players[1]:on('阶段-生效', function () trace[#trace + 1] = '当事人生效' end)
+
+    local phase = game:enterPhase(players[1], '摸牌')
+    Delete(phase)
+
+    lt.assertEquals('开始先、生效后；各自先全局后当事人',
+        '全局开始,当事人开始,全局生效,当事人生效', table.concat(trace, ','))
+end)
+
+lt.test('阶段：bindGC 挂的东西随阶段离开放掉（发完「结束」再放）', function ()
+    local game, players = newGame()
+    ---@type string[]
+    local trace = {}
+    game:on('阶段-结束', function () trace[#trace + 1] = '结束' end)
+
+    local phase = game:enterPhase(players[1], '摸牌')
+    phase:bindGC(function () trace[#trace + 1] = '释放' end)
+    lt.assertEquals('还在阶段里：没放', 0, #trace)
+
+    Delete(phase)
+    lt.assertEquals('先发「结束」、再放资源', '结束,释放', table.concat(trace, ','))
+end)
+
 lt.test('阶段：作用域结束（<close>）就离开', function ()
     local game, players = newGame()
     ---@type string[]
