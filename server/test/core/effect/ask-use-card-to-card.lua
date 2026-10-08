@@ -10,13 +10,9 @@ do
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '抵消牌'
-    : on('获取卡牌目标', function (plan)
-        return plan.targets
-    end)
+    : cardTargets {}
 Card '另一张抵消牌'
-    : on('获取卡牌目标', function (plan)
-        return plan.targets
-    end)
+    : cardTargets {}
 Card '没声明牌'
 ]])
     assert(ok, err)
@@ -76,7 +72,7 @@ lt.test('要对牌使用：候选逐张跑校验，选项带上目标牌', funct
     local options = assert(ask.options)
 
     lt.assertEquals('种类标识', 'askUseCardToCard', ask.kind)
-    lt.assertEquals('没声明「获取卡牌目标」的不进选项', 1, #options)
+    lt.assertEquals('没声明对牌目标条件的不进选项', 1, #options)
     lt.assertEquals('选项带上了目标牌', target, options[1].target)
     lt.assertEquals('答复收下', usable, ask.card)
 end)

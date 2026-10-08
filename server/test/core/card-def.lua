@@ -399,21 +399,3 @@ Card '子乙'
     lt.assertEquals('子甲叠上自己的一条', 2, #first.filter)
     lt.assertEquals('子乙不受子甲影响', 1, #second.filter)
 end)
-
-lt.test('定义：collect 跑全部回调，收齐非空返回值', function ()
-    local guard <close> = useProbe()
-    local game = newGame([[
-Card '甲'
-    : on('进入区域', function (card)
-        return 1
-    end)
-    : on('进入区域', function (card) end)
-    : on('进入区域', function (card)
-        return 3
-    end)
-]])
-
-    local def = assert(game:getCard('甲'))
-    lt.assertEquals('空的没收，其余按注册顺序排开', '1,3', table.concat(def:collect('进入区域', {}), ','))
-    lt.assertEquals('没人订阅的钩子给空列表', 0, #def:collect('没有这条', {}))
-end)

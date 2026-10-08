@@ -10,19 +10,15 @@ do
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '抵消牌'
-    : on('获取卡牌目标', function (plan)
-        return plan.targets
-    end)
+    : cardTargets {}
 Card '受检牌'
-    : on('获取卡牌目标', function (plan)
-        return plan.targets
-    end)
+    : cardTargets {}
 Card '挑目标牌'
-    : on('获取卡牌目标', function (plan)
-        return table.filter(plan.targets, function (card)
+    : cardTargets {
+        filter = function (card)
             return card.name == '受检牌'
-        end)
-    end)
+        end,
+    }
 Card '没声明牌'
 ]])
     assert(ok, err)
@@ -135,7 +131,7 @@ lt.test('对牌使用：窗口里让出时，父结算也等它结完', function
     lt.assertEquals('那次生效被拒绝', '不让生效', assert(useCard.cardEffectToCard).err)
 end)
 
-lt.test('对牌使用：没声明「获取卡牌目标」就用不了', function ()
+lt.test('对牌使用：没声明对牌目标条件就用不了', function ()
     local game, players = newGame(2)
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
@@ -144,13 +140,13 @@ lt.test('对牌使用：没声明「获取卡牌目标」就用不了', function
 
     local ok, reason = game:canUseToCard(user, card)
     lt.assertEquals('不成立', false, ok)
-    lt.assertEquals('原因', '「探针.没声明牌」没有声明「获取卡牌目标」，不能对牌使用', reason)
+    lt.assertEquals('原因', '「探针.没声明牌」没有声明对牌目标条件，不能对牌使用', reason)
 
     lt.assertFailed('用也用不出去', game:useCardToCard(user, card, game:createCard('没声明牌')))
     lt.assertEquals('牌留在手上', 1, hand:count())
 end)
 
-lt.test('对牌使用：钩子不认那张牌就用不了', function ()
+lt.test('对牌使用：filter 不认那张牌就用不了', function ()
     local game, players = newGame(2)
     local user = players[1]
     local hand = assert(user:getZone('手牌'))

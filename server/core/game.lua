@@ -11,6 +11,16 @@
 ---@field targets? Player[] # 期望的目标（没给目标就是空）
 ---@field useOptions? Game.UseOptions # 这次使用的选项
 
+--- 一张牌的「对牌目标」条件（`cardTargets()` 声明归一后的形状；filter 是列表 —— 多次声明叠加、逐条都要过）
+---@class CardDef.CardTargetCondition
+---@field filter (fun(card: Card, plan: CardDef.CardTargetPlan): boolean)[] # 逐候选牌谓词（空 = 不筛、全认）
+
+--- 对牌目标条件的上下文：谁在用、哪张牌、发起方要对的那批牌（谓词收它）
+---@class CardDef.CardTargetPlan
+---@field user Player # 使用者
+---@field card Card # 要用的牌
+---@field targets Card[] # 发起方要对的那批牌
+
 ---@class CardDef
 ---@field name string # 裸名
 ---@field public package string # 所属包名（显式写 public：否则 package 会被当成访问修饰符）
@@ -23,6 +33,7 @@
 ---@field private kindSet table<string, true> # 分类去重用
 ---@field private values table<string, any> # 这张牌自带的数据
 ---@field targetCondition? CardDef.TargetCondition # 目标条件（`targets()` 声明；不声明 = 没有「对角色使用」这一支）
+---@field cardTargetCondition? CardDef.CardTargetCondition # 对牌目标条件（`cardTargets()` 声明；不声明 = 进不了「对牌使用」那一支）
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 ---@field skipsEffect? boolean # 使用后不进入「生效」（声明过 `skipEffect`）
 local CardDef = Class 'CardDef'
@@ -71,22 +82,6 @@ function CardDef:getHandlers(event)
         table.move(list, 1, #list, 1, snapshot)
     end
     return snapshot
-end
-
---- 跑这条钩子的全部回调，收齐非空返回值（收集式；只要通知就用 getHandlers）
----@param event string
----@param ... any
----@return any[] # 每个回调的第一个返回值（没有的不收，按注册顺序）
-function CardDef:collect(event, ...)
-    ---@type any[]
-    local collected = {}
-    for _, handler in ipairs(self:getHandlers(event)) do
-        local value = handler(...)
-        if value ~= nil then
-            collected[#collected + 1] = value
-        end
-    end
-    return collected
 end
 
 --- 这张牌使用后不进入「生效」（用别的场合再让它生效）
@@ -211,6 +206,22 @@ function CardDef:targets(condition)
     return self
 end
 
+--- 声明「这张牌能对哪些牌使用」：逐候选牌谓词（不声明整条 = 这张牌进不了「对牌使用」那一支）
+--- 多次调：filter 叠加（逐条都要过）；候选由发起方给定，没有个数区间
+---@param condition { filter?: fun(card: Card, plan: CardDef.CardTargetPlan): boolean } # 对牌目标条件
+---@return CardDef
+function CardDef:cardTargets(condition)
+    local current = self.cardTargetCondition
+    if not current then
+        current = { filter = {} }
+        self.cardTargetCondition = current
+    end
+    if condition.filter then
+        current.filter[#current.filter + 1] = condition.filter
+    end
+    return self
+end
+
 --- 一次能指定几个目标（看目标条件的 min / max，省略 = 1；没声明也是 1、1）
 ---@return integer # 最少几个
 ---@return integer # 最多几个
@@ -286,6 +297,17 @@ function CardDef:extends(name)
             table.move(own.filter, 1, #own.filter, #merged.filter + 1, merged.filter)
         end
         self.targetCondition = merged
+    end
+    local baseCardCondition = base.cardTargetCondition
+    if baseCardCondition then
+        ---@type CardDef.CardTargetCondition
+        local merged = { filter = {} }
+        table.move(baseCardCondition.filter, 1, #baseCardCondition.filter, 1, merged.filter)
+        local own = self.cardTargetCondition
+        if own then
+            table.move(own.filter, 1, #own.filter, #merged.filter + 1, merged.filter)
+        end
+        self.cardTargetCondition = merged
     end
     if base.skipsEffect then
         self.skipsEffect = true
@@ -1143,26 +1165,6 @@ function M:drawCards(player, count, to)
     return cards
 end
 
---- 收集这类钩子的返回值：每个声明都必须给出一个列表
----@param def CardDef
----@param event string
----@param ctx table
----@param ... any # 追加给每个回调的参数（跟在上下文后面）
----@return any[][]? # 各声明给出的列表（按声明顺序）
----@return string? # 有声明没给列表时的原因
-local function collectLists(def, event, ctx, ...)
-    local lists = def:collect(event, ctx, ...)
-    if #lists ~= #def:getHandlers(event) then
-        return nil, '「{}」的「{}」必须返回合法目标列表' % { def.fullName, event }
-    end
-    for _, list in ipairs(lists) do
-        if type(list) ~= 'table' then
-            return nil, '「{}」的「{}」必须返回合法目标列表' % { def.fullName, event }
-        end
-    end
-    return lists
-end
-
 ---@param game Game
 ---@param def CardDef
 ---@param user Player
@@ -1304,7 +1306,7 @@ function M:canUse(user, card, target, useOptions)
     return true, nil, { legal = legal, min = min, max = max }
 end
 
---- 这张牌此刻能不能「对一张牌使用」（合法性由「获取卡牌目标」给出；目标牌由发起方给定）
+--- 这张牌此刻能不能「对一张牌使用」（合法性由 `cardTargets` 条件给出；目标牌由发起方给定）
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
 ---@param targetCard? Card # 要用在哪张牌上（省略 = 只判「这类牌能不能对牌使用」）
@@ -1315,17 +1317,21 @@ function M:canUseToCard(user, card, targetCard)
     if not def then
         return false, problem
     end
-    if #def:getHandlers('获取卡牌目标') == 0 then
-        return false, '「{}」没有声明「获取卡牌目标」，不能对牌使用' % { def.fullName }
+    local condition = def.cardTargetCondition
+    if not condition then
+        return false, '「{}」没有声明对牌目标条件，不能对牌使用' % { def.fullName }
     end
     if targetCard then
         ---@type CardDef.CardTargetPlan
-        local ctx = { user = user, card = card, targets = { targetCard } }
-        local lists, reason = collectLists(def, '获取卡牌目标', ctx)
-        if not lists then
-            return false, reason
+        local plan = { user = user, card = card, targets = { targetCard } }
+        local accepted = true
+        for _, filter in ipairs(condition.filter) do
+            if not filter(targetCard, plan) then
+                accepted = false
+                break
+            end
         end
-        if not moe.util.arrayHas(moe.util.arrayIntersect(lists), targetCard) then
+        if not accepted then
             return false, '「{}」不能对这张牌使用' % { def.fullName }
         end
     end
