@@ -4,14 +4,14 @@
 Card '杀'
     : extends '基本牌'
     : limit('出牌', 1)
-    : on('获取目标', function (plan, useOptions)
-        local desk  = game.desk
-        local range = plan.user:getAttr('攻击范围')
-        return table.filter(desk.alivePlayers, function (player)
-            return player ~= plan.user
-               and plan.user:isInRange(player, range, useOptions)
-        end)
-    end)
+    : targets {
+        filter = function (player, plan)
+            local user  = plan.user
+            local range = user:getAttr('攻击范围')
+            return player ~= user
+               and user:isInRange(player, range, plan.useOptions)
+        end,
+    }
     : on('生效', function (cardEffect)
         local target = cardEffect.target
         if game:askOffsetCard(target, '杀', { name = '闪' }).success then

@@ -4,10 +4,7 @@
 
 Card '五谷丰登'
     : extends '锦囊牌'
-    : targetCount(1, 1000)
-    : on('获取目标', function (plan)
-        return game.desk.alivePlayers
-    end)
+    : targets { max = 1000 }
     : on('使用', function (useCard)
         game:drawCards(useCard.user, #useCard.targets, useCard:getTempZone())
     end)

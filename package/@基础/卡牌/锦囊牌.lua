@@ -23,11 +23,11 @@ Card '延时锦囊牌'
     : extends '锦囊牌'
     : kind { '锦囊', '延时锦囊' }
     : skipEffect()
-    : on('获取目标', function (plan)
-        return table.filter(game.desk.players, function (target)
-            return not hasSameName(target, plan.card.name)
-        end)
-    end)
+    : targets {
+        filter = function (player, plan)
+            return not hasSameName(player, plan.card.name)
+        end,
+    }
     : on('使用', function (useCard)
         game:moveCard(useCard.card, useCard.targets[1]:getZone('判定'))
     end)

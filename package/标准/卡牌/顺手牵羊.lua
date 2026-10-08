@@ -15,14 +15,14 @@ end
 
 Card '顺手牵羊'
     : extends '锦囊牌'
-    : on('获取目标', function (plan)
-        local user = plan.user
-        return table.filter(game.desk.alivePlayers, function (player)
+    : targets {
+        filter = function (player, plan)
+            local user = plan.user
             return player ~= user
                 and hasCard(player)
                 and user:distance(player) <= 1
-        end)
-    end)
+        end,
+    }
     : on('生效', function (cardEffect)
         local card = game:askCard(cardEffect.user, '顺手牵羊', { zone = cardEffect.target:getZones() }).card
         if not card then

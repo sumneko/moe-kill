@@ -14,11 +14,11 @@ Card '杀'
 Card '桃'
 Card '随便'
 Card '测试牌'
-    : on('获取目标', function (target)
-        return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= target.user
-        end)
-    end)
+    : targets {
+        filter = function (player, plan)
+            return player ~= plan.user
+        end,
+    }
 ]])
     assert(ok, err)
 end

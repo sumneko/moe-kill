@@ -308,7 +308,7 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
             for _ = 1, 3 do
                 hand:accept(run.game:createCard('杀'))
             end
-            -- 【闪】没声明「获取目标」⇒ 用不了
+            -- 【闪】没声明目标条件 ⇒ 用不了
             hand:accept(run.game:createCard('闪'))
             run.game:on('卡牌-询问', function (ask)
                 if ask.reason ~= '出牌' then

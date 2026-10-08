@@ -3,7 +3,7 @@
 -- 被动随子区启停：进了「本人的、与分类对应的」子区才启用（效果写在各类别基类的「被动」里）
 Card '装备牌'
     : kind '装备'
-    : targetCount(0, 0)
+    : targets { min = 0, max = 0 }
     : zone '手牌'
     : on('进入区域', function (card, zone)
         local owner = zone.owner

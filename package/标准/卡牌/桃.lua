@@ -3,21 +3,15 @@
 
 Card '桃'
     : extends '基本牌'
-    : on('获取目标', function (plan)
-        local user = plan.user
-        ---@type Player[]
-        local targets = {}
-        if user:getAttr('体力') > 0 and user:getAttr('体力') < user:getAttr('体力上限') then
-            targets[#targets + 1] = user
-        end
-        for _, player in ipairs(game.desk.alivePlayers) do
-            if player:getAttr('体力') <= 0 then
-                targets[#targets + 1] = player
+    : targets {
+        filter = function (player, plan)
+            local user = plan.user
+            if player == user and user:getAttr('体力') > 0 and user:getAttr('体力') < user:getAttr('体力上限') then
+                return true
             end
-        end
-
-        return targets
-    end)
+            return player:getAttr('体力') <= 0
+        end,
+    }
     : on('生效', function (cardEffect)
         game:heal(cardEffect.target, 1)
     end)

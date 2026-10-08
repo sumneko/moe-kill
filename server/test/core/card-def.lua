@@ -94,16 +94,16 @@ Card '基'
     : kind '基本'
     : zone '手牌'
     : limit('出牌', 2)
-    : on('获取目标', function (target)
-        target.user:setTag('顺序', (target.user:getTag('顺序') or '') .. '基')
-        return game.desk.players
+    : on('进入区域', function ()
+        local user = game.desk:getPlayer(1)
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '基')
     end)
 Card '子'
     : extends '基'
     : limit('出牌', 5)
-    : on('获取目标', function (target)
-        target.user:setTag('顺序', (target.user:getTag('顺序') or '') .. '子')
-        return game.desk.players
+    : on('进入区域', function ()
+        local user = game.desk:getPlayer(1)
+        user:setTag('顺序', (user:getTag('顺序') or '') .. '子')
     end)
 ]])
 
@@ -113,11 +113,10 @@ Card '子'
     lt.assertEquals('抄来了牌区', '手牌', def:getZone())
     lt.assertEquals('自己写的限额覆盖基类的', 5, def:getLimit('出牌'))
 
-    local handlers = def:getHandlers('获取目标')
+    local handlers = def:getHandlers('进入区域')
     lt.assertEquals('两个钩子都在', 2, #handlers)
-    local card = lt.card('子')
     for _, handler in ipairs(handlers) do
-        handler({ user = player, card = card })
+        handler()
     end
     lt.assertEquals('基类的钩子先跑', '基子', player:getTag('顺序'))
 end)
@@ -324,12 +323,12 @@ lt.test('定义：一起收一批牌时，先发完所有「离开区域」再�
         '离甲;离甲;进甲;进甲;', seat:getTag('记录'))
 end)
 
-lt.test('定义：targetCount 声明目标数量，重复调以后写的为准', function ()
+lt.test('定义：targets 声明目标数量的 min / max，重复调以后写的为准', function ()
     local guard <close> = useProbe()
     local game = newGame([[
 Card '甲'
-    : targetCount(2, 4)
-    : targetCount(0, 0)
+    : targets { min = 2, max = 4 }
+    : targets { min = 0, max = 0 }
 ]])
 
     local min, max = assert(game:getCard('甲')):getTargetCount()
@@ -346,16 +345,16 @@ lt.test('定义：不声明就是「最少 1、最多 1」', function ()
     lt.assertEquals('默认最多', 1, max)
 end)
 
-lt.test('定义：extends 抄目标数量，自己写的覆盖基类', function ()
+lt.test('定义：extends 抄目标条件，自己写的覆盖基类', function ()
     local guard <close> = useProbe()
     local game = newGame([[
 Card '基'
-    : targetCount(2, 3)
+    : targets { min = 2, max = 3 }
 Card '子'
     : extends '基'
 Card '孙'
     : extends '基'
-    : targetCount(0, 0)
+    : targets { min = 0, max = 0 }
 ]])
 
     local min, max = assert(game:getCard('子')):getTargetCount()
@@ -367,20 +366,54 @@ Card '孙'
     lt.assertEquals('自己写的覆盖基类的（最多）', 0, ownMax)
 end)
 
+lt.test('定义：targets 多次调，filter 叠加、min / max 只覆盖写了的', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '甲'
+    : targets { min = 2, filter = function () return true end }
+    : targets { max = 5, filter = function () return true end }
+]])
+
+    local condition = assert(assert(game:getCard('甲')).targetCondition)
+    lt.assertEquals('没写的那半没动', 2, condition.min)
+    lt.assertEquals('写了的那半覆盖', 5, condition.max)
+    lt.assertEquals('filter 叠成两条', 2, #condition.filter)
+end)
+
+lt.test('定义：extends 抄 filter 是深拷贝，兄弟各叠各的', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '基'
+    : targets { filter = function () return true end }
+Card '子甲'
+    : extends '基'
+    : targets { filter = function () return true end }
+Card '子乙'
+    : extends '基'
+]])
+
+    local base = assert(assert(game:getCard('基')).targetCondition)
+    local first = assert(assert(game:getCard('子甲')).targetCondition)
+    local second = assert(assert(game:getCard('子乙')).targetCondition)
+    lt.assertEquals('基类自己一条', 1, #base.filter)
+    lt.assertEquals('子甲叠上自己的一条', 2, #first.filter)
+    lt.assertEquals('子乙不受子甲影响', 1, #second.filter)
+end)
+
 lt.test('定义：collect 跑全部回调，收齐非空返回值', function ()
     local guard <close> = useProbe()
     local game = newGame([[
 Card '甲'
-    : on('获取目标', function (target)
+    : on('进入区域', function (card)
         return 1
     end)
-    : on('获取目标', function (target) end)
-    : on('获取目标', function (target)
+    : on('进入区域', function (card) end)
+    : on('进入区域', function (card)
         return 3
     end)
 ]])
 
     local def = assert(game:getCard('甲'))
-    lt.assertEquals('空的没收，其余按注册顺序排开', '1,3', table.concat(def:collect('获取目标', {}), ','))
+    lt.assertEquals('空的没收，其余按注册顺序排开', '1,3', table.concat(def:collect('进入区域', {}), ','))
     lt.assertEquals('没人订阅的钩子给空列表', 0, #def:collect('没有这条', {}))
 end)

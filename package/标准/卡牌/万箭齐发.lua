@@ -3,12 +3,12 @@
 
 Card '万箭齐发'
     : extends '锦囊牌'
-    : targetCount(1, 1000)
-    : on('获取目标', function (plan)
-        return table.filter(game.desk.alivePlayers, function (player)
+    : targets {
+        max = 1000,
+        filter = function (player, plan)
             return player ~= plan.user
-        end)
-    end)
+        end,
+    }
     : on('生效', function (cardEffect)
         local target = cardEffect.target
         if game:askPlayCard(target, '万箭齐发', { name = '闪' }).card then

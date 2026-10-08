@@ -794,7 +794,7 @@ lt.test('无懈可击：主动用不出去（只在「生效前」被问到时�
 
     local ok, reason = run.game:canUse(user, card, {})
     lt.assertEquals('直接问也用不了', false, ok)
-    lt.assertEquals('原因是它没有「对角色使用」这一支', '「标准.无懈可击」没有声明「获取目标」，现在用不了', reason)
+    lt.assertEquals('原因是它没有「对角色使用」这一支', '「标准.无懈可击」没有声明目标条件，现在用不了', reason)
 end)
 
 lt.test('无懈可击：答复的牌不在选项里 ⇒ 按没用处理，锦囊照常生效', function ()

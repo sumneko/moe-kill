@@ -3,10 +3,7 @@
 
 Card '桃园结义'
     : extends '锦囊牌'
-    : targetCount(1, 1000)
-    : on('获取目标', function (plan)
-        return game.desk.alivePlayers
-    end)
+    : targets { max = 1000 }
     : on('生效', function (cardEffect)
         game:heal(cardEffect.target, 1)
     end)

@@ -47,9 +47,11 @@ end
 
 Card '闪电'
     : extends '延时锦囊牌'
-    : on('获取目标', function (plan)
-        return { plan.user }
-    end)
+    : targets {
+        filter = function (player, plan)
+            return player == plan.user
+        end,
+    }
     : on('生效', function (cardEffect)
         local judge = game:judge(cardEffect.target, cardEffect.card.name)
         if isHit(judge) then

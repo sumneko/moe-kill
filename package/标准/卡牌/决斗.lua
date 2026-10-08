@@ -3,11 +3,11 @@
 
 Card '决斗'
     : extends '锦囊牌'
-    : on('获取目标', function (plan)
-        return table.filter(game.desk.alivePlayers, function (player)
+    : targets {
+        filter = function (player, plan)
             return player ~= plan.user
-        end)
-    end)
+        end,
+    }
     : on('生效', function (cardEffect)
         local attacker = cardEffect.user
         local defender = cardEffect.target

@@ -3,11 +3,11 @@
 
 Card '乐不思蜀'
     : extends '延时锦囊牌'
-    : on('获取目标', function (plan)
-        return table.filter(game.desk.alivePlayers, function (player)
+    : targets {
+        filter = function (player, plan)
             return player ~= plan.user
-        end)
-    end)
+        end,
+    }
     : on('生效', function (cardEffect)
         local judge = game:judge(cardEffect.target, cardEffect.card.name)
         if judge.card?.suit ~= '红桃' then

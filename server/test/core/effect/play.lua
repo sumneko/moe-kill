@@ -56,9 +56,11 @@ lt.test('使用：用一张牌并结算', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('顺序', (cardEffect.user:getTag('顺序') or '') .. '一')
     end)
@@ -99,9 +101,11 @@ lt.test('使用：生效钩子拿得到这次用牌', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect, useCard)
         cardEffect.user:setTag('生效的用牌', useCard)
         cardEffect.user:setTag('临时区拿得到', useCard:getTempZone() ~= nil)
@@ -125,9 +129,11 @@ lt.test('使用：声明 skipEffect 的牌只跑「使用」段，不进「生�
     write('探针/牌.lua', [[
 Card '测试延时'
     : skipEffect()
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('使用', function (useCard)
         useCard.user:setTag('记录', (useCard.user:getTag('记录') or '') .. '使用;')
     end)
@@ -155,9 +161,11 @@ lt.test('使用：没声明 skipEffect 的牌两段都跑（不互斥）', funct
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试两段'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('使用', function (useCard)
         useCard.user:setTag('记录', (useCard.user:getTag('记录') or '') .. '使用;')
     end)
@@ -180,9 +188,11 @@ lt.test('使用：声明 skipEffect 的牌不进「效果-能否生效」窗口'
     write('探针/牌.lua', [[
 Card '测试延时'
     : skipEffect()
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -205,9 +215,11 @@ lt.test('使用：自己的阶段里用一次就记一次账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -227,20 +239,15 @@ Card '测试杀'
     lt.assertEquals('别的牌名不受影响', 0, phase:getUseCount('闪'))
 end)
 
-lt.test('使用：使用选项：无视距离（「获取目标」的回调收到选项）', function ()
+lt.test('使用：使用选项：无视距离（filter 收到选项）', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '探针杀'
-    : on('获取目标', function (plan, useOptions)
-        ---@type Player[]
-        local list = {}
-        for _, player in ipairs(game.desk.players) do
-            if player ~= plan.user and useOptions?.ignoreDistance then
-                list[#list + 1] = player
-            end
-        end
-        return list
-    end)
+    : targets {
+        filter = function (player, plan)
+            return player ~= plan.user and plan.useOptions?.ignoreDistance
+        end,
+    }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('打到了', true)
     end)
@@ -266,9 +273,11 @@ lt.test('使用：使用选项：无视次数上限、不计入次数', function
     write('探针/牌.lua', [[
 Card '探针杀'
     : limit('出牌', 1)
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -298,16 +307,11 @@ lt.test('使用：要一次使用时，候选与用出去都按使用选项来',
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '探针杀'
-    : on('获取目标', function (plan, useOptions)
-        ---@type Player[]
-        local list = {}
-        for _, player in ipairs(game.desk.players) do
-            if player ~= plan.user and useOptions?.ignoreDistance then
-                list[#list + 1] = player
-            end
-        end
-        return list
-    end)
+    : targets {
+        filter = function (player, plan)
+            return player ~= plan.user and plan.useOptions?.ignoreDistance
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -333,9 +337,11 @@ lt.test('使用：阶段不是使用者的就不记账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -353,9 +359,11 @@ lt.test('使用：离开阶段之后用牌不记账', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -374,9 +382,11 @@ lt.test('使用：目标给单个或一张列表都行', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('目标', cardEffect.target)
     end)
@@ -425,9 +435,11 @@ lt.test('使用：给出的目标必须是合法目标的子集', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('用了', cardEffect.target)
     end)
@@ -445,7 +457,7 @@ Card '测试杀'
     lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
 end)
 
-lt.test('使用：没声明「获取目标」的牌用不了', function ()
+lt.test('使用：没声明目标条件的牌用不了', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
@@ -466,32 +478,15 @@ Card '测试杀'
     lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
 end)
 
-lt.test('使用：钩子没返回列表时用不了', function ()
-    local guard <close> = useProbe()
-    write('探针/牌.lua', [[
-Card '测试杀'
-    : on('获取目标', function (target)
-        target.user:setTag('问过目标', true)
-    end)
-]])
-
-    local game, user, target, hand = newGame()
-    local card = game:createCard('测试杀')
-    hand:accept(card)
-
-    lt.assertFailed('拿不到列表就谁都不给用', game:useCard(user, card, { target }))
-
-    lt.assertEquals('钩子确实跑过', true, user:getTag('问过目标'))
-    lt.assertEquals('牌还留在手上', 1, hand:count())
-end)
-
 lt.test('使用：合法目标为空时用不了', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return {}
-    end)
+    : targets {
+        filter = function ()
+            return false
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -507,9 +502,11 @@ lt.test('使用：给出的目标不能为空', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, _, hand = newGame()
@@ -521,16 +518,16 @@ Card '测试杀'
     lt.assertEquals('牌还留在手上', 1, hand:count())
 end)
 
-lt.test('使用：多个钩子取交集', function ()
+lt.test('使用：多条 filter 叠加，都要过', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {}
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('用了', true)
     end)
@@ -540,12 +537,12 @@ Card '测试杀'
     local card = game:createCard('测试杀')
     hand:accept(card)
 
-    lt.assertFailed('被前一个钩子收窄掉的目标用不了', game:useCard(user, card, { user }))
+    lt.assertFailed('被前一条 filter 收窄掉的目标用不了', game:useCard(user, card, { user }))
     lt.assertEquals('牌还留在手上', 1, hand:count())
 
     game:useCard(user, card, { target })
 
-    lt.assertEquals('两个钩子都放行的目标能用', true, user:getTag('用了'))
+    lt.assertEquals('两条 filter 都放行的目标能用', true, user:getTag('用了'))
     lt.assertEquals('牌用出去了', 0, hand:count())
 end)
 
@@ -553,9 +550,11 @@ lt.test('使用：结算期间这次生效在栈上', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('父是根', game:getEffect() == cardEffect.parent)
         cardEffect.user:setTag('种类', cardEffect.kind)
@@ -581,9 +580,11 @@ lt.test('使用：失败后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, _, hand = newGame()
@@ -599,9 +600,11 @@ lt.test('使用：结算中抛错后栈恢复原状', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function ()
         error('故意报错')
     end)
@@ -624,9 +627,11 @@ lt.test('使用：结算里造成的伤害认这次用牌为父', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect)
         game:damage(cardEffect.user, cardEffect.target, 1)
     end)
@@ -696,10 +701,7 @@ lt.test('使用：逐目标生效，顺序按行动顺序', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
     : on('生效', function (cardEffect)
         local order = cardEffect.user:getTag('顺序') or ''
         cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
@@ -721,10 +723,7 @@ lt.test('使用：牌自己的「使用」钩子先跑，之后才逐个生效',
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
     : on('使用', function (useCard)
         local order = useCard.user:getTag('顺序') or ''
         useCard.user:setTag('顺序', order .. '使用')
@@ -750,10 +749,7 @@ lt.test('使用：起点是顺序锚点，不是使用者', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
     : on('生效', function (cardEffect)
         local order = cardEffect.user:getTag('顺序') or ''
         cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
@@ -776,10 +772,7 @@ lt.test('使用：收尾时机在所有目标处理完之后，且只触发一�
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
     : on('生效', function (cardEffect)
         local order = cardEffect.user:getTag('顺序') or ''
         cardEffect.user:setTag('顺序', order .. '生效' .. tostring(game.desk:getIndex(cardEffect.target)))
@@ -807,9 +800,11 @@ lt.test('使用：牌出手前触发一次时机，早于第一个生效', funct
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
     : on('生效', function (cardEffect)
         local order = cardEffect.user:getTag('顺序') or ''
         cardEffect.user:setTag('顺序', order .. '生效')
@@ -844,10 +839,7 @@ lt.test('使用：上一个生效结完（哪怕它让出）才轮到下一个',
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
     : on('生效', function (cardEffect)
         local user = cardEffect.user
         local seat = tostring(game.desk:getIndex(cardEffect.target))
@@ -879,10 +871,7 @@ lt.test('使用：每个目标的生效可以被单独取消', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
     : on('生效', function (cardEffect)
         local order = cardEffect.user:getTag('顺序') or ''
         cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
@@ -913,7 +902,7 @@ lt.test('使用：声明了「最少 0、最多 0」就不需要目标', functio
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : targetCount(0, 0)
+    : targets { min = 0, max = 0 }
     : on('生效', function (cardEffect)
         cardEffect.user:setTag('生效过', true)
     end)
@@ -939,7 +928,7 @@ lt.test('使用：无目标牌给目标时给出的原因', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : targetCount(0, 0)
+    : targets { min = 0, max = 0 }
 ]])
 
     local game, user, target, hand = newGame()
@@ -956,9 +945,11 @@ lt.test('使用：默认的牌照旧要求非空目标', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '有目标牌'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, _, hand = newGame()
@@ -973,7 +964,7 @@ lt.test('使用：零目标也跑完使用钩子与收尾', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '无目标牌'
-    : targetCount(0, 0)
+    : targets { min = 0, max = 0 }
     : on('使用', function (useCard)
         useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用')
     end)
@@ -1002,9 +993,11 @@ lt.test('使用：用牌时机在使用者头上也发一份，别人收不到',
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
 
     local game, user, target, hand = newGame()
@@ -1027,10 +1020,7 @@ lt.test('使用：指定目标后逐目标发三份（全局 / 来源 / 目标�
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
     : on('使用', function (useCard)
         useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用;')
     end)

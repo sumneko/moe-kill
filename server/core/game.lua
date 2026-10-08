@@ -1,3 +1,16 @@
+--- 一张牌的目标条件（`targets()` 声明归一后的形状；filter 是列表 —— 多次声明叠加、逐条都要过）
+---@class CardDef.TargetCondition
+---@field min? integer # 至少几个目标（省略 = 1）
+---@field max? integer # 至多几个目标（省略 = 1；事实不限写 1000）
+---@field filter (fun(player: Player, plan: CardDef.TargetPlan): boolean)[] # 逐角色谓词（空 = 全部存活角色）
+
+--- 目标条件的上下文：谁在用、哪张牌、打算打谁、这次使用的选项（谓词收它）
+---@class CardDef.TargetPlan
+---@field user Player # 使用者
+---@field card Card # 要用的牌
+---@field targets? Player[] # 期望的目标（没给目标就是空）
+---@field useOptions? Game.UseOptions # 这次使用的选项
+
 ---@class CardDef
 ---@field name string # 裸名
 ---@field public package string # 所属包名（显式写 public：否则 package 会被当成访问修饰符）
@@ -9,8 +22,7 @@
 ---@field private kinds string[] # 分类（可多条，按声明顺序）
 ---@field private kindSet table<string, true> # 分类去重用
 ---@field private values table<string, any> # 这张牌自带的数据
----@field private targetMin integer # 目标数量下限（默认 1）
----@field private targetMax integer # 目标数量上限（默认 1；「0、0」= 不指定目标）
+---@field targetCondition? CardDef.TargetCondition # 目标条件（`targets()` 声明；不声明 = 没有「对角色使用」这一支）
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 ---@field skipsEffect? boolean # 使用后不进入「生效」（声明过 `skipEffect`）
 local CardDef = Class 'CardDef'
@@ -33,8 +45,6 @@ function CardDef:__init(game, name, owner, source)
     self.kinds    = {}
     self.kindSet  = {}
     self.values   = {}
-    self.targetMin = 1
-    self.targetMax = 1
 end
 
 --- 登记这张牌的一个钩子
@@ -179,21 +189,37 @@ function CardDef:getValue(name)
     return self.values[name]
 end
 
---- 声明一次能指定几个目标（默认「1、1」；「0、0」= 不指定目标；事实不限写 1000）
----@param min integer # 最少几个
----@param max integer # 最多几个
+--- 声明「这次使用要的目标」：个数区间 + 逐角色谓词（不声明整条 = 这张牌没有「对角色使用」这一支）
+--- `filter` 不写 = 全部存活角色；多次调：filter 叠加（逐条都要过）、`min` / `max` 后写覆盖
+---@param condition { min?: integer, max?: integer, filter?: fun(player: Player, plan: CardDef.TargetPlan): boolean } # 目标条件
 ---@return CardDef
-function CardDef:targetCount(min, max)
-    self.targetMin = min
-    self.targetMax = max
+function CardDef:targets(condition)
+    local current = self.targetCondition
+    if not current then
+        current = { filter = {} }
+        self.targetCondition = current
+    end
+    if condition.min ~= nil then
+        current.min = condition.min
+    end
+    if condition.max ~= nil then
+        current.max = condition.max
+    end
+    if condition.filter then
+        current.filter[#current.filter + 1] = condition.filter
+    end
     return self
 end
 
---- 一次能指定几个目标（没改过就是默认的 1、1）
+--- 一次能指定几个目标（看目标条件的 min / max，省略 = 1；没声明也是 1、1）
 ---@return integer # 最少几个
 ---@return integer # 最多几个
 function CardDef:getTargetCount()
-    return self.targetMin, self.targetMax
+    local condition = self.targetCondition
+    if condition then
+        return condition.min or 1, condition.max or 1
+    end
+    return 1, 1
 end
 
 --- 声明这张牌必须从哪个牌区用（重复调以后写的为准）
@@ -240,8 +266,27 @@ function CardDef:extends(name)
     for name, value in pairs(base.values) do
         self.values[name] = value
     end
-    self.targetMin = base.targetMin
-    self.targetMax = base.targetMax
+    local baseCondition = base.targetCondition
+    if baseCondition then
+        ---@type CardDef.TargetCondition
+        local merged = {
+            min    = baseCondition.min,
+            max    = baseCondition.max,
+            filter = {},
+        }
+        table.move(baseCondition.filter, 1, #baseCondition.filter, 1, merged.filter)
+        local own = self.targetCondition
+        if own then
+            if own.min ~= nil then
+                merged.min = own.min
+            end
+            if own.max ~= nil then
+                merged.max = own.max
+            end
+            table.move(own.filter, 1, #own.filter, #merged.filter + 1, merged.filter)
+        end
+        self.targetCondition = merged
+    end
     if base.skipsEffect then
         self.skipsEffect = true
     end
@@ -1118,29 +1163,40 @@ local function collectLists(def, event, ctx, ...)
     return lists
 end
 
+---@param game Game
 ---@param def CardDef
 ---@param user Player
 ---@param card Card
 ---@param targets? Player[] # 期望的目标
----@param useOptions? Game.UseOptions # 这次使用的选项（原样传给「获取目标」的回调）
----@return Player[]? # 各声明取交集后的合法目标
+---@param useOptions? Game.UseOptions # 这次使用的选项（放进上下文给谓词）
+---@return Player[]? # 合法目标（逐角色过全部 filter）
 ---@return string? # 不成立的原因
-local function collectLegalTargets(def, user, card, targets, useOptions)
-    if #def:getHandlers('获取目标') == 0 then
-        return nil, '「{}」没有声明「获取目标」，现在用不了' % { def.fullName }
+local function collectLegalTargets(game, def, user, card, targets, useOptions)
+    local condition = def.targetCondition
+    if not condition then
+        return nil, '「{}」没有声明目标条件，现在用不了' % { def.fullName }
     end
     ---@type CardDef.TargetPlan
-    local ctx = {
-        user = user,
-        card = card,
-        targets = targets,
+    local plan = {
+        user       = user,
+        card       = card,
+        targets    = targets,
+        useOptions = useOptions,
     }
-    local lists, reason = collectLists(def, '获取目标', ctx, useOptions)
-    if not lists then
-        return nil, reason
-    end
     ---@type Player[]
-    local legal = moe.util.arrayIntersect(lists)
+    local legal = {}
+    for _, player in ipairs(game.desk.alivePlayers) do
+        local ok = true
+        for _, filter in ipairs(condition.filter) do
+            if not filter(player, plan) then
+                ok = false
+                break
+            end
+        end
+        if ok then
+            legal[#legal + 1] = player
+        end
+    end
     if #legal == 0 then
         return nil, '「{}」现在没有合法目标' % { def.fullName }
     end
@@ -1205,7 +1261,7 @@ function M:canUse(user, card, target, useOptions)
             return false, '「{}」不需要指定目标' % { def.fullName }
         end
     else
-        local list, reason = collectLegalTargets(def, user, card, targets, useOptions)
+        local list, reason = collectLegalTargets(self, def, user, card, targets, useOptions)
         if not list then
             return false, reason
         end

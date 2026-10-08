@@ -11,28 +11,28 @@ do
     local ok, err = moe.util.saveFile(file:string(), [[
 Card '闪'
 Card '测试牌'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= target.user
-        end)
-    end)
+    : targets {
+        max = 1000,
+        filter = function (player, plan)
+            return player ~= plan.user
+        end,
+    }
 Card '无目标牌'
-    : targetCount(0, 0)
+    : targets { min = 0, max = 0 }
 Card '窄牌'
-    : targetCount(1, 1)
-    : on('获取目标', function (target)
-        return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= target.user
-        end)
-    end)
+    : targets {
+        filter = function (player, plan)
+            return player ~= plan.user
+        end,
+    }
 Card '双目标牌'
-    : targetCount(2, 2)
-    : on('获取目标', function (target)
-        return table.filter(game.desk.alivePlayers, function (player)
-            return player ~= target.user
-        end)
-    end)
+    : targets {
+        min = 2,
+        max = 2,
+        filter = function (player, plan)
+            return player ~= plan.user
+        end,
+    }
 ]])
     assert(ok, err)
 end
@@ -87,7 +87,7 @@ lt.test('要一次使用：只收能用的牌，选项带可用目标', function
     local options = assert(ask.options)
 
     lt.assertEquals('种类标识', 'askUseCard', ask.kind)
-    lt.assertEquals('没声明「获取目标」的不进选项', 1, #options)
+    lt.assertEquals('没声明目标条件的不进选项', 1, #options)
     lt.assertEquals('选项带上了可用目标', 2, #options[1].plan.legal)
     lt.assertEquals('选项带上数量区间（取小到可用目标数）', '1,2',
         options[1].plan.min .. ',' .. options[1].plan.max)

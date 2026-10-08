@@ -15,11 +15,11 @@ end
 
 Card '过河拆桥'
     : extends '锦囊牌'
-    : on('获取目标', function (plan)
-        return table.filter(game.desk.alivePlayers, function (player)
+    : targets {
+        filter = function (player, plan)
             return player ~= plan.user and hasCard(player)
-        end)
-    end)
+        end,
+    }
     : on('生效', function (cardEffect)
         local card = game:askCard(cardEffect.user, '过河拆桥', { zone = cardEffect.target:getZones() }).card
         if not card then

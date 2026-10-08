@@ -67,55 +67,61 @@ end
 
 local SIMPLE = [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]]
 
 local ALL = [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets {}
 ]]
 
 local TWO = [[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2), game.desk:getPlayer(3) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+                or player == game.desk:getPlayer(3)
+        end,
+    }
 ]]
 
 local WIDE = [[
 Card '测试杀'
-    : targetCount(1, 1000)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 1000 }
 ]]
 
 local LIMITED = [[
 Card '测试杀'
     : limit('测试阶段', 1)
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]]
 
 local FROM_HAND = [[
 Card '测试杀'
     : zone '手牌'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]]
 
 local NO_SUCH_ZONE = [[
 Card '测试杀'
     : zone '没有这个区'
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]]
 
 lt.test('校验：能用的牌给出合法目标', function ()
@@ -182,7 +188,7 @@ lt.test('校验：牌所在的区被禁用 ⇒ 用不了', function ()
     lt.assertEquals('恢复后又能用', true, (run.game:canUse(run.user, card, run.target)))
 end)
 
-lt.test('校验：没声明「获取目标」⇒ 用不了', function ()
+lt.test('校验：没声明目标条件 ⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame("Card '测试杀'")
     local card = run.game:createCard('测试杀')
@@ -191,7 +197,7 @@ lt.test('校验：没声明「获取目标」⇒ 用不了', function ()
     local ok, reason = run.game:canUse(run.user, card)
 
     lt.assertEquals('用不了', false, ok)
-    lt.assertEquals('原因是「没声明获取目标」', '「探针.测试杀」没有声明「获取目标」，现在用不了', reason)
+    lt.assertEquals('原因是「没声明目标条件」', '「探针.测试杀」没有声明目标条件，现在用不了', reason)
 end)
 
 lt.test('校验：本阶段用满额度 ⇒ 用不了，且不问内容侧', function ()
@@ -285,31 +291,15 @@ lt.test('校验：没声明牌区 ⇒ 在使用者任一牌区里都能用', fun
     lt.assertEquals('别的区里照样能用', true, (run.game:canUse(run.user, card, run.target)))
 end)
 
-lt.test('校验：「获取目标」没返回列表 ⇒ 用不了', function ()
-    local guard <close> = useProbe()
-    local run = newGame([[
-Card '测试杀'
-    : on('获取目标', function (target)
-        target.user:setTag('问过', true)
-    end)
-]])
-    local card = run.game:createCard('测试杀')
-    run.hand:accept(card)
-
-    local ok, reason = run.game:canUse(run.user, card)
-
-    lt.assertEquals('用不了', false, ok)
-    lt.assertEquals('原因是「必须返回列表」', '「探针.测试杀」的「获取目标」必须返回合法目标列表', reason)
-    lt.assertEquals('钩子确实跑过', true, run.user:getTag('问过'))
-end)
-
 lt.test('校验：合法目标为空 ⇒ 用不了', function ()
     local guard <close> = useProbe()
     local run = newGame([[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return {}
-    end)
+    : targets {
+        filter = function ()
+            return false
+        end,
+    }
 ]])
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
@@ -320,16 +310,16 @@ Card '测试杀'
     lt.assertEquals('原因是「没有合法目标」', '「探针.测试杀」现在没有合法目标', reason)
 end)
 
-lt.test('校验：多个「获取目标」取交集', function ()
+lt.test('校验：多条 filter 叠加，都要过', function ()
     local guard <close> = useProbe()
     local run = newGame([[
 Card '测试杀'
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
-    : on('获取目标', function (target)
-        return { game.desk:getPlayer(2) }
-    end)
+    : targets {}
+    : targets {
+        filter = function (player)
+            return player == game.desk:getPlayer(2)
+        end,
+    }
 ]])
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
@@ -339,8 +329,8 @@ Card '测试杀'
     local list = assert(plan.legal)
 
     lt.assertEquals('能用', true, ok)
-    lt.assertEquals('只剩交集里的那个', 1, #list)
-    lt.assertEquals('交集里是 2 号位', run.target, list[1])
+    lt.assertEquals('只剩全都过的那个', 1, #list)
+    lt.assertEquals('剩下的是 2 号位', run.target, list[1])
 end)
 
 lt.test('校验：内容侧条目可以否决（返回值就是原因）', function ()
@@ -410,10 +400,7 @@ lt.test('校验：声明「最少 1、最多 2」后，数量按区间判', func
     local guard <close> = useProbe()
     local run = newGame([[
 Card '测试杀'
-    : targetCount(1, 2)
-    : on('获取目标', function (target)
-        return game.desk.players
-    end)
+    : targets { max = 2 }
 ]], 3)
     local card = run.game:createCard('测试杀')
     run.hand:accept(card)
@@ -434,7 +421,7 @@ lt.test('校验：「最少 0、最多 0」谁都不指定，给目标反而不�
     local guard <close> = useProbe()
     local run = newGame([[
 Card '无目标牌'
-    : targetCount(0, 0)
+    : targets { min = 0, max = 0 }
 ]])
     local card = run.game:createCard('无目标牌')
     run.hand:accept(card)
@@ -444,7 +431,7 @@ Card '无目标牌'
         asked = asked + 1
     end)
 
-    lt.assertEquals('不传目标能用（也不用声明「获取目标」）', true, (run.game:canUse(run.user, card)))
+    lt.assertEquals('不传目标能用（也不用写 filter）', true, (run.game:canUse(run.user, card)))
     lt.assertEquals('传空表也能用（调用方习惯给空表）', true, (run.game:canUse(run.user, card, {})))
     local plan = assert(select(3, run.game:canUse(run.user, card)))
     lt.assertEquals('合法目标是空表', 0, #plan.legal)
@@ -477,7 +464,7 @@ lt.test('校验：目标数修正放宽与收紧，上限跟合法目标数取�
 
     extra = 5
     local over, overReason = run.game:canUse(run.user, card, { run.players[2], run.players[3], run.user })
-    lt.assertEquals('放宽再多也超不过合法目标数（「获取目标」只给得出两名）', false, over)
+    lt.assertEquals('放宽再多也超不过合法目标数（filter 只认两名）', false, over)
     lt.assertEquals('上限就是合法目标数 2', '「探针.测试杀」至多指定 2 个目标', overReason)
 
     extra = -1
