@@ -781,3 +781,95 @@ lt.test('龙胆：手里没有【杀】/【闪】时声明不成立', function (
     lt.assertEquals('没问过要素材', 0, asked)
     lt.assertEquals('照常受伤', 3, zhaoyun:getAttr('体力'))
 end)
+
+lt.test('奇袭：出牌阶段把一张黑色手牌当【过河拆桥】用出去', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local ganning = run.players[1]
+    local victim  = run.players[2]
+    ganning:setHero(assert(run.game:getHero('甘宁')))
+
+    lt.assertEquals('技能随武将挂上', true, ganning:hasSkill('奇袭'))
+
+    local black = run.game:createCard('杀', '黑桃', 7)
+    assert(ganning:getZone('手牌')):accept(black)
+    local booty = takeCard(run, victim, '桃')
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            if ask.condition?.colors then
+                return { card = black }
+            end
+            return { card = booty }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { victim } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(ganning, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用出去一张虚拟【过河拆桥】')
+
+    lt.assertEquals('视为的是【过河拆桥】', '过河拆桥', card.name)
+    lt.assertEquals('关联是奇袭', findSkill(ganning, '奇袭'), assert(chosen).source)
+    lt.assertEquals('素材就是那张黑牌', black, card.subcards[1])
+    lt.assertEquals('对方那张牌被拆掉', assert(run.game:getZone('弃牌')), booty:getZone())
+    lt.assertEquals('黑牌也进了弃牌堆', assert(run.game:getZone('弃牌')), black:getZone())
+end)
+
+lt.test('奇袭：红色牌用不了（进不了选项）', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local ganning = run.players[1]
+    ganning:setHero(assert(run.game:getHero('甘宁')))
+
+    takeCard(run, ganning, '桃')
+
+    local ask = run.game:askUseCard(ganning, '出牌', { zone = '手牌' })
+    lt.assertEquals('没有选项', 0, #assert(ask.options))
+end)
+
+lt.test('奇袭：黑色装备牌也能当【过河拆桥】（用了就离区、加成撤销）', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local ganning = run.players[1]
+    local victim  = run.players[2]
+    ganning:setHero(assert(run.game:getHero('甘宁')))
+
+    local weapon = run.game:createCard('丈八蛇矛', '黑桃', 12)
+    assert(ganning:getZone('手牌')):accept(weapon)
+    run.game:moveCard(weapon, assert(ganning:getZone('武器')))
+    lt.assertEquals('装备的加成生效', 3, ganning:getAttr('攻击范围'))
+
+    local booty = takeCard(run, victim, '桃')
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            if ask.condition?.colors then
+                return { card = weapon }
+            end
+            return { card = booty }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { victim } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(ganning, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用装备区的黑牌当【过河拆桥】')
+
+    lt.assertEquals('素材就是那把武器', weapon, card.subcards[1])
+    lt.assertEquals('对方那张牌被拆掉', assert(run.game:getZone('弃牌')), booty:getZone())
+    lt.assertEquals('武器进了弃牌堆', assert(run.game:getZone('弃牌')), weapon:getZone())
+    lt.assertEquals('离区后加成撤销', 1, ganning:getAttr('攻击范围'))
+    lt.assertEquals('关联是奇袭', findSkill(ganning, '奇袭'), assert(chosen).source)
+end)
