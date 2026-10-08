@@ -8,7 +8,7 @@ local function newGame(count)
     local game   = moe.game.create {
         seats   = count,
         random  = random,
-        sources = { './package/*', lt.cardSource },
+        sources = { lt.cardSource },
     }
     local desk = game.desk
     ---@type Player[]

@@ -4,7 +4,7 @@ local lt = require 'test.ltest'
 ---@return Player[]
 local function newGame()
     local random = moe.random.create(1)
-    local game   = moe.game.create { seats = 2, random = random }
+    local game   = moe.game.create { seats = 2, random = random, sources = { lt.emptySource } }
     local desk   = game.desk
     local attributeSystem = game:getAttributeSystem()
     attributeSystem:define('体力', {

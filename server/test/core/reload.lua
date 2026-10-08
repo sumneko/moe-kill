@@ -259,7 +259,7 @@ lt.test('重载：已存在的实例立即使用新代码', function ()
 end)
 
 lt.test('重载：局上的号源跨重载接着走', function ()
-    local game   = moe.game.create { seats = 4, random = moe.random.create(1) }
+    local game   = moe.game.create { seats = 4, random = moe.random.create(1), sources = { lt.emptySource } }
     local before = game:nextId()
     local reloaded = moe.reload.reload()
     local after  = game:nextId()

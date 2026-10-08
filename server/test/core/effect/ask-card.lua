@@ -31,7 +31,7 @@ local function newGame(count)
     local game   = moe.game.create {
         seats    = count,
         random   = random,
-        sources  = { './package/*', probeDir:string() .. '/*' },
+        sources  = { probeDir:string() .. '/*' },
         packages = { '探针' },
     }
     local desk = game.desk

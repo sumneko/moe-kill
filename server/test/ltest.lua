@@ -9,6 +9,7 @@ local fs = require 'bee.filesystem'
 ---@field currentName? string # 正在跑的用例名（看门狗报告卡住时用）
 ---@field gameInstance? Game # 用例共用的那个局（懒建）
 ---@field cardSource string # 公共牌定义来源（用例建局时加进 sources 就有下面这批牌）
+---@field emptySource string # 空来源：建局时不装任何内容包（连默认包 @基础 也不装）
 local M = {}
 
 local fixtureDir = moe.env.ROOT_PATH / 'tmp' / 'lt-fixture'
@@ -37,6 +38,10 @@ do
     local ok, err = moe.util.saveFile(file:string(), table.concat(lines, '\n'))
     assert(ok, err)
     M.cardSource = fixtureDir:string() .. '/*'
+
+    local emptyDir = fixtureDir / '空'
+    fs.create_directories(emptyDir)
+    M.emptySource = emptyDir:string() .. '/*'
 end
 
 ---@class LTest.Case

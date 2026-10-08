@@ -344,7 +344,7 @@ lt.test('有序牌区：禁用后照洗（禁用是逻辑状态，不拦搬运�
 end)
 
 lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看得见', function ()
-    local game   = moe.game.create { seats = 2, random = moe.random.create(1) }
+    local game   = moe.game.create { seats = 2, random = moe.random.create(1), sources = { lt.emptySource } }
     local system = moe.attribute.create()
     local mine   = moe.player.create(game, { attributes = system:createInstance() })
     local other  = moe.player.create(game, { attributes = system:createInstance() })

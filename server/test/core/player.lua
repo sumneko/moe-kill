@@ -8,7 +8,7 @@ end
 ---@param system AttributeSystem
 ---@return Player
 local function newPlayer(system)
-    local game = moe.game.create { seats = 1, random = moe.random.create(1) }
+    local game = moe.game.create { seats = 1, random = moe.random.create(1), sources = { lt.emptySource } }
     return moe.player.create(game, { attributes = system:createInstance() })
 end
 
@@ -175,7 +175,7 @@ end)
 ---@return Game # 一个装着这些玩家的局（座位号 = 参数顺序）
 ---@return Player[]
 local function newGame(count)
-    local game = moe.game.create { seats = count, random = moe.random.create(1) }
+    local game = moe.game.create { seats = count, random = moe.random.create(1), sources = { lt.emptySource } }
     local desk = game.desk
     ---@type Player[]
     local players = {}

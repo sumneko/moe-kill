@@ -3,7 +3,7 @@ local lt = require 'test.ltest'
 ---@param count integer
 ---@return Game
 local function newGame(count)
-    return moe.game.create { seats = count, random = moe.random.create(1) }
+    return moe.game.create { seats = count, random = moe.random.create(1), sources = { lt.emptySource } }
 end
 
 ---@param game Game

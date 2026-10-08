@@ -11,6 +11,9 @@ test.loadedModules = {}
 
 test.loopTicks = 0
 
+-- 装载缓存（测试期专用；产品代码不动）
+require 'test.iocache'.enable()
+
 local target = moe.args.TEST
 if type(target) == 'string' then
     test.filter = 'test.' .. target:gsub('%.lua$', ''):gsub('[/\\]', '.')
@@ -52,8 +55,8 @@ function test.require(modname)
 end
 
 -- 两个护栏共用同一个上限：CPU 时间（防死循环）与墙钟（防卡在等待里）
--- 2026-10-08 从 10 抬到 15：全量 900+ 用例的墙钟已经到 ~10.3 秒（每条用例都要建局 + 装包），紧贴旧上限
-local timeLimit = 15
+-- 2026-10-08 先因为全量到 ~10.3 秒抬到 15；同日做完「按需装包 + 测试期装载缓存」后回到 10（全量 ~3.4 秒）
+local timeLimit = 10
 
 function test.enableGuards()
     if debug.gethook() then
