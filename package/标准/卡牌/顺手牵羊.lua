@@ -9,7 +9,7 @@ Card '顺手牵羊'
             local user = plan.user
             return player ~= user
                 and player:hasCard()
-                and user:distance(player) <= 1
+                and user:isInRange(player, 1, plan.useOptions)
         end,
     }
     : on('生效', function (cardEffect)

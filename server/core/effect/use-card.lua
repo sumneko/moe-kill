@@ -34,18 +34,18 @@ M.__getter.from = function (self)
 end
 
 --- 把 `unrespondable` 的四种写法解算成目标名单（一个角色 / 一串角色 / `true` = 这次的全部目标 / 谓词按这次的目标筛）
----@param useCard UseCard
 ---@param value Player|Player[]|true|fun(player: Player): boolean
+---@param targets Player[] # 这次使用的目标
 ---@return Player[]
-local function resolveBans(useCard, value)
+local function resolveBans(value, targets)
     if value == true then
-        return moe.util.copy(useCard.targets)
+        return moe.util.copy(targets)
     end
     if type(value) == 'function' then
         ---@cast value fun(player: Player): boolean
         ---@type Player[]
         local list = {}
-        for _, target in ipairs(useCard.targets) do
+        for _, target in ipairs(targets) do
             if value(target) then
                 list[#list + 1] = target
             end
@@ -55,24 +55,36 @@ local function resolveBans(useCard, value)
     return moe.util.toList(value)
 end
 
+--- 把一份选项片段并进选项表（返回新表，不改原来的）：`unrespondable` 是**累加**（四种写法先按 `targets` 解算），其余字段覆盖
+---@param base? Game.UseOptions
+---@param part Game.UseOptionsInput
+---@param targets Player[]? # 这次使用的目标（解算 `true` / 谓词用）
+---@return Game.UseOptions
+local function mergeOptions(base, part, targets)
+    ---@type Game.UseOptions
+    local result = {}
+    if base then
+        for key, value in pairs(base) do
+            result[key] = value
+        end
+    end
+    for key, value in pairs(part) do
+        if key == 'unrespondable' then
+            ---@cast value Player|Player[]|true|fun(player: Player): boolean
+            result.unrespondable = result.unrespondable or {}
+            moe.util.arrayMerge(result.unrespondable, resolveBans(value, targets or {}))
+        else
+            result[key] = value
+        end
+    end
+    return result
+end
+
 --- 使用过程中追加这次的选项（内容侧在时机里用）：`unrespondable` 这类名单是**累加**，其余字段覆盖
 ---@param options Game.UseOptionsInput
 ---@return UseCard
 function M:addUseOptions(options)
-    local current = self.useOptions
-    if not current then
-        current = {}
-        self.useOptions = current
-    end
-    if options.unrespondable then
-        current.unrespondable = current.unrespondable or {}
-        moe.util.arrayMerge(current.unrespondable, resolveBans(self, options.unrespondable))
-    end
-    for key, value in pairs(options) do
-        if key ~= 'unrespondable' then
-            current[key] = value
-        end
-    end
+    self.useOptions = mergeOptions(self.useOptions, options, self.targets)
     return self
 end
 
@@ -86,6 +98,9 @@ end
 
 ---@async
 function M:settle()
+    -- 内容侧可以给这次使用加选项（【奇才】这类）：写回自己的，后续钩子（如【杀】读 `isResponseBanned`）都认得
+    self.useOptions = self.game:mergeUseOptions(self.user, self.card, self.useOptions, self.targets)
+
     local ok, reason = self.game:canUse(self.user, self.card, self.targets, self.useOptions)
     if not ok then
         self:cancel(reason)
@@ -165,6 +180,15 @@ end
 
 ---@class UseCard.API
 moe.useCard = {}
+
+--- 把一份选项片段并进选项表（返回新表）：`unrespondable` 累加（四种写法按 `targets` 解算），其余字段覆盖
+---@param base? Game.UseOptions
+---@param part Game.UseOptionsInput
+---@param targets? Player[] # 这次使用的目标（解算 `true` / 谓词用）
+---@return Game.UseOptions
+function moe.useCard.mergeOptions(base, part, targets)
+    return mergeOptions(base, part, targets)
+end
 
 ---@param options UseCard.CreateOptions
 ---@return UseCard

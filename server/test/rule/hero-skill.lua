@@ -1789,3 +1789,118 @@ lt.test('铁骑：不发动 ⇒ 照常问他出不出【闪】', function ()
     lt.assertEquals('没发动 ⇒ 连判定都不做', 0, judged)
     lt.assertEquals('照常问他出不出闪', 1, asked)
 end)
+
+lt.test('集智：用普通锦囊就摸一张', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local yueying = run.players[1]
+    local foe     = run.players[2]
+    yueying:setHero(assert(run.game:getHero('黄月英')))
+
+    lt.assertEquals('技能随武将挂上', true, yueying:hasSkill('集智'))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '集智' then
+            asked = asked + 1
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    local hand   = assert(yueying:getZone('手牌'), '没有手牌区')
+    local havoc  = takeCard(run, yueying, '万箭齐发')
+    local before = hand:count()
+
+    run.game:useCard(yueying, havoc, { foe })
+
+    lt.assertEquals('问过要不要发动', 1, asked)
+    lt.assertEquals('用掉一张、集智摸回一张', before, hand:count())
+end)
+
+lt.test('集智：延时锦囊 / 【杀】/ 转化来的牌都不发动', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local yueying = run.players[1]
+    local foe     = run.players[2]
+    yueying:setHero(assert(run.game:getHero('黄月英')))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '集智' then
+            asked = asked + 1
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    local hand = assert(yueying:getZone('手牌'), '没有手牌区')
+
+    -- 延时锦囊（不是「普通」锦囊）
+    local delay  = takeCard(run, yueying, '乐不思蜀')
+    local before = hand:count()
+    run.game:useCard(yueying, delay, { foe })
+    lt.assertEquals('延时锦囊 ⇒ 用掉一张、不摸', before - 1, hand:count())
+
+    -- 【杀】（不是锦囊）
+    local slash = takeCard(run, yueying, '杀')
+    before      = hand:count()
+    run.game:useCard(yueying, slash, { foe })
+    lt.assertEquals('【杀】⇒ 用掉一张、不摸', before - 1, hand:count())
+
+    -- 转化来的牌（虚拟牌）
+    local material = takeCard(run, yueying, '闪')
+    local virtual  = run.game:createVirtualCard('万箭齐发', material)
+    before         = hand:count()
+    run.game:useCard(yueying, virtual, { foe })
+    lt.assertEquals('转化来的锦囊 ⇒ 也不发动', before - 1, hand:count())
+
+    lt.assertEquals('一次都没问过', 0, asked)
+end)
+
+lt.test('集智：不发动就不摸', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local yueying = run.players[1]
+    local foe     = run.players[2]
+    yueying:setHero(assert(run.game:getHero('黄月英')))
+
+    -- 「决策-询问」一律不答 ⇒ 集智的 confirm 不成立
+
+    local hand   = assert(yueying:getZone('手牌'), '没有手牌区')
+    local havoc  = takeCard(run, yueying, '万箭齐发')
+    local before = hand:count()
+
+    run.game:useCard(yueying, havoc, { foe })
+
+    lt.assertEquals('用掉一张、没摸', before - 1, hand:count())
+end)
+
+lt.test('奇才：锦囊无视距离，远处的【顺手牵羊】也能用', function ()
+    local run     = support.start { count = 4, packages = { '标准' } }
+    local yueying = run.players[1]
+    local foe     = run.players[3]
+    yueying:setHero(assert(run.game:getHero('黄月英')))
+
+    lt.assertEquals('技能随武将挂上', true, yueying:hasSkill('奇才'))
+
+    local steal = takeCard(run, yueying, '顺手牵羊')
+    takeCard(run, foe, '杀') -- 他得有牌才能被牵
+
+    lt.assertEquals('距离 2，但有奇才 ⇒ 能以他为目标', true,
+        (run.game:canUse(yueying, steal, { foe })))
+
+    local use = run.game:useCard(yueying, steal, { foe })
+    lt.assertEquals('用出去了', nil, use.err)
+end)
+
+lt.test('奇才：只管锦囊，【杀】照旧受射程限制', function ()
+    local run     = support.start { count = 4, packages = { '标准' } }
+    local yueying = run.players[1]
+    local foe     = run.players[3]
+    yueying:setHero(assert(run.game:getHero('黄月英')))
+
+    local slash = takeCard(run, yueying, '杀')
+
+    lt.assertEquals('距离 2、攻击范围 1 ⇒ 还是用不了', false,
+        (run.game:canUse(yueying, slash, { foe })))
+end)

@@ -1252,6 +1252,25 @@ local function checkCardItself(game, user, card, useOptions)
     return def, nil
 end
 
+--- 把内容侧给这次使用加的选项并进 `base`（全局 + 使用者各问一份；返回新表）
+---@param user Player
+---@param card Card
+---@param base? Game.UseOptions # 调用方已有的选项（并入结果）
+---@param targets? Player[] # 这次使用的目标（内容侧若给 `true` / 谓词，按它解算）
+---@return Game.UseOptions
+function M:mergeUseOptions(user, card, base, targets)
+    local check = { user = user, card = card }
+    local parts = self:collect('卡牌-使用选项', check)
+    moe.util.arrayMerge(parts, user:collect('卡牌-来源-使用选项', check))
+    local result = base
+    for _, part in ipairs(parts) do
+        if type(part) == 'table' then
+            result = moe.useCard.mergeOptions(result, part, targets)
+        end
+    end
+    return result or {}
+end
+
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
 ---@param target? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
@@ -1260,13 +1279,15 @@ end
 ---@return any # 不能的原因
 ---@return Game.UsableTargets? # 能用时的可用目标与数量区间（「不指定目标」的牌是 legal 空表、0、0）
 function M:canUse(user, card, target, useOptions)
+    ---@type Player[]?
+    local targets = target and moe.util.toList(target)
+    -- 内容侧可以给这次使用加选项（【奇才】这类）：校验与候选收集都按合并后的来
+    useOptions = self:mergeUseOptions(user, card, useOptions, targets)
+
     local def, problem = checkCardItself(self, user, card, useOptions)
     if not def then
         return false, problem
     end
-
-    ---@type Player[]?
-    local targets = target and moe.util.toList(target)
 
     -- 目标：给了目标才判个数与归属；「最少 0、最多 0」就是不指定目标
     local min, max = card:getTargetCount(user)

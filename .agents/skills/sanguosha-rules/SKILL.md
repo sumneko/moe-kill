@@ -783,6 +783,45 @@ Skill '铁骑'
   - 这是**「响应限制」的通用做法**（不是【铁骑】专用）：任何「该角色不能响应此牌」的技能都往 `UseOptions.unrespondable` 里记。写法有四种：**一个角色 / 一串角色 / `true`（= 这次的全部目标）/ 谓词（按这次的目标筛）** —— 内部统一归一成名单，可累加。
 - 判红 = `judge.card?.color == '红'`（与【洛神】的「黑」对称）。
 
+### 9.21 黄月英【集智】【奇才】（已落地，2026-10-08）
+
+```lua
+Skill '集智'
+    : on('被动', function (skill, host)
+        local owner = skill.owner
+        host:bindGC(owner:on('卡牌-结算前', function (useCard)
+            if useCard.card.virtual then
+                return
+            end
+            if not useCard.card:isKind('非延时锦囊') then
+                return
+            end
+            if not skill:confirm() then
+                return
+            end
+            skill:cast(function ()
+                owner:draw(1)
+            end)
+        end))
+    end)
+
+Skill '奇才'
+    : tags '锁定技'
+    : on('被动', function (skill, host)
+        local owner = skill.owner
+        host:bindGC(owner:on('卡牌-来源-使用选项', function (check)
+            if check.card:isKind('锦囊') then
+                return { ignoreDistance = true }
+            end
+        end))
+    end)
+```
+
+- **【集智】按底本的两个限定**（「当你使用**非转化**的**普通**锦囊牌时」）：「非转化」= `not card.virtual`；「普通锦囊」= `card:isKind('非延时锦囊')`（**不含**延时锦囊）。
+- 时机订**使用者**那份 `'卡牌-结算前'`（只收自己的用牌，不用再判 `user`）—— 它对应官方的「使用结算开始时」。
+- **【奇才】用「这次使用的选项」**：由**使用者**在收集时加上 `ignoreDistance` ⇒ 射程判断（`Player:isInRange` 直接算在）⇒ 带距离的锦囊（【顺手牵羊】）不受限；**只管锦囊**（【杀】照旧受射程限制）。
+- `ignoreDistance` 的消费者要接的是**判射程的地方**：内容侧写 `user:isInRange(对方, 范围, plan.useOptions)`（【杀】与【顺手牵羊】的 `targets` filter 都是这么写的），裸写 `user:distance(对方)` 就认不到它。
+
 ## 10. 待确认口径
 
 - 规则版本：仅标准版，还是含军争篇（酒、属性伤害、铁索连环、藤甲等）？
