@@ -9,36 +9,30 @@ Hero '司马懿'
 -- 【鬼才】当一名角色的判定牌生效前，你可以打出一张手牌代替之。
 Skill '鬼才'
     : auto(true)
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(game:on('判定-前', function (judge)
-            if owner:getZone('手牌'):count() == 0 then
-                return
+    : globalEvent('判定-前', function (skill, judge)
+        if skill.owner:getZone('手牌'):count() == 0 then
+            return
+        end
+        skill:tryCast(function ()
+            local card = game:askCard(skill.owner, '鬼才', { zone = '手牌' }).card
+            if card then
+                judge:replace(card)
             end
-            skill:tryCast(function ()
-                local card = game:askCard(owner, '鬼才', { zone = '手牌' }).card
-                if card then
-                    judge:replace(card)
-                end
-            end)
-        end))
+        end)
     end)
 
 -- 【反馈】当你受到伤害后，你可以获得伤害来源的一张牌。
 Skill '反馈'
     : auto(true)
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('伤害-目标-生效后', function (damage)
-            local from = damage.from
-            if not from or not from:hasCard() then
-                return
+    : event('伤害-目标-生效后', function (skill, damage)
+        local from = damage.from
+        if not from or not from:hasCard() then
+            return
+        end
+        skill:tryCast(function ()
+            local card = game:askCard(skill.owner, '反馈', { zone = from:getZones(), cancelable = false }).card
+            if card then
+                game:moveCard(card, skill.owner:getZone('手牌'))
             end
-            skill:tryCast(function ()
-                local card = game:askCard(owner, '反馈', { zone = from:getZones(), cancelable = false }).card
-                if card then
-                    game:moveCard(card, owner:getZone('手牌'))
-                end
-            end)
-        end))
+        end)
     end)

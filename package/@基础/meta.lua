@@ -97,3 +97,27 @@
 ---@class SkillDef
 ---@field on fun(self: SkillDef, event: '被动', handler: fun(skill: Skill, host: GCHost)): SkillDef
 ---@field on fun(self: SkillDef, event: string, handler: function): SkillDef
+
+--- 技能订阅时机的声明：`event` 订自己那份（`owner:on`）、`globalEvent` 订局那份（`game:on`）—— **只做订阅**，要不要发动由回调自己写（`skill:tryCast(…)`）
+--- 本包提供的时机在这里按名收窄载荷（内核时机的候选在内核的 `env-meta.lua` 里）；伤害 / 治疗各四个阶段、来源侧与承受侧各一份
+---@class SkillDef
+---@field event fun(self: SkillDef, name: '伤害-目标-开始', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '伤害-目标-生效前', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '伤害-目标-生效后', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '伤害-目标-结束', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '伤害-来源-开始', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '伤害-来源-生效前', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '伤害-来源-生效后', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '伤害-来源-结束', handler: fun(skill: Skill, damage: Damage): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-目标-开始', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-目标-生效前', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-目标-生效后', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-目标-结束', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-来源-开始', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-来源-生效前', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-来源-生效后', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: '治疗-来源-结束', handler: fun(skill: Skill, heal: Heal): any): SkillDef
+---@field event fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '判定-前', handler: fun(skill: Skill, judge: Judge): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '判定-后', handler: fun(skill: Skill, judge: Judge): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef

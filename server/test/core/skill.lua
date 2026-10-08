@@ -273,3 +273,155 @@ lt.test('技能：没有这个技能定义就报错', function ()
         player:addSkill('没有这个')
     end)
 end)
+
+lt.test('技能：event 订自己头上的时机', function ()
+    useProbe()
+    local game = newGame([[
+Skill '探针技能'
+    : auto(true)
+    : event('测试-时机', function (skill, value)
+        skill.owner:setTag('收到', value)
+    end)
+]])
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    local skill  = player:addSkill('探针技能')
+
+    player:fire('测试-时机', '甲')
+    lt.assertEquals('启用时收得到', '甲', player:getTag('收到'))
+
+    game:fire('测试-时机', '乙')
+    lt.assertEquals('订的是自己那份（局上那份收不到）', '甲', player:getTag('收到'))
+
+    skill:disablePassive()
+    player:setTag('收到', nil)
+    player:fire('测试-时机', '丙')
+    lt.assertEquals('停用后收不到', nil, player:getTag('收到'))
+
+    skill:enablePassive()
+    player:fire('测试-时机', '丁')
+    lt.assertEquals('重新启用又收得到', '丁', player:getTag('收到'))
+end)
+
+lt.test('技能：globalEvent 订局上的时机', function ()
+    useProbe()
+    local game = newGame([[
+Skill '探针技能'
+    : auto(true)
+    : globalEvent('测试-全局', function (skill, value)
+        skill.owner:setTag('收到', value)
+    end)
+]])
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    local skill  = player:addSkill('探针技能')
+
+    game:fire('测试-全局', '甲')
+    lt.assertEquals('局上那份收得到', '甲', player:getTag('收到'))
+
+    player:setTag('收到', nil)
+    player:fire('测试-全局', '乙')
+    lt.assertEquals('订的是局那份（自己那份收不到）', nil, player:getTag('收到'))
+
+    skill:disablePassive()
+    game:fire('测试-全局', '丙')
+    lt.assertEquals('停用后收不到', nil, player:getTag('收到'))
+end)
+
+lt.test('技能：event 只订阅 —— 问与归因都由回调自己写', function ()
+    useProbe()
+    local game = newGame([[
+Skill '空订阅'
+    : event('测试-空', function (skill, value)
+        skill.owner:setTag('空', value)
+    end)
+
+Skill '甲'
+    : auto(true)
+    : event('测试-甲', function (skill, value)
+        skill:tryCast(function ()
+            skill.owner:setTag('甲', value)
+        end)
+    end)
+
+Skill '乙'
+    : event('测试-乙', function (skill, value)
+        if value == '别动' then
+            return
+        end
+        skill:tryCast(function ()
+            skill.owner:setTag('乙', value)
+        end)
+    end)
+]])
+    ---@type integer
+    local casts = 0
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'cast' then
+            casts = casts + 1
+        end
+    end)
+
+    local answer = '发动'
+    ---@type integer
+    local asked = 0
+    game:on('决策-询问', function ()
+        asked = asked + 1
+        return answer
+    end)
+
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    player:addSkill('空订阅')
+    player:addSkill('甲')
+    player:addSkill('乙')
+
+    player:fire('测试-空', '1')
+    lt.assertEquals('只订阅：回调照跑', '1', player:getTag('空'))
+    lt.assertEquals('只订阅：内核不替它问', 0, asked)
+    lt.assertEquals('只订阅：也不起 cast', 0, casts)
+
+    player:fire('测试-甲', '2')
+    lt.assertEquals('回调里 tryCast：auto 开着就不问', 0, asked)
+    lt.assertEquals('回调里 tryCast：照跑', '2', player:getTag('甲'))
+    lt.assertEquals('归因成一次发动', 1, casts)
+
+    casts = 0
+    player:fire('测试-乙', '别动')
+    lt.assertEquals('条件不过就 return：连问都不问', 0, asked)
+    lt.assertEquals('条件不过：不跑', nil, player:getTag('乙'))
+    lt.assertEquals('条件不过：不起 cast', 0, casts)
+
+    player:fire('测试-乙', '可以')
+    lt.assertEquals('条件过了才问一句', 1, asked)
+    lt.assertEquals('同意 ⇒ 照跑', '可以', player:getTag('乙'))
+    lt.assertEquals('同意 ⇒ 一次发动', 1, casts)
+end)
+
+lt.test('技能：event 可多次调，且与「被动」共存', function ()
+    useProbe()
+    local game = newGame([[
+Skill '探针技能'
+    : auto(true)
+    : on('被动', function (skill, host)
+        host:bindGC(skill.owner:on('测试-被动', function (value)
+            skill.owner:setTag('被动收到', value)
+        end))
+    end)
+    : event('测试-一', function (skill, value)
+        skill.owner:setTag('一收到', value)
+    end)
+    : event('测试-二', function (skill, value)
+        skill.owner:setTag('二收到', value)
+    end)
+]])
+    local def = assert(game:getSkill('探针技能'))
+    lt.assertEquals('两条声明', 2, #def:getEventList())
+
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    player:addSkill('探针技能')
+
+    player:fire('测试-一', '1')
+    player:fire('测试-二', '2')
+    player:fire('测试-被动', '3')
+    lt.assertEquals('第一条挂了', '1', player:getTag('一收到'))
+    lt.assertEquals('第二条挂了', '2', player:getTag('二收到'))
+    lt.assertEquals('「被动」那条也在', '3', player:getTag('被动收到'))
+end)

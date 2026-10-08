@@ -40,10 +40,24 @@ rule = nil
 ---@field on fun(self: BuffDef, event: '获得', handler: fun(buff: Buff)): BuffDef # 挂到某人身上之后跑一次（在这里挂资源 / 订阅：`buff:bindGC(...)`）
 ---@field on fun(self: BuffDef, event: '失去', handler: fun(buff: Buff)): BuffDef # 失去时跑一次（资源已经挂在 bindGC 上，这里只在「真的需要知道」时才用）
 
---- 技能的钩子是**固定**的：名字由内核约定、与启用的包无关（清单以本文件为准，不留 string 兜底）
+--- 技能的**钩子**是固定集合：名字由内核约定、与启用的包无关（所以不留 string 兜底，拼错在编辑期就报）
+--- **订阅时机**用 `event`（订技能主人头上那份）/ `globalEvent`（订局上那份）：只做订阅与生命周期 —— **要不要发动（`skill:tryCast`）由回调自己写**（与 `'被动'` 里手写 `owner:on(…)` 等价，省的是那两层壳）；时机名开放 ⇒ 这里只列内核常用几条、其余走 `fun(skill: Skill, ...: any)` 兜底，内容侧时机（伤害 / 治疗 / 判定）的重载住 `package/@基础/meta.lua`
 ---@class SkillDef
 ---@field on fun(self: SkillDef, event: '被动', handler: fun(skill: Skill, host: GCHost)): SkillDef # 技能挂上时跑一次（要挂什么就 `host:bindGC(…)`；停用时内核释放容器）
 ---@field on fun(self: SkillDef, event: '使用', handler: fun(cast: SkillCast)): SkillDef # 主动发动时跑（`cast` = 这次发动：`cast.source` 技能 / `cast.from` 发动者 / `cast.use` 带的牌与目标）
+---@field event fun(self: SkillDef, name: '卡牌-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef # 自己使用的牌开始结算
+---@field event fun(self: SkillDef, name: '卡牌-来源-使用选项', handler: fun(skill: Skill, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): SkillDef # 自己这次使用的选项（**收集式**：回调返回值会被 `fire` 收走；它跑在 `game:collect` 里 ⇒ 别在里面 await）
+---@field event fun(self: SkillDef, name: '阶段-开始', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field event fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
+---@field event fun(self: SkillDef, name: '卡牌-来源-指定目标后', handler: fun(skill: Skill, useCard: UseCard, target: Player): any): SkillDef
+---@field event fun(self: SkillDef, name: '效果-目标-能否生效', handler: fun(skill: Skill, effect: Effect): any): SkillDef
+---@field event fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '游戏-开始', handler: fun(skill: Skill, event: Game.Event.游戏开始): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '卡牌-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '卡牌-能否使用', handler: fun(skill: Skill, check: Game.Event.卡牌能否使用): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '阶段-开始', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
 
 --- 目前没有事件参数：触发时给空表，环境对象从 game 取
 ---@class Game.Event.游戏开始

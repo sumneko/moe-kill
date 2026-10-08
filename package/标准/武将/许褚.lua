@@ -20,15 +20,12 @@ Buff '裸衣'
 
 -- 【裸衣】摸牌阶段，你可以少摸一张牌，然后本回合你使用【杀】或【决斗】对目标角色造成伤害时，此伤害 +1。
 Skill '裸衣'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('阶段-开始', function (phase)
-            if phase.name ~= '摸牌' then
-                return
-            end
-            skill:tryCast(function ()
-                phase:bindGC(owner:addAttr('摸牌数', -1))
-                owner.turn:bindGC(owner:addBuff('裸衣'))
-            end)
-        end))
+    : event('阶段-开始', function (skill, phase)
+        if phase.name ~= '摸牌' then
+            return
+        end
+        skill:tryCast(function ()
+            phase:bindGC(skill.owner:addAttr('摸牌数', -1))
+            skill.owner.turn:bindGC(skill.owner:addBuff('裸衣'))
+        end)
     end)

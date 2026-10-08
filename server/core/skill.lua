@@ -4,6 +4,11 @@
 ---@field max? integer # 至多几个目标（省略 = min）
 ---@field filter? fun(player: Player, skill: Skill): boolean # 留下哪些角色（省略 = 全部存活角色）
 
+--- 一次「订阅时机」的声明（`: event(…)` / `: globalEvent(…)` 的形状）：时机到就把载荷原样转给回调（第一参补上技能自己）
+---@class SkillDef.EventDecl
+---@field name string # 时机名
+---@field handler fun(skill: Skill, ...: any): any # 回调（返回值照原样交回发时机的那个 `fire` —— 收集式时机靠它）
+
 --- 技能的内容定义（名字 / 自动同意 / 标签；内核只存不解释）
 --- **「自动同意」是玩家的偏好默认值，与「是否必须发动」无关** —— 强制发动的技能自己不问（底本 Chapter1/Section2 与 Chapter2/Section5 讲的是「必须发动」与「锁定技」标签正交）
 ---@class SkillDef
@@ -15,6 +20,8 @@
 ---@field cardCondition? AskCard.Condition # 这次发动要带的牌（`cards()` 声明；不写 = 不要牌）
 ---@field targetCondition? SkillDef.TargetCondition # 这次发动要的目标（`targets()` 声明；不写 = 不要目标）
 ---@field private viewAsList ViewAs.Decl[] # 声明过的「视为」（`viewAs()` 声明）
+---@field private events SkillDef.EventDecl[] # 订在主人头上的时机（`event()` 声明）
+---@field private globalEvents SkillDef.EventDecl[] # 订在局上的时机（`globalEvent()` 声明）
 ---@field private limits table<string, integer> # 每个阶段最多发动几次（照 `CardDef:limit`）
 ---@field private game Game # 所属的局
 ---@field private tagSet table<string, true> # 标签集合
@@ -42,9 +49,11 @@ function M:__init(game, name, owner, source)
     self.source   = source
     self.autoFire = false
     self.tagSet   = {}
-    self.handlers = {}
-    self.viewAsList = {}
-    self.limits     = {}
+    self.handlers     = {}
+    self.viewAsList   = {}
+    self.events       = {}
+    self.globalEvents = {}
+    self.limits       = {}
 end
 
 --- 登记这个技能的一个钩子（`'被动'` 在技能挂上时跑一次，内容侧在那里订阅 / 建状态）
@@ -124,6 +133,35 @@ end
 ---@return ViewAs.Decl[] # 声明过的「视为」（快照，按声明顺序）
 function M:getViewAsList()
     return moe.util.copy(self.viewAsList)
+end
+
+--- 订阅一个时机（可多次调）：挂在**主人头上**（`owner:on`），启用 / 离场 / 停用 / 被克制自动跟
+--- 只做订阅与生命周期；**要不要发动（`skill:tryCast`）由回调自己写**（时机到就调，内核不替它问）
+---@param name string # 时机名
+---@param handler fun(skill: Skill, ...: any): any # 时机到的回调（载荷原样给，返回值也原样交回）
+---@return SkillDef
+function M:event(name, handler)
+    self.events[#self.events + 1] = { name = name, handler = handler }
+    return self
+end
+
+--- 订阅一个**局上**的时机（可多次调）：形状与 `event` 一样，只是挂在局上（`game:on`）
+---@param name string # 时机名
+---@param handler fun(skill: Skill, ...: any): any # 时机到的回调（载荷原样给，返回值也原样交回）
+---@return SkillDef
+function M:globalEvent(name, handler)
+    self.globalEvents[#self.globalEvents + 1] = { name = name, handler = handler }
+    return self
+end
+
+---@return SkillDef.EventDecl[] # 订在主人头上的时机（快照，按声明顺序）
+function M:getEventList()
+    return moe.util.copy(self.events)
+end
+
+---@return SkillDef.EventDecl[] # 订在局上的时机（快照，按声明顺序）
+function M:getGlobalEventList()
+    return moe.util.copy(self.globalEvents)
 end
 
 --- 声明标签（可多次调，取并集）
@@ -288,6 +326,22 @@ function S:applyPassive()
             viewAs:on('发动', decl.on)
         end
         host:bindGC(viewAs)
+    end
+    for _, decl in ipairs(self.def:getEventList()) do
+        host:bindGC(self.owner:on(decl.name, self:makeEventCallback(decl)))
+    end
+    for _, decl in ipairs(self.def:getGlobalEventList()) do
+        host:bindGC(self.game:on(decl.name, self:makeEventCallback(decl)))
+    end
+end
+
+--- 把声明里的回调包一层：第一参补上技能自己，载荷与返回值都原样转
+---@private
+---@param decl SkillDef.EventDecl
+---@return function
+function S:makeEventCallback(decl)
+    return function (...)
+        return decl.handler(self, ...)
     end
 end
 

@@ -18,18 +18,15 @@ Skill '制衡'
 -- 【救援】主公技，其他吴势力角色使用【桃】令你回复体力时，回复值 +1。
 Skill '救援'
     : tags '主公技'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('治疗-目标-生效前', function (heal)
-            local from = heal.from
-            if not from or from == owner or from.kingdom ~= '吴' then
-                return
-            end
-            if heal.card?.name ~= '桃' then
-                return
-            end
-            skill:cast(function ()
-                heal.amount = heal.amount + 1
-            end)
-        end))
+    : event('治疗-目标-生效前', function (skill, heal)
+        local from = heal.from
+        if not from or from == skill.owner or from.kingdom ~= '吴' then
+            return
+        end
+        if heal.card?.name ~= '桃' then
+            return
+        end
+        skill:cast(function ()
+            heal.amount = heal.amount + 1
+        end)
     end)

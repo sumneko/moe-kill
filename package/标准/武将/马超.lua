@@ -15,18 +15,15 @@ Skill '马术'
 
 -- 【铁骑】当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。
 Skill '铁骑'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('卡牌-来源-指定目标后', function (useCard, target)
-            if useCard.card.name ~= '杀' then
+    : event('卡牌-来源-指定目标后', function (skill, useCard, target)
+        if useCard.card.name ~= '杀' then
+            return
+        end
+        skill:tryCast(function ()
+            local judge = game:judge(skill.owner, '铁骑')
+            if judge.card?.color ~= '红' then
                 return
             end
-            skill:tryCast(function ()
-                local judge = game:judge(owner, '铁骑')
-                if judge.card?.color ~= '红' then
-                    return
-                end
-                useCard:addUseOptions { unrespondable = target }
-            end)
-        end))
+            useCard:addUseOptions { unrespondable = target }
+        end)
     end)
