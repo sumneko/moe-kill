@@ -11,7 +11,8 @@ Card '决斗'
     : on('生效', function (cardEffect)
         local attacker = cardEffect.user
         local defender = cardEffect.target
-        while true do
+        -- 上限 1000 次，防止答复不前进时死循环
+        for _ = 1, 1000 do
             if not game:askPlayCard(defender, '决斗', { name = '杀' }).card then
                 game:damage(attacker, defender, 1, cardEffect.card)
                 return

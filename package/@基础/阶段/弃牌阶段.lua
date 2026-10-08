@@ -3,7 +3,8 @@
 ---@param player Player
 local function discardPhase(player)
     local hand = player:getZone('手牌')
-    while true do
+    -- 上限 1000 次，防止答复不前进时死循环
+    for _ = 1, 1000 do
         local extra = hand:count() - player:getAttr('体力')
         if extra <= 0 then
             return
