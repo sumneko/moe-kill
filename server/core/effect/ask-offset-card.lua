@@ -12,16 +12,10 @@ end
 
 ---@async
 function M:settle()
-    self.options = self:collectOptions()
-
-    if not self:collectAnswer() then
+    if not self:settleAnswer() then
         self.task:reject('没有打出')
         return
     end
-
-    self:onAnswered()
-    self.game:fire('卡牌-答复', self)
-    self.game:fire('卡牌-答复后', self)
 
     -- 要驳回的订阅者会在回调里 ask:cancel（不会返回）；没人驳回 = 抵消成立
     self.game:fire('效果-被抵消', self)

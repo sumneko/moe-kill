@@ -421,18 +421,27 @@ function M:collectAnswer()
     return true
 end
 
---- 把询问交给应答方（选项先摆好；答复一到，结果就定下了）
+--- 摆好选项 → 取值 → 把答复落定（处置那张牌、发两个答复时机）；返回「答复到手了吗」
+--- 子类自己写 `settle` 时调它，失败处置与后续动作各自补
 ---@async
-function M:settle()
+---@return boolean
+function M:settleAnswer()
     self.options = self:collectOptions()
 
     if not self:collectAnswer() then
-        return
+        return false
     end
 
     self:onAnswered()
     self.game:fire('卡牌-答复', self)
     self.game:fire('卡牌-答复后', self)
+    return true
+end
+
+--- 把询问交给应答方（选项先摆好；答复一到，结果就定下了）
+---@async
+function M:settle()
+    self:settleAnswer()
 end
 
 ---@class AskCard.API
