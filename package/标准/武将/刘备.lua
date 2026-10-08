@@ -28,23 +28,18 @@ Skill '仁德'
 Skill '激将'
     : auto(true)
     : tags '主公技'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        local viewAs = owner:addViewAs('杀', skill)
-            : on('发动', function (ask)
-                if not skill:confirm() then
-                    return
-                end
-                local helpers = table.filter(game.desk.alivePlayers, function (player)
-                    return player ~= owner and player.kingdom == owner.kingdom
-                end)
-                for helper in game.desk:actionOrder(helpers, owner) do
-                    local help = game:askCard(helper, '激将', { name = '杀' })
-                    if help.card then
-                        game:moveCard(help.cards, ask:getTempZone())
-                        return help.cards
-                    end
-                end
-            end)
-        host:bindGC(viewAs)
+    : viewAs('杀', nil, function (ask, skill)
+        if not skill:confirm() then
+            return
+        end
+        local helpers = table.filter(game.desk.alivePlayers, function (player)
+            return player ~= skill.owner and player.kingdom == skill.owner.kingdom
+        end)
+        for helper in game.desk:actionOrder(helpers, skill.owner) do
+            local help = game:askCard(helper, '激将', { name = '杀' })
+            if help.card then
+                game:moveCard(help.cards, ask:getTempZone())
+                return help.cards
+            end
+        end
     end)

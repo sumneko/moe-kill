@@ -8,9 +8,7 @@ Hero '关羽'
 
 -- 【武圣】你可以将一张红色牌当【杀】使用或打出。
 Skill '武圣'
-    : on('被动', function (skill, host)
-        host:bindGC(skill.owner:addViewAs('杀', skill, {
-            color = '红',
-            zone  = table.mergeArray({ '手牌' }, rule.equipZones),
-        }))
-    end)
+    : viewAs('杀', {
+        color = '红',
+        zone  = table.mergeArray({ '手牌' }, rule.equipZones),
+    })

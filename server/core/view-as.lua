@@ -1,3 +1,9 @@
+--- 一份「视为」的声明（`CardDef:viewAs` / `SkillDef:viewAs` 存它；被动启用时内核照它建 `ViewAs` 挂在持有者身上）
+---@class ViewAs.Decl
+---@field name string # 视为哪张牌
+---@field condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材，牌由内核照牌名造）
+---@field on? fun(ask: AskCard, source: Card|Skill): (boolean|Card|Card[]?) # 发动回调（不填 = 直接成立）；发动者读 `ask.to`
+
 ---@class ViewAs : Class.Base # 一份「视为某牌」的声明（挂在玩家身上，问牌时按声明顺序依次尝试）
 ---@field name string # 视为哪张牌
 ---@field owner Player # 挂在谁身上
@@ -25,7 +31,7 @@ end
 
 --- 登记一个处理器（返回自己，供链式写法）
 ---@param event '发动'
----@param handler fun(ask: AskCard): (boolean|Card|Card[]?) # 返回真 = 发动（按 `condition` 去收素材）；返回牌 = 发动且拿它们当素材；返回假 / 空 = 不发动
+---@param handler fun(ask: AskCard, source: Card|Skill): (boolean|Card|Card[]?) # 返回真 = 发动（按 `condition` 去收素材）；返回牌 = 发动且拿它们当素材；返回假 / 空 = 不发动
 ---@return ViewAs
 function M:on(event, handler)
     local list = self.handlers[event]
@@ -107,7 +113,7 @@ function M:launch(ask)
         return self:produce()
     end
     for _, handler in ipairs(handlers) do
-        local answer = handler(ask)
+        local answer = handler(ask, self.source)
         if answer == true then
             return self:produce()
         end

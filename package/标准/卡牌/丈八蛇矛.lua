@@ -5,10 +5,4 @@
 Card '丈八蛇矛'
     : extends '武器牌'
     : value('攻击范围', 3)
-    : on('被动', function (card, zone, host)
-        local owner = zone.owner
-        if not owner then
-            return
-        end
-        host:bindGC(owner:addViewAs('杀', card, { zone = '手牌', min = 2 }))
-    end)
+    : viewAs('杀', { zone = '手牌', min = 2 })

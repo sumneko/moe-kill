@@ -655,3 +655,18 @@ lt.test('武圣：红色装备牌也能当【杀】（用了就离区、加成�
     lt.assertEquals('离区后加成撤销', 0, user:getAttr('进攻修正'))
     lt.assertEquals('关联是武圣', findSkill(user, '武圣'), assert(chosen).source)
 end)
+
+lt.test('武圣：技能停用后就不再提供「视为」', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    user:setHero(assert(run.game:getHero('关羽')))
+    takeCard(run, user, '桃')
+
+    local ask = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+    lt.assertEquals('还没停用：声明在选项里', 1, #assert(ask.options))
+
+    findSkill(user, '武圣'):disablePassive()
+
+    local after = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+    lt.assertEquals('停用后声明跟着撤了', 0, #assert(after.options))
+end)

@@ -14,6 +14,7 @@
 ---@field package autoFire boolean # 自动同意的默认值（不写 = 每次问）
 ---@field cardCondition? AskCard.Condition # 这次发动要带的牌（`cards()` 声明；不写 = 不要牌）
 ---@field targetCondition? SkillDef.TargetCondition # 这次发动要的目标（`targets()` 声明；不写 = 不要目标）
+---@field private viewAsList ViewAs.Decl[] # 声明过的「视为」（`viewAs()` 声明）
 ---@field private game Game # 所属的局
 ---@field private tagSet table<string, true> # 标签集合
 ---@field private handlers table<string, function[]> # 各时机上的回调（按登记顺序）
@@ -38,6 +39,7 @@ function M:__init(game, name, owner, source)
     self.autoFire = false
     self.tagSet   = {}
     self.handlers = {}
+    self.viewAsList = {}
 end
 
 --- 登记这个技能的一个钩子（`'被动'` 在技能挂上时跑一次，内容侧在那里订阅 / 建状态）
@@ -86,6 +88,21 @@ end
 function M:targets(condition)
     self.targetCondition = condition
     return self
+end
+
+--- 声明一份「视为」（可多次调）：技能启用时内核照它建 `ViewAs` 挂在主人身上，停用自动撤
+---@param name string # 视为哪张牌
+---@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材）
+---@param on? fun(ask: AskCard, source: Skill): (boolean|Card|Card[]?) # 发动回调（不填 = 直接成立）
+---@return SkillDef
+function M:viewAs(name, condition, on)
+    self.viewAsList[#self.viewAsList + 1] = { name = name, condition = condition, on = on }
+    return self
+end
+
+---@return ViewAs.Decl[] # 声明过的「视为」（快照，按声明顺序）
+function M:getViewAsList()
+    return moe.util.copy(self.viewAsList)
 end
 
 --- 声明标签（可多次调，取并集）
@@ -231,6 +248,13 @@ function S:applyPassive()
     self.passiveHost = host
     for _, handler in ipairs(self.def:getHandlers('被动')) do
         handler(self, host)
+    end
+    for _, decl in ipairs(self.def:getViewAsList()) do
+        local viewAs = self.owner:addViewAs(decl.name, self, decl.condition)
+        if decl.on then
+            viewAs:on('发动', decl.on)
+        end
+        host:bindGC(viewAs)
     end
 end
 

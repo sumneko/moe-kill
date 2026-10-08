@@ -32,6 +32,7 @@
 ---@field private kinds string[] # 分类（可多条，按声明顺序）
 ---@field private kindSet table<string, true> # 分类去重用
 ---@field private values table<string, any> # 这张牌自带的数据
+---@field private viewAsList ViewAs.Decl[] # 声明过的「视为」（`viewAs()` 声明）
 ---@field targetCondition? CardDef.TargetCondition # 目标条件（`targets()` 声明；不声明 = 没有「对角色使用」这一支）
 ---@field cardTargetCondition? CardDef.CardTargetCondition # 对牌目标条件（`cardTargets()` 声明；不声明 = 进不了「对牌使用」那一支）
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
@@ -56,6 +57,7 @@ function CardDef:__init(game, name, owner, source)
     self.kinds    = {}
     self.kindSet  = {}
     self.values   = {}
+    self.viewAsList = {}
 end
 
 --- 登记这张牌的一个钩子
@@ -229,6 +231,21 @@ function CardDef:getTargetCount()
     return 1, 1
 end
 
+--- 声明一份「视为」（可多次调）：被动启用时内核照它建 `ViewAs` 挂在持有者身上，停用自动撤
+---@param name string # 视为哪张牌
+---@param condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材）
+---@param on? fun(ask: AskCard, source: Card): (boolean|Card|Card[]?) # 发动回调（不填 = 直接成立）
+---@return CardDef
+function CardDef:viewAs(name, condition, on)
+    self.viewAsList[#self.viewAsList + 1] = { name = name, condition = condition, on = on }
+    return self
+end
+
+---@return ViewAs.Decl[] # 声明过的「视为」（快照，按声明顺序）
+function CardDef:getViewAsList()
+    return moe.util.copy(self.viewAsList)
+end
+
 --- 声明这张牌必须从哪个牌区用（重复调以后写的为准）
 ---@param zone string # 牌区名（由内容侧定）
 ---@return CardDef
@@ -304,6 +321,9 @@ function CardDef:extends(name)
     end
     if base.skipsEffect then
         self.skipsEffect = true
+    end
+    if #base.viewAsList > 0 then
+        moe.util.arrayMerge(self.viewAsList, base.viewAsList)
     end
     return self
 end

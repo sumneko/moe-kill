@@ -3,20 +3,12 @@
 
 Card '八卦阵'
     : extends '防具牌'
-    : on('被动', function (card, zone, host)
-        local owner = zone.owner
-        if not owner then
+    : viewAs('闪', nil, function (ask)
+        if game:askChoice(ask.to, '八卦阵', { '发动' }).choice == nil then
             return
         end
-        local viewAs = owner:addViewAs('闪', card)
-            : on('发动', function ()
-                if game:askChoice(owner, '八卦阵', { '发动' }).choice == nil then
-                    return
-                end
-                local judge = game:judge(owner, '八卦阵')
-                if judge.card?.color == '红' then
-                    return true
-                end
-            end)
-        host:bindGC(viewAs)
+        local judge = game:judge(ask.to, '八卦阵')
+        if judge.card?.color == '红' then
+            return true
+        end
     end)

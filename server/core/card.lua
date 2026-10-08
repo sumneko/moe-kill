@@ -105,11 +105,21 @@ end
 --- 跑『被动』钩子：给它一个随本次应用存活的容器（要挂什么就 `host:bindGC(…)`）
 ---@private
 function M:applyPassive()
-    local zone = assert(self:getZone())
-    local host = moe.gc.host()
+    local zone  = assert(self:getZone())
+    local owner = zone.owner
+    local host  = moe.gc.host()
     self.passiveHost = host
     for _, handler in ipairs(self.def:getHandlers('被动')) do
         handler(self, zone, host)
+    end
+    if owner then
+        for _, decl in ipairs(self.def:getViewAsList()) do
+            local viewAs = owner:addViewAs(decl.name, self, decl.condition)
+            if decl.on then
+                viewAs:on('发动', decl.on)
+            end
+            host:bindGC(viewAs)
+        end
     end
 end
 
