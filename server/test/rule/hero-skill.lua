@@ -1181,3 +1181,131 @@ lt.test('苦肉：没人救就阵亡，也不再摸牌', function ()
     lt.assertEquals('一张牌也没摸', 0, assert(huanggai:getZone('手牌')):count())
     lt.assertEquals('因失去体力而死，没有致死伤害', nil, killerDamage)
 end)
+
+lt.test('洛神：准备阶段判黑就拿到那张判定牌，再问重复时停下', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhenji = run.players[1]
+    zhenji:setHero(assert(run.game:getHero('甄姬')))
+
+    lt.assertEquals('技能随武将挂上', true, zhenji:hasSkill('洛神'))
+
+    ---@type Card?
+    local decided = nil
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '洛神' then
+            decided = run.game:createCard('杀', '黑桃', 7)
+            judge:replace(decided)
+        end
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '洛神' then
+            return
+        end
+        ---@cast ask AskChoice
+        asked = asked + 1
+        if asked == 1 then
+            return '发动'
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(zhenji, '准备')
+
+    lt.assertEquals('问过两次（重复那次答否就停）', 2, asked)
+    local hand = assert(zhenji:getZone('手牌'))
+    lt.assertEquals('拿到了那张判定牌', 1, hand:count())
+    lt.assertEquals('就是判出来那张', decided, hand:peek(1))
+end)
+
+lt.test('洛神：判红就不拿，也不再问重复', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhenji = run.players[1]
+    zhenji:setHero(assert(run.game:getHero('甄姬')))
+
+    ---@type Card?
+    local decided = nil
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '洛神' then
+            decided = run.game:createCard('杀', '红桃', 7)
+            judge:replace(decided)
+        end
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '洛神' then
+            return
+        end
+        ---@cast ask AskChoice
+        asked = asked + 1
+        return '发动'
+    end)
+
+    local _ <close> = run.game:enterPhase(zhenji, '准备')
+
+    lt.assertEquals('只问了一次（判红就结束）', 1, asked)
+    lt.assertEquals('没拿到牌', 0, assert(zhenji:getZone('手牌')):count())
+    lt.assertEquals('判出来那张进了弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), decided))
+end)
+
+lt.test('倾国：把一张黑色手牌当【闪】打出，抵消那张【杀】', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local zhenji = run.players[2]
+    zhenji:setHero(assert(run.game:getHero('甄姬')))
+
+    lt.assertEquals('技能随武将挂上', true, zhenji:hasSkill('倾国'))
+
+    local slash = takeCard(run, user, '杀')
+    local black = run.game:createCard('杀', '梅花', 7)
+    assert(zhenji:getZone('手牌')):accept(black)
+
+    ---@type Card?
+    local played = nil
+    run.game:on('卡牌-答复', function (ask)
+        if ask.kind == 'askOffsetCard' then
+            played = ask.card
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '闪' then
+            return { card = black }
+        end
+    end)
+
+    run.game:useCard(user, slash, { zhenji })
+
+    local shown = assert(played, '该打出一张牌')
+    lt.assertEquals('打出的是虚拟【闪】', '闪', shown.name)
+    lt.assertEquals('是虚拟牌', true, shown.virtual)
+    lt.assertEquals('素材就是那张黑牌', black, shown.subcards[1])
+    lt.assertEquals('甄姬没掉血', 3, zhenji:getAttr('体力'))
+    lt.assertEquals('那张黑牌进了弃牌堆', assert(run.game:getZone('弃牌')), black:getZone())
+end)
+
+lt.test('倾国：红色牌当不了【闪】（进不了选项）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local zhenji = run.players[2]
+    zhenji:setHero(assert(run.game:getHero('甄姬')))
+
+    local slash = takeCard(run, user, '杀')
+    takeCard(run, zhenji, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, slash, { zhenji })
+
+    lt.assertEquals('没问过要素材', 0, asked)
+    lt.assertEquals('照常受伤', 2, zhenji:getAttr('体力'))
+end)

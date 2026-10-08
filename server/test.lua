@@ -52,7 +52,8 @@ function test.require(modname)
 end
 
 -- 两个护栏共用同一个上限：CPU 时间（防死循环）与墙钟（防卡在等待里）
-local timeLimit = 10
+-- 2026-10-08 从 10 抬到 15：全量 900+ 用例的墙钟已经到 ~10.3 秒（每条用例都要建局 + 装包），紧贴旧上限
+local timeLimit = 15
 
 function test.enableGuards()
     if debug.gethook() then
