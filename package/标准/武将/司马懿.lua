@@ -1,16 +1,5 @@
 -- 【司马懿】（标准版）：魏 · 男 · 体力上限 3
 
----@param player Player
----@return boolean # 身上（任一牌区里）有没有牌
-local function hasCard(player)
-    for _, zone in ipairs(player:getZones()) do
-        if zone:count() > 0 then
-            return true
-        end
-    end
-    return false
-end
-
 Hero '司马懿'
     : kingdom '魏'
     : sex '男'
@@ -45,7 +34,7 @@ Skill '反馈'
         local owner = skill.owner
         host:bindGC(owner:on('伤害-目标-结束', function (damage)
             local from = damage.from
-            if not from or not hasCard(from) then
+            if not from or not from:hasCard() then
                 return
             end
             if not skill:confirm() then

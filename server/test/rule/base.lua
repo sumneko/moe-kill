@@ -217,6 +217,34 @@ lt.test('基础：体力的便捷读法', function ()
     lt.assertEquals('抬上限后缺失跟着变大（算出来的，不是存的）', 3, player:getLostHp())
 end)
 
+lt.test('基础：身上有没有牌（hasCard）', function ()
+    local run    = support.start { packages = { '标准' }, count = 2 }
+    local player = run.players[1]
+
+    lt.assertEquals('空身时没有牌', false, player:hasCard())
+
+    local slash  = run.game:createCard('杀', '黑桃', 7)
+    local weapon = run.game:createCard('丈八蛇矛', '黑桃', 12)
+    assert(player:getZone('手牌')):accept(slash)
+    assert(player:getZone('手牌')):accept(weapon)
+
+    lt.assertEquals('手牌里有牌', true, player:hasCard())
+    lt.assertEquals('指名手牌', true, player:hasCard('手牌'))
+    lt.assertEquals('传区对象也一样', true, player:hasCard(assert(player:getZone('手牌'))))
+    lt.assertEquals('空着的判定区没有牌', false, player:hasCard('判定'))
+
+    run.game:moveCard(weapon, '弃牌')
+    lt.assertEquals('只挪走一张也还是有牌', true, player:hasCard())
+
+    run.game:moveCard(slash, '弃牌')
+    lt.assertEquals('牌都挪走后身上就没有了', false, player:hasCard())
+    lt.assertEquals('局上的弃牌堆按名字也解析得到', true, player:hasCard('弃牌'))
+    lt.assertEquals('认不出的区名当没有', false, player:hasCard('没有这个区'))
+
+    run.game:moveCard(weapon, assert(player:getZone('武器')))
+    lt.assertEquals('装备子区里的牌也算', true, player:hasCard())
+end)
+
 lt.test('基础：属性系统由局持有，随清空重载重建', function ()
     local game = newGame(nil, { '身份场', '标准' })
 

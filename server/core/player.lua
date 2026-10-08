@@ -115,6 +115,28 @@ function M:getZones()
     return moe.util.copy(self.zoneList)
 end
 
+--- 这些牌区里有没有牌（不传 = 他自己所有牌区；名字按「自己 → 局上」解析）
+---@param ... Zone|string # 要看哪几个区
+---@return boolean
+function M:hasCard(...)
+    local zones = { ... }
+    if #zones == 0 then
+        zones = self:getZones()
+    end
+    for _, item in ipairs(zones) do
+        local zone
+        if type(item) == 'string' then
+            zone = self:getZone(item) or self.game:getZone(item)
+        else
+            zone = item
+        end
+        if zone and zone:count() > 0 then
+            return true
+        end
+    end
+    return false
+end
+
 --- 获得一只状态：挂上（同名可并存）→ 发「获得」 → 返回实例
 ---@param name string
 ---@param payload? any # 内容侧自己约定的一份载荷（内核只存不解释）
