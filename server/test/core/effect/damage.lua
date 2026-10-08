@@ -106,6 +106,71 @@ lt.test('伤害：结算期间在栈上', function ()
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
+lt.test('伤害：四个阶段各三份（全局 → 来源 → 目标）', function ()
+    local game, players = newGame(2)
+
+    ---@type string[]
+    local seen = {}
+    local function watch(stage)
+        game:on('伤害-' .. stage, function ()
+            seen[#seen + 1] = '全局-' .. stage
+        end)
+        players[1]:on('伤害-来源-' .. stage, function ()
+            seen[#seen + 1] = '来源-' .. stage
+        end)
+        players[2]:on('伤害-目标-' .. stage, function ()
+            seen[#seen + 1] = '目标-' .. stage
+        end)
+    end
+    watch('开始')
+    watch('生效前')
+    watch('生效后')
+    watch('结束')
+
+    ---@type integer? # 发「生效前」时目标的体力（应当还没扣）
+    local hpBefore = nil
+    game:on('伤害-生效前', function (damage)
+        hpBefore = damage.to:getAttr('体力')
+    end)
+    ---@type integer? # 发「生效后」时目标的体力（应当已经扣了）
+    local hpAfter = nil
+    game:on('伤害-生效后', function (damage)
+        hpAfter = damage.to:getAttr('体力')
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    local expected = '全局-开始,来源-开始,目标-开始,'
+                  .. '全局-生效前,来源-生效前,目标-生效前,'
+                  .. '全局-生效后,来源-生效后,目标-生效后,'
+                  .. '全局-结束,来源-结束,目标-结束'
+    lt.assertEquals('四个阶段按序、每阶段三份', expected, table.concat(seen, ','))
+    lt.assertEquals('生效前还没扣血', 4, hpBefore)
+    lt.assertEquals('生效后已经扣了', 3, hpAfter)
+end)
+
+lt.test('伤害：濒死夹在「生效前」与「生效后」之间', function ()
+    local game, players = newGame(2)
+    local victim = players[2]
+    victim:setAttr('体力', 1)
+
+    ---@type boolean? # 发「生效前」时还活着吗
+    local aliveBefore = nil
+    ---@type boolean? # 发「生效后」时还活着吗
+    local aliveAfter = nil
+    game:on('伤害-生效前', function ()
+        aliveBefore = victim:isAlive()
+    end)
+    game:on('伤害-生效后', function ()
+        aliveAfter = victim:isAlive()
+    end)
+
+    game:damage(players[1], victim, 3)
+
+    lt.assertEquals('生效前还活着', true, aliveBefore)
+    lt.assertEquals('濒死（判死）已经过去', false, aliveAfter)
+end)
+
 lt.test('伤害-开始：扣血之前就发，全局先来源后', function ()
     local game, players = newGame(2)
 

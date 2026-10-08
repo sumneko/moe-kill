@@ -10,7 +10,7 @@ Hero '夏侯惇'
 Skill '刚烈'
     : on('被动', function (skill, host)
         local owner = skill.owner
-        host:bindGC(owner:on('伤害-目标-结束', function (damage)
+        host:bindGC(owner:on('伤害-目标-生效后', function (damage)
             local from = damage.from
             if not from then
                 return

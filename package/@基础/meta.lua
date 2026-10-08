@@ -3,6 +3,7 @@
 --- 装备子区名单挂在装载器给的共享袋上（内容侧跨包共享；装载器每轮新建一张）
 ---@class Loader.Rule
 ---@field equipZones string[] # 装备子区名（= 装备的分类名；想加子区的包在加载期往这里追加）
+---@field ownZones string[] # 「自己的区域」= 手牌 + 装备子区（判定区的牌不是你的牌）
 
 ---@class Game
 ---@field getValue fun(self: Game, name: '默认体力'|'主公额外体力'): integer
@@ -34,20 +35,60 @@
 ---@field on fun(self: Game, name: '判定-后', callback: fun(judge: Judge): any): function
 ---@field fire fun(self: Game, name: '判定-后', judge: Judge): any
 
---- 伤害的时机也由本包提供：按名收窄 `on` / `fire` 的载荷
---- 「开始」= 官方「造成伤害时」、在扣体力之前：全局发 `'伤害-开始'`、再对来源发 `'伤害-来源-开始'`
+--- 伤害与治疗的时机也由本包提供：按名收窄 `on` / `fire` 的载荷
+--- 四个阶段各发三份（全局 / 来源 / 目标）：开始（仅通知，别改值）→ 生效前（改值的口子）→ 生效后（「受到伤害后」这类常用时机）→ 结束（全部结算完）
 ---@class Game
 ---@field on fun(self: Game, name: '伤害-开始', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Game, name: '伤害-开始', damage: Damage): any
+---@field on fun(self: Game, name: '伤害-生效前', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Game, name: '伤害-生效前', damage: Damage): any
+---@field on fun(self: Game, name: '伤害-生效后', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Game, name: '伤害-生效后', damage: Damage): any
 ---@field on fun(self: Game, name: '伤害-结束', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Game, name: '伤害-结束', damage: Damage): any
+---@field on fun(self: Game, name: '治疗-开始', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Game, name: '治疗-开始', heal: Heal): any
+---@field on fun(self: Game, name: '治疗-生效前', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Game, name: '治疗-生效前', heal: Heal): any
+---@field on fun(self: Game, name: '治疗-生效后', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Game, name: '治疗-生效后', heal: Heal): any
+---@field on fun(self: Game, name: '治疗-结束', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Game, name: '治疗-结束', heal: Heal): any
 
 ---@class Player: Class.Base
---- 伤害（本包提供）：承受侧那份对当事人再发一份
----@field on fun(self: Player, name: '伤害-来源-开始', callback: fun(damage: Damage): any): function # 自己造成的伤害开始了（全局那份之外、对来源再发一份）
+--- 伤害 / 治疗（本包提供）：来源侧与承受侧各再发一份
+---@field on fun(self: Player, name: '伤害-来源-开始', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Player, name: '伤害-来源-开始', damage: Damage): any
----@field on fun(self: Player, name: '伤害-目标-结束', callback: fun(damage: Damage): any): function # 自己受到了伤害（全局那份之外、对承受者再发一份）
+---@field on fun(self: Player, name: '伤害-来源-生效前', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Player, name: '伤害-来源-生效前', damage: Damage): any
+---@field on fun(self: Player, name: '伤害-来源-生效后', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Player, name: '伤害-来源-生效后', damage: Damage): any
+---@field on fun(self: Player, name: '伤害-来源-结束', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Player, name: '伤害-来源-结束', damage: Damage): any
+---@field on fun(self: Player, name: '伤害-目标-开始', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Player, name: '伤害-目标-开始', damage: Damage): any
+---@field on fun(self: Player, name: '伤害-目标-生效前', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Player, name: '伤害-目标-生效前', damage: Damage): any
+---@field on fun(self: Player, name: '伤害-目标-生效后', callback: fun(damage: Damage): any): function
+---@field fire fun(self: Player, name: '伤害-目标-生效后', damage: Damage): any
+---@field on fun(self: Player, name: '伤害-目标-结束', callback: fun(damage: Damage): any): function
 ---@field fire fun(self: Player, name: '伤害-目标-结束', damage: Damage): any
+---@field on fun(self: Player, name: '治疗-来源-开始', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-来源-开始', heal: Heal): any
+---@field on fun(self: Player, name: '治疗-来源-生效前', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-来源-生效前', heal: Heal): any
+---@field on fun(self: Player, name: '治疗-来源-生效后', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-来源-生效后', heal: Heal): any
+---@field on fun(self: Player, name: '治疗-来源-结束', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-来源-结束', heal: Heal): any
+---@field on fun(self: Player, name: '治疗-目标-开始', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-目标-开始', heal: Heal): any
+---@field on fun(self: Player, name: '治疗-目标-生效前', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-目标-生效前', heal: Heal): any
+---@field on fun(self: Player, name: '治疗-目标-生效后', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-目标-生效后', heal: Heal): any
+---@field on fun(self: Player, name: '治疗-目标-结束', callback: fun(heal: Heal): any): function
+---@field fire fun(self: Player, name: '治疗-目标-结束', heal: Heal): any
 --- 兜底：跨文件加候选时必须自带（不带的话同名的整张候选表都不解析，见 architecture §9.6 配方）
 ---@field on fun(self: Player, name: string, callback: fun(payload: any): any): function
 ---@field fire fun(self: Player, name: string, ...: any): any

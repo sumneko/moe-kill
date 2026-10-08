@@ -11,7 +11,7 @@ Skill '奸雄'
     : auto(true)
     : on('被动', function (skill, host)
         local owner = skill.owner
-        host:bindGC(owner:on('伤害-目标-结束', function (damage)
+        host:bindGC(owner:on('伤害-目标-生效后', function (damage)
             -- 能拿几张拿几张：已经不在原处的那些（被人拿走 / 被挪走）就不要了
             local cards = damage.cardsInPlace
             if #cards == 0 then

@@ -13,5 +13,5 @@ Card '桃'
         end,
     }
     : on('生效', function (cardEffect)
-        game:heal(cardEffect.target, 1)
+        game:heal(cardEffect.target, 1, cardEffect.user, cardEffect.card)
     end)

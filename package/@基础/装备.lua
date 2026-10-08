@@ -3,10 +3,15 @@
 -- 「一个子区只能有一张」也在这里（同子区已有牌 ⇒ 旧的先送弃牌堆）
 -- 加成由牌自己的「被动」写进属性：进子区时启用、离开时由装备模板停用并撤销 —— 所以没有「卸下」
 -- 想加子区（特殊坐骑 / 宝物…）的包往 rule.equipZones 里追加：加载期加完即可，子区名 = 那张牌的分类名
+-- 加了子区记得给 rule.ownZones 也补上（它已经拷好一份，不会自己跟着长）
 
 --- 装备子区名（= 装备的分类名；顺序就是找子区与列装备牌的顺序）—— `rule` 是装载器给的共享袋
 ---@type string[]
 rule.equipZones = { '武器', '防具', '进攻马', '防御马' }
+
+--- 自己的区域：手牌 + 装备区（判定区的牌不是你的牌）
+---@type string[]
+rule.ownZones = table.mergeArray({ '手牌' }, rule.equipZones)
 
 game:on('游戏-开始', function ()
     for _, player in ipairs(game.desk.players) do

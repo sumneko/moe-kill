@@ -42,7 +42,15 @@ Damage.__getter.cardsInPlace = function (self)
     return cards
 end
 
---- 伤害结算
+--- 一个阶段的三份：全局 → 来源 → 目标（没有来源就不发来源那份）
+---@param stage string
+function Damage:fireStage(stage)
+    self.game:fire('伤害-' .. stage, self)
+    self.from?:fire('伤害-来源-' .. stage, self)
+    self.to:fire('伤害-目标-' .. stage, self)
+end
+
+--- 伤害结算（四个阶段：开始 → 生效前 → 生效（扣体力 + 濒死）→ 生效后 → 结束）
 ---@async
 function Damage:settle()
     local to    = self.to
@@ -52,17 +60,15 @@ function Damage:settle()
     for i, one in ipairs(cards) do
         self.cardZones[i] = one:getZone()
     end
-    -- 伤害流程开始（= 官方「造成伤害时」，在扣体力之前）：全局一份、来源一份
-    self.game:fire('伤害-开始', self)
-    self.from?:fire('伤害-来源-开始', self)
+    self:fireStage('开始')
+    self:fireStage('生效前')
     to:addAttr('体力', -self.amount)
-    -- 扣到 ≤0 就进濒死（濒死就在这次伤害结算里，早于它结完）
+    -- 扣到 ≤0 就进濒死（濒死就在这次伤害结算里，早于「生效后」）
     if to:getAttr('体力') <= 0 then
         to:enterDying(self)
     end
-    self.game:fire('伤害-结束', self)
-    -- 承受侧那份（带方向词，见 architecture 的「对当事人再发一份」）：技能挂在他自己的时机表上
-    to:fire('伤害-目标-结束', self)
+    self:fireStage('生效后')
+    self:fireStage('结束')
 end
 
 ---@class Game

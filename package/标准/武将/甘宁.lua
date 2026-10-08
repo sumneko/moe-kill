@@ -10,5 +10,5 @@ Hero '甘宁'
 Skill '奇袭'
     : viewAs('过河拆桥', {
         color = '黑',
-        zone  = table.mergeArray({ '手牌' }, rule.equipZones),
+        zone  = rule.ownZones,
     })

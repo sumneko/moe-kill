@@ -10,5 +10,5 @@ Hero '关羽'
 Skill '武圣'
     : viewAs('杀', {
         color = '红',
-        zone  = table.mergeArray({ '手牌' }, rule.equipZones),
+        zone  = rule.ownZones,
     })

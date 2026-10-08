@@ -1888,3 +1888,179 @@ lt.test('奇才：只管锦囊，【杀】照旧受射程限制', function ()
     lt.assertEquals('距离 2、攻击范围 1 ⇒ 还是用不了', false,
         (run.game:canUse(yueying, slash, { foe })))
 end)
+
+lt.test('制衡：弃两张手牌，摸回等量的牌', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local sunquan = run.players[1]
+    sunquan:setHero(assert(run.game:getHero('孙权')))
+    local zhiheng = findSkill(sunquan, '制衡')
+
+    local first  = takeCard(run, sunquan, '杀')
+    local second = takeCard(run, sunquan, '闪')
+
+    local asked = 0
+    run.game:on('技能-询问', function ()
+        asked = asked + 1
+        if asked > 1 then
+            return nil
+        end
+        return { skill = zhiheng, cards = { first, second } }
+    end)
+
+    local before = assert(sunquan:getZone('手牌')):count()
+    local _ <close> = run.game:enterPhase(sunquan, '出牌')
+
+    local pile = assert(run.game:getZone('弃牌')):list()
+    lt.assertEquals('弃的两张都进了弃牌堆', true, moe.util.arrayHas(pile, first))
+    lt.assertEquals('另一张也在', true, moe.util.arrayHas(pile, second))
+    lt.assertEquals('摸回等量：手牌数不变', before, assert(sunquan:getZone('手牌')):count())
+end)
+
+lt.test('制衡：装备区的牌也能弃（「任意张牌」）', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local sunquan = run.players[1]
+    sunquan:setHero(assert(run.game:getHero('孙权')))
+    local zhiheng = findSkill(sunquan, '制衡')
+
+    local weapon = run.game:createCard('丈八蛇矛', '黑桃', 12)
+    assert(sunquan:getZone('手牌')):accept(weapon)
+    run.game:moveCard(weapon, assert(sunquan:getZone('武器')))
+    local handCard = takeCard(run, sunquan, '杀')
+    lt.assertEquals('装上后攻击范围 3', 3, sunquan:getAttr('攻击范围'))
+
+    ---@type AskUseSkill?
+    local skillAsk = nil
+    local asked    = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        if asked > 1 then
+            return nil
+        end
+        ---@cast ask AskUseSkill
+        skillAsk = ask
+        return { skill = zhiheng, cards = { weapon, handCard } }
+    end)
+
+    local _ <close> = run.game:enterPhase(sunquan, '出牌')
+
+    local legal = assert(assert(assert(skillAsk).options[1]).cards, '制衡该带牌那半').legal
+    lt.assertEquals('候选 = 手牌 + 装备区', 2, #legal)
+    lt.assertEquals('武器进了弃牌堆', true, moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), weapon))
+    lt.assertEquals('离区之后加成撤销', 1, sunquan:getAttr('攻击范围'))
+end)
+
+lt.test('制衡：判定区的牌不在候选里', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local sunquan = run.players[1]
+    sunquan:setHero(assert(run.game:getHero('孙权')))
+    local zhiheng = findSkill(sunquan, '制衡')
+
+    local handCard = takeCard(run, sunquan, '杀')
+    local doomed   = run.game:createCard('乐不思蜀', '红桃', 6)
+    assert(sunquan:getZone('判定')):accept(doomed)
+
+    ---@type AskUseSkill?
+    local skillAsk = nil
+    local asked    = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        if asked > 1 then
+            return nil
+        end
+        ---@cast ask AskUseSkill
+        skillAsk = ask
+        return nil
+    end)
+
+    local _ <close> = run.game:enterPhase(sunquan, '出牌')
+
+    local legal = assert(assert(assert(skillAsk).options[1]).cards, '制衡该带牌那半').legal
+    lt.assertEquals('候选只有手牌那张', 1, #legal)
+    lt.assertEquals('就是手牌里那张', handCard, legal[1])
+end)
+
+lt.test('制衡：出牌阶段限一次，用过了就不再进选项', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local sunquan = run.players[1]
+    sunquan:setHero(assert(run.game:getHero('孙权')))
+    local zhiheng = findSkill(sunquan, '制衡')
+
+    local first  = takeCard(run, sunquan, '杀')
+    takeCard(run, sunquan, '闪')
+
+    ---@type AskUseSkill?
+    local secondAsk = nil
+    local asked     = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        if asked > 2 then
+            return nil
+        end
+        ---@cast ask AskUseSkill
+        if asked == 1 then
+            return { skill = zhiheng, cards = first }
+        end
+        secondAsk = ask
+        return nil
+    end)
+
+    local _ <close> = run.game:enterPhase(sunquan, '出牌')
+
+    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
+    lt.assertEquals('但制衡已经不在选项里', 0, #assert(assert(secondAsk).options))
+end)
+
+lt.test('救援：其他吴势力角色使用【桃】令他回复时，回复值 +1', function ()
+    local run     = support.start { count = 4, packages = { '标准', '身份场' } }
+    local sunquan = run.players[1]
+    sunquan:setHero(assert(run.game:getHero('孙权')))
+    lt.assertEquals('1 号位是主公，主公技挂上了', true, sunquan:hasSkill('救援'))
+
+    local helper = run.players[2]
+    helper:setHero(assert(run.game:getHero('甘宁')))
+    lt.assertEquals('帮手是吴势力', '吴', helper.kingdom)
+
+    local peach = run.game:createCard('桃')
+    sunquan:setAttr('体力', 1)
+    run.game:heal(sunquan, 1, helper, peach)
+
+    lt.assertEquals('1 点回复变 2 点（1 → 3）', 3, sunquan:getAttr('体力'))
+end)
+
+lt.test('救援：不是吴势力 / 自己 / 不是【桃】都没有加成', function ()
+    local run     = support.start { count = 4, packages = { '标准', '身份场' } }
+    local sunquan = run.players[1]
+    sunquan:setHero(assert(run.game:getHero('孙权')))
+    local helper  = run.players[2]
+    helper:setHero(assert(run.game:getHero('甘宁')))
+    local wei     = run.players[3]
+    wei:setHero(assert(run.game:getHero('曹操')))
+
+    local peach = run.game:createCard('桃')
+
+    sunquan:setAttr('体力', 1)
+    run.game:heal(sunquan, 1, wei, peach)
+    lt.assertEquals('魏势力角色给的没加成（1 → 2）', 2, sunquan:getAttr('体力'))
+
+    sunquan:setAttr('体力', 1)
+    run.game:heal(sunquan, 1, sunquan, peach)
+    lt.assertEquals('自己救自己也没加成（1 → 2）', 2, sunquan:getAttr('体力'))
+
+    sunquan:setAttr('体力', 1)
+    run.game:heal(sunquan, 1, helper, run.game:createCard('桃园结义'))
+    lt.assertEquals('不是【桃】就不加成（1 → 2）', 2, sunquan:getAttr('体力'))
+
+    sunquan:setAttr('体力', 1)
+    run.game:heal(sunquan, 1, helper)
+    lt.assertEquals('没有牌（技能类回复）也不加成（1 → 2）', 2, sunquan:getAttr('体力'))
+end)
+
+lt.test('救援：不是主公就不挂这个技能', function ()
+    local run   = support.start { count = 4, packages = { '标准', '身份场' } }
+    local other = run.players[2]
+    other:setHero(assert(run.game:getHero('孙权')))
+
+    lt.assertEquals('他不是主公', false, other.identity == '主公')
+    lt.assertEquals('制衡照挂', true, other:hasSkill('制衡'))
+    lt.assertEquals('救援不挂', false, other:hasSkill('救援'))
+end)
