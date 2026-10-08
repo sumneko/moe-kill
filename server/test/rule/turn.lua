@@ -11,7 +11,7 @@ local support = require 'test.rule.support'
 ---@field seed? integer
 ---@field answers? Card[] # 「卡牌-询问」的脚本（【闪】之类）
 ---@field answer fun(ask: AskCard, run: Test.RuleSupport): AskCard.Answer? # 出牌阶段的答复（不给牌就结束出牌阶段）
----@field discard? fun(ask: Ask, run: Test.RuleSupport): any # 弃牌阶段的答复（省略 = 一律不答）
+---@field discard? fun(ask: AskCard, run: Test.RuleSupport): AskCard.Answer? # 弃牌阶段的答复（省略 = 不表态，服务器替他弃）
 ---@field stopAfter? integer # 跑够几个回合就停掉流程
 ---@field setup? fun(run: Test.RuleSupport) # 流程跑起来之前的准备
 
@@ -41,19 +41,14 @@ local function startTurn(options)
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason ~= '出牌' then
-            return
+        if ask.reason == '出牌' then
+            moe.await.sleep(0)
+            return options.answer(ask, run)
         end
-        moe.await.sleep(0)
-        return options.answer(ask, run)
-    end)
-    run.game:on('决策-询问', function (ask)
-        ---@cast ask Ask
-        if not options.discard then
-            return
+        if ask.reason == '弃牌' and options.discard then
+            moe.await.sleep(0)
+            return options.discard(ask, run)
         end
-        moe.await.sleep(0)
-        return options.discard(ask, run)
     end)
 
     state.task = run.game:runFlow()
@@ -222,12 +217,7 @@ lt.test('回合：弃牌阶段弃到体力值', function ()
         answer  = endPhase(),
         discard = function (ask)
             local hand = assert(ask.to:getZone('手牌'), '被问者没有手牌区'):list()
-            ---@type Card[]
-            local cards = {}
-            for i = 1, ask.question.count do
-                cards[i] = hand[i]
-            end
-            return { cards = cards }
+            return { card = hand[1] }
         end,
         stopAfter = 1,
     }    local run  = state.run
@@ -241,7 +231,40 @@ lt.test('回合：弃牌阶段弃到体力值', function ()
     lt.assertEquals('弃掉的牌进了弃牌', 2, game:getZone('弃牌'):count())
 end)
 
-lt.test('回合：弃牌答复不对就由服务器从前往后替他弃', function ()
+lt.test('回合：弃牌也可以一次给完', function ()
+    local asked = 0
+    local state = startTurn {
+        setup = function (run)
+            local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
+            for _ = 1, 6 do
+                hand:accept(run.game:createCard('闪'))
+            end
+        end,
+        answer  = endPhase(),
+        discard = function (ask)
+            asked = asked + 1
+            local hand  = assert(ask.to:getZone('手牌'), '被问者没有手牌区'):list()
+            local extra = assert(ask.condition).max
+            ---@type Card[]
+            local cards = {}
+            for i = 1, extra do
+                cards[i] = hand[i]
+            end
+            return { card = cards }
+        end,
+        stopAfter = 1,
+    }
+    local run  = state.run
+    local lord = run.players[1]
+    local hand = assert(lord:getZone('手牌'), '没有手牌区')
+
+    advance(state, 1)
+
+    lt.assertEquals('只问了一次', 1, asked)
+    lt.assertEquals('弃到体力值', lord:getAttr('体力'), hand:count())
+end)
+
+lt.test('回合：弃牌一张一张问，不答就由服务器一次弃够', function ()
     ---@type Card[]
     local added = {}
     local need  = 0
@@ -256,9 +279,9 @@ lt.test('回合：弃牌答复不对就由服务器从前往后替他弃', funct
         end,
         answer  = endPhase(),
         discard = function (ask)
-            need = ask.question.count
-            -- 故意答得不对：只给一张，而且不是服务器该弃的那几张
-            return { cards = { added[5] } }
+            need = need + 1
+            -- 一律不答：该由服务器一次替他弃够
+            return nil
         end,
         stopAfter = 1,
     }
@@ -270,14 +293,14 @@ lt.test('回合：弃牌答复不对就由服务器从前往后替他弃', funct
 
     advance(state, 1)
 
-    lt.assertEquals('要弃几张就问几张', 2, need)
+    lt.assertEquals('问了一次就不再问了', 1, need)
     lt.assertEquals('弃到体力值', lord:getAttr('体力'), hand:count())
     local cards = discard:list()
-    lt.assertEquals('弃的张数按要弃的数来', need, #cards)
+    lt.assertEquals('弃的张数按要弃的数来', 2, #cards)
     for i = 1, #cards do
         lt.assertEquals('第 {} 张弃的是手牌最前面的' % { i }, added[i], cards[i])
     end
-    lt.assertEquals('答复里那张没被采纳，还在手上', true, moe.util.arrayHas(hand:list(), added[5]))
+    lt.assertEquals('没轮到的不动，还在手上', true, moe.util.arrayHas(hand:list(), added[5]))
 end)
 
 lt.test('回合：阵亡的角色不再得到回合', function ()
