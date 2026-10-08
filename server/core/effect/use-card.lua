@@ -33,6 +33,57 @@ M.__getter.from = function (self)
     return self.user
 end
 
+--- 把 `unrespondable` 的四种写法解算成目标名单（一个角色 / 一串角色 / `true` = 这次的全部目标 / 谓词按这次的目标筛）
+---@param useCard UseCard
+---@param value Player|Player[]|true|fun(player: Player): boolean
+---@return Player[]
+local function resolveBans(useCard, value)
+    if value == true then
+        return moe.util.copy(useCard.targets)
+    end
+    if type(value) == 'function' then
+        ---@cast value fun(player: Player): boolean
+        ---@type Player[]
+        local list = {}
+        for _, target in ipairs(useCard.targets) do
+            if value(target) then
+                list[#list + 1] = target
+            end
+        end
+        return list
+    end
+    return moe.util.toList(value)
+end
+
+--- 使用过程中追加这次的选项（内容侧在时机里用）：`unrespondable` 这类名单是**累加**，其余字段覆盖
+---@param options Game.UseOptionsInput
+---@return UseCard
+function M:addUseOptions(options)
+    local current = self.useOptions
+    if not current then
+        current = {}
+        self.useOptions = current
+    end
+    if options.unrespondable then
+        current.unrespondable = current.unrespondable or {}
+        moe.util.arrayMerge(current.unrespondable, resolveBans(self, options.unrespondable))
+    end
+    for key, value in pairs(options) do
+        if key ~= 'unrespondable' then
+            current[key] = value
+        end
+    end
+    return self
+end
+
+--- 这个目标被禁止响应这张牌吗
+---@param target Player
+---@return boolean
+function M:isResponseBanned(target)
+    local banned = self.useOptions?.unrespondable
+    return banned ~= nil and moe.util.arrayHas(banned, target)
+end
+
 ---@async
 function M:settle()
     local ok, reason = self.game:canUse(self.user, self.card, self.targets, self.useOptions)

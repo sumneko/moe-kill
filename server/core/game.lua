@@ -393,11 +393,19 @@ end
 ---@field min integer # 最少几个
 ---@field max integer # 最多几个（已与合法目标数取小）
 
---- 这次使用的选项：给这一次使用开的几条特殊通道（都不填 = 照常；由发起方给）
+--- 这次使用的选项：给这一次使用开的几条特殊通道（都不填 = 照常；由发起方给，**使用过程中内容侧也可以追** —— 见 `UseCard:addUseOptions`）
 ---@class Game.UseOptions
 ---@field ignoreDistance? boolean # 无视距离（`Player:isInRange` 认它：这次使用的射程判断直接算在）
 ---@field ignoreUseLimit? boolean # 无视使用次数上限（不检查「本阶段用过没」）
 ---@field notCounted? boolean # 不计入使用次数（不写 `useCount`）
+---@field unrespondable? Player[] # 这些目标不能对此牌做出响应（写入收四种写法、见 `Game.UseOptionsInput`；**读用 `UseCard:isResponseBanned`**）
+
+--- 追加使用选项时可给的形状（`Game.UseOptions` 的宽松版：`unrespondable` 收四种写法，写入时归一）
+---@class Game.UseOptionsInput
+---@field ignoreDistance? boolean
+---@field ignoreUseLimit? boolean
+---@field notCounted? boolean
+---@field unrespondable? Player|Player[]|true|fun(player: Player): boolean # 一个角色 / 一串角色 / `true` = 谁都拦 / 谓词（这些目标不能对此牌做出响应）
 
 ---@class Game
 ---@field list string[] # 上一次用的加载清单

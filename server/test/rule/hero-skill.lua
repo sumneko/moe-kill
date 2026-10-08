@@ -1665,3 +1665,127 @@ lt.test('急救：自己的回合里就不能把红牌当【桃】了', function
     lt.assertEquals('红牌还在手上（没被当素材用掉）', true,
         moe.util.arrayHas(assert(huatuo:getZone('手牌')):list(), red))
 end)
+
+lt.test('马术：装上后距离减 1，停用就复原', function ()
+    local run    = support.start { count = 4, packages = { '标准' } }
+    local machao = run.players[1]
+    local foe    = run.players[3]
+    machao:setHero(assert(run.game:getHero('马超')))
+
+    lt.assertEquals('技能随武将挂上', true, machao:hasSkill('马术'))
+
+    local maShu  = findSkill(machao, '马术')
+    local near   = machao:distance(foe)
+    local enable = maShu:disablePassive()
+    local far    = machao:distance(foe)
+    enable()
+
+    lt.assertEquals('马术让他近 1', far - 1, near)
+    lt.assertEquals('恢复后又近回去', near, machao:distance(foe))
+end)
+
+lt.test('铁骑：判红 ⇒ 目标出不了【闪】，照常挨 1 点', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local machao = run.players[1]
+    local foe    = run.players[2]
+    machao:setHero(assert(run.game:getHero('马超')))
+
+    lt.assertEquals('技能随武将挂上', true, machao:hasSkill('铁骑'))
+
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '铁骑' then
+            judge:replace(run.game:createCard('杀', '红桃', 7))
+        end
+    end)
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '铁骑' then
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    local slash = takeCard(run, machao, '杀')
+    takeCard(run, foe, '闪') -- 手里有闪也打不出来
+
+    ---@type integer
+    local asked = 0
+    ---@type UseCard?
+    local used  = nil
+    run.game:on('卡牌-结算前', function (useCard)
+        ---@cast useCard UseCard
+        used = useCard
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' then
+            asked = asked + 1
+        end
+    end)
+
+    local hpBefore = foe:getAttr('体力')
+    run.game:useCard(machao, slash, { foe })
+
+    lt.assertEquals('连问都不问他出不出闪', 0, asked)
+    lt.assertEquals('照常掉 1 点', hpBefore - 1, foe:getAttr('体力'))
+    lt.assertEquals('这次使用记下了「他不能响应」', true, assert(used):isResponseBanned(foe))
+end)
+
+lt.test('铁骑：判黑 ⇒ 不成立，照常能出【闪】抵消', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local machao = run.players[1]
+    local foe    = run.players[2]
+    machao:setHero(assert(run.game:getHero('马超')))
+
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '铁骑' then
+            judge:replace(run.game:createCard('杀', '黑桃', 7))
+        end
+    end)
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '铁骑' then
+            ---@cast ask AskChoice
+            return '发动'
+        end
+    end)
+
+    local slash = takeCard(run, machao, '杀')
+    local jink  = takeCard(run, foe, '闪')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' and ask.kind == 'askOffsetCard' then
+            return { card = jink }
+        end
+    end)
+
+    local hpBefore = foe:getAttr('体力')
+    run.game:useCard(machao, slash, { foe })
+
+    lt.assertEquals('闪抵消了，没掉血', hpBefore, foe:getAttr('体力'))
+end)
+
+lt.test('铁骑：不发动 ⇒ 照常问他出不出【闪】', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local machao = run.players[1]
+    local foe    = run.players[2]
+    machao:setHero(assert(run.game:getHero('马超')))
+
+    ---@type integer
+    local judged = 0
+    ---@type integer
+    local asked  = 0
+    run.game:on('判定-前', function (judge)
+        if judge.reason == '铁骑' then
+            judged = judged + 1
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' then
+            asked = asked + 1
+        end
+    end)
+
+    local slash = takeCard(run, machao, '杀')
+    run.game:useCard(machao, slash, { foe })
+
+    lt.assertEquals('没发动 ⇒ 连判定都不做', 0, judged)
+    lt.assertEquals('照常问他出不出闪', 1, asked)
+end)

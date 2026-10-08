@@ -12,10 +12,12 @@ Card '杀'
                and user:isInRange(player, range, plan.useOptions)
         end,
     }
-    : on('生效', function (cardEffect)
+    : on('生效', function (cardEffect, useCard)
         local target = cardEffect.target
-        if game:askOffsetCard(target, '杀', { name = '闪' }).success then
-            return
+        if not (useCard and useCard:isResponseBanned(target)) then
+            if game:askOffsetCard(target, '杀', { name = '闪' }).success then
+                return
+            end
         end
         game:damage(cardEffect.user, target, 1, cardEffect.card)
     end)

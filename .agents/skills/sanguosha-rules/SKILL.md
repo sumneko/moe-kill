@@ -747,6 +747,42 @@ Skill '急救'
 - **答复里的值（`cast.use.targets[1]`）要判空**（用户 2026-10-08 定）：**`---@cast` 不能代替判空** —— 它只是分析期断言、运行时填不了空（`game:heal(nil, 1)` 照样炸）；也**不要用 `assert`**（内核已校验过、拿用户的结果惩罚服务器没意义）。写法就是 `if not target then return end`（顺手让 LuaLS 自动收窄类型，连 cast 都不必写）。
 - **「回合外」= `skill.owner.turn == nil`**（回合对象只在自己回合里挂在他身上）。
 
+### 9.20 马超【马术】【铁骑】（已落地，2026-10-08）
+
+```lua
+Skill '马术'
+    : tags '锁定技'
+    : on('被动', function (skill, host)
+        host:bindGC(skill.owner:addAttr('进攻修正', -1))
+    end)
+
+Skill '铁骑'
+    : on('被动', function (skill, host)
+        local owner = skill.owner
+        host:bindGC(owner:on('卡牌-来源-指定目标后', function (useCard, target)
+            if useCard.card.name ~= '杀' then
+                return
+            end
+            if not skill:confirm() then
+                return
+            end
+            skill:cast(function ()
+                local judge = game:judge(owner, '铁骑')
+                if judge.card?.color ~= '红' then
+                    return
+                end
+                useCard:addUseOptions { unrespondable = { target } }
+            end)
+        end))
+    end)
+```
+
+- **【马术】就是一条距离修正**：`addAttr('进攻修正', -1)` —— 返回的撤销函数交给 `host:bindGC`，技能停用 / 重载自动撤（`进攻修正` 是 `@基础/距离.lua` 定义的属性：`距离 = 座位距离 + 我的进攻修正 + 对方的防御修正`，最小 1）。
+- **【铁骑】的「指定目标后」订「来源」那一段**：内核在 `UseCard:settle` 里**逐目标**发三段（全局 / 来源 / 目标）—— 马超是用【杀】的人，所以订 `'卡牌-来源-指定目标后'`，回调收 `(useCard, target)`。
+- **「该角色不能使用【闪】响应此【杀】」的做法 = 往这次使用的选项里记一笔**：`useCard:addUseOptions { unrespondable = { target } }`，【杀】的 `'生效'` 读 `useCard:isResponseBanned(target)` ⇒ 名单里的目标**连问都不问**、直接挨伤害。
+  - 这是**「响应限制」的通用做法**（不是【铁骑】专用）：任何「该角色不能响应此牌」的技能都往 `UseOptions.unrespondable` 里记。写法有四种：**一个角色 / 一串角色 / `true`（= 这次的全部目标）/ 谓词（按这次的目标筛）** —— 内部统一归一成名单，可累加。
+- 判红 = `judge.card?.color == '红'`（与【洛神】的「黑」对称）。
+
 ## 10. 待确认口径
 
 - 规则版本：仅标准版，还是含军争篇（酒、属性伤害、铁索连环、藤甲等）？

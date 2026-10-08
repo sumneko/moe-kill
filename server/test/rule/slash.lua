@@ -55,6 +55,104 @@ lt.test('杀：对攻击范围内的目标造成 1 点伤害', function ()
     lt.assertEquals('弃牌里的就是那张杀', card, run.game:getZone('弃牌'):list()[1])
 end)
 
+lt.test('杀：使用过程中记上「不能响应」就不问他出【闪】', function ()
+    local run    = support.start { count = 5, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local other  = run.players[3]
+    local card   = takeSlash(run, user)
+    takeCard(run, target, '闪') -- 手里有闪也不问
+
+    ---@type UseCard?
+    local seen = nil
+    run.game:on('卡牌-结算前', function (useCard)
+        ---@cast useCard UseCard
+        seen = useCard
+        -- 连续追加两次：名单要累加，不是后者顶掉前者
+        useCard:addUseOptions { unrespondable = target }
+        useCard:addUseOptions { unrespondable = { other } }
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    local used = assert(seen)
+    lt.assertEquals('单个角色', true, used:isResponseBanned(target))
+    lt.assertEquals('一串角色', true, used:isResponseBanned(other))
+    lt.assertEquals('没记的不算', false, used:isResponseBanned(run.players[5]))
+    lt.assertEquals('没问他出不出闪', 0, asked)
+end)
+
+lt.test('杀：记成谓词 ⇒ 只按这次的目标筛', function ()
+    local run    = support.start { count = 5, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local other  = run.players[3]
+    local card   = takeSlash(run, user)
+    takeCard(run, target, '闪')
+
+    ---@type UseCard?
+    local seen = nil
+    run.game:on('卡牌-结算前', function (useCard)
+        ---@cast useCard UseCard
+        seen = useCard
+        useCard:addUseOptions { unrespondable = function (player)
+            return player == target
+        end }
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    local used = assert(seen)
+    lt.assertEquals('命中的目标', true, used:isResponseBanned(target))
+    lt.assertEquals('不是目标的进不了名单', false, used:isResponseBanned(other))
+    lt.assertEquals('没问他出不出闪', 0, asked)
+end)
+
+lt.test('杀：记成 true ⇒ 这次的目标都不能响应', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeSlash(run, user)
+    takeCard(run, target, '闪')
+
+    ---@type UseCard?
+    local seen = nil
+    run.game:on('卡牌-结算前', function (useCard)
+        ---@cast useCard UseCard
+        seen = useCard
+        useCard:addUseOptions { unrespondable = true }
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askOffsetCard' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('目标被拦住了', true, assert(seen):isResponseBanned(target))
+    lt.assertEquals('没问他出不出闪', 0, asked)
+end)
+
 lt.test('杀：攻击范围外的目标用不了', function ()
     local run    = support.start { count = 4, packages = { '标准' } }
     local user   = run.players[1]
