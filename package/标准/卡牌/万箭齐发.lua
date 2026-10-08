@@ -9,9 +9,9 @@ Card '万箭齐发'
             return player ~= plan.user
         end,
     }
-    : on('生效', function (cardEffect)
+    : on('生效', function (cardEffect, useCard)
         local target = cardEffect.target
-        if game:askPlayCard(target, '万箭齐发', { name = '闪' }).card then
+        if game:askPlayCard(target, '万箭齐发', { name = '闪' }, { responseTo = useCard }).card then
             return
         end
         game:damage(cardEffect.user, target, 1, cardEffect.card)

@@ -47,5 +47,5 @@ moe.askPlayCard = {}
 ---@param options AskCard.CreateOptions
 ---@return AskPlayCard
 function moe.askPlayCard.create(options)
-    return New 'AskPlayCard' (options.game, options.to, options.reason, options.condition)
+    return New 'AskPlayCard' (options.game, options.to, options.reason, options.condition, options.responseOptions)
 end

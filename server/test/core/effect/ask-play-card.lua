@@ -85,6 +85,35 @@ lt.test('打出：没有父结算时不动那张牌（交给内容侧）', funct
     lt.assertEquals('牌还在手上', 1, hand:count())
 end)
 
+lt.test('打出：这次响应被禁 ⇒ 拒收，连问都不问', function ()
+    local game, players = newGame(2)
+    local hand = assert(players[2]:getZone('手牌'))
+    local jink = game:createCard('闪')
+    hand:accept(jink)
+
+    ---@type integer
+    local asked = 0
+    game:on('卡牌-询问', function ()
+        asked = asked + 1
+        return { card = jink }
+    end)
+
+    local useCard = moe.useCard.create {
+        game    = game,
+        user    = players[1],
+        card    = game:createCard('杀'),
+        targets = { players[2] },
+    }
+    useCard:addUseOptions { unrespondable = players[2] }
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = useCard })
+
+    lt.assertEquals('手里有闪也没问', 0, asked)
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('原因', '不能响应', ask.err)
+    lt.assertEquals('牌还在手上', 1, hand:count())
+end)
+
 lt.test('打出：候选按条件筛，答复多给目标会被拒收', function ()
     local game, players = newGame(3)
     local hand = assert(players[1]:getZone('手牌'))

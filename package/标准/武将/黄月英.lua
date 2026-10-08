@@ -8,6 +8,7 @@ Hero '黄月英'
 
 -- 【集智】当你使用非转化的普通锦囊牌时，你可摸一张牌。
 Skill '集智'
+    : auto(true)
     : on('被动', function (skill, host)
         local owner = skill.owner
         host:bindGC(owner:on('卡牌-结算前', function (useCard)

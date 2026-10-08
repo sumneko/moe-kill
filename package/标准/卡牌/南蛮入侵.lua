@@ -9,9 +9,9 @@ Card '南蛮入侵'
             return player ~= plan.user
         end,
     }
-    : on('生效', function (cardEffect)
+    : on('生效', function (cardEffect, useCard)
         local target = cardEffect.target
-        if game:askPlayCard(target, '南蛮入侵', { name = '杀' }).card then
+        if game:askPlayCard(target, '南蛮入侵', { name = '杀' }, { responseTo = useCard }).card then
             return
         end
         game:damage(cardEffect.user, target, 1, cardEffect.card)

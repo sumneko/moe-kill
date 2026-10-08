@@ -42,16 +42,22 @@
 ---@field max integer
 ---@field cancelable boolean # 允不允许主动取消（归一化时补默认：省略 = true）
 
+--- 这次询问的额外交代（发起方给）
+---@class AskCard.ResponseOptions
+---@field responseTo? UseCard # 这次响应冲哪次使用去的（不传 = 不是响应）
+
 ---@class AskCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@field condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制；构造时归一化）
+---@field responseOptions? AskCard.ResponseOptions # 这次询问的额外交代
 
 ---@class AskCard : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
 ---@field condition? AskCard.NormalizedCondition # 要什么样的牌（构造时归一化）
+---@field responseOptions? AskCard.ResponseOptions # 这次询问的额外交代
 ---@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
 ---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
 ---@field cards Card[] # 答复给出的牌（没答就是空表）
@@ -210,12 +216,14 @@ end
 ---@param to Player
 ---@param reason string
 ---@param condition AskCard.Condition?
-function M:__init(game, to, reason, condition)
-    self.game      = game
-    self.kind      = 'askCard'
-    self.to        = to
-    self.reason    = reason
-    self.condition = normalizeCondition(game, to, condition)
+---@param responseOptions AskCard.ResponseOptions?
+function M:__init(game, to, reason, condition, responseOptions)
+    self.game            = game
+    self.kind            = 'askCard'
+    self.to              = to
+    self.reason          = reason
+    self.condition       = normalizeCondition(game, to, condition)
+    self.responseOptions = responseOptions
 end
 
 
@@ -374,10 +382,16 @@ function M:beforeResolve(value)
     return value
 end
 
---- 取值：先开替代窗口，没人替代就问应答方（**第一个给出答复的胜出，后面的订阅者不再调**）
+--- 取值：这次响应被禁止的直接拒收（连问都不问）→ 开替代窗口 → 没人替代就问应答方（**第一个给出答复的胜出，后面的订阅者不再调**）
 ---@async
 ---@return boolean # 有没有拿到答复（答复不合法时也已经拒收）
 function M:collectAnswer()
+    local responseTo = self.responseOptions?.responseTo
+    if responseTo and responseTo:isResponseBanned(self.to) then
+        self.task:reject('不能响应')
+        return false
+    end
+
     self:beforeAsk()
     if self.task.resolved then
         return true

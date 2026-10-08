@@ -1012,13 +1012,15 @@ end
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@param responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（如「这次响应冲哪次使用」）
 ---@return AskPlayCard # 这次询问（已经结完：答复读 `.card`，失败读 `.err`）
-function M:askPlayCard(to, reason, condition)
+function M:askPlayCard(to, reason, condition, responseOptions)
     local ask = moe.askPlayCard.create {
-        game      = self,
-        to        = to,
-        reason    = reason,
-        condition = condition,
+        game            = self,
+        to              = to,
+        reason          = reason,
+        condition       = condition,
+        responseOptions = responseOptions,
     }
     ask:apply():await()
     return ask
@@ -1029,13 +1031,15 @@ end
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@param responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（如「这次响应冲哪次使用」）
 ---@return AskOffsetCard # 这次询问（已经结完：**抵消最终成立吗读 `.success`**；打出读 `.card`，失败读 `.err`）
-function M:askOffsetCard(to, reason, condition)
+function M:askOffsetCard(to, reason, condition, responseOptions)
     local ask = moe.askOffsetCard.create {
-        game      = self,
-        to        = to,
-        reason    = reason,
-        condition = condition,
+        game            = self,
+        to              = to,
+        reason          = reason,
+        condition       = condition,
+        responseOptions = responseOptions,
     }
     ask:apply():await()
     return ask

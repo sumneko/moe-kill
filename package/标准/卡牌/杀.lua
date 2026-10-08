@@ -13,11 +13,9 @@ Card '杀'
         end,
     }
     : on('生效', function (cardEffect, useCard)
-        local target = cardEffect.target
-        if not (useCard and useCard:isResponseBanned(target)) then
-            if game:askOffsetCard(target, '杀', { name = '闪' }).success then
-                return
-            end
+        local ask = game:askOffsetCard(cardEffect.target, '杀', { name = '闪' }, { responseTo = useCard })
+        if ask.success then
+            return
         end
-        game:damage(cardEffect.user, target, 1, cardEffect.card)
+        game:damage(cardEffect.user, cardEffect.target, 1, cardEffect.card)
     end)

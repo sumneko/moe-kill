@@ -1798,23 +1798,12 @@ lt.test('集智：用普通锦囊就摸一张', function ()
 
     lt.assertEquals('技能随武将挂上', true, yueying:hasSkill('集智'))
 
-    ---@type integer
-    local asked = 0
-    run.game:on('决策-询问', function (ask)
-        if ask.reason == '集智' then
-            asked = asked + 1
-            ---@cast ask AskChoice
-            return '发动'
-        end
-    end)
-
     local hand   = assert(yueying:getZone('手牌'), '没有手牌区')
     local havoc  = takeCard(run, yueying, '万箭齐发')
     local before = hand:count()
 
     run.game:useCard(yueying, havoc, { foe })
 
-    lt.assertEquals('问过要不要发动', 1, asked)
     lt.assertEquals('用掉一张、集智摸回一张', before, hand:count())
 end)
 
@@ -1823,16 +1812,6 @@ lt.test('集智：延时锦囊 / 【杀】/ 转化来的牌都不发动', functi
     local yueying = run.players[1]
     local foe     = run.players[2]
     yueying:setHero(assert(run.game:getHero('黄月英')))
-
-    ---@type integer
-    local asked = 0
-    run.game:on('决策-询问', function (ask)
-        if ask.reason == '集智' then
-            asked = asked + 1
-            ---@cast ask AskChoice
-            return '发动'
-        end
-    end)
 
     local hand = assert(yueying:getZone('手牌'), '没有手牌区')
 
@@ -1854,17 +1833,21 @@ lt.test('集智：延时锦囊 / 【杀】/ 转化来的牌都不发动', functi
     before         = hand:count()
     run.game:useCard(yueying, virtual, { foe })
     lt.assertEquals('转化来的锦囊 ⇒ 也不发动', before - 1, hand:count())
-
-    lt.assertEquals('一次都没问过', 0, asked)
 end)
 
-lt.test('集智：不发动就不摸', function ()
+lt.test('集智：自动同意 ⇒ 不问他也就摸了', function ()
     local run     = support.start { count = 2, packages = { '标准' } }
     local yueying = run.players[1]
     local foe     = run.players[2]
     yueying:setHero(assert(run.game:getHero('黄月英')))
 
-    -- 「决策-询问」一律不答 ⇒ 集智的 confirm 不成立
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '集智' then
+            asked = asked + 1
+        end
+    end)
 
     local hand   = assert(yueying:getZone('手牌'), '没有手牌区')
     local havoc  = takeCard(run, yueying, '万箭齐发')
@@ -1872,7 +1855,8 @@ lt.test('集智：不发动就不摸', function ()
 
     run.game:useCard(yueying, havoc, { foe })
 
-    lt.assertEquals('用掉一张、没摸', before - 1, hand:count())
+    lt.assertEquals('连问都不问', 0, asked)
+    lt.assertEquals('照旧摸回一张', before, hand:count())
 end)
 
 lt.test('奇才：锦囊无视距离，远处的【顺手牵羊】也能用', function ()

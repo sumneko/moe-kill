@@ -107,11 +107,19 @@ lt.test('抵消：两段时机（全局 → 来源）', function ()
         fired[#fired + 1] = '来源'
     end)
 
+    --- 来源读的是 `responseTo`（不再看父链）⇒ 给它一次使用
+    local useCard = moe.useCard.create {
+        game    = game,
+        user    = players[1],
+        card    = game:createCard('杀'),
+        targets = { players[2] },
+    }
+
     ---@type AskOffsetCard?
     local asked = nil
     game:on('效果-能否生效', function (effect)
         if effect.kind == 'damage' then
-            asked = game:askOffsetCard(players[2], '测试', { name = '闪' })
+            asked = game:askOffsetCard(players[2], '测试', { name = '闪' }, { responseTo = useCard })
         end
     end)
 
@@ -119,6 +127,62 @@ lt.test('抵消：两段时机（全局 → 来源）', function ()
 
     lt.assertEquals('两份、全局先', '全局,来源', table.concat(fired, ','))
     lt.assertEquals('打出成立', true, assert(asked).success)
+end)
+
+lt.test('抵消：没给 responseTo ⇒ 不发「来源」那段', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function (ask)
+        return { card = jink }
+    end)
+
+    ---@type string[]
+    local fired = {}
+    game:on('效果-被抵消', function ()
+        fired[#fired + 1] = '全局'
+    end)
+    players[1]:on('效果-来源-被抵消', function ()
+        fired[#fired + 1] = '来源'
+    end)
+
+    game:on('效果-能否生效', function (effect)
+        if effect.kind == 'damage' then
+            game:askOffsetCard(players[2], '测试', { name = '闪' })
+        end
+    end)
+
+    game:damage(players[1], players[2], 1)
+
+    lt.assertEquals('只有全局那份', '全局', table.concat(fired, ','))
+end)
+
+lt.test('抵消：这次响应被禁 ⇒ 拒收，连问都不问', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+
+    ---@type integer
+    local asked = 0
+    game:on('卡牌-询问', function ()
+        asked = asked + 1
+        return { card = jink }
+    end)
+
+    local useCard = moe.useCard.create {
+        game    = game,
+        user    = players[1],
+        card    = game:createCard('杀'),
+        targets = { players[2] },
+    }
+    useCard:addUseOptions { unrespondable = players[2] }
+
+    local ask = game:askOffsetCard(players[2], '测试', { name = '闪' }, { responseTo = useCard })
+
+    lt.assertEquals('手里有闪也没问', 0, asked)
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('不成立', false, ask.success)
+    lt.assertEquals('原因', '不能响应', ask.err)
 end)
 
 lt.test('抵消：全局段驳回 ⇒ 来源段不再被问', function ()

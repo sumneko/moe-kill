@@ -137,6 +137,33 @@ lt.test('万箭齐发：所有其他角色各挨一次，打出闪的就不受�
     lt.assertEquals('使用者不受影响', 5, user:getAttr('体力'))
 end)
 
+lt.test('万箭齐发：这次响应被禁 ⇒ 不发【闪】询问、照常挨打', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local user   = run.players[1]
+    local target = run.players[2]
+    local card   = takeCard(run, user, '万箭齐发')
+    takeCard(run, target, '闪')
+
+    run.game:on('卡牌-结算前', function (useCard)
+        ---@cast useCard UseCard
+        useCard:addUseOptions { unrespondable = target }
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askPlayCard' then
+            asked = asked + 1
+        end
+    end)
+
+    local hpBefore = target:getAttr('体力')
+    run.game:useCard(user, card, { target })
+
+    lt.assertEquals('连问都不问', 0, asked)
+    lt.assertEquals('照常掉 1 点', hpBefore - 1, target:getAttr('体力'))
+end)
+
 lt.test('南蛮入侵 / 万箭齐发：合法目标是所有其他角色', function ()
     local run    = support.start { count = 3, packages = { '标准' } }
     local user   = run.players[1]
