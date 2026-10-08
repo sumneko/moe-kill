@@ -34,10 +34,7 @@ end
 
 ---@return string[] # 拥有的技能名（快照，按声明顺序）
 function M:getSkills()
-    ---@type string[]
-    local snapshot = {}
-    table.move(self.skillNames, 1, #self.skillNames, 1, snapshot)
-    return snapshot
+    return moe.util.copy(self.skillNames)
 end
 
 --- 声明一条自带的数据（内核只存不解释）

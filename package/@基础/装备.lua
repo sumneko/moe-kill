@@ -55,7 +55,7 @@ M.__getter.equipCards = function (self)
     for _, name in ipairs(rule.equipZones) do
         local zone = self:getZone(name)
         if zone then
-            table.move(zone:list(), 1, zone:count(), #cards + 1, cards)
+            table.mergeArray(cards, zone:list())
         end
     end
     return cards

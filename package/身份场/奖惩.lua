@@ -20,9 +20,9 @@ game:on('玩家-死亡', function (player)
         ---@type Card[]
         local cards = {}
         if hand then
-            table.move(hand:list(), 1, hand:count(), 1, cards)
+            table.mergeArray(cards, hand:list())
         end
-        table.move(equip, 1, #equip, #cards + 1, cards)
+        table.mergeArray(cards, equip)
         if #cards > 0 then
             game:moveCard(cards, '弃牌')
         end

@@ -1,0 +1,16 @@
+-- 【关羽】（标准版）：蜀 · 男 · 体力上限 4
+
+Hero '关羽'
+    : kingdom '蜀'
+    : sex '男'
+    : hp(4)
+    : skills { '武圣' }
+
+-- 【武圣】你可以将一张红色牌当【杀】使用或打出。
+Skill '武圣'
+    : on('被动', function (skill, host)
+        host:bindGC(skill.owner:addViewAs('杀', skill, {
+            color = '红',
+            zone  = table.mergeArray({ '手牌' }, rule.equipZones),
+        }))
+    end)

@@ -15,15 +15,8 @@ Card '贯石斧'
                 return
             end
             -- 可以弃置两张牌（斧子自己不能弃 —— 官方「用到一张装备牌的技能时不能操作该牌」）
-            ---@type Card[]
-            local candidates = {}
             local hand = owner:getZone('手牌')
-            table.move(hand:list(), 1, hand:count(), #candidates + 1, candidates)
-            for _, equipped in ipairs(owner.equipCards) do
-                if equipped ~= card then
-                    candidates[#candidates + 1] = equipped
-                end
-            end
+            local candidates = table.mergeArray(hand:list(), table.without(owner.equipCards, card))
             if #candidates < 2 then
                 return
             end

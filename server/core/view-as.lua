@@ -40,13 +40,11 @@ end
 ---@param event string
 ---@return function[] # 这个事件上的所有处理器（快照）
 function M:getHandlers(event)
-    ---@type function[]
-    local snapshot = {}
     local list = self.handlers[event]
-    if list then
-        table.move(list, 1, #list, 1, snapshot)
+    if not list then
+        return {}
     end
-    return snapshot
+    return moe.util.copy(list)
 end
 
 --- 素材收得到吗（同步判：收不够就跳过这份声明，连表态都不问）

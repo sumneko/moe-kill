@@ -75,6 +75,7 @@ Card '杀'
   - 不要写 `a and a.b and a.b.c`，写 `a?.b?.c`。
   - `?.` 之后的类型收窄不可靠，因此**链上每一级都带 `?`**。
   - `Obj?:getManyResults()` 会保留方法的多返回值（区别于链式取值只取第一个返回值）。
+- **列表拼接 / 拷贝不手写 `table.move(...)`**（用户 2026-10-08 定）：`table.move(源, 1, #源, 目标位置, 目标)` 这种写法看不出意图，一律用显式名字 —— 内核用 **`moe.util.arrayMerge(a, ...)`**（可变参数，改第一个表）/ **`moe.util.copy(source)`**（`pairs` 浅拷贝），内容侧用 **`table.mergeArray(list, ...)`** / **`table.copy(source)`**（`@tools` 提供，语义同内核）。**例外**：真正的「切片 / 位移」（非拷贝非拼接，如队列前移）仍手写 `table.move`。
 - 例外目录：若某目录要保持语法兼容性（LuaLS 里是 `script/tools/`，本工程对应 `server/tools/`），该目录内不使用可选链。
 
 ## 5. 模块骨架

@@ -153,17 +153,15 @@ local function collectCandidates(to, condition)
     local cards = {}
     if condition.zones then
         for _, zone in ipairs(condition.zones) do
-            local held = zone:list()
-            table.move(held, 1, #held, #cards + 1, cards)
+            moe.util.arrayMerge(cards, zone:list())
         end
     end
     if condition.cards then
-        table.move(condition.cards, 1, #condition.cards, #cards + 1, cards)
+        moe.util.arrayMerge(cards, condition.cards)
     end
     if not condition.zones and not condition.cards then
         for _, zone in ipairs(to:getZones()) do
-            local held = zone:list()
-            table.move(held, 1, #held, #cards + 1, cards)
+            moe.util.arrayMerge(cards, zone:list())
         end
     end
 

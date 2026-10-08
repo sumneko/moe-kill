@@ -92,7 +92,7 @@ end
 ---@param ... any
 function Session:wake(ok, ...)
     ---@type Server.Request[]
-    local requests = table.move(self.pendingRequests, 1, #self.pendingRequests, 1, {})
+    local requests = moe.util.copy(self.pendingRequests)
     for _, request in ipairs(requests) do
         self:settle(request, ok, ...)
     end
@@ -197,9 +197,7 @@ end
 --- 读当前所有在等的请求（快照）
 ---@return Server.Request[]
 function Session:getPendingRequests()
-    ---@type Server.Request[]
-    local snapshot = {}
-    return table.move(self.pendingRequests, 1, #self.pendingRequests, 1, snapshot)
+    return moe.util.copy(self.pendingRequests)
 end
 
 ---@param request Server.Request
@@ -234,9 +232,7 @@ end
 
 ---@return Server.Event[]
 function Session:getEvents()
-    ---@type Server.Event[]
-    local snapshot = {}
-    return table.move(self.events, 1, #self.events, 1, snapshot)
+    return moe.util.copy(self.events)
 end
 
 ---@class Server

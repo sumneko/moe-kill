@@ -302,7 +302,7 @@ local slash = Card '杀'          -- 登记为 标准.杀
 
 - 加载时用 `load(chunk, '@' .. 路径, 't', env)` 把 `game` / `Card` / `Depends`（以及 `Class` / `New` 与共享袋 `rule`）**注入**执行环境，所以规则集文件**不需要 `require` 任何东西**；以 `@路径` 作 chunkname，报错与堆栈里显示真实文件路径（中文路径同样可用）。
 - **内核注入的只有五项 + 一份白名单**：`game`（**这一局**，小写对象）+ `Card(name)` / `Depends(items)` / `Class(name)` / `New(name)`（**大写环境函数**，只在本轮加载期可用；大写是为了和包里的局部变量区分开）+ 一份**标准库白名单**（`string` / `table` / `math` / `utf8` / `pcall` 等基函数；**`error` 不在里面**，2026-09-28 用户定 —— 内容侧要报告「该有却没有」用 `assert`，且**只在「触发 = 这局打不下去」时用**；写错调用就地退化、不抛）；`moe`（含 `moe.core` 这类写法）、`require`、`io`、`os` 一律不给 —— 规则集是内容，不该具备开文件 / 起进程的能力。
-  - **工具集不在这里**：内容侧要什么工具，就在默认包 `@tools` 里**用内容侧写法按需实现**（写下的全局在共享环境里别的包直接就能用）—— 现在是 `table.lua`（`table.filter` / `map` / `contains` / `without`）与 `util.lua`（`util.defer`）。**不把内核的 `moe.util` 整份注入**（用户 2026-09-28 提了又改口，与 2026-09-19 的结论一致）：它带 `loadFile` / `saveFile` / `expandPath` 这类副作用，等于给内容侧开文件 IO。
+  - **工具集不在这里**：内容侧要什么工具，就在默认包 `@tools` 里**用内容侧写法按需实现**（写下的全局在共享环境里别的包直接就能用）—— 现在是 `table.lua`（`table.filter` / `map` / `contains` / `without` / `mergeArray` / `copy`）与 `util.lua`（`util.defer`）。**不把内核的 `moe.util` 整份注入**（用户 2026-09-28 提了又改口，与 2026-09-19 的结论一致）：它带 `loadFile` / `saveFile` / `expandPath` 这类副作用，等于给内容侧开文件 IO。
   - **包可以给内核类加方法、也可以自定义「一次结算」**（用户 2026-09-28 解锁）：注入的 `Class` / `New` **就是内核那两个全局**（`moe-kill.lua` 里 `Class = class.declare`、`New = class.new`），包照内核的写法用。两种用法：
     - **给已有类加方法**：`---@class Player` + `local M = Class 'Player'` + `function M:distance(to) … end`（首个应用 = `@基础/距离.lua`）。
     - **声明自己的 `Effect` 子类**：`Class('Judge', 'Effect')` —— 第二个参数就是 super，**不需要 `Extends`**；实例化用内核那套**两步**写法 **`New 'Judge' (参数…)`**（先取实例、再调用它跑构造链；`New` 的第二个参数是「实例存储表」，**别往里传东西**）。第一个用户是 `@基础/判定.lua`（判定整个搬出了内核）。

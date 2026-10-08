@@ -27,6 +27,7 @@ local nan          = 0 / 0
 local error        = error
 local assert       = assert
 local clock        = os.clock
+local tableMove    = table.move
 
 _ENV = nil
 
@@ -1155,12 +1156,24 @@ function m.tableExtends(a, b, recursive)
     end
 end
 
+---@generic K, V
+---@param source table<K, V>
+---@return table<K, V> # 浅拷贝（改它不影响原表）
+function m.copy(source)
+    local result = {}
+    for key, value in pairs(source) do
+        result[key] = value
+    end
+    return result
+end
+
 ---@param a any[]
----@param b any[]
+---@param ... any[]
 ---@return any[]
-function m.arrayMerge(a, b)
-    for i = 1, #b do
-        a[#a+1] = b[i]
+function m.arrayMerge(a, ...)
+    local args = { ... }
+    for _, b in ipairs(args) do
+        tableMove(b, 1, #b, #a + 1, a)
     end
     return a
 end

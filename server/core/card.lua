@@ -228,7 +228,7 @@ function moe.card.createVirtual(game, name, id, subcards)
     ---@type Card[]
     local physical = {}
     for _, card in ipairs(subcards and moe.util.toList(subcards) or {}) do
-        table.move(card.physical, 1, #card.physical, #physical + 1, physical)
+        moe.util.arrayMerge(physical, card.physical)
     end
     local suit, point
     if #physical == 1 then

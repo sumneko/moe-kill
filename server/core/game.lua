@@ -75,13 +75,11 @@ end
 ---@param event string
 ---@return function[] # 这个钩子上的所有回调（快照）
 function CardDef:getHandlers(event)
-    ---@type function[]
-    local snapshot = {}
     local list = self.handlers[event]
-    if list then
-        table.move(list, 1, #list, 1, snapshot)
+    if not list then
+        return {}
     end
-    return snapshot
+    return moe.util.copy(list)
 end
 
 --- 这张牌使用后不进入「生效」（用别的场合再让它生效）
@@ -162,10 +160,7 @@ end
 
 ---@return string[] # 分类列表（快照，按声明顺序）
 function CardDef:getKinds()
-    ---@type string[]
-    local snapshot = {}
-    table.move(self.kinds, 1, #self.kinds, 1, snapshot)
-    return snapshot
+    return moe.util.copy(self.kinds)
 end
 
 --- 声明这张牌上的一条数据（名字与取值都由写牌的人定；同一个名字重复写，后写的为准）
@@ -256,12 +251,11 @@ function CardDef:extends(name)
         error('找不到要继承的定义「{}」' % { name }, 2)
     end
     for event, list in pairs(base.handlers) do
-        ---@type function[]
-        local merged = {}
-        table.move(list, 1, #list, 1, merged)
         local own = self.handlers[event]
+        ---@type function[]
+        local merged = moe.util.copy(list)
         if own then
-            table.move(own, 1, #own, #merged + 1, merged)
+            moe.util.arrayMerge(merged, own)
         end
         self.handlers[event] = merged
     end
@@ -279,14 +273,13 @@ function CardDef:extends(name)
     end
     local baseCondition = base.targetCondition
     if baseCondition then
+        local own = self.targetCondition
         ---@type CardDef.TargetCondition
         local merged = {
             min    = baseCondition.min,
             max    = baseCondition.max,
-            filter = {},
+            filter = moe.util.copy(baseCondition.filter),
         }
-        table.move(baseCondition.filter, 1, #baseCondition.filter, 1, merged.filter)
-        local own = self.targetCondition
         if own then
             if own.min ~= nil then
                 merged.min = own.min
@@ -294,18 +287,17 @@ function CardDef:extends(name)
             if own.max ~= nil then
                 merged.max = own.max
             end
-            table.move(own.filter, 1, #own.filter, #merged.filter + 1, merged.filter)
+            moe.util.arrayMerge(merged.filter, own.filter)
         end
         self.targetCondition = merged
     end
     local baseCardCondition = base.cardTargetCondition
     if baseCardCondition then
-        ---@type CardDef.CardTargetCondition
-        local merged = { filter = {} }
-        table.move(baseCardCondition.filter, 1, #baseCardCondition.filter, 1, merged.filter)
         local own = self.cardTargetCondition
+        ---@type CardDef.CardTargetCondition
+        local merged = { filter = moe.util.copy(baseCardCondition.filter) }
         if own then
-            table.move(own.filter, 1, #own.filter, #merged.filter + 1, merged.filter)
+            moe.util.arrayMerge(merged.filter, own.filter)
         end
         self.cardTargetCondition = merged
     end
@@ -345,14 +337,11 @@ local function copyMeta(meta)
     ---@type Loader.PackageMeta
     local copy = {
         name     = meta.name,
-        depends  = {},
-        excludes = {},
-        entries  = {},
+        depends  = moe.util.copy(meta.depends),
+        excludes = moe.util.copy(meta.excludes),
+        entries  = moe.util.copy(meta.entries),
         files    = {},
     }
-    table.move(meta.depends, 1, #meta.depends, 1, copy.depends)
-    table.move(meta.excludes, 1, #meta.excludes, 1, copy.excludes)
-    table.move(meta.entries, 1, #meta.entries, 1, copy.entries)
     for i, file in ipairs(meta.files) do
         ---@type Loader.MetaFile
         local copied = {
@@ -360,9 +349,8 @@ local function copyMeta(meta)
             source  = file.source,
             ok      = file.ok,
             err     = file.err,
-            entries = {},
+            entries = moe.util.copy(file.entries),
         }
-        table.move(file.entries, 1, #file.entries, 1, copied.entries)
         copy.files[i] = copied
     end
     return copy
@@ -847,10 +835,7 @@ end
 
 ---@return Zone[] # 按创建顺序
 function M:getZones()
-    ---@type Zone[]
-    local snapshot = {}
-    table.move(self.zoneList, 1, #self.zoneList, 1, snapshot)
-    return snapshot
+    return moe.util.copy(self.zoneList)
 end
 
 --- 发一个新 ID（这一局内不重复；牌与将来的技能共用同一串号）
@@ -1394,10 +1379,7 @@ end
 
 ---@return Effect[] # 记牌器快照：发起过的根效果（按发起顺序）
 function M:getEffects()
-    ---@type Effect[]
-    local snapshot = {}
-    table.move(self.effects, 1, #self.effects, 1, snapshot)
-    return snapshot
+    return moe.util.copy(self.effects)
 end
 
 --- 登记这一局的流程（加载期由内容登记，每局只能一个）

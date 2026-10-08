@@ -530,3 +530,128 @@ lt.test('咆哮：技能停用后限制回到一次', function ()
     local result = run.game:useCard(user, second, { foe })
     lt.assertEquals('停用后第二张被拒', '本阶段已经用过「杀」了', result.err)
 end)
+
+lt.test('武圣：出牌阶段把一张红色手牌当【杀】用出去', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+    user:setHero(assert(run.game:getHero('关羽')))
+
+    lt.assertEquals('技能随武将挂上', true, user:hasSkill('武圣'))
+
+    local red = takeCard(run, user, '桃')
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = red }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用出去一张虚拟【杀】')
+
+    lt.assertEquals('视为的是【杀】', '杀', card.name)
+    lt.assertEquals('是虚拟牌', true, card.virtual)
+    lt.assertEquals('关联是武圣', findSkill(user, '武圣'), assert(chosen).source)
+    lt.assertEquals('素材就是那张红牌', red, card.subcards[1])
+    lt.assertEquals('目标掉了 1 点血', 4, foe:getAttr('体力'))
+    lt.assertEquals('素材进了弃牌堆', assert(run.game:getZone('弃牌')), red:getZone())
+end)
+
+lt.test('武圣：黑色牌当不了【杀】（进不了选项）', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    user:setHero(assert(run.game:getHero('关羽')))
+
+    assert(user:getZone('手牌')):accept(run.game:createCard('闪', '黑桃', 2))
+
+    local ask = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+    lt.assertEquals('没有选项', 0, #assert(ask.options))
+end)
+
+lt.test('武圣：判定区里的红牌当不了素材', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    user:setHero(assert(run.game:getHero('关羽')))
+
+    assert(user:getZone('判定')):accept(run.game:createCard('桃', '红桃', 3))
+
+    local ask = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+    lt.assertEquals('没有选项（判定区的牌不属于他）', 0, #assert(ask.options))
+end)
+
+lt.test('武圣：响应【南蛮入侵】时用红牌当【杀】顶上', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local held = run.players[2]
+    held:setHero(assert(run.game:getHero('关羽')))
+
+    local havoc = takeCard(run, user, '南蛮入侵')
+    local red   = takeCard(run, held, '桃')
+
+    ---@type Card?
+    local answered = nil
+    run.game:on('卡牌-答复', function (ask)
+        if ask.kind == 'askPlayCard' and ask.reason == '南蛮入侵' then
+            answered = ask.card
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '杀' then
+            return { card = red }
+        end
+    end)
+
+    run.game:useCard(user, havoc, { held })
+
+    local played = assert(answered)
+    lt.assertEquals('打出的是虚拟【杀】', true, played.virtual)
+    lt.assertEquals('视为的是【杀】', '杀', played.name)
+    lt.assertEquals('关羽没掉血', 4, held:getAttr('体力'))
+    lt.assertEquals('那张红牌进了弃牌堆', assert(run.game:getZone('弃牌')), red:getZone())
+end)
+
+lt.test('武圣：红色装备牌也能当【杀】（用了就离区、加成撤销）', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+    user:setHero(assert(run.game:getHero('关羽')))
+
+    local steed = run.game:createCard('赤兔', '红桃', 5)
+    assert(user:getZone('手牌')):accept(steed)
+    run.game:moveCard(steed, assert(user:getZone('进攻马')))
+    lt.assertEquals('装备的加成生效', -1, user:getAttr('进攻修正'))
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = steed }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(user, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用装备区的红牌当【杀】')
+
+    lt.assertEquals('素材就是那张装备牌', steed, card.subcards[1])
+    lt.assertEquals('目标掉了 1 点血', 4, foe:getAttr('体力'))
+    lt.assertEquals('装备牌进了弃牌堆', assert(run.game:getZone('弃牌')), steed:getZone())
+    lt.assertEquals('离区后加成撤销', 0, user:getAttr('进攻修正'))
+    lt.assertEquals('关联是武圣', findSkill(user, '武圣'), assert(chosen).source)
+end)

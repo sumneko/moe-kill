@@ -51,3 +51,26 @@ function table.without(list, value)
     end
     return result
 end
+
+---@generic T
+---@param list T[] # 接在这个列表后面（会被改动）
+---@param ... T[]
+---@return T[]
+function table.mergeArray(list, ...)
+    local lists = { ... }
+    for _, another in ipairs(lists) do
+        table.move(another, 1, #another, #list + 1, list)
+    end
+    return list
+end
+
+---@generic K, V
+---@param source table<K, V>
+---@return table<K, V> # 浅拷贝（改它不影响原表）
+function table.copy(source)
+    local result = {}
+    for key, value in pairs(source) do
+        result[key] = value
+    end
+    return result
+end

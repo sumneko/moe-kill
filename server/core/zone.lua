@@ -97,8 +97,7 @@ function M:accept(cards)
     ---@type Card[]
     local list = {}
     for _, card in ipairs(moe.util.toList(cards)) do
-        local physical = card.physical
-        table.move(physical, 1, #physical, #list + 1, list)
+        moe.util.arrayMerge(list, card.physical)
     end
     self:notifyMoved(self:takeIn(list))
     return true
@@ -146,8 +145,7 @@ end
 
 ---@return Card[] # 快照（改它不影响牌区）
 function M:list()
-    local snapshot = {}
-    return table.move(self.cards, 1, #self.cards, 1, snapshot)
+    return moe.util.copy(self.cards)
 end
 
 --- 清空整个牌区（每张牌都发一次「离开区域」）

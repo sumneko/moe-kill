@@ -34,13 +34,11 @@ end
 ---@param event string
 ---@return function[] # 这条时机上的所有回调（快照）
 function BuffDef:getHandlers(event)
-    ---@type function[]
-    local snapshot = {}
     local list = self.handlers[event]
-    if list then
-        table.move(list, 1, #list, 1, snapshot)
+    if not list then
+        return {}
     end
-    return snapshot
+    return moe.util.copy(list)
 end
 
 ---@class Buff : GCHost # 挂在角色身上的一段状态：资源与订阅靠 bindGC 跟着它活

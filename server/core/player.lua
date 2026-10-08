@@ -112,10 +112,7 @@ end
 
 ---@return Zone[] # 他身上的牌区（按加入顺序）
 function M:getZones()
-    ---@type Zone[]
-    local zones = {}
-    table.move(self.zoneList, 1, #self.zoneList, 1, zones)
-    return zones
+    return moe.util.copy(self.zoneList)
 end
 
 --- 获得一只状态：挂上（同名可并存）→ 发「获得」 → 返回实例
@@ -146,10 +143,7 @@ end
 
 ---@return Buff[] # 挂在他身上的状态（快照，按获得顺序）
 function M:getBuffs()
-    ---@type Buff[]
-    local buffs = {}
-    table.move(self.buffs, 1, #self.buffs, 1, buffs)
-    return buffs
+    return moe.util.copy(self.buffs)
 end
 
 ---@param name string
@@ -190,10 +184,7 @@ end
 
 ---@return Skill[] # 他拥有的技能（快照，按获得顺序）
 function M:getSkills()
-    ---@type Skill[]
-    local skills = {}
-    table.move(self.skills, 1, #self.skills, 1, skills)
-    return skills
+    return moe.util.copy(self.skills)
 end
 
 ---@param name string
@@ -231,10 +222,7 @@ end
 
 ---@return ViewAs[] # 他身上的「视为」声明（快照，按声明顺序）
 function M:getViewAsList()
-    ---@type ViewAs[]
-    local snapshot = {}
-    table.move(self.viewAsList, 1, #self.viewAsList, 1, snapshot)
-    return snapshot
+    return moe.util.copy(self.viewAsList)
 end
 
 --- 这张牌在他哪个牌区里、第几位
