@@ -1005,8 +1005,8 @@ Card '测试杀'
     hand:accept(card)
 
     local mine, his, global = 0, 0, 0
-    user:on('卡牌-结算前', function () mine = mine + 1 end)
-    target:on('卡牌-结算前', function () his = his + 1 end)
+    user:on('卡牌-来源-结算前', function () mine = mine + 1 end)
+    target:on('卡牌-来源-结算前', function () his = his + 1 end)
     game:on('卡牌-结算前', function () global = global + 1 end)
 
     game:useCard(user, card, { target })

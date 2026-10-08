@@ -46,7 +46,7 @@ function M:settle()
 
     self.game:moveCard(self.card, self:getTempZone())
     self.game:fire('卡牌-结算前', self)
-    self.user:fire('卡牌-结算前', self)
+    self.user:fire('卡牌-来源-结算前', self)
     self.card:fireHandlers('使用', self)
     local effect = New 'CardEffectToCard' (self.game, self.card, self.targetCard, self)
     self.cardEffectToCard = effect

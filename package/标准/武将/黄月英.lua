@@ -9,7 +9,7 @@ Hero '黄月英'
 -- 【集智】当你使用非转化的普通锦囊牌时，你可摸一张牌。
 Skill '集智'
     : auto(true)
-    : event('卡牌-结算前', function (skill, useCard)
+    : event('卡牌-来源-结算前', function (skill, useCard)
         if useCard.card.virtual then
             return
         end

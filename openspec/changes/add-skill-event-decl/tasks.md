@@ -32,3 +32,9 @@
 - [x] 4.3 迁移武将 11 处订阅：奸雄 / 集智 / 奇才 / 克己 / 铁骑 / 鬼才 / 反馈 / 刚烈 / 裸衣 / 洛神×2（洛神两条：`globalEvent('判定-后')` + `event('阶段-开始')`）；【马术】【咆哮】保留 `'被动'`
 - [x] 4.4 类型面补内容侧时机：`package/@基础/meta.lua` 的 `SkillDef` 块加 `event`（伤害 / 治疗各四阶段 × 来源/承受两侧）+ `globalEvent`（`'判定-前'` / `'判定-后'`）+ 兜底；`env-meta` 补 `'卡牌-来源-使用选项'`；hover 验证收窄（`damage.cardsInPlace` ⇒ `Card[]`）
 - [x] 4.5 全量 `server/bin/moe-kill.exe --test` 0 失败（964）+ 问题面板 information 及以上 0
+
+## 5. 补：使用者那份的时机名带方向词（2026-10-09，用户提）
+
+- [x] 5.1 `'卡牌-结算前'`（使用者份，与全局份同名）⇒ **`'卡牌-来源-结算前'`**：`UseCard` / `UseCardToCard` 的 `self.user:fire(…)`、`env-meta` 的 Player 声明与 `SkillDef.event` 候选、【集智】、`core.effect.play` 的用例同步；验证：全量 964 / 0
+- [x] 5.2 文档：`architecture.md` 的「早期同名两份」名单去掉它 + `useCardToCard` 行的两份名字写清；`sanguosha-rules` §9.21 示例块改成 `event` 形状（顺带清掉迁移前的 `confirm`/`cast` 旧写法）
+- [x] 5.3 迁移前旧形状的示例块清理（同日）：`sanguosha-rules` 里 **4 处**（刚烈 / 铁骑 / 救援 / 裸衣）改成 `event` 形状（【马术】保留 `'被动'`）；顺带修 §9.14 / §9.15 的「技能下一批」「挂载还没接」两处过期表述

@@ -45,7 +45,7 @@ rule = nil
 ---@class SkillDef
 ---@field on fun(self: SkillDef, event: '被动', handler: fun(skill: Skill, host: GCHost)): SkillDef # 技能挂上时跑一次（要挂什么就 `host:bindGC(…)`；停用时内核释放容器）
 ---@field on fun(self: SkillDef, event: '使用', handler: fun(cast: SkillCast)): SkillDef # 主动发动时跑（`cast` = 这次发动：`cast.source` 技能 / `cast.from` 发动者 / `cast.use` 带的牌与目标）
----@field event fun(self: SkillDef, name: '卡牌-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef # 自己使用的牌开始结算
+---@field event fun(self: SkillDef, name: '卡牌-来源-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef # 自己使用的牌开始结算（订自己那份）
 ---@field event fun(self: SkillDef, name: '卡牌-来源-使用选项', handler: fun(skill: Skill, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): SkillDef # 自己这次使用的选项（**收集式**：回调返回值会被 `fire` 收走；它跑在 `game:collect` 里 ⇒ 别在里面 await）
 ---@field event fun(self: SkillDef, name: '阶段-开始', handler: fun(skill: Skill, phase: Phase): any): SkillDef
 ---@field event fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
@@ -139,8 +139,8 @@ rule = nil
 ---@field fire fun(self: Player, name: '效果-目标-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Player, name: '效果-收尾', callback: fun(effect: Effect): any): function # 冲自己来的效果结完时再发一份（全局那份之外、对当事人再发一份）
 ---@field fire fun(self: Player, name: '效果-收尾', effect: Effect): any
----@field on fun(self: Player, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function # 自己使用的牌开始结算时再发一份（全局那份之外、对使用者再发一份）
----@field fire fun(self: Player, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
+---@field on fun(self: Player, name: '卡牌-来源-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function # 自己使用的牌开始结算时再发一份（全局那份叫「卡牌-结算前」、对使用者再发一份带方向词）
+---@field fire fun(self: Player, name: '卡牌-来源-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Player, name: '卡牌-来源-使用选项', callback: fun(check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): function # 自己使用的牌的选项（全局那份之外、对使用者再发一份）
 ---@field on fun(self: Player, name: '卡牌-来源-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 自己使用的牌指定目标后（逐目标；全局那份之外、对使用者再发一份）
 ---@field fire fun(self: Player, name: '卡牌-来源-指定目标后', useCard: UseCard, target: Player): any

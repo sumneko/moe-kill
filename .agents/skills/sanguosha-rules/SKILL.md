@@ -599,7 +599,7 @@ slash.physical  -- 读法：对应的实体牌（普通牌就是它自己、虚�
 - **虚拟牌能当一张「要用的牌」**（2026-09-30，`add-view-as-in-use`）：`canUse` / `useCard` 对**虚拟牌**跳过「在使用者手上 / 所在区被禁用 / 声明的牌区」三条（它不进任何牌区）—— **次数限制照旧算**（丈八的【杀】占出牌次数）。于是「视为」声明能作为一个**选项**出现在出牌阶段的候选里（目标由玩家在答复里给，与正常用牌同形），答复落定之后内核才收素材、造出真牌。
 - **虚拟牌进不了任何牌区**：收牌唯一入口 `Zone:accept` 收到虚拟牌就**改把它 `subcards` 里的实体牌收进来**（「搬虚拟牌 = 搬它的实体子牌」，2026-09-30 `add-zhangba-spear` 起；**虚拟牌自己既不进区、也不注销** —— 同日在 `guard-card-in-place` 里去掉注销）—— 「要把它放进弃牌堆」这个动作对虚拟牌就是「销毁虚拟牌 + 实体子牌去哪里」（用户 2026-09-30 记的口径）⇒ 弃牌堆里永远不会出现虚拟牌，而【丈八蛇矛】那两张手牌照样走 手牌 → 处理区 → 弃牌堆。实体牌的处置不受影响（打出的牌进处理区、结算完进弃牌堆的仍是**实体牌**）。
 
-### 9.14 武将定义与装配（已落地，2026-09-30；技能下一批）
+### 9.14 武将定义与装配（已落地，2026-09-30 / 10-01）
 
 底本（Chapter2）：**Section1** 武将牌正面标识 **姓名 / 性别 / 势力 / 初始体力上限 / 武将牌的技能**；**Section2** 性别分男、女，势力分魏、蜀、吴、群、西、神（标准包只用前四个）；**Section4** 体力上限 = 牌面勾玉数，**初始体力值可以不为上限**（高亮勾玉数）；**Section5** 「主公技」标签：**为主公其拥有、不为主公其没有**（是「拥有 / 没有」而非「有但无效」；但通过效果「获得」的主公技算拥有）。
 
@@ -616,12 +616,12 @@ Hero '曹操'
 - **技能定义已落地**（§9.15）、**挂载与生效**也通了（§9.15 末）；**挂载与主公技过滤也已落地**（2026-10-01：`setHero` / `setIdentity` 里重算，**主公技只给主公**）—— 牌面定义与**装配**（下一条）都已落地。
 - **内核只存不解释**（势力 / 性别 / 体力都不参与内核逻辑）：`kingdom` / `getKingdom` / `sex` / `getSex` / `hp` / `getHp` **全都定义在内容侧**（`@基础/武将.lua` 给 `HeroDef` 加字段与方法）—— 内核连字段都不占；技能名与自带数据的读法是 `hero:getSkills()`（快照）/ `hero:getValue(名字)`。**体力**：声明方法 `hp` 只存两个值、不兜底，**有效值走内容侧 `hero:getHp()`**（**依次取 定义 → `默认体力` → 5**，不给初始体力值就取上限）。
 - **`hp(最大, 初始?)`**：初始体力值可以不为上限 ⇒ 第二个参数省略时取上限；两个值**都只存不兜底**（没声明就是空，读的地方自己判）。
-- **主公技**（底本 Chapter2/Section5 + Section1 + Section2 的袁术例子，**逐字口径**）：**「若一个带有此标签的技能是一名角色的武将牌的技能且该角色的身份：为主公，其拥有此技能；不为主公，其没有此技能」** —— 是**拥有 / 没有**，**不是「有但无效」**（「无效」是另一套机制，如技能被压制）；**同一条后半句「若一名不为主公的角色获得一个带有此标签的技能，则其拥有此主公技」**（Section2 的袁术【制霸】例：他与主公各自的【制霸】「只有名字相同……对于 A 来说，其实是发动两个不同的技能」）。⇒ 落到实现：**过滤只作用于「武将牌自带的那一份」** —— 装配时判身份，非主公**不挂**那个技能；**`addSkill` 这个通用入口不过滤**（将来「获得主公技」那类技能直接给）。⚠️ **挂载依赖身份**：身份是身份场在 `'游戏-开始'` 里发的、而 `setHero` 可能更早 ⇒ 主公技不能只靠 `setHero` 那一下（要么身份确定后补挂、要么提供重算），**做技能系统时定**；标签与判定跟技能那批一起做。
-- **装配：`Player:setHero(hero)`**（`package/@基础/武将.lua`，2026-09-30，`add-hero-setup`）—— 写 `player.hero` / `sex` / `kingdom`，并把武将的**初始体力上限与初始体力值**写进属性（`setAttr` **覆写**；体力取内容侧 `hero:getHp()` 的有效值 —— 依次 定义 → `默认体力` → 5）。**顺序：先选将、后走开局**（主公 +1 是 `addAttr` 增量，排在后面才对）；`@基础/体力.lua` 的默认值只给「还没选武将」的角色 ⇒ 两种顺序结果一致。**技能挂载还没接**（技能系统下一批，挂载点就在 `setHero` 里）。
+- **主公技**（底本 Chapter2/Section5 + Section1 + Section2 的袁术例子，**逐字口径**）：**「若一个带有此标签的技能是一名角色的武将牌的技能且该角色的身份：为主公，其拥有此技能；不为主公，其没有此技能」** —— 是**拥有 / 没有**，**不是「有但无效」**（「无效」是另一套机制，如技能被压制）；**同一条后半句「若一名不为主公的角色获得一个带有此标签的技能，则其拥有此主公技」**（Section2 的袁术【制霸】例：他与主公各自的【制霸】「只有名字相同……对于 A 来说，其实是发动两个不同的技能」）。⇒ 落到实现：**过滤只作用于「武将牌自带的那一份」** —— 装配时判身份，非主公**不挂**那个技能；**`addSkill` 这个通用入口不过滤**（将来「获得主公技」那类技能直接给）。⚠️ **挂载依赖身份**：身份是身份场在 `'游戏-开始'` 里发的、而 `setHero` 可能更早 ⇒ **已定并落地（2026-10-01）**：`setHero` 与 `setIdentity` 都会调 `refreshSkills()` 重算，主公技只在 `identity == '主公'` 时挂（见下条）。
+- **装配：`Player:setHero(hero)`**（`package/@基础/武将.lua`，2026-09-30，`add-hero-setup`）—— 写 `player.hero` / `sex` / `kingdom`，并把武将的**初始体力上限与初始体力值**写进属性（`setAttr` **覆写**；体力取内容侧 `hero:getHp()` 的有效值 —— 依次 定义 → `默认体力` → 5）。**顺序：先选将、后走开局**（主公 +1 是 `addAttr` 增量，排在后面才对）；`@基础/体力.lua` 的默认值只给「还没选武将」的角色 ⇒ 两种顺序结果一致。**技能挂载就接在这里**（2026-10-01 起：`setHero` / `setIdentity` 都会 `refreshSkills()` 按「当前武将 + 当前身份」重算 —— 挂上缺的、摘掉不该有的）。
 - **体力在角色上的便捷读法**（同文件，2026-09-30）：`player:getHp()`（当前体力）/ `player:getMaxHp()`（体力上限）/ `player:getLostHp()`（**缺失的生命** = 上限 − 当前，即官方「已损失体力值」，技能里「已受伤」的判据）。
 - ⚠️ **标准包 25 将的技能文本没有底本**（入库的官方规则集只有 Chapter1 / Chapter2，第四章「武将牌」部分没收录）⇒ 写技能描述时要另找来源（BWIKI 校对）并经用户过目。
 
-### 9.15 技能定义（已落地，2026-09-30；挂载与生效下一批）
+### 9.15 技能定义（已落地，2026-09-30 / 10-01）
 
 底本（Chapter1/Section2）：技能按**是否有发动时机**分**状态类技能**（没有）与**触发类技能**（有）；且**「是否必须发动」与「锁定技」标签无关** —— 「关键是要找是否有『可』这个字」（专题一按语）。底本（Chapter2/Section5）：**「锁定技」已经只是一个标签**（作用是「令带有此标签的技能不被克制」）；另有「限定技」（一局一次）、「觉醒技」（**视为附带锁定技与限定技**）、「主公技」（见 §9.14）。
 
@@ -643,7 +643,7 @@ Skill '奸雄'
 - **技能名与牌名、武将名是三个独立命名空间**（同包同名不冲突）；官方描述照卡牌那样写在文件顶部（§9.3）。
 - **技能写「时机」有三条路**（2026-10-09，`add-skill-event-decl`）：① **声明式「视为」**（`: viewAs(…)`）—— 只要「把某牌当另一张用」就用它；② **声明式订阅**（`: event(名, 回调)` 订自己 / `: globalEvent(名, 回调)` 订局）—— 内核启用时挂好、停用 / 离场 / 被克制自动撤，**载荷原样给回调**（第一参是技能自己）⇒ 内容侧只写「条件 + `skill:tryCast(…)`」（不写 `on('被动')` / `host:bindGC`）；③ **`'被动'` 兜底**（`host:bindGC(owner:on(…))`）—— 它承载的是「**启用时做点什么**」：建持续性状态（【马术】`addAttr`、【咆哮】`addLimit`）。**两条硬口径**：**(a)** 订自己（`event`）与订局（`globalEvent`）**不可互换** —— 【鬼才】`'判定-前'` 与洛神 `'判定-后'` 那种都是订局；**(b)** **条件写在 `tryCast` 之前** —— `event` 只转发、内核不替技能问，所以「不满足条件就不问」仍然成立（切勿把条件挪到询问之后，否则无关触发也会问一次）。**标准包武将 2026-10-09 已全部迁完**（11 处订阅）；装备侧等 `CardDef` 那批。
 
-- **已能生效**（2026-09-30，`add-skill-effect`）：定义里 `: on('被动', 回调)`（回调收 `(skill, host)`）是**唯一的钩子** —— `player:addSkill(名字)` 挂上即启用（跑一次、给它 `host`），内容侧在那里 `host:bindGC(owner:on(…))` 订阅 / 建状态；**停用（被克制 / 封印）与恢复用 `skill:disablePassive()` / `enablePassive()`**，摘掉时容器跟着放掉（**与装备技能同一套写法**）；**「问不问」由技能自己写**（`skill:confirm()`）。第一个真技能 **【奸雄】**（`package/标准/武将/曹操.lua`，与武将定义同文件）：`: auto(true)`（默认自动同意），`on('被动', …)` 里订 `owner:on('伤害-目标-生效后', …)` —— 没牌（`damage.card` 为空）就不问；`confirm()` 放行就把那些牌移进手牌（包在 `skill:cast(…)` 里 ⇒ 归因追得到）。**发动的对象得还在原处**（2026-09-30）：读 **`damage.cardsInPlace`**（getter）= 这次伤害涉及的**实体牌里还在原处的那些**（虚拟牌看它的素材；**只看有没有动过、不看它在谁手里**，所以【闪电】那种「造成伤害时牌就在判定区」照常工作）—— **一张都拿不到就不发动也不问**；只有一部分还在时**能拿几张拿几张**（官方 `获得X张<牌>` 按 `min{其能获得的<牌>数, X}` 执行）；不这么写就会从别人手里把牌抢过来。
+- **已能生效**（2026-09-30，`add-skill-effect`）：定义里 `: on('被动', 回调)`（回调收 `(skill, host)`）是**启用钩子** —— `player:addSkill(名字)` 挂上即启用（跑一次、给它 `host`），内容侧在那里 `host:bindGC(…)` 挂持续性资源 / 建状态（**订阅时机现在走 `event` / `globalEvent`**，见上一条）；**停用（被克制 / 封印）与恢复用 `skill:disablePassive()` / `enablePassive()`**，摘掉时容器跟着放掉（**与装备技能同一套写法**）；**「问不问」由技能自己写**（`skill:confirm()`）。第一个真技能 **【奸雄】**（`package/标准/武将/曹操.lua`，与武将定义同文件）：`: auto(true)`（默认自动同意），`event('伤害-目标-生效后', …)` 里判 `damage.cardsInPlace` 为空就不问；`skill:tryCast` 放行就把那些牌移进手牌（那次发动有归因 ⇒ 追得到）。**发动的对象得还在原处**（2026-09-30）：读 **`damage.cardsInPlace`**（getter）= 这次伤害涉及的**实体牌里还在原处的那些**（虚拟牌看它的素材；**只看有没有动过、不看它在谁手里**，所以【闪电】那种「造成伤害时牌就在判定区」照常工作）—— **一张都拿不到就不发动也不问**；只有一部分还在时**能拿几张拿几张**（官方 `获得X张<牌>` 按 `min{其能获得的<牌>数, X}` 执行）；不这么写就会从别人手里把牌抢过来。
 - **挂载与主公技过滤**（2026-10-01）：`player:setHero` 与 `player:setIdentity` 都会调 **`Player:refreshSkills()`**（住 `@基础/武将.lua`）—— 按「当前武将 + 当前身份」重算（挂上缺的、摘掉不该有的）；**主公技只在 `identity == '主公'` 时才挂**（官方「不为主公，其**没有**此技能」⇒ 不挂，而不是挂着停用）。两个触发点是为了躲开时序：**选将常在分身份之前**。
 - **【护驾】已实现**（2026-10-01；**2026-10-08 起改成 `: viewAs('闪', { confirm = true }, 发动回调)` 的声明式**）：**不填 `condition`**（凭空造牌）+ **`confirm = true`**（2026-10-09 起：内核在开这次发动**之前**问一句「发动」—— 从前写在回调里 ⇒ 拒绝也被记成一次成功的发动）+ `'发动'` 回调里**只找素材**（**回调收 `(ask, source)`：发动者读 `ask.to`、技能实例是 `source`**）—— 按行动顺序逐个问其他同势力角色（`desk:actionOrder`，**迭代器只返回一个值**：`for player in …`）。**用的是 `game:askCard`（不是 `askPlayCard`）** —— 不留下「帮手打出了一张牌」这个事实；拿到牌后**自己搬**进 `ask:getTempZone()`（与正常打出走同一条路）并返回它当素材 ⇒ 曹操那边答的是一张带着实体素材的虚拟【闪】，`physical` 追得到。参见 `package/标准/武将/曹操.lua`。
 - **写「视为」类技能时两件事不要自己做**（【护驾】【激将】【武圣】【龙胆】…，2026-10-09 收拢）：① **不要自己再包 `Skill:cast`** —— `ViewAs:tryProduce` 里只要挂了来源（**声明式里由内核自动挂**；手写的是 `addViewAs(牌名, skill)`），就已经把「表态 + 收素材 + 造牌」整段包成一次发动、归因自动挂到技能 / 装备名下，自己再包一层就变成嵌套归因；② **不要在 `'发动'` 里自己 `confirm`** —— 要问就写 `options.confirm = true`，内核把它排在 `source:cast(…)` 之前（不同意就一次 `cast` 都不起）。要在里面搬牌就直接 `game:moveCard(牌, ask:getTempZone())`（`ask` 是本次询问，正常打出的牌也走这条路的同一处）。
@@ -653,7 +653,7 @@ Skill '奸雄'
 - **【武圣】已实现**（2026-10-08，`package/标准/武将/关羽.lua`）：**声明式「视为」**（`: viewAs('杀', { condition = { color = '红', zone = … } })` —— 与【丈八蛇矛】【激将】同一套，机制见 `architecture.md`），其中 `zone = rule.ownZones`；**使用侧与打出侧都自动可用**；**素材来源 = 手牌 + 装备子区**（官方「一张红色牌」，含用红色装备牌当【杀】），**不含判定区**（判定区的牌不属于该角色）。
 - **【龙胆】已实现**（2026-10-08，`package/标准/武将/赵云.lua`）：**两行声明式「视为」** —— `: viewAs('闪', { condition = { name = '杀', zone = '手牌' } })` + `: viewAs('杀', { condition = { name = '闪', zone = '手牌' } })`（【杀】↔【闪】，使用侧与打出侧都自动可用）；**素材只看牌名与手牌**，与花色无关。
 - **【奇袭】已实现**（2026-10-08，`package/标准/武将/甘宁.lua`）：**一行声明式「视为」** —— `: viewAs('过河拆桥', { condition = { color = '黑', zone = rule.ownZones } })`；**素材来源沿用【武圣】口径**（手牌 + 装备子区，**不含判定区**）。**无需任何新机制**：【过河拆桥】自己带目标筛选（「区域里有牌的其他角色」）与结算，虚拟牌走同一条使用族链路（`checkCardItself` 对虚拟牌不查声明的牌区 ⇒ 装备区的黑牌也能直接当素材离区）。
-- **【克己】已实现**（2026-10-08，`package/标准/武将/吕蒙.lua`）：**第一个「无前置」的被动技** —— `: auto(true)` + `on('被动', …)` 里订**自己的 `'阶段-结束'`**（不进技能选项、不要牌与目标）；条件 = 本出牌阶段**两本账都是 0**（`phase:getUseCount('杀')` 与 `phase:getPlayCount('杀')`，见上条）⇒ 问一句（`skill:confirm()`）就在 `skill:cast` 里 `owner.turn:skipPhase('弃牌')`（**在出牌阶段结束时记** —— `runTurn` 到弃牌阶段前才读，来得及）。`auto(true)` 的第二个用户（跳过弃牌几乎总是想要的）。
+- **【克己】已实现**（2026-10-08，`package/标准/武将/吕蒙.lua`）：**第一个「无前置」的被动技** —— `: auto(true)` + `event('阶段-结束', …)`（订自己那份）—— 条件 = 本出牌阶段**两本账都是 0**（`phase:getUseCount('杀')` 与 `phase:getPlayCount('杀')`，见上条）⇒ 问一句（`skill:tryCast`）就在那次发动里 `turn:skipPhase('弃牌')`（**在出牌阶段结束时记** —— `runTurn` 到弃牌阶段前才读，来得及）。`auto(true)` 的第二个用户（跳过弃牌几乎总是想要的）。
 - **【鬼才】【反馈】已实现**（2026-10-08，`package/标准/武将/司马懿.lua`）：**【鬼才】**= `: auto(true)` + `'被动'` 里订**全局** `game:on('判定-前', …)`（**改判窗口**；官方「一名角色」⇒ 谁的判定都能改）—— 自己手里没牌就不问，`confirm()` 放行就 `askCard(owner, '鬼才', { zone = '手牌' })` 要一张手牌 → **`judge:replace(牌)`**（**`replace` 的第一个技能消费者**；换下的原判定牌进 `judge.replaced`，与改判后的判定牌一起在收尾时进弃牌堆）。**【反馈】**= 与【奸雄】**同形**（订 `owner:on('伤害-目标-生效后', …)`）—— `damage.from` 为空、或**来源身上一张牌都没有**就不问；放行后 `askCard(owner, '反馈', { zone = from:getZones() })`，拿到就 `moveCard` 进自己手牌。
 - **【洛神】【倾国】已实现**（2026-10-08，`package/标准/武将/甄姬.lua`；第一个**三体力**武将、第一个**准备阶段型**技能）：**【倾国】**= 一行声明式「视为」`: viewAs('闪', { condition = { color = '黑', zone = '手牌' } })` —— 按官方「一张黑色**手牌**」**只手牌**（不同于【武圣】含装备子区）。**【洛神】**= `'被动'` 里订 **`owner:on('阶段-开始')`**（判 `phase.name == '准备'`）+ **`for _ = 1, 1000 do … end`（带上限）里每一轮一次 `skill:tryCast(函数)`** —— **每问一次「发动」就是一次独立的发动**：这次发动做的事 = `game:judge(owner, '洛神')`，body 返回「判黑了吗」，`cast.result` 为假（判红）或玩家不发动（`tryCast` 返回空）就停（官方「然后你可以重复此流程」）。**用户 2026-10-09 连着纠了两处写法**：① `confirm` 要在 `cast` **外面**（先问、后发动）—— 用 `tryCast` 直接免掉这个错；② 循环的**每一次重复各是一次 `Cast`**，不是「一个大 cast 包住整个循环」（用例断言「两次判定 + 两次拿牌 = 4 次发动」钉住这一点）。颜色用现成的 **`card.color`** getter。**判定牌的「获得」必须写在 `'判定-后'` 时机里**（订 `game:on('判定-后')` + 认 `judge.reason == '洛神'`），并且**同样包一层 `skill:cast`**（2026-10-09 补 —— 它和那次判定都是技能引发的事，不包就没归因）—— `game:judge` **返回时判定已结完**，内核默认收尾已经把临时区剩下的牌送进弃牌堆（`Effect:bindFinish`），晚一步牌就到弃牌堆了。**不设人为次数上限**（官方就是「可重复」，终止由牌堆承担：判不出牌 ⇒ `judge.card` 为空 ⇒ `break`；顺带过牌堆耗尽那条平局）。另注意：`judge:replace` 换上的牌与被换下的原判定牌**都在这次判定的临时区**里 ⇒ 用例断言弃牌堆张数时要把被换下那张算进去。
 - **主动技的发动入口已落地**（2026-10-08）：见 §9.16。
@@ -699,24 +699,20 @@ end
 
 ```lua
 Skill '刚烈'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('伤害-目标-生效后', function (damage)
-            local from = damage.from
-            if not from then return end              -- 无来源伤害（【闪电】那类）不发动
-            if not skill:confirm() then return end
-            skill:cast(function ()
-                local judge = game:judge(owner, '刚烈')
-                if judge.card?.suit == '红桃' then return end
-                -- 一次要两张，允许取消：给不满或取消 ⇒ 挨那 1 点
-                local cards = game:askCard(from, '刚烈', { zone = '手牌', min = 2, max = 2 }).cards
-                if #cards == 2 then
-                    game:moveCard(cards, '弃牌')
-                    return
-                end
-                game:damage(owner, from, 1)
-            end)
-        end))
+    : event('伤害-目标-生效后', function (skill, damage)
+        local from = damage.from
+        if not from then return end              -- 无来源伤害（【闪电】那类）不发动
+        skill:tryCast(function ()
+            local judge = game:judge(skill.owner, '刚烈')
+            if judge.card?.suit == '红桃' then return end
+            -- 一次要两张，允许取消：给不满或取消 ⇒ 挨那 1 点
+            local cards = game:askCard(from, '刚烈', { zone = '手牌', min = 2, max = 2 }).cards
+            if #cards == 2 then
+                game:moveCard(cards, '弃牌')
+                return
+            end
+            game:damage(skill.owner, from, 1)
+        end)
     end)
 ```
 
@@ -764,23 +760,17 @@ Skill '马术'
     end)
 
 Skill '铁骑'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('卡牌-来源-指定目标后', function (useCard, target)
-            if useCard.card.name ~= '杀' then
+    : event('卡牌-来源-指定目标后', function (skill, useCard, target)
+        if useCard.card.name ~= '杀' then
+            return
+        end
+        skill:tryCast(function ()
+            local judge = game:judge(skill.owner, '铁骑')
+            if judge.card?.color ~= '红' then
                 return
             end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
-                local judge = game:judge(owner, '铁骑')
-                if judge.card?.color ~= '红' then
-                    return
-                end
-                useCard:addUseOptions { unrespondable = { target } }
-            end)
-        end))
+            useCard:addUseOptions { unrespondable = { target } }
+        end)
     end)
 ```
 
@@ -796,39 +786,30 @@ Skill '铁骑'
 ```lua
 Skill '集智'
     : auto(true)
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('卡牌-结算前', function (useCard)
-            if useCard.card.virtual then
-                return
-            end
-            if not useCard.card:isKind('非延时锦囊') then
-                return
-            end
-            if not skill:confirm() then
-                return
-            end
-            skill:cast(function ()
-                owner:draw(1)
-            end)
-        end))
+    : event('卡牌-来源-结算前', function (skill, useCard)
+        if useCard.card.virtual then
+            return
+        end
+        if not useCard.card:isKind('非延时锦囊') then
+            return
+        end
+        skill:tryCast(function ()
+            skill.owner:draw(1)
+        end)
     end)
 
 Skill '奇才'
     : tags '锁定技'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('卡牌-来源-使用选项', function (check)
-            if check.card:isKind('锦囊') then
-                return { ignoreDistance = true }
-            end
-        end))
+    : event('卡牌-来源-使用选项', function (skill, check)
+        if check.card:isKind('锦囊') then
+            return { ignoreDistance = true }
+        end
     end)
 ```
 
 - **【集智】按底本的两个限定**（「当你使用**非转化**的**普通**锦囊牌时」）：「非转化」= `not card.virtual`；「普通锦囊」= `card:isKind('非延时锦囊')`（**不含**延时锦囊）。
 - 【集智】是**自动同意**（`: auto(true)`）：发动没代价、纯收益，不必问玩家。
-- 时机订**使用者**那份 `'卡牌-结算前'`（只收自己的用牌，不用再判 `user`）—— 它对应官方的「使用结算开始时」。
+- 时机订**使用者**那份 **`'卡牌-来源-结算前'`**（全局那份叫 `'卡牌-结算前'` —— 对当事人再发一份带方向词；只收自己的用牌、不用再判 `user`）—— 它对应官方的「使用结算开始时」。
 - **【奇才】用「这次使用的选项」**：由**使用者**在收集时加上 `ignoreDistance` ⇒ 射程判断（`Player:isInRange` 直接算在）⇒ 带距离的锦囊（【顺手牵羊】）不受限；**只管锦囊**（【杀】照旧受射程限制）。
 - `ignoreDistance` 的消费者要接的是**判射程的地方**：内容侧写 `user:isInRange(对方, 范围, plan.useOptions)`（【杀】与【顺手牵羊】的 `targets` filter 都是这么写的），裸写 `user:distance(对方)` 就认不到它。
 
@@ -845,18 +826,17 @@ Skill '制衡'
 
 Skill '救援'
     : tags '主公技'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('治疗-目标-生效前', function (heal)
-            local from = heal.from
-            if not from or from == owner or from.kingdom ~= '吴' then
-                return
-            end
-            if heal.card?.name ~= '桃' then
-                return
-            end
+    : event('治疗-目标-生效前', function (skill, heal)
+        local from = heal.from
+        if not from or from == skill.owner or from.kingdom ~= '吴' then
+            return
+        end
+        if heal.card?.name ~= '桃' then
+            return
+        end
+        skill:cast(function ()
             heal.amount = heal.amount + 1
-        end))
+        end)
     end)
 ```
 
@@ -890,17 +870,14 @@ Buff '裸衣'
     end)
 
 Skill '裸衣'
-    : on('被动', function (skill, host)
-        local owner = skill.owner
-        host:bindGC(owner:on('阶段-开始', function (phase)
-            if phase.name ~= '摸牌' then
-                return
-            end
-            skill:tryCast(function ()
-                phase:bindGC(owner:addAttr('摸牌数', -1))
-                owner.turn:bindGC(owner:addBuff('裸衣'))
-            end)
-        end))
+    : event('阶段-开始', function (skill, phase)
+        if phase.name ~= '摸牌' then
+            return
+        end
+        skill:tryCast(function ()
+            phase:bindGC(skill.owner:addAttr('摸牌数', -1))
+            skill.owner.turn:bindGC(skill.owner:addBuff('裸衣'))
+        end)
     end)
 ```
 
