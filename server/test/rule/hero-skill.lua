@@ -873,3 +873,204 @@ lt.test('奇袭：黑色装备牌也能当【过河拆桥】（用了就离区�
     lt.assertEquals('离区后加成撤销', 1, ganning:getAttr('攻击范围'))
     lt.assertEquals('关联是奇袭', findSkill(ganning, '奇袭'), assert(chosen).source)
 end)
+
+lt.test('反馈：受到伤害后，获得伤害来源的一张牌', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local sima = run.players[1]
+    local foe  = run.players[2]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    lt.assertEquals('技能随武将挂上', true, sima:hasSkill('反馈'))
+
+    local slash  = takeCard(run, foe, '杀')
+    local spoils = takeCard(run, foe, '桃')
+
+    ---@type AskCard?
+    local asked = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '反馈' then
+            ---@cast ask AskCard
+            asked = ask
+            return { card = spoils }
+        end
+    end)
+
+    run.game:useCard(foe, slash, { sima })
+
+    lt.assertEquals('司马懿掉了 1 点体力', 2, sima:getAttr('体力'))
+    local ask = assert(asked, '该问过反馈')
+    lt.assertEquals('候选只有来源手上那一张', 1, #assert(ask.options))
+    lt.assertEquals('那张牌到了司马懿手上', spoils, sima:getZone('手牌'):list()[1])
+    lt.assertEquals('来源手上空了', 0, foe:getZone('手牌'):count())
+end)
+
+lt.test('反馈：无来源伤害不发动', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local sima = run.players[1]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    local hand = takeCard(run, sima, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '反馈' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:damage(nil, sima, 1)
+
+    lt.assertEquals('没问过反馈', 0, asked)
+    lt.assertEquals('体力照扣', 2, sima:getAttr('体力'))
+    lt.assertEquals('自己的手牌没动', hand, sima:getZone('手牌'):list()[1])
+end)
+
+lt.test('反馈：伤害来源身上没牌就不问', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local sima = run.players[1]
+    local foe  = run.players[2]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    -- 来源手上只有那张【杀】，用出去之后身上就没牌了
+    local slash = takeCard(run, foe, '杀')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '反馈' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(foe, slash, { sima })
+
+    lt.assertEquals('没问过反馈', 0, asked)
+    lt.assertEquals('司马懿照常掉血', 2, sima:getAttr('体力'))
+end)
+
+lt.test('反馈：不发动时，来源的牌不动', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local sima = run.players[1]
+    local foe  = run.players[2]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    local slash  = takeCard(run, foe, '杀')
+    local spoils = takeCard(run, foe, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '反馈' then
+            asked = asked + 1
+            return nil
+        end
+    end)
+
+    run.game:useCard(foe, slash, { sima })
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('那张牌还在来源手上', spoils, foe:getZone('手牌'):list()[1])
+    lt.assertEquals('司马懿手上还是空的', 0, sima:getZone('手牌'):count())
+end)
+
+lt.test('鬼才：把判定牌换成自己的一张手牌', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local sima  = run.players[1]
+    local other = run.players[2]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    lt.assertEquals('技能随武将挂上', true, sima:hasSkill('鬼才'))
+
+    local hand = run.game:createCard('桃', '红桃', 3)
+    assert(sima:getZone('手牌')):accept(hand)
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+            return { card = hand }
+        end
+    end)
+
+    local judge = run.game:judge(other, '探针')
+
+    lt.assertEquals('判定牌就是打出的那张手牌', hand, judge.card)
+    lt.assertEquals('判定结果按它算', '红桃', assert(judge.card).suit)
+    lt.assertEquals('换下的原判定牌记在账上', 1, #judge.replaced)
+    lt.assertEquals('那张手牌离开了司马懿手上', 0, sima:getZone('手牌'):count())
+    lt.assertEquals('换下的那张进了弃牌堆', assert(run.game:getZone('弃牌')), judge.replaced[1]:getZone())
+    lt.assertEquals('改判后的判定牌也进了弃牌堆', assert(run.game:getZone('弃牌')), hand:getZone())
+end)
+
+lt.test('鬼才：这次改判归因在技能名下', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local sima  = run.players[1]
+    local other = run.players[2]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    local hand = takeCard(run, sima, '桃')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+            return { card = hand }
+        end
+    end)
+
+    ---@type Cast?
+    local attribution = nil
+    run.game:on('效果-能否生效', function (effect)
+        if effect.kind == 'cast' then
+            ---@cast effect Cast
+            attribution = effect
+        end
+    end)
+
+    run.game:judge(other, '探针')
+
+    local cast = assert(attribution, '该有一次技能发动')
+    lt.assertEquals('归因到鬼才名下', findSkill(sima, '鬼才'), cast.source)
+    lt.assertEquals('发动者是他', sima, cast.from)
+end)
+
+lt.test('鬼才：不发动时判定照旧', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local sima  = run.players[1]
+    local other = run.players[2]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    local hand = takeCard(run, sima, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+            asked = asked + 1
+            return nil
+        end
+    end)
+
+    local judge = run.game:judge(other, '探针')
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('判定牌不是那张手牌', false, judge.card == hand)
+    lt.assertEquals('手牌还在', hand, sima:getZone('手牌'):list()[1])
+    lt.assertEquals('没有换牌记录', 0, #judge.replaced)
+end)
+
+lt.test('鬼才：自己手里没牌就不问', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local sima  = run.players[1]
+    local other = run.players[2]
+    sima:setHero(assert(run.game:getHero('司马懿')))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:judge(other, '探针')
+
+    lt.assertEquals('没问过', 0, asked)
+end)
