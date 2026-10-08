@@ -473,3 +473,60 @@ lt.test('仁德：目标只能选别人；牌给到对方手上，归因在技�
     lt.assertEquals('归因到技能名下', renDe, cast.source)
     lt.assertEquals('发动者是他', liubei, cast.from)
 end)
+
+lt.test('咆哮：张飞在出牌阶段能连出两张【杀】', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+    user:setHero(assert(run.game:getHero('张飞')))
+
+    lt.assertEquals('技能随武将挂上', true, user:hasSkill('咆哮'))
+    lt.assertEquals('是锁定技', true, findSkill(user, '咆哮').def:hasTag('锁定技'))
+
+    local first  = takeCard(run, user, '杀')
+    local second = takeCard(run, user, '杀')
+
+    local _ <close> = run.game:enterPhase(user, '出牌')
+
+    run.game:useCard(user, first, { foe })
+    lt.assertEquals('第一张照常结算', 4, foe:getAttr('体力'))
+
+    local result = run.game:useCard(user, second, { foe })
+    lt.assertEquals('第二张也放行（无次数限制）', true, result.success)
+    lt.assertEquals('第二张也结算了', 3, foe:getAttr('体力'))
+end)
+
+lt.test('咆哮：只帮张飞自己，别人照常限一次', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local fei   = run.players[1]
+    local other = run.players[2]
+    local foe   = run.players[3]
+    fei:setHero(assert(run.game:getHero('张飞')))
+
+    local first  = takeCard(run, other, '杀')
+    local second = takeCard(run, other, '杀')
+
+    local _ <close> = run.game:enterPhase(other, '出牌')
+
+    run.game:useCard(other, first, { foe })
+    local result = run.game:useCard(other, second, { foe })
+    lt.assertEquals('别人没这技能：第二张被拒', '本阶段已经用过「杀」了', result.err)
+end)
+
+lt.test('咆哮：技能停用后限制回到一次', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local user = run.players[1]
+    local foe  = run.players[2]
+    user:setHero(assert(run.game:getHero('张飞')))
+
+    local first  = takeCard(run, user, '杀')
+    local second = takeCard(run, user, '杀')
+
+    local _ <close> = run.game:enterPhase(user, '出牌')
+    run.game:useCard(user, first, { foe })
+
+    findSkill(user, '咆哮'):disablePassive()
+
+    local result = run.game:useCard(user, second, { foe })
+    lt.assertEquals('停用后第二张被拒', '本阶段已经用过「杀」了', result.err)
+end)
