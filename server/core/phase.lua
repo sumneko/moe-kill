@@ -4,6 +4,7 @@
 ---@field private game Game
 ---@field private tags table<string, any>
 ---@field private useCounts table<string, integer> # 本阶段某名字用过的次数
+---@field private playCounts table<string, integer> # 本阶段某名字打出过的次数
 local M = Class 'Phase'
 
 ---@param game Game
@@ -15,6 +16,7 @@ function M:__init(game, player, name)
     self.name        = name
     self.tags        = {}
     self.useCounts   = {}
+    self.playCounts  = {}
 end
 
 --- 挂一个标签（内容侧自己解释）
@@ -52,6 +54,20 @@ end
 ---@return integer
 function M:getUseCount(name)
     return self.useCounts[name] or 0
+end
+
+--- 改本阶段某名字打出过的次数（正负都行）
+---@param name string # 牌名 / 技能名（取值由你定）
+---@param delta integer
+function M:addPlayCount(name, delta)
+    self.playCounts[name] = (self.playCounts[name] or 0) + delta
+end
+
+--- 本阶段某名字打出过的次数
+---@param name string
+---@return integer
+function M:getPlayCount(name)
+    return self.playCounts[name] or 0
 end
 
 function M:__close()

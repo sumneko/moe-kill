@@ -141,6 +141,21 @@ lt.test('阶段：用过次数的账按名字记', function ()
     lt.assertEquals('别的名字不受影响', 0, phase:getUseCount('闪'))
 end)
 
+lt.test('阶段：打出次数的账与使用次数各记各的', function ()
+    local game, players = newGame()
+    local phase = game:enterPhase(players[1], '出牌')
+
+    lt.assertEquals('一开始没打出过', 0, phase:getPlayCount('杀'))
+
+    phase:addPlayCount('杀', 1)
+    phase:addPlayCount('杀', 1)
+    lt.assertEquals('记两次就是 2', 2, phase:getPlayCount('杀'))
+    phase:addPlayCount('杀', -1)
+    lt.assertEquals('可以退回来', 1, phase:getPlayCount('杀'))
+    lt.assertEquals('别的名字不受影响', 0, phase:getPlayCount('闪'))
+    lt.assertEquals('不混进使用次数的账', 0, phase:getUseCount('杀'))
+end)
+
 lt.test('阶段：玩家的 currentPhase 只给属于自己的当前阶段', function ()
     local game, players = newGame()
 

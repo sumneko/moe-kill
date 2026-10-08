@@ -10,10 +10,18 @@ end
 
 --- 交出来的牌进**发起这次结算的临时处理区**（由那次结算收尾时统一送弃牌堆）；没有外层结算就不动，交给内容侧；
 --- 虚拟牌自己进不了牌区 —— 收它就是注销它、改收它的实体子牌（见 `Zone:accept`）
+--- 顺手记一笔「本阶段打出过这张」的账（牌名叫什么就记什么，虚拟牌记它视为的名字）
 ---@async
 function M:onAnswered()
     local card = self.card
-    if card and self.parent then
+    if not card then
+        return
+    end
+    local phase = self.to:currentPhase()
+    if phase then
+        phase:addPlayCount(card.name, 1)
+    end
+    if self.parent then
         self.game:moveCard(card, self.parent:getTempZone())
     end
 end

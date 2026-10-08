@@ -442,6 +442,46 @@ lt.test('回合：别人的回合里用【杀】不计数也不受限', function
     lt.assertEquals('也不记在别人的阶段上', 5, phase:getUseCount('杀'))
 end)
 
+lt.test('回合：打出的牌记在自己的阶段上，不混进使用次数', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local user  = run.players[1]
+    local slash = run.game:createCard('杀')
+    assert(user:getZone('手牌'), '没有手牌区'):accept(slash)
+
+    local phase <close> = run.game:enterPhase(user, '出牌')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askPlayCard' then
+            return { card = slash }
+        end
+    end)
+
+    local ask = run.game:askPlayCard(user, '测试', { name = '杀' })
+
+    lt.assertEquals('答复拿到了', slash, ask.card)
+    lt.assertEquals('打出记在阶段上', 1, phase:getPlayCount('杀'))
+    lt.assertEquals('不混进使用次数的账', 0, phase:getUseCount('杀'))
+end)
+
+lt.test('回合：打出的牌不记在别人的阶段上', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local user  = run.players[1]
+    local other = run.players[2]
+    local slash = run.game:createCard('杀')
+    assert(user:getZone('手牌'), '没有手牌区'):accept(slash)
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askPlayCard' then
+            return { card = slash }
+        end
+    end)
+
+    local phase <close> = run.game:enterPhase(other, '出牌')   -- 阶段是 2 号位的
+    run.game:askPlayCard(user, '测试', { name = '杀' })
+
+    lt.assertEquals('别人的阶段上不记', 0, phase:getPlayCount('杀'))
+end)
+
 lt.test('回合：玩家的「回合」对象挂上又摘掉，跳过记在它身上、不带去下一个回合', function ()
     ---@type Turn?
     local firstTurn = nil
@@ -484,4 +524,123 @@ lt.test('回合：玩家的「回合」对象挂上又摘掉，跳过记在它�
     lt.assertEquals('到过别人的回合', true, otherTurnSeen)
     lt.assertEquals('别人的回合里它已经摘掉', nil, duringOther)
     lt.assertEquals('第 2 个回合换了个新对象（没被旧跳过漏过来）', true, nextTurn ~= nil and nextTurn ~= firstTurn)
+end)
+
+--- 给 1 号位装上武将，再挂满手牌（默认 6 张【闪】）——后面这几条靠它把「该弃几张」摆出来
+---@param run Test.RuleSupport
+---@param name string
+---@param extra integer?
+---@return Player # 装好武将的 1 号位（主公：体力上限与体力各 +1）
+local function seatWithHero(run, name, extra)
+    local player = run.players[1]
+    local hero   = assert(run.game:getHero(name), '没有叫「{}」的武将' % { name })
+    player:setHero(hero)
+    local hand = assert(player:getZone('手牌'), '没有手牌区')
+    for _ = 1, extra or 6 do
+        hand:accept(run.game:createCard('闪'))
+    end
+    return player
+end
+
+lt.test('克己：出牌阶段没出过【杀】⇒ 跳过弃牌阶段', function ()
+    ---@type Player?
+    local limeng = nil
+    local state = startTurn {
+        setup = function (run)
+            limeng = seatWithHero(run, '吕蒙')
+        end,
+        answer    = endPhase(),
+        stopAfter = 1,
+    }
+
+    advance(state, 1)
+
+    local player = assert(limeng)
+    lt.assertEquals('技能随武将挂上', true, player:hasSkill('克己'))
+    lt.assertEquals('体力 4（装武将晚，主公 +1 没参与）', 4, player:getAttr('体力'))
+    lt.assertEquals('摸牌阶段摸 2 张，手牌 8 张（本来该弃 4 张）', 8, assert(player:getZone('手牌')):count())
+    lt.assertEquals('一张都没弃（弃牌堆是空的）', 0, assert(state.run.game:getZone('弃牌')):count())
+end)
+
+lt.test('克己：出牌阶段出过【杀】⇒ 照常弃牌', function ()
+    local slash = nil
+    local state = startTurn {
+        setup = function (run)
+            slash = run.game:createCard('杀')
+            assert(seatWithHero(run, '吕蒙'):getZone('手牌')):accept(slash)
+        end,
+        answer = function (ask, run)
+            if ask.reason ~= '出牌' or not slash then
+                return nil
+            end
+            local card = slash
+            slash = nil
+            return { card = card, targets = { run.players[2] } }
+        end,
+        stopAfter = 1,
+    }
+
+    advance(state, 1)
+
+    lt.assertEquals('弃到体力值 4 张', 4, assert(state.run.players[1]:getZone('手牌')):count())
+    lt.assertEquals('弃牌堆 5 张（用掉的【杀】+ 弃掉的 4 张）', 5,
+        assert(state.run.game:getZone('弃牌')):count())
+end)
+
+lt.test('克己：只在【决斗】里打出过【杀】也一样不跳过', function ()
+    ---@type Card?
+    local duel = nil
+    ---@type Card?
+    local mine = nil
+    ---@type integer?
+    local played = nil
+
+    local state = startTurn {
+        setup = function (run)
+            local limeng = seatWithHero(run, '吕蒙')
+            local enemy  = run.players[2]
+
+            duel = run.game:createCard('决斗')
+            mine = run.game:createCard('杀')
+            local hand = assert(limeng:getZone('手牌'), '没有手牌区')
+            hand:accept(duel)
+            hand:accept(mine)
+
+            local theirs = run.game:createCard('杀')
+            assert(enemy:getZone('手牌'), '没有手牌区'):accept(theirs)
+
+            local enemyAsks = 0
+            run.game:on('卡牌-询问', function (ask)
+                if ask.kind ~= 'askPlayCard' then
+                    return
+                end
+                if ask.to == limeng then
+                    return { card = mine }
+                end
+                enemyAsks = enemyAsks + 1
+                if enemyAsks == 1 then
+                    return { card = theirs }
+                end
+            end)
+            run.game:on('阶段-结束', function (phase)
+                if phase.name == '出牌' then
+                    played = phase:getPlayCount('杀')
+                end
+            end)
+        end,
+        answer = function (ask, run)
+            if ask.reason ~= '出牌' or not duel then
+                return nil
+            end
+            local card = duel
+            duel = nil
+            return { card = card, targets = { run.players[2] } }
+        end,
+        stopAfter = 1,
+    }
+
+    advance(state, 1)
+
+    lt.assertEquals('打出的那张记在打出账上', 1, played)
+    lt.assertEquals('弃到体力值 4 张', 4, assert(state.run.players[1]:getZone('手牌')):count())
 end)
