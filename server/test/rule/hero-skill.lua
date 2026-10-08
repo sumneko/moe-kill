@@ -670,3 +670,114 @@ lt.test('武圣：技能停用后就不再提供「视为」', function ()
     local after = run.game:askUseCard(user, '出牌', { zone = '手牌' })
     lt.assertEquals('停用后声明跟着撤了', 0, #assert(after.options))
 end)
+
+lt.test('龙胆：把一张【杀】当【闪】打出，抵消那张【杀】', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local user    = run.players[1]
+    local zhaoyun = run.players[2]
+    zhaoyun:setHero(assert(run.game:getHero('赵云')))
+
+    lt.assertEquals('技能随武将挂上', true, zhaoyun:hasSkill('龙胆'))
+
+    local slash = takeCard(run, user, '杀')
+    local mine  = takeCard(run, zhaoyun, '杀')
+
+    ---@type Card?
+    local played = nil
+    run.game:on('卡牌-答复', function (ask)
+        if ask.kind == 'askOffsetCard' then
+            played = ask.card
+        end
+    end)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '闪' then
+            return { card = mine }
+        end
+    end)
+
+    run.game:useCard(user, slash, { zhaoyun })
+
+    local shown = assert(played, '该打出一张牌')
+    lt.assertEquals('打出的是虚拟【闪】', '闪', shown.name)
+    lt.assertEquals('是虚拟牌', true, shown.virtual)
+    lt.assertEquals('素材就是那张【杀】', mine, shown.subcards[1])
+    lt.assertEquals('赵云没掉血', 4, zhaoyun:getAttr('体力'))
+    lt.assertEquals('那张【杀】进了弃牌堆', assert(run.game:getZone('弃牌')), mine:getZone())
+end)
+
+lt.test('龙胆：出牌阶段把一张【闪】当【杀】用出去', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local zhaoyun = run.players[1]
+    local foe     = run.players[2]
+    zhaoyun:setHero(assert(run.game:getHero('赵云')))
+
+    local jink = takeCard(run, zhaoyun, '闪')
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = jink }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(zhaoyun, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用出去一张虚拟【杀】')
+
+    lt.assertEquals('视为的是【杀】', '杀', card.name)
+    lt.assertEquals('关联是龙胆', findSkill(zhaoyun, '龙胆'), assert(chosen).source)
+    lt.assertEquals('素材就是那张【闪】', jink, card.subcards[1])
+    lt.assertEquals('目标掉了 1 点血', 4, foe:getAttr('体力'))
+    lt.assertEquals('素材进了弃牌堆', assert(run.game:getZone('弃牌')), jink:getZone())
+end)
+
+lt.test('龙胆：响应【南蛮入侵】时用一张【闪】当【杀】打出', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local user    = run.players[1]
+    local zhaoyun = run.players[2]
+    zhaoyun:setHero(assert(run.game:getHero('赵云')))
+
+    local havoc = takeCard(run, user, '南蛮入侵')
+    local jink  = takeCard(run, zhaoyun, '闪')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' and ask.reason == '杀' then
+            return { card = jink }
+        end
+    end)
+
+    run.game:useCard(user, havoc, { zhaoyun })
+
+    lt.assertEquals('赵云没掉血', 4, zhaoyun:getAttr('体力'))
+    lt.assertEquals('那张【闪】进了弃牌堆', assert(run.game:getZone('弃牌')), jink:getZone())
+end)
+
+lt.test('龙胆：手里没有【杀】/【闪】时声明不成立', function ()
+    local run     = support.start { count = 2, packages = { '标准' } }
+    local user    = run.players[1]
+    local zhaoyun = run.players[2]
+    zhaoyun:setHero(assert(run.game:getHero('赵云')))
+
+    local slash = takeCard(run, user, '杀')
+    takeCard(run, zhaoyun, '桃')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, slash, { zhaoyun })
+
+    lt.assertEquals('没问过要素材', 0, asked)
+    lt.assertEquals('照常受伤', 3, zhaoyun:getAttr('体力'))
+end)

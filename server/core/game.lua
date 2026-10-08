@@ -260,7 +260,7 @@ function CardDef:getZone()
     return self.useZone
 end
 
---- 把另一个定义的钩子与字段抖过来（基类的钩子跑在前面；抖完就与基类脱钩）
+--- 把另一个定义的钩子与字段抄过来（基类的钩子跑在前面；抄完就与基类脱钩）
 ---@param name string # 基类定义的名字（支持限定名）
 ---@return CardDef
 function CardDef:extends(name)
