@@ -34,6 +34,21 @@ rule = nil
 ---@field on fun(self: CardDef, event: '使用', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前；声明了 skipEffect 的牌就到这）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard?)): CardDef # 一次生效（使用期逐目标 / 判定阶段每张一次）
 ---@field on fun(self: CardDef, event: '被动', handler: fun(card: Card, zone: Zone, host: GCHost)): CardDef # 被动启用时跑一次：要挂什么就 `host:bindGC(…)`（停用时内核释放容器）
+--- **订阅时机**用 `event`（订**这张牌的主人**头上那份）/ `globalEvent`（订局上那份）：只做订阅与生命周期 —— **要不要发动（`card:cast(…)`）由回调自己写**（与 `'被动'` 里手写 `owner:on(…)` 等价）；时机名开放 ⇒ 这里只列内核常用几条、其余走 `fun(card: Card, ...: any)` 兜底，内容侧时机的重载住 `package/@基础/meta.lua`
+---@field event fun(self: CardDef, name: '卡牌-来源-结算前', handler: fun(card: Card, useCard: UseCard|UseCardToCard): any): CardDef # 主人使用的牌开始结算（订主人那份）
+---@field event fun(self: CardDef, name: '卡牌-来源-使用选项', handler: fun(card: Card, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): CardDef # 主人这次使用的选项（**收集式**：返回值会被 `fire` 收走；跑在 `game:collect` 里 ⇒ 别在里面 await）
+---@field event fun(self: CardDef, name: '卡牌-来源-指定目标后', handler: fun(card: Card, useCard: UseCard, target: Player): any): CardDef
+---@field event fun(self: CardDef, name: '效果-来源-被抵消', handler: fun(card: Card, ask: AskOffsetCard): any): CardDef # 主人发起的那次生效被抵消了；要驳回就用 `ask:cancel(原因)`（不会返回）
+---@field event fun(self: CardDef, name: '效果-目标-能否生效', handler: fun(card: Card, effect: Effect): any): CardDef # 被问的是不是主人自己（`effect.to`）；回调返回字符串就是否决原因
+---@field event fun(self: CardDef, name: '阶段-开始', handler: fun(card: Card, phase: Phase): any): CardDef
+---@field event fun(self: CardDef, name: '效果-收尾', handler: fun(card: Card, effect: Effect): any): CardDef
+---@field event fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '游戏-开始', handler: fun(card: Card, event: Game.Event.游戏开始): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '卡牌-结算前', handler: fun(card: Card, useCard: UseCard|UseCardToCard): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '卡牌-能否使用', handler: fun(card: Card, check: Game.Event.卡牌能否使用): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '效果-收尾', handler: fun(card: Card, effect: Effect): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '阶段-开始', handler: fun(card: Card, phase: Phase): any): CardDef
+---@field globalEvent fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef
 
 --- 状态的时机是**固定**的：名字由内核约定、与启用的包无关（清单以本文件为准，不留 string 兜底）
 ---@class BuffDef

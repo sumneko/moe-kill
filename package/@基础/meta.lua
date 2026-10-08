@@ -121,3 +121,27 @@
 ---@field globalEvent fun(self: SkillDef, name: '判定-前', handler: fun(skill: Skill, judge: Judge): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '判定-后', handler: fun(skill: Skill, judge: Judge): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
+
+--- 牌订阅时机的声明（与技能同形）：`event` 订**这张牌的主人**那份（`owner:on`）、`globalEvent` 订局那份（`game:on`）—— **只做订阅**，要不要发动由回调自己写（`card:cast(…)`）
+--- 内容侧时机（伤害 / 治疗）在这里按名收窄载荷
+---@class CardDef
+---@field event fun(self: CardDef, name: '伤害-目标-开始', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '伤害-目标-生效前', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '伤害-目标-生效后', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '伤害-目标-结束', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '伤害-来源-开始', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '伤害-来源-生效前', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '伤害-来源-生效后', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '伤害-来源-结束', handler: fun(card: Card, damage: Damage): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-目标-开始', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-目标-生效前', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-目标-生效后', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-目标-结束', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-来源-开始', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-来源-生效前', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-来源-生效后', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: '治疗-来源-结束', handler: fun(card: Card, heal: Heal): any): CardDef
+---@field event fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '判定-前', handler: fun(card: Card, judge: Judge): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '判定-后', handler: fun(card: Card, judge: Judge): any): CardDef
+---@field globalEvent fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef

@@ -21,6 +21,11 @@
 ---@field card Card # 要用的牌
 ---@field targets Card[] # 发起方要对的那批牌
 
+--- 一次「订阅时机」的声明（`: event(…)` / `: globalEvent(…)` 的形状）：时机到就把载荷原样转给回调（第一参补上这张牌）
+---@class CardDef.EventDecl
+---@field name string # 时机名
+---@field handler fun(card: Card, ...: any): any # 回调（返回值照原样交回发时机的那个 `fire`）
+
 ---@class CardDef
 ---@field name string # 裸名
 ---@field public package string # 所属包名（显式写 public：否则 package 会被当成访问修饰符）
@@ -33,6 +38,8 @@
 ---@field private kindSet table<string, true> # 分类去重用
 ---@field private values table<string, any> # 这张牌自带的数据
 ---@field private viewAsList ViewAs.Decl[] # 声明过的「视为」（`viewAs()` 声明）
+---@field private events CardDef.EventDecl[] # 订在主人头上的时机（`event()` 声明）
+---@field private globalEvents CardDef.EventDecl[] # 订在局上的时机（`globalEvent()` 声明）
 ---@field targetCondition? CardDef.TargetCondition # 目标条件（`targets()` 声明；不声明 = 没有「对角色使用」这一支）
 ---@field cardTargetCondition? CardDef.CardTargetCondition # 对牌目标条件（`cardTargets()` 声明；不声明 = 进不了「对牌使用」那一支）
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
@@ -52,12 +59,14 @@ function CardDef:__init(game, name, owner, source)
     self.package  = owner
     self.fullName = owner .. '.' .. name
     self.source   = source
-    self.handlers = {}
-    self.limits   = {}
-    self.kinds    = {}
-    self.kindSet  = {}
-    self.values   = {}
-    self.viewAsList = {}
+    self.handlers     = {}
+    self.limits       = {}
+    self.kinds        = {}
+    self.kindSet      = {}
+    self.values       = {}
+    self.viewAsList   = {}
+    self.events       = {}
+    self.globalEvents = {}
 end
 
 --- 登记这张牌的一个钩子
@@ -244,6 +253,35 @@ end
 ---@return ViewAs.Decl[] # 声明过的「视为」（快照，按声明顺序）
 function CardDef:getViewAsList()
     return moe.util.copy(self.viewAsList)
+end
+
+--- 订阅一个时机（可多次调）：被动启用时内核把它挂在**这张牌的主人头上**（所在区的 `owner`），停用 / 离场 / 换主人自动跟
+--- 只做订阅与生命周期；**要不要发动（`card:cast(…)`）由回调自己写**（时机到就调，内核不替它问）
+---@param name string # 时机名
+---@param handler fun(card: Card, ...: any): any # 时机到的回调（载荷原样给，返回值也原样交回）
+---@return CardDef
+function CardDef:event(name, handler)
+    self.events[#self.events + 1] = { name = name, handler = handler }
+    return self
+end
+
+--- 订阅一个**局上**的时机（可多次调）：形状与 `event` 一样，只是挂在局上（`game:on`）
+---@param name string # 时机名
+---@param handler fun(card: Card, ...: any): any # 时机到的回调（载荷原样给，返回值也原样交回）
+---@return CardDef
+function CardDef:globalEvent(name, handler)
+    self.globalEvents[#self.globalEvents + 1] = { name = name, handler = handler }
+    return self
+end
+
+---@return CardDef.EventDecl[] # 订在主人头上的时机（快照，按声明顺序）
+function CardDef:getEventList()
+    return moe.util.copy(self.events)
+end
+
+---@return CardDef.EventDecl[] # 订在局上的时机（快照，按声明顺序）
+function CardDef:getGlobalEventList()
+    return moe.util.copy(self.globalEvents)
 end
 
 --- 声明这张牌必须从哪个牌区用（重复调以后写的为准）

@@ -128,6 +128,22 @@ function M:applyPassive()
             end
             host:bindGC(viewAs)
         end
+        for _, decl in ipairs(self.def:getEventList()) do
+            host:bindGC(owner:on(decl.name, self:makeEventCallback(decl)))
+        end
+    end
+    for _, decl in ipairs(self.def:getGlobalEventList()) do
+        host:bindGC(self.game:on(decl.name, self:makeEventCallback(decl)))
+    end
+end
+
+--- 把声明里的回调包一层：第一参补上这张牌，载荷与返回值都原样转
+---@private
+---@param decl CardDef.EventDecl
+---@return function
+function M:makeEventCallback(decl)
+    return function (...)
+        return decl.handler(self, ...)
     end
 end
 

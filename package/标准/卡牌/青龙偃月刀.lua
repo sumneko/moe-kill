@@ -5,27 +5,23 @@
 Card '青龙偃月刀'
     : extends '武器牌'
     : value('攻击范围', 3)
-    : on('被动', function (card, zone, host)
-        local owner = zone.owner
-        if not owner then
+    : event('效果-来源-被抵消', function (card, ask)
+        if ask.reason ~= '杀' or ask.card?.name ~= '闪' then
             return
         end
-        host:bindGC(owner:on('效果-来源-被抵消', function (ask)
-            if ask.reason ~= '杀' or ask.card?.name ~= '闪' then
-                return
-            end
-            local killer = ask.parent
-            if not killer or killer.kind ~= 'cardEffect' then
-                return
-            end
-            ---@cast killer CardEffect
-            -- 再对其使用一张【杀】：无视距离、不受次数限制、不计入次数（不答 = 不发动）
-            card:cast(function ()
-                game:askUseCard(owner, '青龙偃月刀', { name = '杀', target = killer.target }, {
-                    ignoreDistance = true,
-                    ignoreUseLimit = true,
-                    notCounted     = true,
-                })
-            end)
-        end))
+        local killer = ask.parent
+        if not killer or killer.kind ~= 'cardEffect' then
+            return
+        end
+        ---@cast killer CardEffect
+        local zone  = assert(card:getZone())
+        local owner = assert(zone.owner)
+        -- 再对其使用一张【杀】：无视距离、不受次数限制、不计入次数（不答 = 不发动）
+        card:cast(function ()
+            game:askUseCard(owner, '青龙偃月刀', { name = '杀', target = killer.target }, {
+                ignoreDistance = true,
+                ignoreUseLimit = true,
+                notCounted     = true,
+            })
+        end)
     end)

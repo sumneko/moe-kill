@@ -29,6 +29,15 @@ Card '无撤销'
     : on('被动', function (card, zone)
         game:setValue('无撤销应用', (game:getValue('无撤销应用') or 0) + 1)
     end)
+Card '订自己'
+    : event('测试-时机', function (card, value)
+        game:setValue('收到', value)
+        game:setValue('记下的牌', card)
+    end)
+Card '订局上'
+    : globalEvent('测试-全局', function (card, value)
+        game:setValue('收到', value)
+    end)
 ]]
 
 ---@return unknown # 配 <close> 用
@@ -277,4 +286,58 @@ lt.test('牌：一个被动挂两份资源，停用时都释放', function ()
     card:disablePassive()
     lt.assertEquals('第一份释放了', 1, game:getValue('第一份'))
     lt.assertEquals('第二份也释放了', 1, game:getValue('第二份'))
+end)
+
+lt.test('牌：event 订主人头上的时机', function ()
+    local guard <close> = useProbe()
+    local game = newGame()
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    local card = game:createCard('订自己')
+    player:getZone('手牌'):accept(card)
+    card:enablePassive()
+
+    player:fire('测试-时机', '甲')
+    lt.assertEquals('主人头上那份收得到', '甲', game:getValue('收到'))
+    lt.assertEquals('回调拿到的是这张牌', card, game:getValue('记下的牌'))
+
+    game:fire('测试-时机', '乙')
+    lt.assertEquals('订的是主人那份（局上那份收不到）', '甲', game:getValue('收到'))
+
+    card:disablePassive()
+    player:fire('测试-时机', '丙')
+    lt.assertEquals('停用后收不到', '甲', game:getValue('收到'))
+
+    card:enablePassive()
+    player:fire('测试-时机', '丁')
+    lt.assertEquals('重新启用又收得到', '丁', game:getValue('收到'))
+end)
+
+lt.test('牌：globalEvent 订局上的时机', function ()
+    local guard <close> = useProbe()
+    local game = newGame()
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    local card = game:createCard('订局上')
+    player:getZone('手牌'):accept(card)
+    card:enablePassive()
+
+    game:fire('测试-全局', '甲')
+    lt.assertEquals('局上那份收得到', '甲', game:getValue('收到'))
+
+    player:fire('测试-全局', '乙')
+    lt.assertEquals('订的是局那份（主人那份收不到）', '甲', game:getValue('收到'))
+
+    card:disablePassive()
+    game:fire('测试-全局', '丙')
+    lt.assertEquals('停用后收不到', '甲', game:getValue('收到'))
+end)
+
+lt.test('牌：没有主人时不订主人那份（也不报错）', function ()
+    local guard <close> = useProbe()
+    local game = newGame()
+    local card = game:createCard('订自己')
+    game:getZone('弃牌'):accept(card)
+
+    card:enablePassive()
+    game:fire('测试-时机', '甲')
+    lt.assertEquals('订在主人头上的没处可订 ⇒ 不收', nil, game:getValue('收到'))
 end)

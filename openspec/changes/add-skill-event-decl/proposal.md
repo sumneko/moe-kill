@@ -30,8 +30,9 @@ Skill '集智'
 - **两条口径**（写进文档）：
   1. `event` 订自己 / `globalEvent` 订局，**不可互换**（【鬼才】的 `'判定-前'`、洛神的 `'判定-后'` 都是订局）；
   2. **条件写在 `tryCast` 之前** —— `event` 只转发、内核不替技能问，所以「不满足条件就不问」照旧成立（把条件挪到询问之后会让无关触发也被问一次）。
-- **武将技能全迁**（11 处订阅：奸雄 / 集智 / 奇才 / 克己 / 铁骑 / 鬼才 / 反馈 / 刚烈 / 裸衣 / 洛神×2）；装备侧（`CardDef`）另批。
-- 类型面：`SkillDef` 的 `event` / `globalEvent` 按名收窄 —— **内核**时机的候选在 `loader/env-meta.lua`，**内容侧**时机（伤害 / 治疗 / 判定）的候选同步补进 `package/@基础/meta.lua`。
+- **武将技能全迁**（11 处订阅：奸雄 / 集智 / 奇才 / 克己 / 铁骑 / 鬼才 / 反馈 / 刚烈 / 裸衣 / 洛神×2）。
+- **牌侧同名能力（2026-10-09 同一批追加，用户「提交，然后改卡牌」）**：`CardDef:event(名, 回调)` / `: globalEvent(名, 回调)` 与技能那对**逐字同形**（`event` 订**这张牌的主人**头上那份 —— 牌不在谁名下就跳过；`globalEvent` 订局）；装备 **7 处订阅迁移**（青釭剑 / 雌雄双股剑 / 方天画戟 / 贯石斧 / 麒麟弓 / 青龙偃月刀 / 仁王盾），**3 处持续性修正保留 `'被动'`**（`武器牌` / `坐骑牌` 的 `addAttr`、【诸葛连弩】的 `addLimit`）。
+- 类型面：`SkillDef` / `CardDef` 的 `event` / `globalEvent` 按名收窄 —— **内核**时机的候选在 `loader/env-meta.lua`，**内容侧**时机（伤害 / 治疗 / 判定）的候选同步补进 `package/@基础/meta.lua` 的两块。
 
 ## Capabilities
 
@@ -45,9 +46,9 @@ Skill '集智'
 
 ## Impact
 
-- **内核**：`server/core/skill.lua`（两个声明 + `Skill:applyPassive()` 照声明挂）。
-- **内容侧**：`package/标准/武将/**`（11 处订阅迁移）、`package/@基础/meta.lua`（本包时机的 `event` / `globalEvent` 候选）。
+- **内核**：`server/core/skill.lua`（两个声明 + `Skill:applyPassive()` 照声明挂）、`server/core/game.lua`（`CardDef` 的同名两个声明 + 读法）、`server/core/card.lua`（`Card:applyPassive()` 照声明挂 + `makeEventCallback`）。
+- **内容侧**：`package/标准/武将/**`（11 处订阅迁移）、`package/标准/卡牌/**`（装备 7 处订阅迁移）、`package/@基础/meta.lua`（本包时机的 `SkillDef` / `CardDef` 候选）。
 - **类型面**：`server/core/loader/env-meta.lua`。
-- **用例**：`server/test/core/skill.lua`。
-- **文档**：`moe-kill-dev/references/architecture.md` §12、`sanguosha-rules/SKILL.md` §9.15、`moe-kill-dev/references/progress.md` §1。
-- **不动**：装备侧（`CardDef`，另批）、协议层。
+- **用例**：`server/test/core/skill.lua`、`server/test/core/card.lua`。
+- **文档**：`moe-kill-dev/references/architecture.md` §12、`sanguosha-rules/SKILL.md` §9.11 / §9.15、`moe-kill-dev/references/progress.md` §1。
+- **不动**：协议层。
