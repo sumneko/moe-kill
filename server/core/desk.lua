@@ -99,38 +99,71 @@ function M:getNext(player)
     return nil
 end
 
---- 按行动顺序依次给出下一个角色（迭代器）：只给参与行动的（阵亡者总是跳过）
----@param allowed Player[]? # 再收窄到这批角色（不传表示不额外收窄）
----@param from Player? # 从谁开始，不传表示从顺序锚点开始（当前回合角色，回合结束后是上一个；都没开过回合就从 1 号位起）
----@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
-function M:actionOrder(allowed, from)
+--- 按行动顺序排好的一批角色（起点先、绕一圈；同一个角色写几次就排几次，同一角色占多个座位只算一趟）
+---@param allowed Player[]? # 要排的角色（不传 = 桌上所有参与行动的）
+---@param from? Player # 从谁开始（省略 = 顺序锚点）
+---@return Player[]
+function M:sortPlayers(allowed, from)
     from = from or self.game.turnPlayer or self.game.lastTurnPlayer or self.players[1]
     local start = self:getIndex(from)
     if not start then
         error('这个玩家不在这张桌子上', 2)
     end
-    ---@type table<Player, boolean>?
-    local allowedSet = nil
-    if allowed then
-        allowedSet = {}
-        for _, player in ipairs(allowed) do
-            allowedSet[player] = true
+    ---@type table<Player, integer> # 每个角色排在第几位（同一个角色取离起点最近的那个座位）
+    local ranks = {}
+    for index = 1, self.count do
+        local player = self.seats[index]
+        if player then
+            local rank = (index - start) % self.count
+            local old  = ranks[player]
+            if not old or rank < old then
+                ranks[player] = rank
+            end
         end
     end
-    ---@type table<Player, boolean>
-    local visited = {}
-    local step    = 0
+    ---@type Player[]
+    local list = {}
+    if allowed then
+        for _, player in ipairs(allowed) do
+            if player.acting and ranks[player] then
+                list[#list + 1] = player
+            end
+        end
+    else
+        ---@type table<Player, boolean>
+        local seen = {}
+        for index = 1, self.count do
+            local player = self.seats[index]
+            if player and player.acting and not seen[player] then
+                seen[player] = true
+                list[#list + 1] = player
+            end
+        end
+    end
+    table.sort(list, function (a, b)
+        return ranks[a] < ranks[b]
+    end)
+    return list
+end
+
+--- 按行动顺序依次给出下一个角色（迭代器）：只给参与行动的（阵亡者总是跳过）
+---@param allowed Player[]? # 再收窄到这批角色（不传表示不额外收窄；**同一个角色写几次就给几次** —— 用牌的目标列表允许重复）
+---@param from Player? # 从谁开始，不传表示从顺序锚点开始（当前回合角色，回合结束后是上一个；都没开过回合就从 1 号位起）
+---@return fun(): Player? # 按行动顺序依次给出下一个角色（绕回自己就结束）
+function M:actionOrder(allowed, from)
+    local list = self:sortPlayers(allowed, from)
+    local step = 0
     return function ()
-        while step < self.count do
-            local player = self.seats[(start - 1 + step) % self.count + 1]
+        while true do
             step = step + 1
-            if player and player.acting and not visited[player]
-                and (not allowedSet or allowedSet[player]) then
-                visited[player] = true
+            local player = list[step]
+            if not player then
+                return nil
+            end
+            if player.acting then
                 return player
             end
         end
-        return nil
     end
 end
 

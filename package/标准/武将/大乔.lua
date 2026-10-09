@@ -40,6 +40,8 @@ Skill '流离'
         end
         skill:cast(function ()
             game:moveCard(ask.cards, '弃牌')
-            useCard:replaceTarget(owner, ask.target)
+            -- 官方「转移」：取消此目标，再生成一个新目标加入目标列表
+            useCard:removeTarget(owner)
+            useCard:addTarget(ask.target)
         end)
     end)

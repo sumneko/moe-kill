@@ -802,6 +802,21 @@ function m.arrayToHash(l)
     return t
 end
 
+---@generic T
+---@param array T[]
+---@param filter fun(item: T): boolean
+---@return T[]
+function m.arrayFilter(array, filter)
+    local result = {}
+    for i = 1, #array do
+        local item = array[i]
+        if filter(item) then
+            result[#result+1] = item
+        end
+    end
+    return result
+end
+
 ---@class switch
 ---@field cachedCases string[]
 ---@field map table<string, function>
@@ -1156,9 +1171,9 @@ function m.tableExtends(a, b, recursive)
     end
 end
 
----@generic K, V
----@param source table<K, V>
----@return table<K, V> # 浅拷贝（改它不影响原表）
+---@generic T: table
+---@param source T
+---@return T # 浅拷贝（改它不影响原表）
 function m.copy(source)
     local result = {}
     for key, value in pairs(source) do

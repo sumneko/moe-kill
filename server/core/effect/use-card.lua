@@ -6,6 +6,8 @@
 ---@field useOptions? Game.UseOptions # 这次使用的选项（放行 / 记账用）
 
 ---@class UseCard : Effect
+---@field targets Player[] # 这次使用的目标：一开始是**预选**（答复 / 调用方给的），进「成为目标时」起就是**最终目标列表**
+---@field private targetsPending? (Player|false)[] # 生成期间那条排好的序列（`false` = 已被取消的位置）
 ---@field useOptions? Game.UseOptions # 这次使用的选项
 local M = Class 'UseCard'
 
@@ -99,21 +101,29 @@ function M:isResponseBanned(target)
     return banned ~= nil and moe.util.arrayHas(banned, target)
 end
 
---- 把这次使用的一个目标换成别人（新目标照「成为目标」再发一遍三份时机）
----@param from Player # 被换掉的目标（必须已经在这次使用的目标里）
----@param to Player # 换上的新目标
+--- 取消这个角色的一次「成为目标」（只在生成期间有效；同一个角色的重复条目一次撤一条）
+---@param target Player
 ---@return UseCard
-function M:replaceTarget(from, to)
-    for i, target in ipairs(self.targets) do
-        if target == from then
-            self.targets[i] = to
-            self.game:fire('卡牌-指定目标后', self, to)
-            self.user:fire('卡牌-来源-指定目标后', self, to)
-            to:fire('卡牌-目标-指定目标后', self, to)
-            return self
+function M:removeTarget(target)
+    if self.targetsPending then
+        for i, t in ipairs(self.targetsPending) do
+            if t == target then
+                self.targetsPending[i] = false
+                break
+            end
         end
     end
-    error('这个角色不是这次使用的目标', 2)
+    return self
+end
+
+--- 这个角色也成为这次使用的目标（只在生成期间有效：追加到末尾，本条时机结束后剩下的按行动顺序重排）
+---@param target Player
+---@return UseCard
+function M:addTarget(target)
+    if self.targetsPending then
+        self.targetsPending[#self.targetsPending + 1] = target
+    end
+    return self
 end
 
 ---@async
@@ -135,12 +145,42 @@ function M:settle()
     self.game:moveCard(self.card, self:getTempZone())
     self.game:fire('卡牌-结算前', self)
     self.user:fire('卡牌-来源-结算前', self)
-    -- 指定目标后：逐目标发三份（全局 → 使用者 → 目标），在牌的结算（'使用' 钩子）之前
-    for target in self.game.desk:actionOrder(self.targets) do
+
+    self.targetsPending = self.game.desk:sortPlayers(self.targets)
+    local targetsPendingNum = #self.targetsPending
+    for i = 1, 1000 do
+        local target = self.targetsPending[i]
+        if target == nil then
+            break
+        end
+        if target == false then
+            goto continue
+        end
         self.game:fire('卡牌-指定目标后', self, target)
         self.user:fire('卡牌-来源-指定目标后', self, target)
         target:fire('卡牌-目标-指定目标后', self, target)
+
+        if targetsPendingNum < #self.targetsPending then
+            -- 被追加了目标，后面重新排序
+            local after = moe.util.arrayFilter(table.move(self.targetsPending, i + 1, #self.targetsPending, 1, {}), function (item)
+                return item ~= false
+            end)
+            after = self.game.desk:sortPlayers(after)
+            targetsPendingNum = i + #after
+            table.move(after, 1, #after, i + 1, self.targetsPending)
+            for j = targetsPendingNum + 1, #self.targetsPending do
+                self.targetsPending[j] = nil
+            end
+        end
+
+        ::continue::
     end
+
+    self.targets = moe.util.arrayFilter(self.targetsPending, function (item)
+        return item ~= false
+    end)
+    self.targetsPending = nil
+
     self.card:fireHandlers('使用', self)
     if not self.card.def.skipsEffect then
         for target in self.game.desk:actionOrder(self.targets) do

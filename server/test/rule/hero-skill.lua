@@ -3218,3 +3218,38 @@ lt.test('流离：攻击范围内没有合法目标时，连问都不问', funct
     lt.assertEquals('没问', 0, asked)
     lt.assertEquals('照常挨 1 点', 2, daqiao:getAttr('体力'))
 end)
+
+lt.test('流离：转给本次【杀】已有的目标 ⇒ 那人挨两刀', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local user   = run.players[1]
+    local daqiao = run.players[2]
+    local other  = run.players[3]
+
+    -- 攻击范围 2 才能连 3 号位一起打；而他在大乔的攻击范围内（座位 2 → 3）
+    user:setAttr('攻击范围', 2)
+    -- 让这次的【杀】能多指定一个目标（模拟方天画戟那类「额外目标数」）
+    user:on('卡牌-来源-使用选项', function ()
+        return { extraTargets = 1 }
+    end)
+
+    local slash = takeCard(run, user, '杀')
+    local cost  = takeCard(run, daqiao, '闪')
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCardWithTarget' and ask.to == daqiao then
+            return { card = cost, targets = other }
+        end
+    end)
+
+    local before = other:getAttr('体力')
+    local use    = run.game:useCard(user, slash, { daqiao, other })
+
+    lt.assertEquals('用出去了', nil, use.err)
+    lt.assertEquals('大乔没被打', 3, daqiao:getAttr('体力'))
+    lt.assertEquals('代替她的那人挨了两刀', before - 2, other:getAttr('体力'))
+    lt.assertEquals('弃掉的那张在弃牌堆里', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), cost))
+end)

@@ -1095,7 +1095,7 @@ lt.test('定义：基类的数据被抄过来，抄完就脱钩', function ()
     lt.assertEquals('抄完就脱钩：子类后加的不会跑到基类', nil, base:getValue('新加的一条'))
 end)
 
-lt.test('使用：换目标之后，生效跑新目标、旧目标不生效', function ()
+lt.test('使用：取消一条目标、追加一条 ⇒ 生效跑新目标、旧目标不生效', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
@@ -1113,7 +1113,8 @@ Card '测试杀'
     game:on('卡牌-指定目标后', function (current, to)
         ---@cast current UseCard
         if to == target then
-            current:replaceTarget(target, third)
+            current:removeTarget(target)
+            current:addTarget(third)
         end
     end)
 
@@ -1123,7 +1124,7 @@ Card '测试杀'
     lt.assertEquals('换上的生效一次', 1, third:getTag('挨打'))
 end)
 
-lt.test('使用：换上的新目标照「成为目标」再发一遍三份时机', function ()
+lt.test('使用：追加的新目标照「成为目标」再发一遍三份时机', function ()
     local guard <close> = useProbe()
     write('探针/牌.lua', [[
 Card '测试杀'
@@ -1149,7 +1150,8 @@ Card '测试杀'
     game:on('卡牌-指定目标后', function (current, to)
         ---@cast current UseCard
         if to == target then
-            current:replaceTarget(target, third)
+            current:removeTarget(target)
+            current:addTarget(third)
         end
     end)
 
@@ -1158,4 +1160,97 @@ Card '测试杀'
     lt.assertEquals('全局那份发了两次（原目标 + 新目标）', 2, #globalGot)
     lt.assertEquals('第二次发的是新目标', third, globalGot[2])
     lt.assertEquals('新目标收到他自己那份', 1, thirdGot)
+end)
+
+lt.test('使用：目标列表里同一个人出现两次 ⇒ 就结算两次（顺序仍按行动顺序）', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : targets { max = 2 }
+    : on('生效', function (cardEffect)
+        cardEffect.target:setTag('挨打', (cardEffect.target:getTag('挨打') or 0) + 1)
+    end)
+]])
+
+    local game, user, target, hand, players = newGame(3)
+    local third = players[3]
+    local card  = game:createCard('测试杀')
+    hand:accept(card)
+
+    game:on('卡牌-指定目标后', function (current, to)
+        ---@cast current UseCard
+        if to == target then
+            current:removeTarget(target)
+            current:addTarget(third)
+        end
+    end)
+
+    game:useCard(user, card, { target, third })
+
+    lt.assertEquals('追加进来的那人挨两次', 2, third:getTag('挨打'))
+    lt.assertEquals('被取消的那人没生效', 0, target:getTag('挨打') or 0)
+end)
+
+lt.test('使用：追加的目标按行动顺序排进「还没成为目标」的那批', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : targets { max = 2 }
+]])
+
+    local game, user, _, hand, players = newGame(4)
+    local first  = players[2]
+    local second = players[3]
+    local third  = players[4]
+    local card   = game:createCard('测试杀')
+    hand:accept(card)
+
+    ---@type Player[]
+    local order = {}
+    game:on('卡牌-指定目标后', function (current, to)
+        ---@cast current UseCard
+        order[#order + 1] = to
+        if to == first then
+            current:removeTarget(first)
+            current:addTarget(second)
+        end
+    end)
+
+    game:useCard(user, card, { first, third })
+
+    ---@type string[]
+    local seats = {}
+    for _, player in ipairs(order) do
+        seats[#seats + 1] = tostring(game.desk:getIndex(player))
+    end
+    lt.assertEquals('追加的那个人插到了还没轮到的目标前面', '2,3,4', table.concat(seats, ','))
+end)
+
+lt.test('使用：追加的目标跟剩下的一起按行动顺序排，不是塞在当前之后', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : targets { max = 2 }
+]])
+
+    local game, user, _, hand, players = newGame(5)
+    local first  = players[3]
+    local third  = players[5]
+    local early  = players[2]
+    local card   = game:createCard('测试杀')
+    hand:accept(card)
+
+    ---@type string[]
+    local seats = {}
+    game:on('卡牌-指定目标后', function (current, to)
+        ---@cast current UseCard
+        seats[#seats + 1] = tostring(game.desk:getIndex(to))
+        if to == first then
+            current:addTarget(early)
+        end
+    end)
+
+    game:useCard(user, card, { first, third })
+
+    lt.assertEquals('行动顺序靠前的那个人排到前面去了', '3,2,5', table.concat(seats, ','))
 end)
