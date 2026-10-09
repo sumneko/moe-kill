@@ -42,7 +42,7 @@ rule = nil
 ---@field event fun(self: CardDef, name: '卡牌-来源-指定目标后', handler: fun(card: Card, useCard: UseCard, target: Player): any): CardDef
 ---@field event fun(self: CardDef, name: '卡牌-目标-指定目标后', handler: fun(card: Card, useCard: UseCard, target: Player): any): CardDef # 主人自己被指定为目标后（逐目标；全局那份之外、对目标再发一份）
 ---@field event fun(self: CardDef, name: '卡牌-目标-能否指定', handler: fun(card: Card, plan: CardDef.TargetPlan): any): CardDef # 别人要用牌指定主人时问一句（返回非空 = 不能指定他）
----@field event fun(self: CardDef, name: '效果-来源-被抵消', handler: fun(card: Card, ask: AskOffsetCard): any): CardDef # 主人发起的那次生效被抵消了；要驳回就用 `ask:cancel(原因)`（不会返回）
+---@field event fun(self: CardDef, name: '效果-来源-被响应', handler: fun(card: Card, ask: AskPlayCard): any): CardDef # 主人发起的那次生效被响应了（算不算抵消由内容侧自己按缘由 / 牌名判）；要驳回就用 `ask:cancel(原因)`（不会返回）
 ---@field event fun(self: CardDef, name: '效果-来源-能否生效', handler: fun(card: Card, effect: Effect): any): CardDef # 询问要不要阻止这一次生效（第二段：问来源，`effect.from`）；返回非 nil 即阻止
 ---@field event fun(self: CardDef, name: '效果-目标-能否生效', handler: fun(card: Card, effect: Effect): any): CardDef # 被问的是不是主人自己（`effect.to`）；回调返回字符串就是否决原因
 ---@field event fun(self: CardDef, name: '阶段-开始', handler: fun(card: Card, phase: Phase): any): CardDef
@@ -57,7 +57,7 @@ rule = nil
 ---@field globalEvent fun(self: CardDef, name: '卡牌-指定目标后', handler: fun(card: Card, useCard: UseCard, target: Player): any): CardDef # 逐目标发（全局那份）
 ---@field globalEvent fun(self: CardDef, name: '卡牌-能否使用', handler: fun(card: Card, check: Game.Event.卡牌能否使用): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '效果-能否生效', handler: fun(card: Card, effect: Effect): any): CardDef # 询问要不要阻止这一次生效（第一段：问全局）；返回非 nil 即阻止
----@field globalEvent fun(self: CardDef, name: '效果-被抵消', handler: fun(card: Card, ask: AskOffsetCard): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '效果-被响应', handler: fun(card: Card, ask: AskPlayCard): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '效果-收尾', handler: fun(card: Card, effect: Effect): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '玩家-死亡', handler: fun(card: Card, player: Player): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '回合-开始', handler: fun(card: Card, turn: Game.Event.Turn): any): CardDef
@@ -99,7 +99,7 @@ rule = nil
 ---@field globalEvent fun(self: SkillDef, name: '卡牌-指定目标后', handler: fun(skill: Skill, useCard: UseCard, target: Player): any): SkillDef # 逐目标发（全局那份）
 ---@field globalEvent fun(self: SkillDef, name: '卡牌-能否使用', handler: fun(skill: Skill, check: Game.Event.卡牌能否使用): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '效果-能否生效', handler: fun(skill: Skill, effect: Effect): any): SkillDef # 询问要不要阻止这一次生效（第一段：问全局）；返回非 nil 即阻止
----@field globalEvent fun(self: SkillDef, name: '效果-被抵消', handler: fun(skill: Skill, ask: AskOffsetCard): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '效果-被响应', handler: fun(skill: Skill, ask: AskPlayCard): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '玩家-死亡', handler: fun(skill: Skill, player: Player): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '回合-开始', handler: fun(skill: Skill, turn: Game.Event.Turn): any): SkillDef
@@ -136,14 +136,14 @@ rule = nil
 ---@field fire fun(self: Game, name: '效果-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Game, name: '效果-收尾', callback: fun(effect: Effect): any): function # 每次结算结完都发一次（载荷 = 效果自己）
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
----@field on fun(self: Game, name: '效果-被抵消', callback: fun(ask: AskOffsetCard): any): function # 一次生效被响应牌抵消了（要驳回就在回调里 `ask:cancel(原因)` —— 调用后不会返回；本时机不读返回值）
----@field fire fun(self: Game, name: '效果-被抵消', ask: AskOffsetCard): any
----@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
----@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any # 返回值就是答复（`AskCard.Answer`；没人表态给空）
----@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
----@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard|AskOffsetCard): any
+---@field on fun(self: Game, name: '效果-被响应', callback: fun(ask: AskPlayCard): any): function # 一次生效被响应了（要驳回就在回调里 `ask:cancel(原因)` —— 调用后不会返回；本时机不读返回值）
+---@field fire fun(self: Game, name: '效果-被响应', ask: AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any # 返回值就是答复（`AskCard.Answer`；没人表态给空）
+---@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
 ---@field on fun(self: Game, name: '卡牌-使用选项', callback: fun(check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): function # 这次使用选项的全局那份（使用者身上还有一份）
@@ -207,7 +207,7 @@ rule = nil
 ---@field fire fun(self: Player, name: '卡牌-来源-指定目标后', useCard: UseCard, target: Player): any
 ---@field on fun(self: Player, name: '卡牌-目标-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 自己被指定为目标后（逐目标；全局那份之外、对目标再发一份）
 ---@field fire fun(self: Player, name: '卡牌-目标-指定目标后', useCard: UseCard, target: Player): any
----@field on fun(self: Player, name: '效果-来源-被抵消', callback: fun(ask: AskOffsetCard): any): function # 自己发起的那次生效被抵消了（全局那份之外、对来源再发一份）；要驳回就用 `ask:cancel(原因)`（不会返回）
----@field fire fun(self: Player, name: '效果-来源-被抵消', ask: AskOffsetCard): any
+---@field on fun(self: Player, name: '效果-来源-被响应', callback: fun(ask: AskPlayCard): any): function # 自己发起的那次生效被响应了（全局那份之外、对来源再发一份）；要驳回就用 `ask:cancel(原因)`（不会返回）
+---@field fire fun(self: Player, name: '效果-来源-被响应', ask: AskPlayCard): any
 ---@field on fun(self: Player, name: string, callback: fun(payload: any): any): function
 ---@field fire fun(self: Player, name: string, ...: any): any # 第一个回调明确给出的返回值（快速返回）

@@ -1050,33 +1050,15 @@ function M:askUseCardToCard(to, reason, condition)
 end
 
 --- 要一张打出的牌（答复的牌当场交出来，进发起这次结算的临时处理区）
+--- 给了 `responseTo` = 一次**响应**：没答上记「没有打出」；答复到手就算这次响应成立（发「被响应」两段时机）
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
 ---@param responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（如「这次响应冲哪次使用」）
----@return AskPlayCard # 这次询问（已经结完：答复读 `.card`，失败读 `.err`）
+---@return AskPlayCard # 这次询问（已经结完：答复读 `.card`，**响应成立吗读 `.success`**，失败读 `.err`）
 function M:askPlayCard(to, reason, condition, responseOptions)
     local ask = moe.askPlayCard.create {
-        game            = self,
-        to              = to,
-        reason          = reason,
-        condition       = condition,
-        responseOptions = responseOptions,
-    }
-    ask:apply():await()
-    return ask
-end
-
---- 要一张打出的牌来抵消（打出 = 抵消名义成立；发两段时机让外部驳回）
----@async
----@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
----@param responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（如「这次响应冲哪次使用」）
----@return AskOffsetCard # 这次询问（已经结完：**抵消最终成立吗读 `.success`**；打出读 `.card`，失败读 `.err`）
-function M:askOffsetCard(to, reason, condition, responseOptions)
-    local ask = moe.askOffsetCard.create {
         game            = self,
         to              = to,
         reason          = reason,

@@ -76,7 +76,7 @@ lt.test('杀：使用过程中记上「不能响应」就不问他出【闪】',
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askOffsetCard' then
+        if ask.reason == '杀' then
             asked = asked + 1
         end
     end)
@@ -111,7 +111,7 @@ lt.test('杀：记成谓词 ⇒ 只按这次的目标筛', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askOffsetCard' then
+        if ask.reason == '杀' then
             asked = asked + 1
         end
     end)
@@ -142,7 +142,7 @@ lt.test('杀：记成 true ⇒ 这次的目标都不能响应', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askOffsetCard' then
+        if ask.reason == '杀' then
             asked = asked + 1
         end
     end)
@@ -218,7 +218,7 @@ lt.test('杀：目标打出闪就不受伤，闪进弃牌', function ()
     lt.assertEquals('杀也进了弃牌', true, moe.util.arrayHas(discard, card))
 end)
 
-lt.test('杀：被闪抵消会发「效果-被抵消」两份（全局 → 来源）', function ()
+lt.test('杀：被闪响应会发「效果-被响应」两份（全局 → 来源）', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
@@ -227,13 +227,13 @@ lt.test('杀：被闪抵消会发「效果-被抵消」两份（全局 → 来�
 
     ---@type string[]
     local fired = {}
-    ---@type AskOffsetCard?
+    ---@type AskPlayCard?
     local seen = nil
-    run.game:on('效果-被抵消', function (ask)
+    run.game:on('效果-被响应', function (ask)
         fired[#fired + 1] = '全局'
         seen = ask
     end)
-    user:on('效果-来源-被抵消', function ()
+    user:on('效果-来源-被响应', function ()
         fired[#fired + 1] = '来源'
     end)
     run.game:on('卡牌-询问', function (ask)
@@ -243,8 +243,8 @@ lt.test('杀：被闪抵消会发「效果-被抵消」两份（全局 → 来�
     run.game:useCard(user, card, { target })
 
     lt.assertEquals('两份、全局先', '全局,来源', table.concat(fired, ','))
-    lt.assertEquals('载荷就是这次询问', 'askOffsetCard', assert(seen).kind)
-    lt.assertEquals('抵消成立：没掉血', 5, target:getAttr('体力'))
+    lt.assertEquals('载荷就是这次询问', 'askPlayCard', assert(seen).kind)
+    lt.assertEquals('响应成立：没掉血', 5, target:getAttr('体力'))
     lt.assertEquals('闪也打掉了', 0, target:getZone('手牌'):count())
 end)
 

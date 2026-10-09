@@ -116,7 +116,7 @@ lt.test('护驾：曹操被要【闪】时，令其他魏势力角色打出一�
     local kinds = {}
     run.game:on('卡牌-答复后', function (ask)
         kinds[#kinds + 1] = ask.kind
-        if ask.to == caocao and ask.kind == 'askOffsetCard' then
+        if ask.to == caocao and ask.reason == '杀' then
             answered = ask.card
         end
     end)
@@ -129,7 +129,14 @@ lt.test('护驾：曹操被要【闪】时，令其他魏势力角色打出一�
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), jink))
 
     lt.assertEquals('帮手那次只是「要一张牌」', true, moe.util.arrayHas(kinds, 'askCard'))
-    lt.assertEquals('没有多出一次「打出」', false, moe.util.arrayHas(kinds, 'askPlayCard'))
+    ---@type integer
+    local plays = 0
+    for _, kind in ipairs(kinds) do
+        if kind == 'askPlayCard' then
+            plays = plays + 1
+        end
+    end
+    lt.assertEquals('只有【杀】那一次「打出」，帮手那次不是', 1, plays)
 
     local answer = assert(answered, '曹操那边答上了')
     lt.assertEquals('答的是一张虚拟牌（曹操「打出」的）', true, answer.virtual)
@@ -271,10 +278,10 @@ lt.test('护驾：直接要【闪】也能发动（不经过【杀】）', funct
         end
     end)
 
-    local ask = run.game:askOffsetCard(caocao, '探针', { name = '闪' })
+    local ask = run.game:askPlayCard(caocao, '探针', { name = '闪' })
 
     lt.assertEquals('问过帮手了', true, asked)
-    lt.assertEquals('抵消成立', true, ask.success)
+    lt.assertEquals('响应成立', true, ask.success)
 end)
 
 lt.test('主动技：出牌阶段答「发动技能」那一路就发动', function ()
@@ -671,7 +678,7 @@ lt.test('武圣：技能停用后就不再提供「视为」', function ()
     lt.assertEquals('停用后声明跟着撤了', 0, #assert(after.options))
 end)
 
-lt.test('龙胆：把一张【杀】当【闪】打出，抵消那张【杀】', function ()
+lt.test('龙胆：把一张【杀】当【闪】打出，响应掉那张【杀】', function ()
     local run     = support.start { count = 2, packages = { '标准' } }
     local user    = run.players[1]
     local zhaoyun = run.players[2]
@@ -685,7 +692,7 @@ lt.test('龙胆：把一张【杀】当【闪】打出，抵消那张【杀】',
     ---@type Card?
     local played = nil
     run.game:on('卡牌-答复', function (ask)
-        if ask.kind == 'askOffsetCard' then
+        if ask.kind == 'askPlayCard' and ask.reason == '杀' then
             played = ask.card
         end
     end)
@@ -1303,7 +1310,7 @@ lt.test('洛神：判红就不拿，也不再问重复', function ()
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), decided))
 end)
 
-lt.test('倾国：把一张黑色手牌当【闪】打出，抵消那张【杀】', function ()
+lt.test('倾国：把一张黑色手牌当【闪】打出，响应掉那张【杀】', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local zhenji = run.players[2]
@@ -1318,7 +1325,7 @@ lt.test('倾国：把一张黑色手牌当【闪】打出，抵消那张【杀�
     ---@type Card?
     local played = nil
     run.game:on('卡牌-答复', function (ask)
-        if ask.kind == 'askOffsetCard' then
+        if ask.kind == 'askPlayCard' and ask.reason == '杀' then
             played = ask.card
         end
     end)
@@ -1780,7 +1787,7 @@ lt.test('铁骑：判红 ⇒ 目标出不了【闪】，照常挨 1 点', functi
     lt.assertEquals('这次使用记下了「他不能响应」', true, assert(used):isResponseBanned(foe))
 end)
 
-lt.test('铁骑：判黑 ⇒ 不成立，照常能出【闪】抵消', function ()
+lt.test('铁骑：判黑 ⇒ 不成立，照常能出【闪】响应', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local machao = run.players[1]
     local foe    = run.players[2]
@@ -1802,7 +1809,7 @@ lt.test('铁骑：判黑 ⇒ 不成立，照常能出【闪】抵消', function 
     local jink  = takeCard(run, foe, '闪')
 
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' and ask.kind == 'askOffsetCard' then
+        if ask.reason == '杀' then
             return { card = jink }
         end
     end)
@@ -1810,7 +1817,7 @@ lt.test('铁骑：判黑 ⇒ 不成立，照常能出【闪】抵消', function 
     local hpBefore = foe:getAttr('体力')
     run.game:useCard(machao, slash, { foe })
 
-    lt.assertEquals('闪抵消了，没掉血', hpBefore, foe:getAttr('体力'))
+    lt.assertEquals('闪响应掉了，没掉血', hpBefore, foe:getAttr('体力'))
 end)
 
 lt.test('铁骑：不发动 ⇒ 照常问他出不出【闪】', function ()

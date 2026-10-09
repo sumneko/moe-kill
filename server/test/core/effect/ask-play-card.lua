@@ -297,3 +297,225 @@ lt.test('打出：声明要的牌名对不上就不试', function ()
     lt.assertEquals('要的是【杀】，声明不参与', 0, tried)
     lt.assertEquals('走的是实体牌', slash, ask.card)
 end)
+
+--- 造一张「用出去」的牌当 `responseTo`（不真跑结算：只表达「这次响应冲哪次使用去的」）
+---@param game Game
+---@param players Player[]
+---@return UseCard
+local function newUseCard(game, players)
+    return moe.useCard.create {
+        game    = game,
+        user    = players[1],
+        card    = game:createCard('杀'),
+        targets = { players[2] },
+    }
+end
+
+lt.test('响应：打出 = 这次响应成立（读 .success）', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function ()
+        return { card = jink }
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('答复拿到了', jink, ask.card)
+    lt.assertEquals('响应成立', true, ask.success)
+end)
+
+lt.test('响应：没打出 = 不成立（原因写进 .err），也不发时机', function ()
+    local game, players = newGame(2)
+
+    ---@type integer
+    local fired = 0
+    game:on('效果-被响应', function ()
+        fired = fired + 1
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('没答上', nil, ask.card)
+    lt.assertEquals('不成立', false, ask.success)
+    lt.assertEquals('原因', '没有打出', ask.err)
+    lt.assertEquals('没打出就不发时机', 0, fired)
+end)
+
+lt.test('响应：没给 responseTo ⇒ 不算一次响应（两段时机都不发）', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function ()
+        return { card = jink }
+    end)
+
+    ---@type integer
+    local fired = 0
+    game:on('效果-被响应', function ()
+        fired = fired + 1
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' })
+
+    lt.assertEquals('答复照旧拿到', jink, ask.card)
+    lt.assertEquals('不算响应：不记失败', nil, ask.err)
+    lt.assertEquals('不发时机', 0, fired)
+end)
+
+lt.test('响应：订阅者在回调里 cancel = 驳回这次响应（调用后不返回）', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function ()
+        return { card = jink }
+    end)
+
+    ---@type boolean
+    local seen = false
+    ---@type boolean
+    local after = false
+    game:on('效果-被响应', function (ask)
+        seen = ask.card == jink
+        ask:cancel('测试驳回')
+        after = true
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('驳回时答复还读得到', true, seen)
+    lt.assertEquals('cancel 之后不会返回', false, after)
+    lt.assertEquals('被驳回：不成立', false, ask.success)
+    lt.assertEquals('驳回原因记在 .err', '测试驳回', ask.err)
+    lt.assertEquals('被驳回后没有结果', nil, ask.card)
+end)
+
+lt.test('响应：答复之后被驳回 ⇒ 这次响应不成立，时机也不发', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function ()
+        return { card = jink }
+    end)
+
+    ---@type integer
+    local fired = 0
+    game:on('效果-被响应', function ()
+        fired = fired + 1
+    end)
+    game:on('卡牌-答复后', function (ask)
+        ask:cancel('测试驳回')
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('被驳回：不成立', false, ask.success)
+    lt.assertEquals('驳回原因', '测试驳回', ask.err)
+    lt.assertEquals('时机没发', 0, fired)
+end)
+
+lt.test('响应：两段时机（全局 → 来源）', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function ()
+        return { card = jink }
+    end)
+
+    ---@type string[]
+    local fired = {}
+    game:on('效果-被响应', function ()
+        fired[#fired + 1] = '全局'
+    end)
+    players[1]:on('效果-来源-被响应', function ()
+        fired[#fired + 1] = '来源'
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('两份、全局先', '全局,来源', table.concat(fired, ','))
+    lt.assertEquals('响应成立', true, ask.success)
+end)
+
+lt.test('响应：这次响应被禁 ⇒ 拒收，连问都不问', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+
+    ---@type integer
+    local asked = 0
+    game:on('卡牌-询问', function ()
+        asked = asked + 1
+        return { card = jink }
+    end)
+
+    local useCard = newUseCard(game, players)
+    useCard:addUseOptions { unrespondable = players[2] }
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = useCard })
+
+    lt.assertEquals('手里有闪也没问', 0, asked)
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('不成立', false, ask.success)
+    lt.assertEquals('原因', '不能响应', ask.err)
+end)
+
+lt.test('响应：全局段驳回 ⇒ 来源段不再被问', function ()
+    local game, players = newGame(2)
+    local jink = game:createCard('闪')
+    putInHand(players[2], { jink })
+    game:on('卡牌-询问', function ()
+        return { card = jink }
+    end)
+
+    ---@type string[]
+    local fired = {}
+    game:on('效果-被响应', function (ask)
+        fired[#fired + 1] = '全局'
+        ask:cancel('全局驳回')
+    end)
+    players[1]:on('效果-来源-被响应', function ()
+        fired[#fired + 1] = '来源'
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('只发了全局那份', '全局', table.concat(fired, ','))
+    lt.assertEquals('被驳回：不成立', false, ask.success)
+    lt.assertEquals('驳回原因', '全局驳回', ask.err)
+end)
+
+lt.test('响应：答复不在候选里 = 拒收（复用既有口径）', function ()
+    local game, players = newGame(2)
+    local held = game:createCard('闪')
+    putInHand(players[2], { held })
+    local other = game:createCard('闪')
+    game:on('卡牌-询问', function ()
+        return { card = other }
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('没拿到答复', nil, ask.card)
+    lt.assertEquals('原因保留「不在可选项里」', '答复不在可选项里', ask.err)
+    lt.assertEquals('不成立', false, ask.success)
+end)
+
+lt.test('响应：声明成立的牌也算打出（两段时机照发）', function ()
+    local game, players = newGame(2)
+    players[2]:addViewAs('闪'):on('发动', function ()
+        return true
+    end)
+
+    ---@type Card?
+    local seen = nil
+    game:on('效果-被响应', function (ask)
+        seen = ask.card
+    end)
+
+    local ask = game:askPlayCard(players[2], '测试', { name = '闪' }, { responseTo = newUseCard(game, players) })
+
+    lt.assertEquals('答复是内核照声明造的虚拟牌', '闪', assert(ask.card).name)
+    lt.assertEquals('响应成立', true, ask.success)
+    lt.assertEquals('时机里拿到的就是那张', ask.card, seen)
+end)

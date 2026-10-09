@@ -11,7 +11,8 @@ Card '杀'
         end,
     }
     : on('生效', function (cardEffect, useCard)
-        local ask = game:askOffsetCard(cardEffect.target, '杀', { name = '闪' }, { responseTo = useCard })
+        -- 要一张打出的【闪】来响应这次生效；响应成立（含被驳回判定）读 .success
+        local ask = game:askPlayCard(cardEffect.target, '杀', { name = '闪' }, { responseTo = useCard })
         if ask.success then
             return
         end

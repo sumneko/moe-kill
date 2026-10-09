@@ -9,7 +9,7 @@ do
     local file = probeDir / '探针' / '牌.lua'
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
-Card '抵消牌'
+Card '可用牌'
     : cardTargets {}
 Card '受检牌'
     : cardTargets {}
@@ -58,7 +58,7 @@ lt.test('对牌使用：用一张牌，目标是一张牌', function ()
     local game, players = newGame(2)
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    local card = game:createCard('抵消牌')
+    local card = game:createCard('可用牌')
     hand:accept(card)
     local target = game:createCard('没声明牌')
 
@@ -75,7 +75,7 @@ lt.test('对牌使用：结算后拿得到目标牌与这次用牌', function ()
     local game, players = newGame(2)
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    local card = game:createCard('抵消牌')
+    local card = game:createCard('可用牌')
     hand:accept(card)
     local target = game:createCard('没声明牌')
 
@@ -109,7 +109,7 @@ lt.test('对牌使用：窗口里让出时，父结算也等它结完', function
     local user = players[1]
     local watcher = players[2]
     local hand = assert(user:getZone('手牌'))
-    local card = game:createCard('抵消牌')
+    local card = game:createCard('可用牌')
     hand:accept(card)
     local target = game:createCard('没声明牌')
 
@@ -162,7 +162,7 @@ end)
 lt.test('对牌使用：不在手上的牌不成立', function ()
     local game, players = newGame(2)
     local user = players[1]
-    local card = game:createCard('抵消牌')
+    local card = game:createCard('可用牌')
 
     local ok, reason = game:canUseToCard(user, card, game:createCard('没声明牌'))
     lt.assertEquals('不成立', false, ok)
@@ -196,11 +196,11 @@ lt.test('对牌使用：自己的阶段里用一次就记一次账', function ()
     local game, players = newGame(2)
     local user = players[1]
     local hand = assert(user:getZone('手牌'))
-    local card = game:createCard('抵消牌')
+    local card = game:createCard('可用牌')
     hand:accept(card)
     local phase <close> = game:enterPhase(user, '出牌')
 
     game:useCardToCard(user, card, game:createCard('没声明牌'))
 
-    lt.assertEquals('记在出牌阶段上', 1, phase:getUseCount('抵消牌'))
+    lt.assertEquals('记在出牌阶段上', 1, phase:getUseCount('可用牌'))
 end)

@@ -9,9 +9,9 @@ do
     local file = probeDir / '探针' / '牌.lua'
     fs.create_directories(file:parent_path())
     local ok, err = moe.util.saveFile(file:string(), [[
-Card '抵消牌'
+Card '可用牌'
     : cardTargets {}
-Card '另一张抵消牌'
+Card '另一张可用牌'
     : cardTargets {}
 Card '没声明牌'
 ]])
@@ -59,7 +59,7 @@ end
 
 lt.test('要对牌使用：候选逐张跑校验，选项带上目标牌', function ()
     local game, players = newGame(3)
-    local usable = game:createCard('抵消牌')
+    local usable = game:createCard('可用牌')
     local plain  = game:createCard('没声明牌')
     putInHand(players[1], { usable, plain })
     local target = game:createCard('没声明牌')
@@ -68,7 +68,7 @@ lt.test('要对牌使用：候选逐张跑校验，选项带上目标牌', funct
         return { card = usable }
     end)
 
-    local ask     = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
+    local ask     = game:askUseCardToCard(players[1], '没声明牌', { name = '可用牌', target = target })
     local options = assert(ask.options)
 
     lt.assertEquals('种类标识', 'askUseCardToCard', ask.kind)
@@ -79,7 +79,7 @@ end)
 
 lt.test('要对牌使用：答复多给目标会被拒收', function ()
     local game, players = newGame(3)
-    local usable = game:createCard('抵消牌')
+    local usable = game:createCard('可用牌')
     putInHand(players[1], { usable })
     local target = game:createCard('没声明牌')
 
@@ -87,15 +87,15 @@ lt.test('要对牌使用：答复多给目标会被拒收', function ()
         return { card = usable, targets = { players[2] } }
     end)
 
-    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
+    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '可用牌', target = target })
     lt.assertEquals('多给目标 ⇒ 不存在', nil, ask.card)
     lt.assertEquals('原因', '这次答复不该给目标', ask.err)
 end)
 
 lt.test('要对牌使用：答复不在选项里 ⇒ 拒收，牌不动', function ()
     local game, players = newGame(3)
-    local usable = game:createCard('抵消牌')
-    local other  = game:createCard('另一张抵消牌')
+    local usable = game:createCard('可用牌')
+    local other  = game:createCard('另一张可用牌')
     putInHand(players[1], { usable })
     local target = game:createCard('没声明牌')
 
@@ -103,14 +103,14 @@ lt.test('要对牌使用：答复不在选项里 ⇒ 拒收，牌不动', functi
         return { card = other }
     end)
 
-    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
+    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '可用牌', target = target })
     lt.assertEquals('不在选项里 ⇒ 不存在', nil, ask.card)
     lt.assertEquals('手上那张还在', true, moe.util.arrayHas(players[1]:getZone('手牌'):list(), usable))
 end)
 
 lt.test('要对牌使用：允许取消时，没人应答 ⇒ 不存在，不算失败', function ()
     local game, players = newGame(3)
-    local usable = game:createCard('抵消牌')
+    local usable = game:createCard('可用牌')
     putInHand(players[1], { usable })
     local target = game:createCard('没声明牌')
 
@@ -118,14 +118,14 @@ lt.test('要对牌使用：允许取消时，没人应答 ⇒ 不存在，不算
         return nil
     end)
 
-    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
+    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '可用牌', target = target })
     lt.assertEquals('没有答复', nil, ask.card)
     lt.assertEquals('不算失败', nil, ask.err)
 end)
 
 lt.test('要对牌使用：缘由与被问者原样带到应答方', function ()
     local game, players = newGame(3)
-    local usable = game:createCard('抵消牌')
+    local usable = game:createCard('可用牌')
     putInHand(players[2], { usable })
     local target = game:createCard('没声明牌')
 
@@ -136,7 +136,7 @@ lt.test('要对牌使用：缘由与被问者原样带到应答方', function ()
         return { card = usable }
     end)
 
-    local ask = game:askUseCardToCard(players[2], '没声明牌', { name = '抵消牌', target = target })
+    local ask = game:askUseCardToCard(players[2], '没声明牌', { name = '可用牌', target = target })
 
     lt.assertEquals('被问者', players[2], assert(seen).to)
     lt.assertEquals('缘由原样带到', '没声明牌', assert(seen).reason)
@@ -145,14 +145,14 @@ end)
 
 lt.test('要对牌使用：答复到手就自动用出去，那次使用记在询问上', function ()
     local game, players = newGame(3)
-    local usable = game:createCard('抵消牌')
+    local usable = game:createCard('可用牌')
     putInHand(players[1], { usable })
     local target = game:createCard('没声明牌')
     game:on('卡牌-询问', function (ask)
         return { card = usable }
     end)
 
-    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '抵消牌', target = target })
+    local ask = game:askUseCardToCard(players[1], '没声明牌', { name = '可用牌', target = target })
 
     local useCard = assert(ask.useCardToCard, '入口应该把它用出去')
     lt.assertEquals('就是一次对牌使用', 'useCardToCard', useCard.kind)
