@@ -68,6 +68,7 @@ rule = nil
 ---@field event fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
 ---@field event fun(self: SkillDef, name: '卡牌-来源-指定目标后', handler: fun(skill: Skill, useCard: UseCard, target: Player): any): SkillDef
 ---@field event fun(self: SkillDef, name: '效果-目标-能否生效', handler: fun(skill: Skill, effect: Effect): any): SkillDef
+---@field event fun(self: SkillDef, name: '卡牌-目标-能否指定', handler: fun(skill: Skill, plan: CardDef.TargetPlan): any): SkillDef # 别人要用牌指定目标时问自己一句（返回非空 = 不能指定我，返回值就是原因；【谦逊】用它）
 ---@field event fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '游戏-开始', handler: fun(skill: Skill, event: Game.Event.游戏开始): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '卡牌-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef
@@ -158,6 +159,8 @@ rule = nil
 ---@field fire fun(self: Player, name: '效果-来源-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
 ---@field on fun(self: Player, name: '效果-目标-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第三段：问目标）：返回非 nil 即阻止（返回值就是原因）
 ---@field fire fun(self: Player, name: '效果-目标-能否生效', effect: Effect): any # 返回值就是那条阻止的原因
+---@field on fun(self: Player, name: '卡牌-目标-能否指定', callback: fun(plan: CardDef.TargetPlan): any): function # 别人要用牌指定目标时问一句：返回非 nil 即不能指定我（返回值就是原因）
+---@field fire fun(self: Player, name: '卡牌-目标-能否指定', plan: CardDef.TargetPlan): any # 返回值就是那条原因
 ---@field on fun(self: Player, name: '效果-收尾', callback: fun(effect: Effect): any): function # 冲自己来的效果结完时再发一份（全局那份之外、对当事人再发一份）
 ---@field fire fun(self: Player, name: '效果-收尾', effect: Effect): any
 ---@field on fun(self: Player, name: '卡牌-来源-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function # 自己使用的牌开始结算时再发一份（全局那份叫「卡牌-结算前」、对使用者再发一份带方向词）

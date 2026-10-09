@@ -150,6 +150,36 @@ lt.test('校验：没给目标时只判「能不能用」，给了目标就连�
     lt.assertEquals('目标不合法 ⇒ 用不了', false, (run.game:canUse(run.user, card, { run.user })))
 end)
 
+lt.test('校验：候选者自己也能否决（不能成为目标）', function ()
+    local guard <close> = useProbe()
+    local run   = newGame(TWO, 3)
+    local card  = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    local third = assert(run.game.desk:getPlayer(3))
+
+    ---@type integer
+    local asked = 0
+    third:on('卡牌-目标-能否指定', function (plan)
+        asked = asked + 1
+        if plan.user == run.user then
+            return '不给你指定'
+        end
+    end)
+
+    local ok, reason, plan = run.game:canUse(run.user, card)
+    ---@cast plan Game.UsableTargets
+    lt.assertEquals('先看：他还是被问过的', 1, asked)
+    lt.assertEquals('还能用（还有人能被指定）', true, ok)
+    lt.assertEquals('没有原因', nil, reason)
+    lt.assertEquals('他不在候选里了', false, moe.util.arrayHas(assert(plan.legal), third))
+    lt.assertEquals('另一个人照旧在', true, moe.util.arrayHas(assert(plan.legal), run.target))
+
+    local okAgain, reasonAgain = run.game:canUse(run.user, card, { third })
+    lt.assertEquals('直接指定他就用不了', false, okAgain)
+    lt.assertEquals('原因是「不能以这个角色为目标」', '「探针.测试杀」不能以这个角色为目标', reasonAgain)
+end)
+
 lt.test('校验：没有内容定义 ⇒ 建牌时就报错', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)

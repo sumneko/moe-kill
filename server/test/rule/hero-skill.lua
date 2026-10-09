@@ -2955,3 +2955,133 @@ lt.test('反间：候选只有其他角色，且出牌阶段限一次', function
     lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
     lt.assertEquals('但反间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).options))
 end)
+
+lt.test('谦逊：不能被选为【顺手牵羊】的目标（别人照旧）', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local user  = run.players[1]
+    local luxun = run.players[2]
+    local other = run.players[3]
+    luxun:setHero(assert(run.game:getHero('陆逊')))
+    lt.assertEquals('技能随武将挂上', true, luxun:hasSkill('谦逊'))
+
+    -- 两边手里都得有牌才谈得上被牵，不然候选里没有他，测不出谦逊
+    local bait = run.game:createCard('杀', '黑桃', 7)
+    assert(other:getZone('手牌')):accept(bait)
+    local mine = run.game:createCard('闪', '红桃', 2)
+    assert(luxun:getZone('手牌')):accept(mine)
+
+    local card = takeCard(run, user, '顺手牵羊')
+    local ok, _, plan = run.game:canUse(user, card)
+    ---@cast plan Game.UsableTargets
+
+    lt.assertEquals('能用（还有人能被牵）', true, ok)
+    lt.assertEquals('候选里有别人', true, moe.util.arrayHas(assert(plan.legal), other))
+    lt.assertEquals('候选里没有陆逊', false, moe.util.arrayHas(assert(plan.legal), luxun))
+end)
+
+lt.test('谦逊：不能成为【乐不思蜀】的目标', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local user  = run.players[1]
+    local luxun = run.players[2]
+    local other = run.players[3]
+    luxun:setHero(assert(run.game:getHero('陆逊')))
+
+    local card = takeCard(run, user, '乐不思蜀')
+    local ok, _, plan = run.game:canUse(user, card)
+    ---@cast plan Game.UsableTargets
+
+    lt.assertEquals('能用（还有别人）', true, ok)
+    lt.assertEquals('候选里有别人', true, moe.util.arrayHas(assert(plan.legal), other))
+    lt.assertEquals('候选里没有陆逊', false, moe.util.arrayHas(assert(plan.legal), luxun))
+end)
+
+lt.test('谦逊：只挡「被指定」，他自己牵别人照旧', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local luxun = run.players[2]
+    local other = run.players[3]
+    luxun:setHero(assert(run.game:getHero('陆逊')))
+
+    local bait = run.game:createCard('杀', '黑桃', 7)
+    assert(other:getZone('手牌')):accept(bait)
+
+    local card = takeCard(run, luxun, '顺手牵羊')
+    lt.assertEquals('他能牵别人', true, (run.game:canUse(luxun, card, other)))
+end)
+
+lt.test('连营：失去最后一张手牌就摸一张（默认自动同意，不问）', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local luxun = run.players[1]
+    luxun:setHero(assert(run.game:getHero('陆逊')))
+    lt.assertEquals('技能随武将挂上', true, luxun:hasSkill('连营'))
+
+    local card = run.game:createCard('杀', '黑桃', 7)
+    assert(luxun:getZone('手牌')):accept(card)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '连营' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:moveCard(card, '弃牌')
+
+    lt.assertEquals('没问（默认自动同意）', 0, asked)
+    lt.assertEquals('摸了一张', 1, assert(luxun:getZone('手牌')):count())
+end)
+
+lt.test('连营：手里还有牌时失去一张，不摸', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local luxun = run.players[1]
+    luxun:setHero(assert(run.game:getHero('陆逊')))
+
+    local first  = run.game:createCard('杀', '黑桃', 7)
+    local second = run.game:createCard('闪', '红桃', 2)
+    assert(luxun:getZone('手牌')):accept(first)
+    assert(luxun:getZone('手牌')):accept(second)
+
+    run.game:moveCard(first, '弃牌')
+
+    lt.assertEquals('手里还剩一张 ⇒ 不摸', 1, assert(luxun:getZone('手牌')):count())
+end)
+
+lt.test('连营：一次失去最后两张，也只摸一张', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local luxun = run.players[1]
+    luxun:setHero(assert(run.game:getHero('陆逊')))
+
+    local first  = run.game:createCard('杀', '黑桃', 7)
+    local second = run.game:createCard('闪', '红桃', 2)
+    assert(luxun:getZone('手牌')):accept(first)
+    assert(luxun:getZone('手牌')):accept(second)
+
+    run.game:moveCard({ first, second }, '弃牌')
+
+    lt.assertEquals('只摸了一张（摸到的牌让手牌不再为空）', 1, assert(luxun:getZone('手牌')):count())
+end)
+
+lt.test('连营：关掉自动同意就会问，答否不摸', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local luxun = run.players[1]
+    luxun:setHero(assert(run.game:getHero('陆逊')))
+    findSkill(luxun, '连营').auto = false
+
+    local card = run.game:createCard('杀', '黑桃', 7)
+    assert(luxun:getZone('手牌')):accept(card)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '连营' then
+            return
+        end
+        asked = asked + 1
+        return nil
+    end)
+
+    run.game:moveCard(card, '弃牌')
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('答否 ⇒ 一张没摸', 0, assert(luxun:getZone('手牌')):count())
+end)

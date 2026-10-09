@@ -1259,7 +1259,10 @@ local function collectLegalTargets(game, def, user, card, targets, useOptions)
             end
         end
         if ok then
-            legal[#legal + 1] = player
+            -- 候选者自己也能否决（「不能成为目标」类技能；返回非空就是不能指定他）
+            if player:fire('卡牌-目标-能否指定', plan) == nil then
+                legal[#legal + 1] = player
+            end
         end
     end
     if #legal == 0 then
