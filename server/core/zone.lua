@@ -2,7 +2,7 @@
 ---@field kind string
 ---@field protected cards Card[]
 ---@field private disabled integer # 被禁用的层数（0 = 启用）
----@field private visible boolean|Player[] # 可见性：`true` = 所有人、`false` = 无人、一批角色 = 只有他们（默认 `true`）
+---@field private visible Visibility # 可见性：`true` = 所有人、`false` = 无人、一批角色 = 只有他们（默认 `true`）
 ---@field owner? Player # 这个区属于谁（公共区没有归属者）
 ---@field game Game # 属于哪一局
 local M = Class 'Zone'
@@ -12,6 +12,7 @@ local M = Class 'Zone'
 ---@field card Card
 ---@field from? Zone # 它原来在哪个区（本来就没有归属就是空）
 ---@field to Zone # 它进了哪个区
+---@field visible? Visibility # 这次搬动对谁可见（不给 = 读的人按「源区可见 or 目标区可见」算）
 
 ---@param game Game # 属于哪一局
 function M:__init(game)
@@ -24,19 +25,21 @@ end
 
 --- 牌进来了：本区被禁用就先压它一层，再跑它定义上的「卡牌-进入区域」钩子（有主人的区还给主人发一份）
 ---@param card Card
-function M:notifyEnter(card)
+---@param visible? Visibility # 这次搬动对谁可见
+function M:notifyEnter(card, visible)
     if self.disabled > 0 then
         card:disablePassive()
     end
-    card:fireHandlers('卡牌-进入区域', card, self)
-    self.owner?:fire('卡牌-进入区域', card, self)
+    card:fireHandlers('卡牌-进入区域', card, self, visible)
+    self.owner?:fire('卡牌-进入区域', card, self, visible)
 end
 
 --- 牌离开了：先跑它定义上的「卡牌-离开区域」钩子（有主人的区也给主人发一份），再松开本区压的那一层（发的时候牌已经不在本区里）
 ---@param card Card
-function M:notifyLeave(card)
-    card:fireHandlers('卡牌-离开区域', card, self)
-    self.owner?:fire('卡牌-离开区域', card, self)
+---@param visible? Visibility # 这次搬动对谁可见
+function M:notifyLeave(card, visible)
+    card:fireHandlers('卡牌-离开区域', card, self, visible)
+    self.owner?:fire('卡牌-离开区域', card, self, visible)
     if self.disabled > 0 then
         card:enablePassive()
     end
@@ -55,8 +58,9 @@ end
 --- 静默把这批牌收进本区（只摘、置、绑，不发任何事件）
 ---@protected
 ---@param cards Card[]
+---@param visible? Visibility # 这次搬动对谁可见
 ---@return Zone.Move[] # 这次搬动的记录（发事件时用）
-function M:takeIn(cards)
+function M:takeIn(cards, visible)
     ---@type Zone.Move[]
     local moves = {}
     for i, card in ipairs(cards) do
@@ -68,9 +72,10 @@ function M:takeIn(cards)
         self.cards[#self.cards + 1] = card
         card:bindZone(self)
         moves[i] = {
-            card = card,
-            from = from,
-            to   = self,
+            card    = card,
+            from    = from,
+            to      = self,
+            visible = visible,
         }
     end
     return moves
@@ -83,25 +88,26 @@ function M:notifyMoved(moves)
     for _, move in ipairs(moves) do
         local from = move.from
         if from then
-            from:notifyLeave(move.card)
+            from:notifyLeave(move.card, move.visible)
         end
     end
     for _, move in ipairs(moves) do
-        move.to:notifyEnter(move.card)
+        move.to:notifyEnter(move.card, move.visible)
     end
 end
 
 --- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「卡牌-离开区域」/「卡牌-进入区域」；收的是每张牌的实体牌 —— 虚拟牌进不了牌区，收它就等于收它的素材）
 ---@param cards Card|Card[] # 要收的牌（单张或一批）
+---@param visible? Visibility # 这次搬动对谁可见（不给 = 源区可见 or 目标区可见，由读的人算）
 ---@return boolean # 收下了没有
 ---@return string? # 没收下的原因
-function M:accept(cards)
+function M:accept(cards, visible)
     ---@type Card[]
     local list = {}
     for _, card in ipairs(moe.util.toList(cards)) do
         moe.util.arrayMerge(list, card.physical)
     end
-    self:notifyMoved(self:takeIn(list))
+    self:notifyMoved(self:takeIn(list, visible))
     return true
 end
 
@@ -196,29 +202,16 @@ function M:bindOwner(player)
 end
 
 --- 设置可见性：`true` = 所有人、`false` = 无人、给一名或一批角色 = 只有他们（重复调以后写的为准）
----@param value boolean|Player|Player[]
+---@param value Visibility
 function M:setVisible(value)
-    if type(value) == 'boolean' then
-        self.visible = value
-    else
-        self.visible = moe.util.toList(value)
-    end
+    self.visible = moe.visibility.normalize(value)
 end
 
 --- 这个区对某人是否可见
 ---@param viewer Player
 ---@return boolean
 function M:isVisibleTo(viewer)
-    local visible = self.visible
-    if type(visible) == 'boolean' then
-        return visible
-    end
-    for _, player in ipairs(visible) do
-        if player == viewer then
-            return true
-        end
-    end
-    return false
+    return moe.visibility.isVisibleTo(self.visible, viewer)
 end
 
 ---@class Zone.API

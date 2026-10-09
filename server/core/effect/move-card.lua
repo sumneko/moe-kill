@@ -2,6 +2,7 @@
 ---@field game Game
 ---@field cards Card[] # 要挪的牌
 ---@field zone? string|Zone # 目标牌区（名字或牌区对象；不给 = 这次挪牌失败）
+---@field visible? Visibility # 这次搬动对谁可见（不给 = 源区可见 or 目标区可见，由读的人算）
 
 ---@class MoveCard : Effect
 local M = Class 'MoveCard'
@@ -11,10 +12,12 @@ Extends('MoveCard', 'Effect')
 ---@param game Game
 ---@param cards Card[]
 ---@param zone? string|Zone
-function M:__init(game, cards, zone)
-    self.kind  = 'moveCard'
-    self.cards = cards
-    self.zone  = zone
+---@param visible? Visibility
+function M:__init(game, cards, zone, visible)
+    self.kind    = 'moveCard'
+    self.cards   = cards
+    self.zone    = zone
+    self.visible = visible
 end
 
 --- 找目标牌区：牌区对象直接用；名字先在**当前回合角色**身上找，再找局上的牌区
@@ -43,7 +46,7 @@ function M:settle()
     if not stop then
         return self:cancel(reason)
     end
-    local ok, why = stop:accept(self.cards)
+    local ok, why = stop:accept(self.cards, self.visible)
     if not ok then
         return self:cancel(why)
     end
@@ -55,5 +58,5 @@ moe.moveCard = {}
 ---@param options MoveCard.CreateOptions
 ---@return MoveCard
 function moe.moveCard.create(options)
-    return New 'MoveCard' (options.game, options.cards, options.zone)
+    return New 'MoveCard' (options.game, options.cards, options.zone, options.visible)
 end

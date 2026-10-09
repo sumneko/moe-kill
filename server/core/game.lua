@@ -1125,8 +1125,8 @@ end
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param options any[] # 有哪些可选项（内容由发起方定，应答方自己解释）
----@return AskChoice # 这次询问（已经结完：答复读 `.choice`，失败读 `.err`）
+---@param options string[] # 有哪些可选项（内容由发起方定，应答方自己解释）
+---@return AskChoice # 这次询问（已经结完：结果读 `.result`，失败读 `.err`）
 function M:askChoice(to, reason, options)
     local ask = moe.askChoice.create {
         game    = self,
@@ -1191,12 +1191,14 @@ end
 ---@param game Game
 ---@param cards Card[]
 ---@param zone? string|Zone
+---@param visible? Visibility
 ---@return MoveCard
-local function runMoveCard(game, cards, zone)
+local function runMoveCard(game, cards, zone, visible)
     local effect = moe.moveCard.create {
-        game  = game,
-        cards = cards,
-        zone  = zone,
+        game    = game,
+        cards   = cards,
+        zone    = zone,
+        visible = visible,
     }
     effect:apply():await()
     return effect
@@ -1206,9 +1208,10 @@ end
 ---@async
 ---@param card Card|Card[] # 要挪的牌（单张或一批）
 ---@param zone? string|Zone # 目标牌区：名字或牌区对象（名字先在当前回合角色身上找；不给 = 这次挪牌失败）
+---@param visible? Visibility # 这次搬动对谁可见（不给 = 源区可见 or 目标区可见，由读的人算）
 ---@return MoveCard # 这次挪牌（已经结完：失败读 `.err`）
-function M:moveCard(card, zone)
-    return runMoveCard(self, moe.util.toList(card), zone)
+function M:moveCard(card, zone, visible)
+    return runMoveCard(self, moe.util.toList(card), zone, visible)
 end
 
 --- 抽牌：从抽牌堆顶抽 count 张（省略去向 = 抽进这个玩家的手牌；给了就用它，例如抽到某块处理区）

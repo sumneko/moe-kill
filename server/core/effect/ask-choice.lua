@@ -3,14 +3,15 @@
 ---@field game Game
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@field options any[] # 有哪些可选项（内容由发起方定，应答方自己解释）
+---@field options string[] # 有哪些可选项（内容由发起方定，应答方自己解释）
 
---- 要一名角色在若干选项里挑一个：选项由发起方给，答复必须是其中之一（不答 = 取消，`.choice` 为空）
+--- 要一名角色在若干选项里挑一个：选项由发起方给，答复必须是其中之一（不答 = 取消，结果为空）
 ---@class AskChoice : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
----@field options any[] # 可选项（内容由发起方定）
----@field choice? any # 挑中的那个选项（没答上时不存在）
+---@field options string[] # 可选项（内容由发起方定）
+---@field result? string # 挑中的那个选项（没答上时不存在）
+---@field choice? string # 同上，语义化读法
 local M = Class 'AskChoice'
 
 Extends('AskChoice', 'Effect')
@@ -18,7 +19,7 @@ Extends('AskChoice', 'Effect')
 ---@param game Game
 ---@param to Player
 ---@param reason string
----@param options any[]
+---@param options string[]
 function M:__init(game, to, reason, options)
     self.game    = game
     self.kind    = 'askChoice'
@@ -28,7 +29,7 @@ function M:__init(game, to, reason, options)
 end
 
 --- 答复落在给出去的选项里吗（不在就给原因）
----@param value any
+---@param value string
 ---@return any # 通过就是空
 function M:checkAnswer(value)
     if moe.util.arrayHas(self.options, value) then
@@ -38,7 +39,7 @@ function M:checkAnswer(value)
 end
 
 --- 挑中的那个选项（没答上时不存在）
----@return any
+---@return string?
 M.__getter.choice = function (self)
     assert(self.task, '询问还没有发动')
     return self.task.result

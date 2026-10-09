@@ -41,6 +41,10 @@ Card '记区域'
         seen[#seen + 1] = '牌自己-离开'
         game:setValue('区域事件', seen)
     end)
+Card '记可见'
+    : on('卡牌-进入区域', function (card, zone, visible)
+        game:setValue('搬动可见性', visible)
+    end)
 ]]
 
 ---@return unknown # 配 <close> 用
@@ -385,6 +389,21 @@ lt.test('牌区：可见性就按给的那批人（默认全员）', function ()
     lt.assertEquals('名单外的看不见', false, nobody:isVisibleTo(mine))
 end)
 
+lt.test('牌区：可见性也收谓词（逐人现算）', function ()
+    local game   = moe.game.create { seats = 2, random = moe.random.create(1), sources = { lt.emptySource } }
+    local system = moe.attribute.create()
+    local mine   = moe.player.create(game, { attributes = system:createInstance() })
+    local other  = moe.player.create(game, { attributes = system:createInstance() })
+
+    local zone = moe.zone.create(game)
+    zone:setVisible(function (viewer)
+        return viewer == mine
+    end)
+
+    lt.assertEquals('谓词说可见的看得见', true, zone:isVisibleTo(mine))
+    lt.assertEquals('谓词说不可见的看不见', false, zone:isVisibleTo(other))
+end)
+
 lt.test('牌区：区域事件对区的主人再发一份（公共区没有主人）', function ()
     local _ <close> = useProbe()
     local game     = newProbeGame()
@@ -420,4 +439,22 @@ lt.test('牌区：区域事件对区的主人再发一份（公共区没有主�
     local left = game:getValue('区域事件')
     lt.assertEquals('公共区没有主人：只跑牌自己那份（离开私人区时主人仍收得到）',
         '牌自己-进入,主人-进入,牌自己-离开,主人-离开,牌自己-进入', table.concat(left, ','))
+end)
+
+lt.test('牌区：搬牌时给的可见性原样交给事件（不给就是空）', function ()
+    local _ <close> = useProbe()
+    local game   = newProbeGame()
+    local system = moe.attribute.create()
+    local mine   = moe.player.create(game, { attributes = system:createInstance() })
+
+    local card = game:createCard('记可见')
+
+    mine:getZone('手牌'):accept(card, true)
+    lt.assertEquals('收牌时给了 true，进区事件的第三参就是 true', true, game:getValue('搬动可见性'))
+
+    mine:getZone('手牌'):accept(card, mine)
+    lt.assertEquals('给一名角色也原样给过去', mine, game:getValue('搬动可见性'))
+
+    game:moveCard(card, '弃牌')
+    lt.assertEquals('不给就是空（读的人按源区可见 or 目标区可见算）', nil, game:getValue('搬动可见性'))
 end)

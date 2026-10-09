@@ -2792,3 +2792,166 @@ lt.test('结姻：候选只有已受伤的其他男性角色', function ()
     lt.assertEquals('不算满血男性', false, moe.util.arrayHas(legal, fullMan))
     lt.assertEquals('不算女性', false, moe.util.arrayHas(legal, hurtGirl))
 end)
+
+lt.test('英姿：摸牌阶段多摸一张（默认自动同意，不问）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhouyu = run.players[1]
+    zhouyu:setHero(assert(run.game:getHero('周瑜')))
+    lt.assertEquals('技能随武将挂上', true, zhouyu:hasSkill('英姿'))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '英姿' then
+            asked = asked + 1
+        end
+    end)
+
+    drawPhase(run, zhouyu)
+
+    lt.assertEquals('没问（默认自动同意）', 0, asked)
+    lt.assertEquals('摸了三张', 3, assert(zhouyu:getZone('手牌')):count())
+end)
+
+lt.test('英姿：关掉自动同意就会问，答否只摸两张', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhouyu = run.players[1]
+    zhouyu:setHero(assert(run.game:getHero('周瑜')))
+    findSkill(zhouyu, '英姿').auto = false
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '英姿' then
+            return
+        end
+        asked = asked + 1
+        return nil
+    end)
+
+    drawPhase(run, zhouyu)
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('答否 ⇒ 只摸两张', 2, assert(zhouyu:getZone('手牌')):count())
+end)
+
+--- 发动一次【反间】：周瑜交出 `card`、目标答复 `chosen`（空 = 不答复）
+---@param run Test.RuleSupport
+---@param zhouyu Player
+---@param target Player
+---@param card Card
+---@param chosen? string # 目标选中的花色（`'${红桃}'` 这种；空 = 不答复）
+local function useFangan(run, zhouyu, target, card, chosen)
+    local fangan = findSkill(zhouyu, '反间')
+    ---@type integer
+    local asked = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        ---@cast ask AskUseSkill
+        if asked == 1 then
+            return { skill = fangan, cards = { card }, targets = { target } }
+        end
+        return nil
+    end)
+    run.game:on('决策-询问', function (ask)
+        ---@cast ask AskChoice
+        if ask.reason == '反间' then
+            return chosen
+        end
+    end)
+    local _ <close> = run.game:enterPhase(zhouyu, '出牌')
+end
+
+lt.test('反间：交一张手牌，花色不同就造成 1 点伤害', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhouyu = run.players[1]
+    local target = run.players[2]
+    zhouyu:setHero(assert(run.game:getHero('周瑜')))
+    target:setHero(assert(run.game:getHero('关羽')))
+    lt.assertEquals('技能随武将挂上', true, zhouyu:hasSkill('反间'))
+
+    local card = run.game:createCard('杀', '黑桃', 7)
+    assert(zhouyu:getZone('手牌')):accept(card)
+
+    useFangan(run, zhouyu, target, card, '${红桃}')
+
+    lt.assertEquals('目标挨了 1 点', 3, target:getAttr('体力'))
+    lt.assertEquals('牌进了目标的手牌', true, moe.util.arrayHas(assert(target:getZone('手牌')):list(), card))
+    lt.assertEquals('自己手里没了', false, moe.util.arrayHas(assert(zhouyu:getZone('手牌')):list(), card))
+end)
+
+lt.test('反间：花色选对了就不挨伤害（牌照给）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhouyu = run.players[1]
+    local target = run.players[2]
+    zhouyu:setHero(assert(run.game:getHero('周瑜')))
+    target:setHero(assert(run.game:getHero('关羽')))
+
+    local card = run.game:createCard('杀', '黑桃', 7)
+    assert(zhouyu:getZone('手牌')):accept(card)
+
+    useFangan(run, zhouyu, target, card, '${黑桃}')
+
+    lt.assertEquals('没挨伤害', 4, target:getAttr('体力'))
+    lt.assertEquals('牌照旧给出去了', true, moe.util.arrayHas(assert(target:getZone('手牌')):list(), card))
+end)
+
+lt.test('反间：目标不答复也算「花色不同」（不能靠一走了之躲掉）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local zhouyu = run.players[1]
+    local target = run.players[2]
+    zhouyu:setHero(assert(run.game:getHero('周瑜')))
+    target:setHero(assert(run.game:getHero('关羽')))
+
+    local card = run.game:createCard('杀', '黑桃', 7)
+    assert(zhouyu:getZone('手牌')):accept(card)
+
+    useFangan(run, zhouyu, target, card, nil)
+
+    lt.assertEquals('没选花色 ⇒ 算不同 ⇒ 挨 1 点', 3, target:getAttr('体力'))
+    lt.assertEquals('牌照旧给出去了', true, moe.util.arrayHas(assert(target:getZone('手牌')):list(), card))
+end)
+
+lt.test('反间：候选只有其他角色，且出牌阶段限一次', function ()
+    local run    = support.start { count = 4, packages = { '标准' } }
+    local zhouyu = run.players[1]
+    zhouyu:setHero(assert(run.game:getHero('周瑜')))
+    run.players[2]:setHero(assert(run.game:getHero('关羽')))
+    run.players[3]:setHero(assert(run.game:getHero('张飞')))
+    run.players[4]:setHero(assert(run.game:getHero('甄姬')))
+    local fangan = findSkill(zhouyu, '反间')
+
+    local card = run.game:createCard('杀', '黑桃', 7)
+    assert(zhouyu:getZone('手牌')):accept(card)
+
+    ---@type AskUseSkill? # 第二轮（用过之后）
+    local secondAsk = nil
+    ---@type AskUseSkill? # 第一轮
+    local firstAsk  = nil
+    ---@type integer
+    local asked     = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        ---@cast ask AskUseSkill
+        if asked == 1 then
+            firstAsk = ask
+            return { skill = fangan, cards = { card }, targets = { run.players[2] } }
+        end
+        secondAsk = ask
+        return nil
+    end)
+    run.game:on('决策-询问', function (ask)
+        ---@cast ask AskChoice
+        if ask.reason == '反间' then
+            return '${红桃}'
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(zhouyu, '出牌')
+
+    local legal = assert(assert(assert(firstAsk).options[1]).targets, '反间该带目标那半').legal
+    lt.assertEquals('候选是另外三名', 3, #legal)
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(legal, zhouyu))
+    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
+    lt.assertEquals('但反间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).options))
+end)
