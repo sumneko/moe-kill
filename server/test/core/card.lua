@@ -89,7 +89,7 @@ lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', fu
         end
     end
     table.sort(keys)
-    lt.assertEquals('没给牌面时的字段就是这几样', 'def,game,id,name,passiveSuppress,subcards,virtual', table.concat(keys, ','))
+    lt.assertEquals('没给牌面时的字段就是这几样', '_name,def,game,id,modifiers,passiveSuppress,subcards,virtual', table.concat(keys, ','))
 
     ---@type any
     local raw = card
@@ -181,8 +181,77 @@ lt.test('牌：颜色由花色当场算（红桃 / 方块 = 红，黑桃 / 梅�
     local none = game:createVirtualCard('闪')
     lt.assertEquals('没有花色的虚拟牌也没有颜色', nil, none.color)
 
-    spade.suit = '红桃'
-    lt.assertEquals('改了花色，颜色立刻跟着变（当场算）', '红', spade.color)
+    local remove = spade:addModifier { suit = '红桃' }
+    lt.assertEquals('花色被转化改了，颜色立刻跟着变（当场算）', '红', spade.color)
+
+    remove()
+    lt.assertEquals('撤销转化后又变回黑', '黑', spade.color)
+end)
+
+lt.test('牌：转化改的是读出来的值，自己的字段还在', function ()
+    local card = moe.card.create(lt.game(), '杀', 120, '黑桃', 9)
+
+    local remove = card:addModifier { name = '乐不思蜀', suit = '方块', point = 3 }
+    lt.assertEquals('牌名取转化那份', '乐不思蜀', card.name)
+    lt.assertEquals('花色取转化那份', '方块', card.suit)
+    lt.assertEquals('点数取转化那份', 3, card.point)
+    lt.assertEquals('颜色跟着花色算', '红', card.color)
+
+    remove()
+    lt.assertEquals('撤销后牌名恢复', '杀', card.name)
+    lt.assertEquals('撤销后花色恢复', '黑桃', card.suit)
+    lt.assertEquals('撤销后点数恢复', 9, card.point)
+    lt.assertEquals('撤销后颜色恢复', '黑', card.color)
+
+    remove()
+    lt.assertEquals('重复撤销不会改坏别的', '杀', card.name)
+end)
+
+lt.test('牌：多份转化各改各的字段，同一个字段后挂的覆盖先挂的', function ()
+    local card = moe.card.create(lt.game(), '杀', 121, '黑桃', 9)
+
+    card:addModifier { name = '闪' }
+    card:addModifier { suit = '红桃' }
+    lt.assertEquals('一份改的牌名生效', '闪', card.name)
+    lt.assertEquals('另一份改的花色生效', '红桃', card.suit)
+    lt.assertEquals('没人改的点数照旧', 9, card.point)
+
+    card:addModifier { name = '桃' }
+    lt.assertEquals('同一个字段：后挂的覆盖先挂的', '桃', card.name)
+    lt.assertEquals('花色不受影响', '红桃', card.suit)
+end)
+
+lt.test('牌：转化表存的是副本，之后改调用方那张表不影响', function ()
+    local card = moe.card.create(lt.game(), '杀', 122, '黑桃', 9)
+    local modifier = { name = '闪' }
+    card:addModifier(modifier)
+
+    modifier.name = '桃'
+    lt.assertEquals('这张牌照旧按挂载时的内容算', '闪', card.name)
+end)
+
+lt.test('牌：牌名被转化改了，内容定义跟着换', function ()
+    local game = lt.game()
+    local card = moe.card.create(game, '杀', 123, '黑桃', 9)
+
+    lt.assertEquals('没转化时是自己那份定义', game:getCard('杀'), card.def)
+
+    local remove = card:addModifier { name = '闪' }
+    lt.assertEquals('转化后换成那一份定义', game:getCard('闪'), card.def)
+    lt.assertEquals('完整名跟着走', true, card.fullName:find('闪') ~= nil)
+
+    remove()
+    lt.assertEquals('撤销后又换回原来那份定义', game:getCard('杀'), card.def)
+end)
+
+lt.test('牌：转化的牌名查不到，读定义时当场报错（报错里带着那个名字）', function ()
+    local card = moe.card.create(lt.game(), '杀', 124, '黑桃', 9)
+    card:addModifier { name = '没有这张牌' }
+
+    local err = lt.assertError('读定义时报错', function ()
+        local _ = card.def
+    end)
+    lt.assertEquals('报错里带着那个名字', true, (err or ''):find('没有这张牌') ~= nil)
 end)
 
 lt.test('牌：被动出厂不生效，启用时才应用、停用时撤销', function ()

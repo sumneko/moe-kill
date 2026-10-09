@@ -1,14 +1,20 @@
+--- 一份「转化」：改这张牌的牌名 / 花色 / 点数（后挂的覆盖先挂的）
+---@class Card.Modifier
+---@field name? string # 改牌名（内容定义也跟着换）
+---@field suit? string # 改花色
+---@field point? integer # 改点数
+
 ---@class Card: Class.Base
 ---@field private id integer # 号（这一局发的）
----@field name string # 牌名（内容侧给的值，内核只存不解释）
----@field suit? string # 花色
----@field point? integer # 点数（1..13）
+---@field private _name string # 自己的牌名（读 `name`）
+---@field private _suit? string # 自己的花色（读 `suit`）
+---@field private _point? integer # 自己的点数（读 `point`）
 ---@field virtual boolean # 是不是虚拟牌（没有实体牌；进不了任何牌区）
 ---@field subcards Card[] # 对应的实体牌（普通牌是空表）—— **一律是实体牌**，虚拟牌不进这里（构造时已经解包）
 ---@field physical Card[] # 对应的实体牌（普通牌就是自己、虚拟牌是它的素材）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
----@field game Game # 属于哪一局（读自己的内容定义时用）
----@field def CardDef # 内容定义（建牌时查一次就定格；查不到直接报错）
+---@field game Game # 属于哪一局（读内容定义时用）
+---@field private modifiers Card.Modifier[] # 挂着的「转化」（按挂载顺序；后挂的覆盖先挂的）
 ---@field private passiveSuppress integer # 被动被压制的层数（出厂 1 = 未启用）
 ---@field private passiveHost? GCHost # 本次应用被动时给回调的容器（懒建；停用时释放）
 local M = Class 'Card'
@@ -19,24 +25,90 @@ local M = Class 'Card'
 ---@param suit? string # 花色
 ---@param point? integer # 点数
 function M:__init(game, name, id, suit, point)
-    self.game     = game
-    self.id       = id
-    self.name     = name
-    self.suit     = suit
-    self.point    = point
-    self.virtual  = false
-    self.subcards = {}
-    local def = game:getCard(name)
-    if not def then
-        error('没有叫「{}」的内容定义' % { name }, 2)
-    end
-    self.def = def
+    self.game      = game
+    self.id        = id
+    self._name     = name
+    self._suit     = suit
+    self._point    = point
+    self.virtual   = false
+    self.subcards  = {}
+    self.modifiers = {}
+    self.def       = assert(game:getCard(name), '没有叫「{}」的内容定义' % { name })
     self.passiveSuppress = 1
 end
 
 ---@return integer # 牌的号（这一局发的）
 function M:getId()
     return self.id
+end
+
+---@type string
+M.name = nil
+
+---@return string # 牌名（有「转化」就取最晚挂的那份）
+M.__getter.name = function (self)
+    for i = #self.modifiers, 1, -1 do
+        local name = self.modifiers[i].name
+        if name then
+            return name
+        end
+    end
+    return self._name
+end
+
+---@type string?
+M.suit = nil
+
+---@return string? # 花色（有「转化」就取最晚挂的那份）
+M.__getter.suit = function (self)
+    for i = #self.modifiers, 1, -1 do
+        local suit = self.modifiers[i].suit
+        if suit then
+            return suit
+        end
+    end
+    return self._suit
+end
+
+---@type integer?
+M.point = nil
+
+---@return integer? # 点数（有「转化」就取最晚挂的那份）
+M.__getter.point = function (self)
+    for i = #self.modifiers, 1, -1 do
+        local point = self.modifiers[i].point
+        if point then
+            return point
+        end
+    end
+    return self._point
+end
+
+---@type CardDef
+M.def = nil
+
+---@return CardDef # 内容定义（跟着牌名走：牌名被「转化」改了就用那一份；查不到当场报错）
+---@return true # 将结果缓存下来
+M.__getter.def = function (self)
+    return assert(self.game:getCard(self.name), '没有叫「{}」的内容定义' % { self.name }), true
+end
+
+--- 给这张牌挂一份「转化」（改牌名 / 花色 / 点数；后挂的覆盖先挂的）
+---@param modifier Card.Modifier # 只认这三个字段（存副本）
+---@return function # 撤销这一次挂载（重复调也不会改坏别的）
+function M:addModifier(modifier)
+    local stored = moe.util.copy(modifier)
+    self.modifiers[#self.modifiers + 1] = stored
+    self.def = nil
+    local removed
+    return function ()
+        if removed then
+            return
+        end
+        removed = true
+        moe.util.arrayRemove(self.modifiers, stored)
+        self.def = nil
+    end
 end
 
 ---@type Card[]

@@ -230,11 +230,11 @@ end
 | 读法 | 用在哪 | 例子 |
 | ---- | ---- | ---- |
 | **字段** | 存下来的数据 | `card.name` / `card.suit` / `card.point`、`game.desk`、`player.game` |
-| **`__getter`** | 算出来的（每次现算，不缓存） | `desk.players`、`desk.alivePlayers`、`player.acting`、`card.fullName`、`effect.success` |
+| **`__getter`** | 算出来的（默认每次现算；只有 `card.def` 带缓存，见下） | `desk.players`、`desk.alivePlayers`、`player.acting`、`card.fullName`、`card.def`、`effect.success` |
 | **`getXxx(参数)`** | 要传参的读取 | `player:getAttr('体力')`、`game:getZone('抽牌')`、`attrs:get(name)` |
 
 - 理由：`player:getAttr('体力')` 与方法（会做事的东西）一眼可分；而 `card:getId()` 这种**没有参数**的方法，读起来像「可能要做点什么」，实际只是取个字段 —— 调用方平白多一层，也让人误以为背后有逻辑。**算出来的值**用 `__getter` 的好处是：调用方不必知道「这是存的还是算的」（`desk.players` 与 `desk.alivePlayers` 读法一致），将来把字段改成派生（或反过来）**调用点一行不改**。
-- **不缓存派生值**：`__getter` 每次现算（`desk.alivePlayers` 就是这么做的，理由见 `architecture.md` 第 12 节 —— 局的事件表每次装载都清空，挂在它上面的内核缓存会静默失效）。
+- **默认不缓存派生值**：`__getter` 每次现算（`desk.alivePlayers` 就是这么做的，理由见 `architecture.md` 第 12 节 —— 局的事件表每次装载都清空，挂在它上面的内核缓存会静默失效）。**例外只有 `card.def`（2026-10-09）**：它按当前牌名查内容定义、被读得极频繁（`isKind` / `getValue` / `fireHandlers` / 各处钩子都过它），而且**失效点是明确的**（挂 / 撤「转化」时 `self.def = nil`）⇒ 用类库的缓存协议：`__getter` 返回 `(值, true)` 即让类库 `rawset` 到实例上（约定见 `server/tools/class.lua` 的 `__getter` 段）。**代价要记住**：缓存会出现在 `pairs(实例)` 里（读过之后才有）⇒ 将来协议层 / 序列化要**按白名单取字段**，别遍历实例；`class.flush(实例)` 能清掉这类缓存。
 - **存量不动**：已经有的一批无参 `getXxx()`（`Card:getId`、`Game:getResult` / `getEffects` / `getZones`、`Player:getZones` …）**不主动清理**（改它们是纯噪音改动、还会碰到别人的代码）；顺手遇到相关代码时再单独提。**例外**：`Card:getLabel` / `setLabel` 已经在 2026-09-24 的顺手清理里去掉了 —— 牌名改成公开字段 `card.name`（**建牌时必给非空字符串**；`setName` 已删），与 `card.suit` / `card.point` 一致；`CardDef` 上本来就叫 `name`，两边现在同名。
 - 边界：**这不是「字段都公开」**—— 需要封装的（如 `Zone` 内部的 `cards`、`Game` 内部的 `events`）照样用 `private` + 方法；本节的只是「**只读、无参**」这类接口的形状选择。
 
@@ -250,7 +250,7 @@ end
 | `a?(args)` | 函数调用（接收者是个值、不带 `self`） | `handler?(self)` |
 
 - **首选写法**（照 `server/core/card.lua` 的 `self:getZone()?.owner` / `server/core/attribute.lua` 的 `spec?.simple ~= false` 改）：`local owner = zone ~= nil and zone.owner or nil` ⇒ `local owner = zone?.owner`；`if def ~= nil and def:isKind(name) then … end` ⇒ `if def?:isKind(name) then … end`。
-- **必非空的字段不加 `?`**（2026-09-28）：`card.def` 建牌时就查过、查不到直接报错 ⇒ 就是 `card.def.skipsEffect`，别再写成 `card.def?.skipsEffect`（见 `architecture.md` 的 `Card` 行）。
+- **必非空的字段不加 `?`**（2026-09-28）：`card.def` 建牌时就查过、查不到直接报错（2026-10-09 起它跟着牌名走，但照旧必非空 —— getter 里查不到同样当场报错）⇒ 就是 `card.def.skipsEffect`，别再写成 `card.def?.skipsEffect`（见 `architecture.md` 的 `Card` 行）。
 - **坑（踩过）**：方法调用必须写 **`?:`** —— `a?.b()` 是「字段访问 + 普通调用」，**不带 `self`**（实测报 `attempt to index a nil value (local 'self')`）；`?.` / `?[` / `?()` 分别对应字段 / 索引 / 函数调用。
 - **返回值可能变「空」**：`def?:isKind(name)` 在 `def` 为空时给的是 **`nil` 而不是 `false`** —— 判真假照旧（`nil` 是假），但**精确比较**（`== false`、断言、`assertNotEquals`）时得自己 `== true` 收一下。`a?.b` 同理：链上任何一环为空，结果都是空。
 - **它不是「到处加防御」**：可选链只是把「本来就允许为空、且空了就该跳过」的地方写短，判断标准仍按 §9（**这一步真的会缺吗**）。别为了"看着安全"给不该空的字段加 `?`。
