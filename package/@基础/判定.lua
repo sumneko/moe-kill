@@ -1,6 +1,7 @@
 -- 判定：一次结算
 -- 判定牌从抽牌堆顶翻出、进这次判定自己的临时处理区；改判只能在「判定-前」里做，换下的牌也进临时区。
 -- 收尾由内核做（`Effect` 基类）：把临时区里剩下的牌送弃牌。
+-- 两个时机各发两份：全局之后对**判定者**再发一份（同名 —— 判定没有「来源 / 目标」之分），「你的判定」类技能直接订自己那份。
 
 ---@class Judge : Effect
 ---@field card? Card # 判定牌（翻出来就放上）
@@ -39,6 +40,7 @@ local function fireReplaceWindow(judge)
         judge.replacing = false
     end)
     judge.game:fire('判定-前', judge)
+    judge.player:fire('判定-前', judge)
 end
 
 --- 判定结算
@@ -51,8 +53,9 @@ function Judge:settle()
     end
     -- 改判窗口
     fireReplaceWindow(self)
-    -- 结束
+    -- 结束（全局一份 + 判定者自己那份）
     self.game:fire('判定-后', self)
+    self.player:fire('判定-后', self)
 end
 
 ---@class Game

@@ -35,8 +35,8 @@ lt.test('玩家：内核建好手牌 / 判定两个区', function ()
     lt.assertEquals('手牌区按加入顺序在前', player:getZone('手牌'), player:getZones()[1])
 
     local other = newPlayer(newSystem())
-    player:getZone('手牌'):setVisible(false)
-    lt.assertEquals('归属记在持有者身上', false, player:getZone('手牌'):isVisibleTo(other))
+    player:getZone('手牌'):setVisible(player)
+    lt.assertEquals('按名单看得见：持有者看得见、别人看不见', false, player:getZone('手牌'):isVisibleTo(other))
 end)
 
 lt.test('玩家：判定区是有序区（结算顺序 = 进入顺序，后入先出）', function ()

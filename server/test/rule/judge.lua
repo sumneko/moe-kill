@@ -111,3 +111,33 @@ lt.test('判定：换牌只在「判定-前」里有效，窗口外什么也不�
     lt.assertEquals('结算后换不了（判定牌没变）', third, afterCard)
     lt.assertEquals('不是失败', nil, judge.err)
 end)
+
+lt.test('判定：两个时机各对判定者再发一份（全局先、旁人收不到）', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local one   = run.players[1]
+    local other = run.players[2]
+
+    ---@type string[]
+    local order = {}
+    run.game:on('判定-后', function (judge)
+        order[#order + 1] = '全局'
+        lt.assertEquals('全局那份也拿得到判定者', one, judge.player)
+    end)
+    one:on('判定-后', function ()
+        order[#order + 1] = '当事人'
+    end)
+    other:on('判定-后', function ()
+        order[#order + 1] = '旁人'
+    end)
+
+    local decided = run.game:createCard('桃', '红桃', 3)
+    one:on('判定-前', function (judge)
+        judge:replace(decided)
+    end)
+
+    local judge = run.game:judge(one, '测试')
+
+    lt.assertEquals('全局先、当事人后、旁人收不到', '全局,当事人', table.concat(order, ','))
+    lt.assertEquals('对当事人再发的那份也在改判窗口里', decided, judge.card)
+    lt.assertEquals('换下的那张记在账上', 1, #judge.replaced)
+end)

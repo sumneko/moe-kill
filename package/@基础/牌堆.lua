@@ -13,7 +13,7 @@ game:on('游戏-开始', function ()
     deck:shuffle()
 
     for _, player in ipairs(game.desk.players) do
-        player:getZone('手牌'):setVisible(false)
+        player:getZone('手牌'):setVisible(player)
     end
 
     deck:setShortageHandler(function (zone)

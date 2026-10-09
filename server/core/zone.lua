@@ -2,7 +2,7 @@
 ---@field kind string
 ---@field protected cards Card[]
 ---@field private disabled integer # 被禁用的层数（0 = 启用）
----@field private visible boolean # 是否对所有人可见（默认可见；不可见时只有持有者看得见）
+---@field private visible boolean|Player[] # 可见性：`true` = 所有人、`false` = 无人、一批角色 = 只有他们（默认 `true`）
 ---@field owner? Player # 这个区属于谁（公共区没有归属者）
 ---@field game Game # 属于哪一局
 local M = Class 'Zone'
@@ -193,17 +193,30 @@ function M:bindOwner(player)
     self.owner = player
 end
 
---- 设置可见性
----@param value boolean
+--- 设置可见性：`true` = 所有人、`false` = 无人、给一名或一批角色 = 只有他们（重复调以后写的为准）
+---@param value boolean|Player|Player[]
 function M:setVisible(value)
-    self.visible = value
+    if type(value) == 'boolean' then
+        self.visible = value
+    else
+        self.visible = moe.util.toList(value)
+    end
 end
 
 --- 这个区对某人是否可见
 ---@param viewer Player
 ---@return boolean
 function M:isVisibleTo(viewer)
-    return self.visible or self.owner == viewer
+    local visible = self.visible
+    if type(visible) == 'boolean' then
+        return visible
+    end
+    for _, player in ipairs(visible) do
+        if player == viewer then
+            return true
+        end
+    end
+    return false
 end
 
 ---@class Zone.API

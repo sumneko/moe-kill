@@ -343,7 +343,7 @@ lt.test('有序牌区：禁用后照洗（禁用是逻辑状态，不拦搬运�
     lt.assertEquals('洗得动', shuffledLabels(20260919), zoneLabels(zone))
 end)
 
-lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看得见', function ()
+lt.test('牌区：可见性就按给的那批人（默认全员）', function ()
     local game   = moe.game.create { seats = 2, random = moe.random.create(1), sources = { lt.emptySource } }
     local system = moe.attribute.create()
     local mine   = moe.player.create(game, { attributes = system:createInstance() })
@@ -353,12 +353,23 @@ lt.test('牌区：默认对所有人可见，设成暗区后只有持有者看�
     lt.assertEquals('默认对所有人可见', true, open:isVisibleTo(other))
 
     local hand = mine:getZone('手牌')
-    hand:setVisible(false)
+    hand:setVisible(mine)
 
-    lt.assertEquals('持有者自己看得见', true, hand:isVisibleTo(mine))
+    lt.assertEquals('名单里那位看得见', true, hand:isVisibleTo(mine))
     lt.assertEquals('别人看不见', false, hand:isVisibleTo(other))
 
+    hand:setVisible({ mine, other })
+    lt.assertEquals('名单里两位都看得见', true, hand:isVisibleTo(other))
+
+    hand:setVisible(false)
+    lt.assertEquals('给 false 就谁都看不见（连持有者也是）', false, hand:isVisibleTo(mine))
+
+    hand:setVisible(true)
+    lt.assertEquals('给 true 就恢复全员可见', true, hand:isVisibleTo(other))
+
+    -- 可见性与「区属于谁」无关
     local nobody = moe.zone.create(game)
-    nobody:setVisible(false)
-    lt.assertEquals('没有归属的暗区：谁都看不见', false, nobody:isVisibleTo(mine))
+    nobody:setVisible(other)
+    lt.assertEquals('没有归属的区也能指名给谁看', true, nobody:isVisibleTo(other))
+    lt.assertEquals('名单外的看不见', false, nobody:isVisibleTo(mine))
 end)

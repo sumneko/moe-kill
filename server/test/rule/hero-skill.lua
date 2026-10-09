@@ -2261,3 +2261,163 @@ lt.test('裸衣：发动之后技能无效，本回合的 +1 照旧执行', func
     lt.assertEquals('技能没了，效果还在（延时类效果）', before - 2, foe:getAttr('体力'))
     enable()
 end)
+
+lt.test('天妒：自己的判定牌生效后拿到手', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local guojia = run.players[1]
+    guojia:setHero(assert(run.game:getHero('郭嘉')))
+
+    lt.assertEquals('技能随武将挂上', true, guojia:hasSkill('天妒'))
+
+    local decided = run.game:createCard('杀', '黑桃', 7)
+    run.game:on('判定-前', function (judge)
+        judge:replace(decided)
+    end)
+
+    run.game:judge(guojia, '测试')
+
+    local hand = assert(guojia:getZone('手牌'))
+    lt.assertEquals('判定牌进了手牌', 1, hand:count())
+    lt.assertEquals('就是判出来那张', decided, hand:peek(1))
+end)
+
+lt.test('天妒：别人的判定牌不要', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local guojia = run.players[1]
+    local other  = run.players[2]
+    guojia:setHero(assert(run.game:getHero('郭嘉')))
+
+    local judge = run.game:judge(other, '测试')
+
+    lt.assertEquals('自己手牌还是空的', 0, assert(guojia:getZone('手牌')):count())
+    lt.assertEquals('判定牌照常进弃牌堆', assert(run.game:getZone('弃牌')), judge.card:getZone())
+end)
+
+lt.test('天妒：不发动就照常进弃牌堆', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local guojia = run.players[1]
+    guojia:setHero(assert(run.game:getHero('郭嘉')))
+    findSkill(guojia, '天妒').auto = false
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '天妒' then
+            return
+        end
+        asked = asked + 1
+    end)
+
+    local judge = run.game:judge(guojia, '测试')
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('自己手牌还是空的', 0, assert(guojia:getZone('手牌')):count())
+    lt.assertEquals('判定牌照常进弃牌堆', assert(run.game:getZone('弃牌')), judge.card:getZone())
+end)
+
+lt.test('遗计：观看牌堆顶两张，给出的一张给对方、取消时剩下的归自己', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local guojia = run.players[1]
+    local other  = run.players[2]
+    guojia:setHero(assert(run.game:getHero('郭嘉')))
+    lt.assertEquals('技能随武将挂上', true, guojia:hasSkill('遗计'))
+
+    local deck   = assert(run.game:getZone('抽牌'), '没有抽牌')
+    local first  = assert(deck:peek(1))
+    local second = assert(deck:peek(2))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askCardWithTarget' or ask.reason ~= '遗计' then
+            return
+        end
+        ---@cast ask AskCardWithTarget
+        asked = asked + 1
+        local shown = assert(assert(ask.condition).zones[1])
+        lt.assertEquals('观看用的区只有郭嘉看得见', true, shown:isVisibleTo(guojia))
+        lt.assertEquals('别人看不见', false, shown:isVisibleTo(other))
+        if asked == 1 then
+            return { card = ask.options[1].card, targets = other }
+        end
+    end)
+
+    run.game:damage(other, guojia, 1)
+
+    lt.assertEquals('问了两轮（第一轮给出、第二轮取消）', 2, asked)
+    local theirs = assert(other:getZone('手牌'))
+    local mine   = assert(guojia:getZone('手牌'))
+    lt.assertEquals('给出去了牌堆顶那张', first, theirs:peek(1))
+    lt.assertEquals('取消后剩下那张归自己', second, mine:peek(1))
+end)
+
+lt.test('遗计：可以一次把两张都给同一个人', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local guojia = run.players[1]
+    local other  = run.players[2]
+    guojia:setHero(assert(run.game:getHero('郭嘉')))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askCardWithTarget' or ask.reason ~= '遗计' then
+            return
+        end
+        ---@cast ask AskCardWithTarget
+        asked = asked + 1
+        return { card = { ask.options[1].card, ask.options[2].card }, targets = other }
+    end)
+
+    run.game:damage(other, guojia, 1)
+
+    lt.assertEquals('一轮就分完了', 1, asked)
+    lt.assertEquals('两张都在他手里', 2, assert(other:getZone('手牌')):count())
+    lt.assertEquals('自己一张没拿', 0, assert(guojia:getZone('手牌')):count())
+end)
+
+lt.test('遗计：受 2 点伤害就发动两轮', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local guojia = run.players[1]
+    local other  = run.players[2]
+    guojia:setHero(assert(run.game:getHero('郭嘉')))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askCardWithTarget' or ask.reason ~= '遗计' then
+            return
+        end
+        asked = asked + 1
+    end)
+
+    run.game:damage(other, guojia, 2)
+
+    lt.assertEquals('两轮各问一次（都不分配）', 2, asked)
+    lt.assertEquals('四张都归自己', 4, assert(guojia:getZone('手牌')):count())
+end)
+
+lt.test('遗计：不发动就什么也不做', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local guojia = run.players[1]
+    local other  = run.players[2]
+    guojia:setHero(assert(run.game:getHero('郭嘉')))
+    findSkill(guojia, '遗计').auto = false
+
+    local deck = assert(run.game:getZone('抽牌'), '没有抽牌')
+    local top  = assert(deck:peek(1))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '遗计' then
+            return
+        end
+        asked = asked + 1
+    end)
+
+    run.game:damage(other, guojia, 1)
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('牌堆顶没动', top, deck:peek(1))
+    lt.assertEquals('谁的手牌都没多', 0, assert(guojia:getZone('手牌')):count())
+end)

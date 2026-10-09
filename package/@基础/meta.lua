@@ -35,6 +35,13 @@
 ---@field on fun(self: Game, name: '判定-后', callback: fun(judge: Judge): any): function
 ---@field fire fun(self: Game, name: '判定-后', judge: Judge): any
 
+--- 判定的两条**对判定者再发一份**（全局先、当事人后；同名 —— 判定没有「来源 / 目标」之分）
+---@class Player
+---@field on fun(self: Player, name: '判定-前', callback: fun(judge: Judge): any): function
+---@field fire fun(self: Player, name: '判定-前', judge: Judge): any
+---@field on fun(self: Player, name: '判定-后', callback: fun(judge: Judge): any): function
+---@field fire fun(self: Player, name: '判定-后', judge: Judge): any
+
 --- 伤害与治疗的时机也由本包提供：按名收窄 `on` / `fire` 的载荷
 --- 四个阶段各发三份（全局 / 来源 / 目标）：开始（仅通知，别改值）→ 生效前（改值的口子）→ 生效后（「受到伤害后」这类常用时机）→ 结束（全部结算完）
 ---@class Game
@@ -118,6 +125,8 @@
 ---@field event fun(self: SkillDef, name: '治疗-来源-生效后', handler: fun(skill: Skill, heal: Heal): any): SkillDef
 ---@field event fun(self: SkillDef, name: '治疗-来源-结束', handler: fun(skill: Skill, heal: Heal): any): SkillDef
 ---@field event fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
+---@field event fun(self: SkillDef, name: '判定-前', handler: fun(skill: Skill, judge: Judge): any): SkillDef
+---@field event fun(self: SkillDef, name: '判定-后', handler: fun(skill: Skill, judge: Judge): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '判定-前', handler: fun(skill: Skill, judge: Judge): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '判定-后', handler: fun(skill: Skill, judge: Judge): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
@@ -142,6 +151,8 @@
 ---@field event fun(self: CardDef, name: '治疗-来源-生效后', handler: fun(card: Card, heal: Heal): any): CardDef
 ---@field event fun(self: CardDef, name: '治疗-来源-结束', handler: fun(card: Card, heal: Heal): any): CardDef
 ---@field event fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef
+---@field event fun(self: CardDef, name: '判定-前', handler: fun(card: Card, judge: Judge): any): CardDef
+---@field event fun(self: CardDef, name: '判定-后', handler: fun(card: Card, judge: Judge): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '判定-前', handler: fun(card: Card, judge: Judge): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '判定-后', handler: fun(card: Card, judge: Judge): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef

@@ -43,8 +43,11 @@ function Dying:settle()
     ---@type AskUseCard.Condition # 只要能救他的【桃】
     local condition = { name = '桃', target = player }
     for asker in game.desk:actionOrder() do
-        -- 答了就接着问他，答不上来换下一位
-        while game:askUseCard(asker, '濒死', condition).useCard do
+        -- 答了就接着问他，答不上来换下一位（上限 1000 次，防止答复不前进时死循环）
+        for _ = 1, 1000 do
+            if not game:askUseCard(asker, '濒死', condition).useCard then
+                break
+            end
             -- 救回来了就收工
             if self.left then
                 return

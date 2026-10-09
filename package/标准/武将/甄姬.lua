@@ -8,7 +8,7 @@ Hero '甄姬'
 
 -- 【洛神】准备阶段开始时，你可以进行判定：若结果为黑色，判定牌生效后你获得之，然后你可以重复此流程。
 Skill '洛神'
-    : globalEvent('判定-后', function (skill, judge)
+    : event('判定-后', function (skill, judge)
         local card = judge.card
         if judge.reason == '洛神' and card and card.color == '黑' then
             -- 判定牌还在这次判定的临时区里，趁收尾送弃牌之前搬进手牌
