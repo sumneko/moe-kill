@@ -3384,3 +3384,239 @@ lt.test('国色：判定区里那张转化的牌也算「已有同名」，不�
     lt.assertEquals('用不了', false, ok)
     lt.assertEquals('理由是「不能以这个角色为目标」', '「标准.乐不思蜀」不能以这个角色为目标', reason)
 end)
+
+lt.test('无双：【杀】的目标只出一张【闪】⇒ 追问一张，拿不出就挨 1 点', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local lvbu   = run.players[1]
+    local target = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+    lt.assertEquals('技能随武将挂上', true, lvbu:hasSkill('无双'))
+
+    local slash = takeCard(run, lvbu, '杀')
+    local dodge = takeCard(run, target, '闪')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' and ask.to == target then
+            asked = asked + 1
+            return { card = dodge }
+        end
+    end)
+
+    run.game:useCard(lvbu, slash, { target })
+
+    lt.assertEquals('问了两次（【杀】自己那次 + 无双追的那张）', 2, asked)
+    lt.assertEquals('第二张拿不出 ⇒ 照常挨 1 点', 4, target:getAttr('体力'))
+    lt.assertEquals('那一张【闪】照常进了弃牌堆', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), dodge))
+end)
+
+lt.test('无双：【杀】的目标出齐两张【闪】⇒ 不受伤，「被响应」只发一次', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local lvbu   = run.players[1]
+    local target = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+
+    local slash  = takeCard(run, lvbu, '杀')
+    local dodges = { takeCard(run, target, '闪'), takeCard(run, target, '闪') }
+
+    ---@type integer
+    local index = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' and ask.to == target then
+            index = index + 1
+            return { card = dodges[index] }
+        end
+    end)
+    ---@type integer
+    local responded = 0
+    run.game:on('效果-被响应', function (ask)
+        if ask.reason == '杀' then
+            responded = responded + 1
+        end
+    end)
+
+    run.game:useCard(lvbu, slash, { target })
+
+    lt.assertEquals('两张都打出来了', 2, index)
+    lt.assertEquals('没受伤', 5, target:getAttr('体力'))
+    lt.assertEquals('两张出齐才算被响应 ⇒ 时机只发一次（青龙 / 斧子只发动一次）', 1, responded)
+end)
+
+lt.test('无双：目标一张【闪】都没有 ⇒ 不插手（不多问）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local lvbu   = run.players[1]
+    local target = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+
+    local slash = takeCard(run, lvbu, '杀')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(lvbu, slash, { target })
+
+    lt.assertEquals('只问了【杀】自己那一次', 1, asked)
+    lt.assertEquals('照常挨 1 点', 4, target:getAttr('体力'))
+end)
+
+lt.test('无双：【决斗】里对方每轮要两张【杀】（吕布自己只要一张）', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local lvbu = run.players[1]
+    local foe  = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+
+    local duel     = takeCard(run, lvbu, '决斗')
+    local foeSlash = takeCard(run, foe, '杀')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        -- 只数「打出【杀】」那次询问（无懈窗口的缘由也是牌名，别混进来）
+        if ask.kind == 'askPlayCard' and ask.reason == '决斗' and ask.to == foe then
+            asked = asked + 1
+            return { card = foeSlash }
+        end
+    end)
+
+    run.game:useCard(lvbu, duel, { foe })
+
+    lt.assertEquals('对方被问了两次', 2, asked)
+    lt.assertEquals('对方拿不出第二张 ⇒ 挨 1 点', 4, foe:getAttr('体力'))
+    lt.assertEquals('吕布毫发无损（他自己只要一张）', 4, lvbu:getAttr('体力'))
+end)
+
+lt.test('无双：【决斗】里使用者每轮要两张【杀】（吕布是目标时）', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local foe  = run.players[1]
+    local lvbu = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+
+    local duel      = takeCard(run, foe, '决斗')
+    local lvbuSlash = takeCard(run, lvbu, '杀')
+    local foeSlash  = takeCard(run, foe, '杀')
+
+    ---@type integer
+    local askedFoe = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askPlayCard' or ask.reason ~= '决斗' then
+            return
+        end
+        if ask.to == lvbu then
+            return { card = lvbuSlash }
+        end
+        askedFoe = askedFoe + 1
+        return { card = foeSlash }
+    end)
+
+    run.game:useCard(foe, duel, { lvbu })
+
+    lt.assertEquals('使用者被问了两次（第二张拿不出）', 2, askedFoe)
+    lt.assertEquals('使用者挨 1 点', 4, foe:getAttr('体力'))
+    lt.assertEquals('吕布毫发无损（他自己只要一张）', 4, lvbu:getAttr('体力'))
+end)
+
+lt.test('无双：目标答复空表（主动不出）⇒ 不追第二张', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local lvbu   = run.players[1]
+    local target = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+
+    local slash = takeCard(run, lvbu, '杀')
+    takeCard(run, target, '闪')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' and ask.to == target then
+            asked = asked + 1
+            return {}
+        end
+    end)
+
+    run.game:useCard(lvbu, slash, { target })
+
+    lt.assertEquals('只问了【杀】自己那一次（没出就不算响应）', 1, asked)
+    lt.assertEquals('照常挨 1 点', 4, target:getAttr('体力'))
+end)
+
+lt.test('无双：【决斗】里吕布自己只要一张（两边都有牌时）', function ()
+    local run  = support.start { count = 2, packages = { '标准' } }
+    local lvbu = run.players[1]
+    local foe  = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+
+    local duel = takeCard(run, lvbu, '决斗')
+    --- 双方各两张【杀】；对方在第三轮没牌
+    local foeSlash  = { takeCard(run, foe, '杀'), takeCard(run, foe, '杀') }
+    local lvbuSlash = { takeCard(run, lvbu, '杀'), takeCard(run, lvbu, '杀') }
+
+    ---@type integer
+    local askedFoe = 0
+    ---@type integer
+    local askedLvbu = 0
+    local foeIndex, lvbuIndex = 0, 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askPlayCard' or ask.reason ~= '决斗' then
+            return
+        end
+        if ask.to == foe then
+            askedFoe = askedFoe + 1
+            foeIndex = foeIndex + 1
+            return { card = foeSlash[foeIndex] }
+        end
+        askedLvbu = askedLvbu + 1
+        lvbuIndex = lvbuIndex + 1
+        return { card = lvbuSlash[lvbuIndex] }
+    end)
+
+    run.game:useCard(lvbu, duel, { foe })
+
+    lt.assertEquals('对方：第一轮两次 + 第三轮那次拿不出 = 3', 3, askedFoe)
+    lt.assertEquals('吕布那一轮只要一张', 1, askedLvbu)
+    lt.assertEquals('吕布出了掉那张 ⇒ 不受伤', 4, lvbu:getAttr('体力'))
+    lt.assertEquals('对方两张用完之后拿不出 ⇒ 挨 1 点', 4, foe:getAttr('体力'))
+end)
+
+lt.test('无双：中途失去技能，这次使用里的要求照旧（官方 Ch1/S2 那条）', function ()
+    local run    = support.start { count = 2, packages = { '标准' } }
+    local lvbu   = run.players[1]
+    local target = run.players[2]
+    lvbu:setHero(assert(run.game:getHero('吕布')))
+
+    -- 「来源」那份时机跑在「目标」那份之前 ⇒ 订阅已经挂到这次使用上，这时候再让他失去技能
+    target:on('卡牌-目标-指定目标后', function ()
+        findSkill(lvbu, '无双'):disablePassive()
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.reason == '杀' and ask.to == target then
+            asked = asked + 1
+            return { card = assert(target:getZone('手牌')):list()[1] }
+        end
+    end)
+
+    local slash = takeCard(run, lvbu, '杀')
+    takeCard(run, target, '闪')
+    run.game:useCard(lvbu, slash, { target })
+
+    lt.assertEquals('这一次：已经写下的要求照旧（要两张）', 2, asked)
+    lt.assertEquals('拿不出第二张 ⇒ 挨 1 点', 4, target:getAttr('体力'))
+
+    -- 技能已经停用 ⇒ 下一次使用不再多要
+    asked = 0
+    local slash2 = takeCard(run, lvbu, '杀')
+    takeCard(run, target, '闪')
+    run.game:useCard(lvbu, slash2, { target })
+
+    lt.assertEquals('下一次：技能停用 ⇒ 只要一张', 1, asked)
+    lt.assertEquals('出得掉 ⇒ 不受伤', 4, target:getAttr('体力'))
+end)

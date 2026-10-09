@@ -26,6 +26,17 @@ function M:settle()
     end
 end
 
+--- 空答复（主动不出）不算一次答复：一次响应得真打出一张牌 ⇒ 这次作废（`settle` 会记成「没有打出」）
+---@async
+---@param value AskCard.Answer
+---@return AskCard.Answer?
+function M:beforeResolve(value)
+    if self.responseOptions?.responseTo and #moe.util.toList(value.card) == 0 then
+        return nil
+    end
+    return value
+end
+
 --- 交出来的牌进**发起这次结算的临时处理区**（由那次结算收尾时统一送弃牌堆）；没有外层结算就不动，交给内容侧；
 --- 虚拟牌自己进不了牌区 —— 收它就是注销它、改收它的实体子牌（见 `Zone:accept`）
 --- 顺手记一笔「本阶段打出过这张」的账（牌名叫什么就记什么，虚拟牌记它视为的名字）
