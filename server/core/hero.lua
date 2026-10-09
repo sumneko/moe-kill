@@ -8,6 +8,8 @@
 ---@field private game Game # 所属的局
 ---@field private skillNames string[] # 拥有的技能名（按声明顺序）
 ---@field private values table<string, any> # 自带的数据
+---@field private kinds string[] # 分类（按声明顺序）
+---@field private kindSet table<string, true>
 local M = Class 'HeroDef'
 
 ---@param game Game
@@ -22,6 +24,8 @@ function M:__init(game, name, owner, source)
     self.source     = source
     self.skillNames = {}
     self.values     = {}
+    self.kinds      = {}
+    self.kindSet    = {}
 end
 
 --- 声明拥有的技能（一次调用定下来；重复调以后写的为准）
@@ -51,4 +55,47 @@ end
 ---@return any # 没声明过就是「不存在」
 function M:getValue(name)
     return self.values[name]
+end
+
+--- 声明这名武将的分类（一次调用就把分类定下来；重复调以后写的为准；要多个就给一张列表）
+---@param name string|string[] # 分类名（取值由你定）
+---@return HeroDef
+function M:kind(name)
+    self.kinds   = {}
+    self.kindSet = {}
+    return self:addKind(name)
+end
+
+--- 追加分类（不覆盖已经声明过的）
+---@param name string|string[] # 分类名（取值由你定）
+---@return HeroDef
+function M:addKind(name)
+    ---@type string[]
+    local list
+    if type(name) == 'table' then
+        ---@cast name string[]
+        list = name
+    else
+        ---@cast name string
+        list = { name }
+    end
+    for _, item in ipairs(list) do
+        if not self.kindSet[item] then
+            self.kindSet[item] = true
+            self.kinds[#self.kinds + 1] = item
+        end
+    end
+    return self
+end
+
+--- 这名武将是不是这个分类
+---@param name string
+---@return boolean
+function M:isKind(name)
+    return self.kindSet[name] == true
+end
+
+---@return string[] # 分类列表（快照，按声明顺序）
+function M:getKinds()
+    return moe.util.copy(self.kinds)
 end

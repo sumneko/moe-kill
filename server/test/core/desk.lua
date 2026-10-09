@@ -13,6 +13,30 @@ local function newPlayer(game)
     return moe.player.create(game, { attributes = system:createInstance() })
 end
 
+lt.test('桌子：交换两个座位上的玩家', function ()
+    local game = newGame(3)
+    local desk = game.desk
+    local a    = newPlayer(game)
+    local b    = newPlayer(game)
+    local c    = newPlayer(game)
+    desk:sit(1, a)
+    desk:sit(2, b)
+    desk:sit(3, c)
+
+    desk:swap(1, 3)
+
+    lt.assertEquals('1 号位换成了 c', c, desk:getPlayer(1))
+    lt.assertEquals('3 号位换成了 a', a, desk:getPlayer(3))
+    lt.assertEquals('2 号位没动', b, desk:getPlayer(2))
+    lt.assertEquals('查座位号跟着换', 3, desk:getIndex(a))
+
+    desk:swap(2, 2)
+    lt.assertEquals('和自己换什么都不变', b, desk:getPlayer(2))
+    lt.assertError('座位号越界要报错', function ()
+        desk:swap(1, 4)
+    end)
+end)
+
 lt.test('桌子：座位号决定行动顺序', function ()
     local game = newGame(3)
     local desk = game.desk

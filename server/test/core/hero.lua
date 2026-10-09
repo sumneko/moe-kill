@@ -39,6 +39,19 @@ Hero '甲'
     : value('珠联璧合', '乙')
 ]]
 
+local KIND_PROBE = [[
+Hero '甲'
+    : addKind('君主')
+    : addKind('君主')
+    : addKind('测试')
+
+Hero '乙'
+    : addKind('测试')
+    : kind('君主')
+
+Hero '丙'
+]]
+
 lt.test('武将定义：声明与读回', function ()
     useProbe()
     local game = newGame(PROBE)
@@ -52,6 +65,33 @@ lt.test('武将定义：声明与读回', function ()
     lt.assertEquals('两个技能', 2, #skills)
     lt.assertEquals('按声明顺序', '技能一,技能二', table.concat(skills, ','))
     lt.assertEquals('自带数据读得到', '乙', hero:getValue('珠联璧合'))
+end)
+
+lt.test('武将定义：分类（addKind 只追加、不重复）', function ()
+    useProbe()
+    local game = newGame(KIND_PROBE)
+    local hero = assert(game:getHero('甲'))
+
+    lt.assertEquals('两个分类，按声明顺序', '君主,测试', table.concat(hero:getKinds(), ','))
+    lt.assertEquals('是君主', true, hero:isKind('君主'))
+    lt.assertEquals('没打过的不是', false, hero:isKind('别的'))
+end)
+
+lt.test('武将定义：kind 一次定下（会把已经打过的分类换掉）', function ()
+    useProbe()
+    local game = newGame(KIND_PROBE)
+    local hero = assert(game:getHero('乙'))
+
+    lt.assertEquals('只剩后写的那一个', '君主', table.concat(hero:getKinds(), ','))
+end)
+
+lt.test('武将定义：没打分类就是空', function ()
+    useProbe()
+    local game = newGame(KIND_PROBE)
+    local hero = assert(game:getHero('丙'))
+
+    lt.assertEquals('分类为空', 0, #hero:getKinds())
+    lt.assertEquals('不是任何分类', false, hero:isKind('君主'))
 end)
 
 lt.test('武将定义：没声明的字段就是空', function ()

@@ -11,6 +11,7 @@ local M = {}
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field seed? integer
 ---@field names? string[] # 每个玩家的名字（省略就不给）
+---@field prepare? 身份场.准备配置 # 给了就先 fire `'游戏-准备'`（载荷 = `{ config = 它 }`；不给就用「跳过选将」空跑一遍 = 照样发身份）
 ---@field answers? Card[] # 脚本化的答复（按顺序给出牌；省略时一律不响应）
 ---@field beforeStart? fun(game: Game, players: Player[]) # 开局之前跑一次（选将这类装配动作放这里）
 
@@ -92,8 +93,9 @@ function M.start(options)
     if options.beforeStart then
         options.beforeStart(game, players)
     end
+    game:fire('游戏-准备', { config = options.prepare or { skipSelect = true, seats = players } })
     game:fire('游戏-开始', {})
-    game.turnPlayer = players[1]
+    game.turnPlayer = assert(game.desk:getPlayer(1))
     return { players = players, desk = desk, random = random, game = game }
 end
 

@@ -801,6 +801,20 @@ function M:getHero(name)
     return nil
 end
 
+--- 这一局装了哪些武将（**按完整名排序** ⇒ 顺序稳定，同一个随机源可复现）
+---@return HeroDef[] # 快照
+function M:getHeroes()
+    ---@type HeroDef[]
+    local list = {}
+    for _, package in ipairs(self.heroPackages) do
+        for _, def in pairs(self.heroes[package]) do
+            list[#list + 1] = def
+        end
+    end
+    table.sort(list, function (a, b) return a.fullName < b.fullName end)
+    return list
+end
+
 --- 声明一个技能（只能写在加载期加载的那个包里）
 ---@param name string
 ---@return SkillDef
@@ -1132,6 +1146,23 @@ function M:askPanel(to, reason, panel)
         to     = to,
         reason = reason,
         panel  = panel,
+    }
+    ask:apply():await()
+    return ask
+end
+
+--- 要他在若干武将里挑（候选名单由发起方给；左慈那类「挑别人的武将」也用它）
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param condition? AskHero.Condition # 要什么样的武将（省略 = 不做限制）
+---@return AskHero # 这次询问（已经结完：答复读 `.hero` / `.heroes`，失败读 `.err`）
+function M:askHero(to, reason, condition)
+    local ask = moe.askHero.create {
+        game      = self,
+        to        = to,
+        reason    = reason,
+        condition = condition,
     }
     ask:apply():await()
     return ask

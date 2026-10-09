@@ -114,6 +114,9 @@ rule = nil
 ---@field globalEvent fun(self: SkillDef, name: '游戏-结束', handler: fun(skill: Skill, result: Game.Result): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
 
+--- 开局**准备**（比「游戏-开始」更早的一步：发身份 / 选将都发生在它里面）—— 同样没有事件参数，触发时给空表
+---@class Game.Event.游戏准备
+
 --- 目前没有事件参数：触发时给空表，环境对象从 game 取
 ---@class Game.Event.游戏开始
 
@@ -134,6 +137,8 @@ rule = nil
 ---@field card Card # 要用的牌
 
 ---@class Game
+---@field on fun(self: Game, name: '游戏-准备', callback: fun(event: Game.Event.游戏准备): any): function # 开局准备（比「游戏-开始」更早的一步：发身份 / 选将）—— **由装配侧 fire**，内核不代劳
+---@field fire fun(self: Game, name: '游戏-准备', event: Game.Event.游戏准备): any
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function
 ---@field fire fun(self: Game, name: '游戏-开始', event: Game.Event.游戏开始): any
 ---@field on fun(self: Game, name: '效果-能否生效', callback: fun(effect: Effect): any): function # 询问要不要阻止这一次生效（第一段：问全局）：返回非 nil 即阻止（返回值就是原因）
@@ -179,6 +184,10 @@ rule = nil
 ---@field fire fun(self: Game, name: '面板-询问', askPanel: AskPanel): any # 返回值就是一次回复（`AskPanel.Change`；没人表态给空）
 ---@field on fun(self: Game, name: '面板-答复', callback: fun(askPanel: AskPanel): any): function # 收到了一次回复（变化已经验证并生效；面板的当前形状照它读）
 ---@field fire fun(self: Game, name: '面板-答复', askPanel: AskPanel): any
+---@field on fun(self: Game, name: '武将-询问', callback: fun(askHero: AskHero): any): function # 问应答方要一名或几名武将（**第一个给出答复的胜出（后面的订阅者不再调）**）；返回空 = 不表态
+---@field fire fun(self: Game, name: '武将-询问', askHero: AskHero): any # 返回值就是答复（`HeroDef|HeroDef[]`；没人表态给空）
+---@field on fun(self: Game, name: '武将-答复', callback: fun(askHero: AskHero): any): function
+---@field fire fun(self: Game, name: '武将-答复', askHero: AskHero): any
 ---@field on fun(self: Game, name: '技能-询问', callback: fun(ask: AskUseSkill): any): function # 问应答方要发动哪个技能：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
 ---@field fire fun(self: Game, name: '技能-询问', ask: AskUseSkill): any # 返回值就是答复（`{ skill = …, cards = …, targets = … }`；没人表态给空）
 ---@field on fun(self: Game, name: '游戏-结束', callback: fun(result: Game.Result): any): function

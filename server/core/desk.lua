@@ -30,6 +30,22 @@ function M:sit(index, player)
     self.seats[index] = player
 end
 
+--- 交换两个座位上的玩家
+---@param a integer
+---@param b integer
+function M:swap(a, b)
+    if a == b then
+        return
+    end
+    if type(a) ~= 'number' or math.type(a) ~= 'integer' or a < 1 or a > self.count then
+        error('座位号必须是 1 到 {} 之间的整数：{}' % { self.count, tostring(a) }, 2)
+    end
+    if type(b) ~= 'number' or math.type(b) ~= 'integer' or b < 1 or b > self.count then
+        error('座位号必须是 1 到 {} 之间的整数：{}' % { self.count, tostring(b) }, 2)
+    end
+    self.seats[a], self.seats[b] = self.seats[b], self.seats[a]
+end
+
 --- 这个座位上坐着谁
 ---@param index integer
 ---@return Player?
