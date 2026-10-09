@@ -151,6 +151,22 @@ lt.test('牌区：kind 只用来区分子类', function ()
     lt.assertEquals('有序子类的 kind', 'orderedZone', lt.orderedZone().kind)
 end)
 
+lt.test('牌区：记着自己叫什么名字', function ()
+    local game   = moe.game.create { seats = 2, random = moe.random.create(1), sources = { lt.emptySource } }
+    local system = moe.attribute.create()
+    local mine   = moe.player.create(game, { attributes = system:createInstance() })
+
+    mine:addZone('武器')
+    lt.assertEquals('玩家建区：名字记在区上', '武器', assert(mine:getZone('武器')).name)
+    lt.assertEquals('内核建的区也有名字', '判定', mine:getZone('判定').name)
+    lt.assertEquals('局上建区同理', '弃牌', game:getZone('弃牌').name)
+
+    local loose = moe.zone.create(game)
+    lt.assertEquals('没登记过的区没有名字', nil, loose.name)
+    loose:bindName('自留地')
+    lt.assertEquals('登记过就有', '自留地', loose.name)
+end)
+
 lt.test('牌区：禁用可以叠层，逐层撤销才恢复', function ()
     local zone = lt.zone()
 

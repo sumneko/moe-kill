@@ -4,6 +4,7 @@
 ---@field private disabled integer # 被禁用的层数（0 = 启用）
 ---@field private visible Visibility # 可见性：`true` = 所有人、`false` = 无人、一批角色 = 只有他们（默认 `true`）
 ---@field owner? Player # 这个区属于谁（公共区没有归属者）
+---@field name? string # 这个区叫什么（登记它的那一方写：玩家建区 / 局上建区；临时区这种自留地没有名字）
 ---@field game Game # 属于哪一局
 local M = Class 'Zone'
 
@@ -68,7 +69,7 @@ function M:takeIn(cards, visible)
         if from then
             from:detach(card)
         end
-        card:unbindZone()
+        -- 一次搬动就一次归属变更：中间不留「无主」态（那会被当成一次「离开」）
         self.cards[#self.cards + 1] = card
         card:bindZone(self)
         moves[i] = {
@@ -199,6 +200,12 @@ end
 ---@param player Player
 function M:bindOwner(player)
     self.owner = player
+end
+
+--- 记下这个区叫什么（登记它的那一方用）
+---@param name string
+function M:bindName(name)
+    self.name = name
 end
 
 --- 设置可见性：`true` = 所有人、`false` = 无人、给一名或一批角色 = 只有他们（重复调以后写的为准）

@@ -254,6 +254,127 @@ lt.test('牌：转化的牌名查不到，读定义时当场报错（报错里�
     lt.assertEquals('报错里带着那个名字', true, (err or ''):find('没有这张牌') ~= nil)
 end)
 
+lt.test('牌：虚拟牌挂转化，自己也挂、每张素材也挂一份', function ()
+    local game     = lt.game()
+    local material = moe.card.create(game, '杀', 125, '黑桃', 9)
+    local virtual  = game:createVirtualCard('闪', material)
+
+    local remove = virtual:addModifier { name = '桃', suit = '方块' }
+    lt.assertEquals('虚拟牌自己也改了', '桃', virtual.name)
+    lt.assertEquals('素材跟着改（内容侧不用自己拆 physical）', '桃', material.name)
+    lt.assertEquals('素材的花色也改', '方块', material.suit)
+    lt.assertEquals('素材的内容定义跟着换', game:getCard('桃'), material.def)
+
+    remove()
+    lt.assertEquals('撤销后虚拟牌恢复', '闪', virtual.name)
+    lt.assertEquals('撤销后素材恢复', '杀', material.name)
+    lt.assertEquals('素材的定义也回到原来那份', game:getCard('杀'), material.def)
+
+    remove()
+    lt.assertEquals('重复撤销不会改坏别的', '闪', virtual.name)
+end)
+
+lt.test('牌：withZone 挂的撤销在离开那个区时跑（换区、清空）', function ()
+    local game = lt.game()
+    local zone = lt.zone()
+    local card = moe.card.create(game, '杀', 126)
+    zone:accept(card)
+
+    ---@type integer
+    local fired = 0
+    card:withZone(function ()
+        fired = fired + 1
+    end)
+
+    zone:accept(moe.card.create(game, '闪', 127))
+    lt.assertEquals('同区里别的牌进出不算离开', 0, fired)
+
+    game:moveCard(card, '弃牌')
+    lt.assertEquals('换区就撤销', 1, fired)
+
+    local other = moe.card.create(game, '桃', 128)
+    zone:accept(other)
+    other:withZone(function ()
+        fired = fired + 1
+    end)
+    zone:clear()
+    lt.assertEquals('区被清空也算离开', 2, fired)
+end)
+
+lt.test('牌：虚拟牌上挂 withZone，素材离开那个区时撤销', function ()
+    local game     = lt.game()
+    local material = moe.card.create(game, '杀', 128, '黑桃', 9)
+    local zone     = lt.zone()
+    zone:accept(material)
+    local virtual  = game:createVirtualCard('闪', material)
+
+    ---@type integer
+    local fired = 0
+    virtual:withZone(function ()
+        fired = fired + 1
+    end)
+
+    game:moveCard(material, '弃牌')
+    lt.assertEquals('素材离开就撤销', 1, fired)
+end)
+
+lt.test('牌：withZone 的判据说「还算没离开」就不撤，直到再换到别处', function ()
+    local game   = lt.game()
+    local from   = lt.zone()
+    local stayed = lt.zone()
+    local card   = moe.card.create(game, '杀', 129)
+    from:accept(card)
+
+    ---@type integer
+    local fired = 0
+    card:withZone(function ()
+        fired = fired + 1
+    end, function (zone)
+        return zone == stayed
+    end)
+
+    game:moveCard(card, stayed)
+    lt.assertEquals('落到判据认的区 ⇒ 留着', 0, fired)
+
+    game:moveCard(card, '弃牌')
+    lt.assertEquals('再换到别处 ⇒ 撤销', 1, fired)
+end)
+
+lt.test('牌：多条 withZone 各判各的；摘下来没去处也撤', function ()
+    local game   = lt.game()
+    local from   = lt.zone()
+    local stayed = lt.zone()
+    local card   = moe.card.create(game, '闪', 130)
+    from:accept(card)
+
+    ---@type integer
+    local keptCount = 0
+    ---@type integer
+    local plainCount = 0
+    card:withZone(function ()
+        keptCount = keptCount + 1
+    end, function (zone)
+        return zone == stayed
+    end)
+    card:withZone(function ()
+        plainCount = plainCount + 1
+    end)
+
+    game:moveCard(card, stayed)
+    lt.assertEquals('带判据的那条留着', 0, keptCount)
+    lt.assertEquals('没带判据的那条撤了', 1, plainCount)
+
+    local other = moe.card.create(game, '桃', 131)
+    lt.zone():accept(other)
+    ---@type integer
+    local cleared = 0
+    other:withZone(function ()
+        cleared = cleared + 1
+    end)
+    other:getZone():clear()
+    lt.assertEquals('摘下没去处也算离开', 1, cleared)
+end)
+
 lt.test('牌：被动出厂不生效，启用时才应用、停用时撤销', function ()
     local guard <close> = useProbe()
     local game = newGame()

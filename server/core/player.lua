@@ -83,6 +83,7 @@ function M:addZone(name, zone)
     end
     local instance = zone or New 'Zone' (self.game)
     instance:bindOwner(self)
+    instance:bindName(name)
     self.zoneMap[name] = instance
     self.zoneList[#self.zoneList+1] = instance
     local removed = false

@@ -29,5 +29,10 @@ Card '延时锦囊牌'
         end,
     }
     : on('使用', function (useCard)
-        game:moveCard(useCard.card, useCard.targets[1]:getZone('判定'))
+        local card = useCard.card
+        game:moveCard(card, useCard.targets[1]:getZone('判定'))
+        -- 判定区里那张实体牌代表这张延时锦囊（转化的牌靠它到判定期仍是这张锦囊）；进的不是判定区就撤
+        card:withZone(card:addModifier { name = card.name }, function (zone)
+            return zone?.name == '判定'
+        end)
     end)

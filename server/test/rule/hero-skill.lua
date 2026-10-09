@@ -3253,3 +3253,127 @@ lt.test('流离：转给本次【杀】已有的目标 ⇒ 那人挨两刀', fun
     lt.assertEquals('弃掉的那张在弃牌堆里', true,
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), cost))
 end)
+
+lt.test('国色：出牌阶段把一张方块手牌当【乐不思蜀】用出去', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local daqiao = run.players[2]
+    local foe    = run.players[3]
+    lt.assertEquals('技能随武将挂上', true, daqiao:hasSkill('国色'))
+
+    local material = run.game:createCard('杀', '方块', 7)
+    assert(daqiao:getZone('手牌')):accept(material)
+
+    ---@type ViewAs?
+    local chosen = nil
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = material }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(daqiao, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用出去一张虚拟【乐不思蜀】')
+
+    lt.assertEquals('视为的是【乐不思蜀】', '乐不思蜀', card.name)
+    lt.assertEquals('是虚拟牌', true, card.virtual)
+    lt.assertEquals('关联是国色', findSkill(daqiao, '国色'), assert(chosen).source)
+    lt.assertEquals('素材就是那张方块牌', material, card.subcards[1])
+
+    local stored = assert(foe:getZone('判定')):list()[1]
+    lt.assertEquals('判定区里躺着的是那张实体牌', material, stored)
+    lt.assertEquals('它此刻读作【乐不思蜀】', '乐不思蜀', stored.name)
+    lt.assertEquals('花色照旧（身份变了、牌面没变）', '方块', stored.suit)
+    lt.assertEquals('点数照旧', 7, stored.point)
+    lt.assertEquals('内容定义跟着换', run.game:getCard('乐不思蜀'), stored.def)
+    lt.assertEquals('它是延时锦囊', true, stored:isKind('延时锦囊'))
+    lt.assertEquals('手牌里没有它了', false, moe.util.arrayHas(assert(daqiao:getZone('手牌')):list(), material))
+
+    run.game:moveCard(stored, '弃牌')
+    lt.assertEquals('离开判定区后身份撤销（读回来是原来那张牌）', '杀', stored.name)
+    lt.assertEquals('定义也回到原来那份', run.game:getCard('杀'), stored.def)
+end)
+
+lt.test('国色：黑桃牌当不了素材（进不了选项）', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local daqiao = run.players[2]
+
+    assert(daqiao:getZone('手牌')):accept(run.game:createCard('闪', '黑桃', 2))
+
+    local ask = run.game:askUseCard(daqiao, '出牌', { zone = '手牌' })
+    lt.assertEquals('没有选项', 0, #assert(ask.options))
+end)
+
+lt.test('国色：装备区的方块牌也能当素材', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local daqiao = run.players[2]
+    local foe    = run.players[3]
+
+    local horse = run.game:createCard('赤兔', '方块', 5)
+    assert(daqiao:getZone('手牌')):accept(horse)
+    daqiao:equipCard(horse)
+    lt.assertNotEquals('方块牌已经进了装备区', assert(daqiao:getZone('手牌')), horse:getZone())
+
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = horse }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+
+    local ask  = run.game:askUseCard(daqiao, '出牌', { zone = '手牌' })
+    local card = assert(ask.card, '该用出去一张虚拟【乐不思蜀】')
+
+    lt.assertEquals('素材是装备区里那张', horse, card.subcards[1])
+    lt.assertEquals('它进了对方判定区', horse, assert(foe:getZone('判定')):list()[1])
+    lt.assertEquals('装备区那边空了', 0, #daqiao.equipCards)
+end)
+
+lt.test('国色：判定区里那张转化的牌也算「已有同名」，不能再指定那个人', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local daqiao = run.players[2]
+    local foe    = run.players[3]
+
+    local material = run.game:createCard('杀', '方块', 7)
+    assert(daqiao:getZone('手牌')):accept(material)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = material }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+    assert(run.game:askUseCard(daqiao, '出牌', { zone = '手牌' }).card, '该用出去一张虚拟【乐不思蜀】')
+
+    local real = takeCard(run, daqiao, '乐不思蜀')
+    local ok, reason = run.game:canUse(daqiao, real, { foe })
+    lt.assertEquals('用不了', false, ok)
+    lt.assertEquals('理由是「不能以这个角色为目标」', '「标准.乐不思蜀」不能以这个角色为目标', reason)
+end)

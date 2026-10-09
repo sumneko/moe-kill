@@ -403,3 +403,81 @@ lt.test('延时锦囊：使用期不产生无懈询问（判定前才有窗口�
     lt.assertEquals('没人被问要不要用无懈', false, asked)
     lt.assertEquals('乐不思蜀照常置入判定区', lebu, other:getZone('判定'):list()[1])
 end)
+
+lt.test('国色：方块牌当【乐不思蜀】用的那张，到判定期照【乐不思蜀】跑', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local daqiao = run.players[1]
+    local foe    = run.players[2]
+    daqiao:setHero(assert(run.game:getHero('大乔')))
+
+    local material = run.game:createCard('杀', '方块', 7)
+    assert(daqiao:getZone('手牌')):accept(material)
+
+    ---@type ViewAs?
+    local chosen = nil
+    local cancel = run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = material }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                chosen = option.viewAs
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+
+    assert(run.game:askUseCard(daqiao, '出牌', { zone = '手牌' }).card, '该用出去一张虚拟【乐不思蜀】')
+    cancel()
+    lt.assertEquals('这份视为是国色给的', '国色', assert(assert(chosen).source).name)
+
+    local stored = assert(foe:getZone('判定')):list()[1]
+    lt.assertEquals('判定区里是那张实体牌', material, stored)
+
+    local starts = watchStarts(run, foe)
+    decide(run, '乐不思蜀', '黑桃', 5)
+
+    local state = startFlow(run, 2)
+    advance(state, 2)
+
+    lt.assertEquals('判定期跑的是【乐不思蜀】的效果（跳过出牌阶段）', '准备,判定,摸牌,弃牌,结束', table.concat(starts, ','))
+    lt.assertEquals('判完送弃牌堆，身份撤销（读回来是原来那张牌）', '杀', stored.name)
+    lt.assertEquals('它此刻在弃牌堆里', assert(run.game:getZone('弃牌')), stored:getZone())
+end)
+
+lt.test('国色：那张转化的牌被挪到别人的判定区，身份跟着走', function ()
+    local run    = support.start { count = 3, packages = { '标准' } }
+    local daqiao = run.players[1]
+    local foe    = run.players[2]
+    local third  = run.players[3]
+    daqiao:setHero(assert(run.game:getHero('大乔')))
+
+    local material = run.game:createCard('杀', '方块', 7)
+    assert(daqiao:getZone('手牌')):accept(material)
+
+    local cancel = run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCard' then
+            return { card = material }
+        end
+        ---@cast ask AskUseCard
+        for _, option in ipairs(assert(ask.options)) do
+            if option.viewAs then
+                return { viewAs = option.viewAs, targets = { foe } }
+            end
+        end
+    end)
+    assert(run.game:askUseCard(daqiao, '出牌', { zone = '手牌' }).card, '该用出去一张虚拟【乐不思蜀】')
+    cancel()
+
+    local stored = assert(foe:getZone('判定')):list()[1]
+    lt.assertEquals('判定区里是那张实体牌', material, stored)
+
+    -- 【巧变3】那类：把判定区里的牌挪到别人的判定区
+    run.game:moveCard(stored, third:getZone('判定'))
+    lt.assertEquals('换个判定区，身份还在', '乐不思蜀', stored.name)
+    lt.assertEquals('它现在在第三个人的判定区里', third:getZone('判定'), stored:getZone())
+
+    run.game:moveCard(stored, '弃牌')
+    lt.assertEquals('离开判定区就撤（读回来是原来那张牌）', '杀', stored.name)
+end)

@@ -4,6 +4,11 @@
 ---@field suit? string # 改花色
 ---@field point? integer # 改点数
 
+--- 一条「随这张牌在牌区里」存活的撤销
+---@class Card.ZoneBind
+---@field disposer function # 离开时要跑的撤销
+---@field keep? fun(zone: Zone?): boolean # 换到哪个区还算「没离开」（省略 = 换区就算离开）
+
 ---@class Card: Class.Base
 ---@field private id integer # 号（这一局发的）
 ---@field private _name string # 自己的牌名（读 `name`）
@@ -13,6 +18,7 @@
 ---@field subcards Card[] # 对应的实体牌（普通牌是空表）—— **一律是实体牌**，虚拟牌不进这里（构造时已经解包）
 ---@field physical Card[] # 对应的实体牌（普通牌就是自己、虚拟牌是它的素材）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
+---@field private zoneBinds? Card.ZoneBind[] # 随「这张牌在牌区里」存活的撤销（懒建）
 ---@field game Game # 属于哪一局（读内容定义时用）
 ---@field private modifiers Card.Modifier[] # 挂着的「转化」（按挂载顺序；后挂的覆盖先挂的）
 ---@field private passiveSuppress integer # 被动被压制的层数（出厂 1 = 未启用）
@@ -93,13 +99,19 @@ M.__getter.def = function (self)
     return assert(self.game:getCard(self.name), '没有叫「{}」的内容定义' % { self.name }), true
 end
 
---- 给这张牌挂一份「转化」（改牌名 / 花色 / 点数；后挂的覆盖先挂的）
+--- 给这张牌挂一份「转化」（改牌名 / 花色 / 点数；后挂的覆盖先挂的；虚拟牌会给每张素材也挂一份）
 ---@param modifier Card.Modifier # 只认这三个字段（存副本）
 ---@return function # 撤销这一次挂载（重复调也不会改坏别的）
 function M:addModifier(modifier)
     local stored = moe.util.copy(modifier)
     self.modifiers[#self.modifiers + 1] = stored
     self.def = nil
+    local forwarded = {}
+    if self.virtual then
+        for i, physical in ipairs(self.subcards) do
+            forwarded[i] = physical:addModifier(stored)
+        end
+    end
     local removed
     return function ()
         if removed then
@@ -108,6 +120,9 @@ function M:addModifier(modifier)
         removed = true
         moe.util.arrayRemove(self.modifiers, stored)
         self.def = nil
+        for _, undo in ipairs(forwarded) do
+            undo()
+        end
     end
 end
 
@@ -286,6 +301,24 @@ function M:getZone()
     return self.zone
 end
 
+--- 牌离开这个牌区时撤销（虚拟牌上调用 = 转给每张素材）
+---@param disposer function # 离开时要跑的撤销
+---@param keep? fun(zone: Zone?): boolean # 换到哪个区还算「没离开」（省略 = 换区就算离开）
+function M:withZone(disposer, keep)
+    if self.virtual then
+        for _, physical in ipairs(self.subcards) do
+            physical:withZone(disposer, keep)
+        end
+        return
+    end
+    local binds = self.zoneBinds
+    if not binds then
+        binds = {}
+        self.zoneBinds = binds
+    end
+    binds[#binds + 1] = { disposer = disposer, keep = keep }
+end
+
 --- 解除和牌区的绑定（只清归属；牌区列表由搬牌的人自己摘）
 function M:unbindZone()
     self:bindZone(nil)
@@ -294,6 +327,23 @@ end
 --- 记下这张牌所在的牌区（只有牌区自己用：放进 / 取出时维护）
 ---@param zone Zone?
 function M:bindZone(zone)
+    -- 只在真的换区时算「离开」：同区内部调序不算
+    local binds = self.zoneBinds
+    if binds and self.zone ~= zone then
+        local survivors = {}
+        for _, bind in ipairs(binds) do
+            if bind.keep and bind.keep(zone) then
+                survivors[#survivors + 1] = bind
+            else
+                bind.disposer()
+            end
+        end
+        if #survivors == 0 then
+            self.zoneBinds = nil
+        else
+            self.zoneBinds = survivors
+        end
+    end
     self.zone = zone
 end
 
