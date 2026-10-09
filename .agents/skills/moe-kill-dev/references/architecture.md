@@ -585,3 +585,22 @@ Card '杀'
 - **`AskCard` 一族共用一个取值处**（`AskCard:collectAnswer`）⇒ 具体方法名交给子类给：基类 `AskCard:askUser(user)` 转发 `user:askCard(self)`，四个子类各覆写一行（`askUseCard` / `askUseCardToCard` / `askPlayCard` / `askCardWithTarget`）。
 - **全局时机没有被取代**：它是**兜底与调试**通道 —— 现有 300 余处用例的应答脚本照旧工作（`Player` 上没有 User 就直接走它）。
 - **本批只做骨架**：`ClientUser` 只留接口（协议接线是后续批次）；`AIUser`（真 AI）另开变更；`AskPanel` 的多轮接口形状、删除 `server/session/` 都留后（用户 2026-10-09 定：session 是「还没有 User 概念时为了跑测试临时加的外壳」，之后去掉）。
+
+## 14. 传输层与 Client（`server/transport/`）
+
+- **三层切分**（都不参与热重载，走 `require`）：
+
+  | 文件 | 职责 | 认识的边界 |
+  | --- | --- | --- |
+  | `jsonrpc.lua` | 编解码**纯函数**（`decode` / `encodeCall` / `encodeResult` / `encodeError` + 标准错误码） | 只认识「表 ↔ 字符串」 |
+  | `link.lua` | 传输：`read` / `write`（+ 可选 `close`） | 只认识「一条消息 = 一个字符串」 |
+  | `client.lua` | 端点：`create(link)` / `start()` / `onMessage` / `notify` / `request` / `awaitRequest`；`register` 走**模块级** | 只认识 `Link` 的那几个方法 |
+
+- **`Link` 是纯字节通道**（用户 2026-10-09 定）：`read(n)` 读 `n` 个字节（不够就挂起）、`read()` 不给 `n` 就把**能读的全读走**（完全没有数据才挂起）—— 两者都是 `---@async`，断开或出错给 `nil, 原因`；`write(text)` 给 `boolean, 原因?`；`close(reason?)` 可选。**帧不归它管**（它只会拼字符串 / 切字节）。本批带一个**内存实现** `moe.link.pair()`（一对互通 —— 本地回环 / 测试用；**不是测试后门**）。
+- **帧格式：4 字节长度头 + 正文**（用户 2026-10-09 给）—— 头是 `'>I4'`（大端 32 位无符号）、**长度不含头本身**，正文就是 JSON-RPC 那串。三个原语（`HEADER_SIZE` = 4 / `decodeFrameLength` / `encodeFrame`）就住 `client.lua` 的局部 —— **帧不是 JSON-RPC 的一部分**（用户 2026-10-09 定：长度头是传输约定，`jsonrpc.lua` 只管「表 ↔ 字符串」）；**`Client` 不维护字节缓冲**：`send` 先套头再写，读循环写成「`read(4)` 取头 → `decodeFrameLength` → `read(长度)` 取正文 → `onMessage`」—— 凑够一帧这件事**由 `Link` 挂着等**（半包 / 粘包都在 `link:read(n)` 里消化）。
+- **`register` 是模块级的**（`moe.client.register(method, fun(client, params): any)`，返回 disposer）：方法表**所有连接共用**，与具体连接无关（重连不用重注册）；同一个 method 重复注册报错。**带 id 的调用当请求**（回调返回值 = `result`；抛错 ⇒ `-32603`）、**不带 id 的当通知**（返回值忽略，抛错只记日志 —— 通知没地方回错）。回调**可以 `await`**（经网络层的东西本来就不可能同步）。
+- **入站请求各自起一个协程** —— 读循环不被处理器挡住。这条是硬的：处理器里可能要 `client:awaitRequest(...)`（后端反向请求），那个响应要靠读循环读进来，串行处理会当场死锁。
+- **`request` 返回 `Task`**（`callback` 可选，参数同 `Task:await` 的两个返回值）；`awaitRequest` = `request(...):await()`（失败给 `nil, 原因`、**不抛**）；`notify` 透传 `write` 的成败。**写失败** ⇒ 该请求立刻以那个原因收尾。
+- **断开**：`start()` 起的读循环拿到的 `read` 给空 ⇒ `Client:close(原因)` 收摊（标记关闭 + 把还在等的请求全部以「连接断开」收尾）；不认识的结果记一条 `warn` 丢掉。
+- **`start()` 用 `executeSync` 内联跑到第一个挂起点** ⇒ 返回时读循环已经挂在「等消息」上（调用方不必再让出一次）。⚠️ 用 `executeAsync` 的话它要等一个调度才跑，用例里就得先 `sleep(0)`。
+- **本批不做**（用户 2026-10-09 定）：TCP 与帧格式、请求超时（**不做**）、`server/proto/` 的方法名常量、`ClientUser` 的接线、删除 `server/session/`。

@@ -106,6 +106,8 @@ require 'session'
 
 require 'user'
 
+require 'transport'
+
 local inspect = require 'tools.inspect'
 
 local inspectOptions = {

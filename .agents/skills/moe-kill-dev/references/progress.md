@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1121 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1149 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -341,6 +341,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **阵亡清算（2026-10-09，`add-death-clearance`）**：死亡规则的最后一块 —— 新增 `package/@基础/阵亡.lua` 订阅 `'玩家-死亡'`：① **先把死者身上的技能全部停用**（`skill:disablePassive()`；否则这批牌离区时死者的【枭姬】之类还会响应，违反官方「已死亡的角色不能发动技能」`Ch1/S2:46`）；② 把死者**所有牌区**的牌照单一次 `game:moveCard(cards, '弃牌')`（手牌 + 判定 + 四个装备子区）。**顺序天然正确**：`@基础` 是默认包、排在清单项之前 ⇒ 处理器先注册先跑 ⇒ 清算 → 奖惩 → 胜负判定（官方 `Ch1/S2:64` 马谡例：死亡时先亮身份 → 技能时机 → **最后**来源执行奖惩）。**顺带撤掉一层临时措施**：`@基础/阶段/判定阶段.lua` 里「回合角色死了就停」的提前退出（已无必要 —— 死者的判定区被清空，循环里的快照过期守卫会跳过剩下的）。**用例 1109 → 1114**（新套件 `rule/death` 5 条：三类牌区都清 / 没牌的死者不炸 / 死者技能被禁用（探针技能记账）/ 对照（活着的会响应）/ 与奖惩共存；另两条旧用例的前提变了跟着改：`delayed-trick` 的「阵亡清算不在本批」、`hero-skill` 的【急救】手牌断言）。**反向验证**：不先禁用技能 ⇒ 1 红；只清手牌 ⇒ 3 红；不清牌 ⇒ 5 红。**已知**：清算与奖惩的先后**不可观测**（奖惩读凶手的手牌、清算动死者的牌，互不影响）⇒ 用例钉不住先后（靠默认包的加载顺序保证）。
 
 - **座位控制者 `User` + 询问优先问它（2026-10-09，`add-user`）**：① **内核**：`Player` 加 `user` 字段（**可空**）+ `Player:setUser(user?)`（绑定 / **中途更换** / 解绑）；**11 个询问类取答复时先问 `self.to.user` 的对应方法，返回空才走全局时机** —— `AskChoice` / `AskPlayer` / `AskHero` / `AskUseSkill` / `AskPanel` 各在自己的取值处就地写 `local answer = self.to.user?:askXxx(self) or self.game:fire(时机, self)`；**`Ask` 例外**（答复可能是 `false` 这个合法值，`or` 串会把它吞掉 ⇒ 显式判空）；`AskCard` 一族共用 `collectAnswer`，故加可覆写钩子 **`AskCard:askUser(user)`**（基类转发 `askCard`，四个子类各覆写一行）。② **新增 `server/user/`**：`user.lua` 的 `User` 基类（**每类询问一个方法、共 11 个，默认全返回空 = 不表态**）+ `client-user.lua` 的 `ClientUser`（**协议没做，只留接口**），`init.lua` **只做装载**（先基类后子类）；走 `require`（在 `server/moe-kill.lua` 里 `require 'user'`；**不参与热重载**）；没有工厂 ⇒ 不挂门面。③ **用例 +7**（新套件 `test.core.user`：设置 / 更换 / 解绑、表态 ⇒ 全局不被问、不表态 ⇒ 回落全局、都表态 ⇒ 按 User 的、没有 User ⇒ 照旧、`askCard` 那一路（钩子）、`askPlayer` 那一路）⇒ **验收基线 1114 → 1121**。④ **本批不做**（用户定）：`AIUser`（真 AI 另开）、`ClientUser` 的协议实现、`AskPanel` 的多轮形状、删 `server/session/`（「之后去掉」）。⑤ 文档：`architecture.md` 新增第 13 节。
+
+- **传输层与 Client（2026-10-09，`add-client`）**：① 新增 `server/transport/` 三层 —— `jsonrpc.lua`（编解码**纯函数** + 标准错误码）、`link.lua`（`Link` 类型 + 内存实现 `moe.link.pair()`）、`client.lua`（`Client` 端点）；`init.lua` 只做装载，`server/moe-kill.lua` 里 `require 'transport'`。② **`Link` 是纯字节通道**（用户定，同日收敛）：`read(n)` 读 `n` 个字节（不够挂起）、`read()` 把**能读的全读走**（完全没有数据才挂起）、断开给 `nil, 原因`；`write` 给 `boolean, 原因?`；`close` 可选。**帧格式同日明确**（用户给了协议）：**4 字节长度头（`'>I4'`，长度不含头）+ 正文**；三个原语（`HEADER_SIZE` / `encodeFrame` / `decodeFrameLength`）住 `client.lua` 的局部（用户：「长度头不是 jsonrpc 的一部分」），**`Client` 不维护缓冲**（用户：buffer 由 link 维护）—— 读循环就是 `read(4)` 取头 → `read(长度)` 取正文，凑不够由 `link:read(n)` 挂着等（半包 / 粘包都在这消化）；`send` 套头。先前那版在内存实现里记「消息块边界」的写法**已删**（用户：「直接拼字符串就行了，cpu 瓶颈不会在这」）。③ **`register` 改成模块级**（用户定：`moe.client.register(method, fun(client, params))`）—— 方法表所有连接共用、重连不用重注册、**重复注册报错**、返回 disposer；带 id 当请求（回调抛错 ⇒ `-32603`）、不带当通知。④ `request` 返回 `Task`（callback 可选）、`awaitRequest` = `request(...):await()`、`notify` 透传 write 的成败；**超时不做**（用户定）。⑤ **入站请求各自一个协程**（否则处理器里反向 `awaitRequest` 会把读循环卡死）；断开时 `Client:close` 把 pending 全部以「连接断开」收尾。⑥ 用例 +28（`test.transport.{jsonrpc,link,client}` —— client 那套是**两张 Client 用一对内存 Link 对接**跑完整往返，含「粘在一起的帧也各解一条」与「头和正文分两批到」）⇒ **验收基线 1121 → 1149**。⑦ 本批不做：TCP 与帧格式、`proto/` 方法名常量、`ClientUser` 接线、删 `session/`。⑧ 文档：`architecture.md` 新增第 14 节。
 
 ## 2 下一步：待用户挑（**尚未开工**）
 
