@@ -3397,19 +3397,30 @@ lt.test('无双：【杀】的目标只出一张【闪】⇒ 追问一张，拿�
 
     ---@type integer
     local asked = 0
+    ---@type AskPlayCard?
+    local second = nil
     run.game:on('卡牌-询问', function (ask)
         if ask.reason == '杀' and ask.to == target then
             asked = asked + 1
+            if asked == 2 then
+                ---@cast ask AskPlayCard
+                second = ask
+            end
             return { card = dodge }
         end
     end)
 
+    lt.clearErrors()
     run.game:useCard(lvbu, slash, { target })
 
     lt.assertEquals('问了两次（【杀】自己那次 + 无双追的那张）', 2, asked)
     lt.assertEquals('第二张拿不出 ⇒ 照常挨 1 点', 4, target:getAttr('体力'))
     lt.assertEquals('那一张【闪】照常进了弃牌堆', true,
         moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), dodge))
+    local parent = assert(assert(second).parent)
+    ---@cast parent SkillCast
+    lt.assertEquals('追的那张归因在【无双】名下', findSkill(lvbu, '无双'), parent.source)
+    lt.assertEquals('取消不报错（不进错误处理器）', 0, #lt.errors)
 end)
 
 lt.test('无双：【杀】的目标出齐两张【闪】⇒ 不受伤，「被响应」只发一次', function ()
