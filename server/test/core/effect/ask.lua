@@ -76,13 +76,16 @@ lt.test('决策询问：第一个表态的胜出，后面的订阅者不再调',
     lt.assertEquals('后面的订阅者没被调', 0, #lt.errors)
 end)
 
-lt.test('决策询问：没人应答不算失败', function ()
+lt.test('决策询问：没人应答 = 取消（记成失败）', function ()
     local game, players = newGame(2)
+    lt.clearErrors()
 
     local ask = game:ask(players[1], '出牌', { hand = {} })
 
     lt.assertEquals('答复为空', nil, ask.reply)
-    lt.assertEquals('不算失败', nil, ask.err)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
+    lt.assertEquals('也没成立', false, ask.success)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
 lt.test('决策询问：有答复才触发「决策-答复」', function ()

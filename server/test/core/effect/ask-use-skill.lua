@@ -117,7 +117,7 @@ lt.test('要一次技能使用：答复不是他身上的技能就拒收', funct
     lt.assertEquals('也没发动', nil, ask.cast)
 end)
 
-lt.test('要一次技能使用：没人应答就没有答复，也不算失败', function ()
+lt.test('要一次技能使用：没人应答 = 取消（记成失败）', function ()
     local game   = newGame()
     local player = newPlayer(game)
     player:addSkill('制衡')
@@ -126,9 +126,9 @@ lt.test('要一次技能使用：没人应答就没有答复，也不算失败',
     local ask = game:askUseSkill(player, '出牌')
 
     lt.assertEquals('没有答复', nil, ask.skill)
-    lt.assertEquals('不算失败', nil, ask.err)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
     lt.assertEquals('也没发动', nil, ask.cast)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
 lt.test('只到 apply：不等它、也不替你发动出去', function ()

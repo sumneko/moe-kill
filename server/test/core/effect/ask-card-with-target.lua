@@ -215,7 +215,7 @@ lt.test('给出：不给候选名单就不限制目标；个数那半的 `min` �
     lt.assertEquals('不算失败', nil, loose.err)
 end)
 
-lt.test('给出：允许取消时，没人应答就是空答复、不算失败', function ()
+lt.test('给出：允许取消时，没人应答 = 取消（记成失败）', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('杀') })
     lt.clearErrors()
@@ -226,6 +226,6 @@ lt.test('给出：允许取消时，没人应答就是空答复、不算失败',
     })
 
     lt.assertEquals('没有答复', nil, ask.target)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)

@@ -86,18 +86,18 @@ lt.test('询问：答复不在选项里 ⇒ 拒收，原因记在 `.err`', funct
     lt.assertEquals('选项就是那两个', 2, #ask.options)
 end)
 
-lt.test('询问：没人应答时没有选择，也不算失败', function ()
+lt.test('询问：没人应答时没有选择 = 取消（记成失败）', function ()
     local game, players = newGame(2)
     lt.clearErrors()
 
     local ask = game:askChoice(players[1], '测试', { '甲', '乙' })
 
     lt.assertEquals('没有选择', nil, ask.choice)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
-lt.test('询问：答复 nil 等同没答（取消不算失败）', function ()
+lt.test('询问：答复 nil 等同没答（一样是取消）', function ()
     local game, players = newGame(2)
     lt.clearErrors()
 
@@ -109,8 +109,8 @@ lt.test('询问：答复 nil 等同没答（取消不算失败）', function ()
     local ask = game:askChoice(players[1], '测试', { '发动' })
 
     lt.assertEquals('取消 ⇒ 没有选择', nil, ask.choice)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
 lt.test('询问：第一个返回答复的胜出，后面的订阅者不再调', function ()

@@ -281,7 +281,7 @@ lt.test('要一次使用：条件里的 target 构造时归一成 targets 列表
     lt.assertEquals('答复照旧读得到', players[2], assert(ask.targets)[1])
 end)
 
-lt.test('要一次使用：允许取消时，没人应答就是空答复、不算失败', function ()
+lt.test('要一次使用：允许取消时，没人应答 = 取消（记成失败）', function ()
     local game, players = newGame(2)
     putInHand(players[1], { game:createCard('测试牌') })
     lt.clearErrors()
@@ -289,8 +289,8 @@ lt.test('要一次使用：允许取消时，没人应答就是空答复、不�
     local ask = game:askUseCard(players[1], '测试', { name = '测试牌' })
 
     lt.assertEquals('没有答复', nil, ask.card)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
 lt.test('要一次使用：答复到手就自动用出去，那次使用记在询问上', function ()

@@ -130,6 +130,13 @@ local function normalizeCondition(game, to, condition)
     return normalized
 end
 
+--- 这次的答复是不是「空答复」（没给牌、也没给声明）= 取消
+---@param value AskCard.Answer
+---@return boolean
+local function isEmptyAnswer(value)
+    return value.viewAs == nil and #moe.util.toList(value.card) == 0
+end
+
 --- 这张牌过不过这些筛选项（每项都是列表：不填 = 无要求；牌上没有对应属性时算不过）
 ---@param card Card
 ---@param condition AskCard.NormalizedCondition
@@ -286,7 +293,7 @@ function M:checkAnswer(value)
         return '答复不在可选项里'
     end
     local cards = moe.util.toList(value.card)
-    -- 允许取消的询问：空答复就是「取消」，不算不合法
+    -- 空答复（= 取消）本身不算「不合法」：它算不算成立由 `collectAnswer` 按 `min` 判
     if #cards == 0 and self.cancelable then
         return nil
     end
@@ -364,6 +371,12 @@ M.__getter.cancelable = function (self)
     return self.condition?.cancelable ~= false
 end
 
+--- 这次允许「一个都不给」吗（`min` 为 0 ⇒ 取消也是合法答复、算成立）
+---@return boolean
+function M:allowNone()
+    return (self.condition?.min or 1) == 0
+end
+
 --- 答复已定下、答复时机之前跑一次（子类在这里处置那张牌）
 ---@async
 function M:onAnswered()
@@ -399,9 +412,10 @@ function M:collectAnswer()
 
     local answer = self.game:fire('卡牌-询问', self)
     if answer == nil then
-        -- 不允许取消的询问：不表态不是合法结局，记成拒收
-        if not self.cancelable then
-            self.task:reject('这次询问必须给出答复')
+        -- 没人表态：这次允许「一个都不给」就当空答复（成立、没有结果），否则是「取消」
+        -- （不允许取消的询问连取消入口都没有：记成拒收）
+        if not self:allowNone() then
+            self.task:reject(self.cancelable and '取消' or '这次询问必须给出答复')
         end
         return false
     end
@@ -409,6 +423,12 @@ function M:collectAnswer()
     local problem = self:checkAnswer(answer)
     if problem then
         self.task:reject(problem)
+        return false
+    end
+
+    -- 空答复 = 取消：这次允许不给才算一次答复，否则记成「取消」
+    if isEmptyAnswer(answer) and not self:allowNone() then
+        self.task:reject('取消')
         return false
     end
 

@@ -222,7 +222,7 @@ lt.test('询问：同一结算里问多次互不串', function ()
     lt.assertEquals('第二次拿到的牌', second, answers[2])
 end)
 
-lt.test('询问：默认允许取消 ⇒ 没人应答就是空答复、不算失败', function ()
+lt.test('询问：默认允许取消 ⇒ 没人应答 = 取消（记成失败）', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
@@ -233,8 +233,9 @@ lt.test('询问：默认允许取消 ⇒ 没人应答就是空答复、不算失
     lt.assertEquals('默认允许取消', true, ask.cancelable)
     lt.assertEquals('没有答复', nil, ask.card)
     lt.assertEquals('cards 是空表', 0, #ask.cards)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
+    lt.assertEquals('这次没成立', false, ask.success)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
 lt.test('询问：写 `cancelable = false` ⇒ 没人应答就是拒收', function ()
@@ -370,7 +371,7 @@ lt.test('询问：只写 min ⇒ 至多同最少（要正好那么多张）', fu
     lt.assertEquals('给三张也被拒（上限就是 min）', '至多给 2 张牌', many.err)
 end)
 
-lt.test('询问：min 0 ⇒ 不给也算答复（空表）', function ()
+lt.test('询问：min 给 0 ⇒ 空答复（取消）也算成立（空表）', function ()
     local game, players = newGame(2)
     local jink = game:createCard('闪')
     putInHand(players[2], { jink })
@@ -382,7 +383,20 @@ lt.test('询问：min 0 ⇒ 不给也算答复（空表）', function ()
 
     lt.assertEquals('没有牌', nil, ask.card)
     lt.assertEquals('cards 是空表', 0, #ask.cards)
-    lt.assertEquals('不算失败', nil, ask.err)
+    lt.assertEquals('取消算成立', nil, ask.err)
+end)
+
+lt.test('询问：min 给 0 时没人应答也算成立（没表态就是空答复）', function ()
+    local game, players = newGame(2)
+    putInHand(players[2], { game:createCard('闪') })
+    lt.clearErrors()
+
+    local ask = game:askCard(players[2], '测试', { name = '闪', min = 0, max = 1 })
+
+    lt.assertEquals('没有牌', nil, ask.card)
+    lt.assertEquals('取消算成立', nil, ask.err)
+    lt.assertEquals('算数（读 .success）', true, ask.success)
+    lt.assertEquals('没有记下错误', 0, #lt.errors)
 end)
 
 lt.test('询问：重复给同一张牌 ⇒ 拒收', function ()

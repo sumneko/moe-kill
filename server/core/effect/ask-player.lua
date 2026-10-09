@@ -104,6 +104,12 @@ M.__getter.player = function (self)
     return self.players[1]
 end
 
+--- 这次允许「一个都不选」吗（`min` 为 0 ⇒ 取消也是合法答复、算成立）
+---@return boolean
+function M:allowNone()
+    return (self.condition?.min or 1) == 0
+end
+
 --- 把询问交给应答方（候选先摆好；答复一到，结果就定下了）
 ---@async
 function M:settle()
@@ -111,6 +117,10 @@ function M:settle()
 
     local answer = self.game:fire('决策-询问', self)
     if answer == nil then
+        -- 没人表态：这次允许「一个都不选」就当空答复（成立、没有答复），否则是「取消」
+        if not self:allowNone() then
+            self.task:reject('取消')
+        end
         return
     end
 

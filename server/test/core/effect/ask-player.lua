@@ -86,15 +86,15 @@ lt.test('询问：答复不在候选里 ⇒ 拒收，原因记在 `.err`', funct
     lt.assertEquals('候选里就那一个', 1, #assert(ask.options))
 end)
 
-lt.test('询问：没人应答时没有答复，也不算失败', function ()
+lt.test('询问：没人应答时没有答复 = 取消（记成失败）', function ()
     local game, players = newGame(3)
     lt.clearErrors()
 
     local ask = game:askPlayer(players[1], '测试', { player = { players[2] } })
 
     lt.assertEquals('没有答复', nil, ask.player)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没有记下错误', 0, #lt.errors)
+    lt.assertEquals('取消记在 .err 上', '取消', ask.err)
+    lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
 lt.test('询问：不给条件就不做限制', function ()
@@ -129,7 +129,7 @@ lt.test('询问：min / max 摆好个数区间，一次可以选好几名', func
     lt.assertEquals('不算失败', nil, ask.err)
 end)
 
-lt.test('询问：min 给 0 就能一个都不选（没答复也是空表）', function ()
+lt.test('询问：min 给 0 就能一个都不选（取消也是合法答复 ⇒ 算成立）', function ()
     local game, players = newGame(3)
     lt.clearErrors()
 
@@ -141,8 +141,8 @@ lt.test('询问：min 给 0 就能一个都不选（没答复也是空表）', f
 
     lt.assertEquals('空表', 0, #ask.players)
     lt.assertEquals('第一个是空', nil, ask.player)
-    lt.assertEquals('不算失败', nil, ask.err)
-    lt.assertEquals('没记下错误', 0, #lt.errors)
+    lt.assertEquals('取消算成立', nil, ask.err)
+    lt.assertEquals('没有记下错误', 0, #lt.errors)
 end)
 
 lt.test('询问：答复超上限 / 重复都拒收', function ()

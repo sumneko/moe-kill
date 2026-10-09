@@ -325,7 +325,7 @@ lt.test('响应：打出 = 这次响应成立（读 .success）', function ()
     lt.assertEquals('响应成立', true, ask.success)
 end)
 
-lt.test('响应：没打出 = 不成立（原因写进 .err），也不发时机', function ()
+lt.test('响应：没打出 = 取消（原因写进 .err），也不发时机', function ()
     local game, players = newGame(2)
 
     ---@type integer
@@ -338,7 +338,7 @@ lt.test('响应：没打出 = 不成立（原因写进 .err），也不发时机
 
     lt.assertEquals('没答上', nil, ask.card)
     lt.assertEquals('不成立', false, ask.success)
-    lt.assertEquals('原因', '没有打出', ask.err)
+    lt.assertEquals('原因', '取消', ask.err)
     lt.assertEquals('没打出就不发时机', 0, fired)
 end)
 

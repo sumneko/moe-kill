@@ -1050,7 +1050,7 @@ function M:askUseCardToCard(to, reason, condition)
 end
 
 --- 要一张打出的牌（答复的牌当场交出来，进发起这次结算的临时处理区）
---- 给了 `responseTo` = 一次**响应**：没答上记「没有打出」；答复到手就算这次响应成立（发「被响应」两段时机）
+--- 给了 `responseTo` = 一次**响应**：没答上就是「取消」；答复到手就算这次响应成立（发「被响应」两段时机）
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
