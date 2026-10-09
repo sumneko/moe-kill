@@ -137,6 +137,11 @@ rule = nil
 ---@field card Card # 要用的牌
 
 ---@class Game
+---@field rule Loader.Rule # 这一轮装载的规则数据袋（与内容侧那个全局 `rule` 是同一张表）
+---@field setValue fun(self: Game, name: string, value: any) # 记一条临时数据（内核不解释名字；规则数值请写进 `rule`）
+---@field setValues fun(self: Game, values: table<string, any>)
+---@field getValue fun(self: Game, name: string): any
+---@field getValues fun(self: Game): table<string, any>
 ---@field on fun(self: Game, name: '游戏-准备', callback: fun(event: Game.Event.游戏准备): any): function # 开局准备（比「游戏-开始」更早的一步：发身份 / 选将）—— **由装配侧 fire**，内核不代劳
 ---@field fire fun(self: Game, name: '游戏-准备', event: Game.Event.游戏准备): any
 ---@field on fun(self: Game, name: '游戏-开始', callback: fun(event: Game.Event.游戏开始): any): function

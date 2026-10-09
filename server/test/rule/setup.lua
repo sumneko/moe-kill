@@ -10,7 +10,7 @@ end
 ---@param game Game
 ---@return integer # 当前牌表的总张数（逐张表：数表长）
 local function totalCards(game)
-    return #assert(game:getValue('牌表'), '没有牌表')
+    return #assert(game.rule.cardTable, '没有牌表')
 end
 
 ---@param run Test.RuleSupport

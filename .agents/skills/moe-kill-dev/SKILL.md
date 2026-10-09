@@ -17,7 +17,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 4. 改代码前读：本文件 → `references/architecture.md` → `references/code-style.md` → 具体子系统的说明。
 5. **收尾：每次改动完照着过一遍**（用户 2026-09-30 定）：
    1. **测试全绿**：`server/bin/moe-kill.exe --test`（改 Lua 后必跑；顺手报出验收基线数）。
-   2. **检查问题面板**（**每次改动都实查一遍**，不凭印象说「0」）：查法 = 对**所有动过的文件**跑一次诊断（`get_errors` / 打开面板看一眼）；把 information 及以上清到 0（hint 级不管）；确实改不动的**来问用户**，不要留着。
+   2. **检查问题面板**（**每次改动都实查一遍**，不凭印象说「0」）：查法 = 对**所有动过的文件**跑一次诊断（`get_errors` / 打开面板看一眼）；把 information 及以上清到 0（hint 级不管）；确实改不动的**来问用户**，不要留着。**看到诊断先验真伪**（读代码 / `get_errors` **不传 `filePaths`** 查全工作区最准）—— **别直接重启 LuaLS**（`vscodeOperator_readProblems` 有过报 0 而诊断还在的情况）；只有怀疑是缓存才 `lua.startServer`，且**重启后等 5~10 秒**再查看（LuaLS 要重新扫描与分析文件才会输出诊断）。
       - 一次性改动大量文件后，语言服务器可能延迟甚至卡住（面板不刷新，或报出已经改掉的旧问题）：执行命令 `lua.startServer` 重启它，再重新检查。
    3. **`tasks.md` 逐条勾完**（有 OpenSpec 变更时），并核对验收基线数对得上。
    4. **文档同步**：`references/architecture.md`（现状描述）→ `references/progress.md`（§1 新条目 + 基线）→ `sanguosha-rules`（规则口径）。

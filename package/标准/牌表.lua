@@ -1,6 +1,7 @@
 -- 标准版牌表（逐张）：一张牌一条，花色与点数都写在这儿
 -- 草稿：张数与牌面待按官方标准版核对（花色取值：黑桃 / 红桃 / 梅花 / 方块；点数 1..13，A=1 … K=13）
-game:setValue('牌表', {
+-- 建牌堆用的那张逐张牌表（别的包可以整张换掉，也可以就地改某几条）
+rule.cardTable = {
     { name = '杀', suit = '黑桃', point = 7 },
     { name = '杀', suit = '黑桃', point = 8 },
     { name = '杀', suit = '黑桃', point = 8 },
@@ -108,4 +109,4 @@ game:setValue('牌表', {
     { name = '的卢', suit = '梅花', point = 5 },
     { name = '绝影', suit = '黑桃', point = 5 },
     { name = '爪黄飞电', suit = '红桃', point = 13 },
-})
+}

@@ -424,6 +424,10 @@ function moe.loader.install(game, options)
 
     game:resetContent()
 
+    --- 内容侧共享的规则数据袋：这一轮装载用一张新表（同时挂到局上，局外也读得到）
+    ---@type Loader.Rule
+    local rule = {}
+
     ---@type Loader.Context
     local ctx = {
         vfs      = instance,
@@ -447,8 +451,9 @@ function moe.loader.install(game, options)
         New     = New,
         Extends = Extends,
         Delete  = Delete,
-        rule    = {},
+        rule    = rule,
     }
+    game.rule = rule
     ctx.env = makeEnv(ctx.injected)
     game.loading = ctx
     local guard <close> = moe.util.defer(function ()

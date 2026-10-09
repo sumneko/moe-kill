@@ -70,7 +70,7 @@ end
 ---@param game Game
 ---@return integer # 牌表总张数（逐张表：数表长）
 local function totalCards(game)
-    return #assert(game:getValue('牌表'), '没有牌表')
+    return #assert(game.rule.cardTable, '没有牌表')
 end
 
 --- 一律「结束出牌阶段」的答复
@@ -112,6 +112,24 @@ lt.test('回合：首回合从主公开始，六个阶段依次走完', function
         lt.assertEquals('第 {} 个阶段结束的是「{}」' % { i, phase }, '结束:' .. phase, marks[i * 2])
     end
     lt.assertEquals('停掉之后没有第二个回合', 1, state.turns)
+end)
+
+lt.test('回合：阶段清单从共享袋里读，换了就按新的走', function ()
+    local marks = {}
+    local state = startTurn {
+        setup = function (run)
+            run.game.rule.phases = { '出牌', '结束' }
+            run.game:on('阶段-开始', function (phase)
+                marks[#marks + 1] = '开始:' .. phase.name
+            end)
+        end,
+        answer    = endPhase(),
+        stopAfter = 1,
+    }
+
+    advance(state, 1)
+
+    lt.assertEquals('只走换过的两个阶段', '开始:出牌,开始:结束', table.concat(marks, ','))
 end)
 
 lt.test('回合：回合结束时就把上一个回合角色记下来（顺序锚点）', function ()

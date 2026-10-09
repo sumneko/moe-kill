@@ -45,11 +45,11 @@ function HeroDef:hp(maxHp, hp)
     return self
 end
 
---- 这张武将的初始体力上限与初始体力值（依次取：定义 → 「默认体力」→ 5）
+--- 这张武将的初始体力上限与初始体力值（依次取：定义 → `rule.defaultHp` → 5）
 ---@return integer # 初始体力上限
 ---@return integer # 初始体力值
 function HeroDef:getHp()
-    local maxHp = self.maxHp or game:getValue('默认体力') or 5
+    local maxHp = self.maxHp or rule.defaultHp or 5
     return maxHp, self.initialHp or maxHp
 end
 

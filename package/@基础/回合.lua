@@ -1,5 +1,6 @@
 -- 回合流程：一个「回合」对象 + 六个阶段（进发「开始」与「生效」、出发「结束」）；各阶段业务见「阶段」目录
-local PHASES = { '准备', '判定', '摸牌', '出牌', '弃牌', '结束' }
+-- 一个回合依次走哪些阶段（想改顺序 / 插阶段就换这张表）
+rule.phases = { '准备', '判定', '摸牌', '出牌', '弃牌', '结束' }
 
 ---@class Turn : GCHost
 ---@field player Player # 这个回合属于谁
@@ -48,7 +49,7 @@ local function runTurn(player)
     game.turnPlayer     = player
     game.lastTurnPlayer = player
     game:fire('回合-开始', { player = player })
-    for _, name in ipairs(PHASES) do
+    for _, name in ipairs(assert(rule.phases)) do
         if not player:isAlive() then
             break
         end

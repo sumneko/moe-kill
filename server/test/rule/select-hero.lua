@@ -178,7 +178,7 @@ end)
 
 lt.test('选将：武将不够就少亮', function ()
     useProbe([[
-game:setValue('牌表', {})
+rule.cardTable = {}
 
 Hero '甲'
 Hero '乙'

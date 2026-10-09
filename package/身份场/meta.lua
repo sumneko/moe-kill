@@ -15,11 +15,10 @@
 ---@field identity 身份场.身份
 ---@field count integer
 
----@class Game
----@field getValue fun(self: Game, name: '身份配置'): table<integer, 身份场.身份配置项[]>
----@field getValue fun(self: Game, name: string): any
----@field setValue fun(self: Game, name: '身份配置', value: table<integer, 身份场.身份配置项[]>)
----@field setValue fun(self: Game, name: string, value: any)
+--- 身份场的规则数值挂在装载器给的共享袋上
+---@class Loader.Rule
+---@field heroCandidateCount? integer
+---@field identityConfig? table<integer, 身份场.身份配置项[]>
 
 ---@class Player: Class.Base
 ---@field identity? 身份场.身份 # 身份（由 身份.lua 的 setIdentity 写入）

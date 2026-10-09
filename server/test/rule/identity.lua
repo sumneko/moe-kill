@@ -61,7 +61,7 @@ end
 lt.test('身份场：8 人局的配置', function ()
     local game = newGame(nil, { '身份场' })
 
-    local config = assert(game:getValue('身份配置')[8], '没有 8 人局配置')
+    local config = assert(game.rule.identityConfig[8], '没有 8 人局配置')
     ---@type table<string, integer>
     local counts = {}
     for _, entry in ipairs(config) do
@@ -76,14 +76,14 @@ end)
 
 lt.test('身份场：配置可以被后续包覆盖', function ()
     local probe <close> = useProbe()
-    write('我的规则/配置.lua', 'game:setValue("身份配置", { [4] = { { identity = "全部主公", count = 4 } } })')
+    write('我的规则/配置.lua', 'rule.identityConfig = { [4] = { { identity = "全部主公", count = 4 } } }')
 
     local game = newGame(
         { './package/*', probeDir:string() .. '/*' },
         { '身份场', '我的规则' }
     )
 
-    local config = assert(game:getValue('身份配置')[4], '没有 4 人局配置')
+    local config = assert(game.rule.identityConfig[4], '没有 4 人局配置')
     lt.assertEquals('被覆盖了', '全部主公', config[1].identity)
 end)
 

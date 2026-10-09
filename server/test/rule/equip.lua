@@ -280,7 +280,7 @@ lt.test('装备：牌表里 14 张装备都定义好了，各自进对了子区'
 
     ---@type table<string, true>
     local inTable = {}
-    for _, entry in ipairs(assert(run.game:getValue('牌表'), '没有牌表')) do
+    for _, entry in ipairs(assert(run.game.rule.cardTable, '没有牌表')) do
         if expected[entry.name] then
             inTable[entry.name] = true
         end

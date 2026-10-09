@@ -11,11 +11,11 @@ rule.equipZones = { '武器', '防具', '进攻马', '防御马' }
 
 --- 自己的区域：手牌 + 装备区（判定区的牌不是你的牌）
 ---@type string[]
-rule.ownZones = table.mergeArray({ '手牌' }, rule.equipZones)
+rule.ownZones = table.mergeArray({ '手牌' }, assert(rule.equipZones))
 
 game:on('游戏-开始', function ()
     for _, player in ipairs(game.desk.players) do
-        for _, name in ipairs(rule.equipZones) do
+        for _, name in ipairs(assert(rule.equipZones)) do
             player:addZone(name)
         end
     end

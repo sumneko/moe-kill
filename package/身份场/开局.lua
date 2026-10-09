@@ -16,8 +16,7 @@ game:on('游戏-准备', function (event)
             desk:getPlayer(i):setIdentity(identity)
         end
     else
-        local identityConfig = game:getValue('身份配置')
-        local entries = assert(identityConfig and identityConfig[count], '身份配置里没有 {} 人局' % { count })
+        local entries = assert(rule.identityConfig?[count], '身份配置里没有 {} 人局' % { count })
 
         ---@type 身份场.身份[]
         local pool = {}
@@ -67,7 +66,7 @@ end)
 
 game:on('游戏-开始', function ()
     local lord  = game.desk.players[1]
-    local bonus = game:getValue('主公额外体力') or 0
+    local bonus = rule.lordHpBonus or 0
     if bonus ~= 0 then
         lord:addAttr('体力上限', bonus)
         lord:addAttr('体力', bonus)

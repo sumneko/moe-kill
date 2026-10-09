@@ -73,7 +73,7 @@ game:on('游戏-准备', function (event)
         takeOut(free, hero)
     end
 
-    local count = game:getValue('选将备选数') or 5
+    local count = rule.heroCandidateCount or 5
 
     ---@type Player[] # 主公先选，然后其余按座位依次
     local queue = {}

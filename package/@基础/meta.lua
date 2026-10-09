@@ -2,14 +2,12 @@
 
 --- 装备子区名单挂在装载器给的共享袋上（内容侧跨包共享；装载器每轮新建一张）
 ---@class Loader.Rule
----@field equipZones string[] # 装备子区名（= 装备的分类名；想加子区的包在加载期往这里追加）
----@field ownZones string[] # 「自己的区域」= 手牌 + 装备子区（判定区的牌不是你的牌）
-
----@class Game
----@field getValue fun(self: Game, name: '默认体力'|'主公额外体力'): integer
----@field getValue fun(self: Game, name: string): any
----@field setValue fun(self: Game, name: '默认体力'|'主公额外体力', value: integer)
----@field setValue fun(self: Game, name: string, value: any)
+---@field equipZones? string[]
+---@field ownZones? string[]
+---@field defaultHp? integer
+---@field lordHpBonus? integer
+---@field defaultDrawCount? integer
+---@field phases? string[]
 
 --- 性别（由武将写入；没有武将时常常没有 —— 官方：没有性别的角色不能判断别人与其性别是否相同）
 ---@alias 基础.性别 '男'|'女'

@@ -7,7 +7,7 @@ attributeSystem:define('摸牌数', {
 })
 
 game:on('游戏-开始', function ()
-    local count = game:getValue('默认摸牌数') or 2
+    local count = rule.defaultDrawCount or 2
     for _, player in ipairs(game.desk.players) do
         player:setAttr('摸牌数', count)
     end

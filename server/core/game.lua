@@ -505,6 +505,7 @@ function M:resetContent()
     self.skillPackages = {}
     self.meta        = {}
     self.values      = {}
+    self.rule        = {}
     self.loadedFiles = {}
     self.flow        = nil
     self.turnPlayer  = nil

@@ -43,33 +43,47 @@ end
 ---@param game Game
 ---@return integer # 当前牌表的总张数（逐张表：数表长）
 local function totalCards(game)
-    return #assert(game:getValue('牌表'), '没有牌表')
+    return #assert(game.rule.cardTable, '没有牌表')
 end
 
 lt.test('基础：规则数值后者覆盖前者', function ()
     local probe <close> = useProbe()
-    write('覆盖/配置.lua', 'game:setValues { 默认体力 = 6 }')
+    write('覆盖/配置.lua', 'rule.defaultHp = 6')
 
     local game = newGame()
-    lt.assertEquals('默认体力来自基础包（它默认加载，不需要写进清单）', 5, game:getValue('默认体力'))
+    lt.assertEquals('默认体力来自基础包（它默认加载，不需要写进清单）', 5, game.rule.defaultHp)
 
     moe.loader.install(game, {
         sources  = { './package/*', probeDir:string() .. '/*' },
         packages = { '覆盖' },
     })
 
-    lt.assertEquals('后加载的包覆盖了先前的值', 6, game:getValue('默认体力'))
+    lt.assertEquals('后加载的包覆盖了先前的值', 6, game.rule.defaultHp)
+end)
+
+lt.test('基础：换掉共享袋里的表就按新的走（读的时候才取）', function ()
+    local run = support.start {
+        packages = { '身份场', '标准' },
+        count    = 4,
+        beforeStart = function (game)
+            game.rule.defaultDrawCount = 3
+            game.rule.cardTable = { { name = '杀', suit = '黑桃', point = 1 } }
+        end,
+    }
+
+    lt.assertEquals('改字段当场生效', 3, attributes(run.players[1]):get('摸牌数'))
+    lt.assertEquals('换整张表当场生效', 1, assert(run.game:getZone('抽牌'), '没有抽牌'):count())
 end)
 
 lt.test('基础：清空重载后不保留', function ()
     local game = newGame(nil, { '标准' })
-    lt.assertEquals('标准包提供了牌表', true, game:getValue('牌表') ~= nil)
-    lt.assertEquals('默认包的值也在', 5, game:getValue('默认体力'))
+    lt.assertEquals('标准包提供了牌表', true, game.rule.cardTable ~= nil)
+    lt.assertEquals('默认包的值也在', 5, game.rule.defaultHp)
 
     moe.loader.install(game, { packages = { '身份场' } })
 
-    lt.assertEquals('上一轮非默认包的值被清空', nil, game:getValue('牌表'))
-    lt.assertEquals('默认包总会重新加载，所以值还在', 5, game:getValue('默认体力'))
+    lt.assertEquals('上一轮非默认包的值被清空', nil, game.rule.cardTable)
+    lt.assertEquals('默认包总会重新加载，所以值还在', 5, game.rule.defaultHp)
 end)
 
 lt.test('基础：未设置的名字读到不存在', function ()
@@ -77,12 +91,13 @@ lt.test('基础：未设置的名字读到不存在', function ()
 
     lt.assertEquals('读到不存在', nil, game:getValue('根本没有这个名字'))
 
-    local snapshot = game:getValues()
-    lt.assertEquals('取全部数值里能看到已设置的', 5, snapshot['默认体力'])
-
     game:setValue('临时', 1)
-    lt.assertEquals('快照不跟随后续修改', nil, snapshot['临时'])
-    lt.assertEquals('但规则数值里已经有了', 1, game:getValue('临时'))
+    local snapshot = game:getValues()
+    lt.assertEquals('取全部数值里能看到已设置的', 1, snapshot['临时'])
+
+    game:setValue('临时', 2)
+    lt.assertEquals('快照不跟随后续修改', 1, snapshot['临时'])
+    lt.assertEquals('但规则数值里已经是新的', 2, game:getValue('临时'))
 end)
 
 lt.test('基础：体力初值等于上限', function ()
@@ -95,7 +110,7 @@ end)
 
 lt.test('基础：体力上限跟着覆盖后的规则数值', function ()
     local probe <close> = useProbe()
-    write('我的配置/配置.lua', 'game:setValue("默认体力", 3)')
+    write('我的配置/配置.lua', 'rule.defaultHp = 3')
 
     local run = support.start {
         sources  = { './package/*', probeDir:string() .. '/*' },
@@ -156,7 +171,7 @@ end)
 
 lt.test('基础：牌表里每张都有合法的花色与点数', function ()
     local run       = support.start { packages = { '身份场', '标准' }, count = 4 }
-    local cardTable = assert(run.game:getValue('牌表'), '没有牌表')
+    local cardTable = assert(run.game.rule.cardTable, '没有牌表')
     ---@type table<string, true>
     local suits = { ['黑桃'] = true, ['红桃'] = true, ['梅花'] = true, ['方块'] = true }
 
