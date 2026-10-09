@@ -65,6 +65,11 @@ function M:setHero(hero)
     self.kingdom = hero:getKingdom()
     self:setAttr('体力上限', maxHp)
     self:setAttr('体力', hp)
+    local custom = self.custom
+    custom:setVisible('heroName', true)
+    custom:setVisible('heroSex', true)
+    custom.proxy.heroName = hero.name
+    custom.proxy.heroSex  = hero:getSex()
     self:refreshSkills()
 end
 

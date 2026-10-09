@@ -2,6 +2,7 @@
 include 'core.visibility'
 include 'core.card'
 include 'core.zone'
+include 'core.custom'
 include 'core.ordered-zone'
 include 'core.random'
 include 'core.attribute'

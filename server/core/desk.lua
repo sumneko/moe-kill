@@ -28,6 +28,7 @@ function M:sit(index, player)
         error('座位 {} 上已经有人了' % { index }, 2)
     end
     self.seats[index] = player
+    player:markDirty('base')
 end
 
 --- 交换两个座位上的玩家

@@ -473,6 +473,7 @@ end
 ---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
 ---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
+---@field private dirty? table<Player, table<string, boolean>> # 还没下发的脏玩家（下一笔调度统一发）
 local M = Class 'Game'
 
 ---@param seats integer
@@ -491,6 +492,37 @@ function M:__init(seats, random)
     self:createZone('抽牌', true)
     self:createZone('弃牌')
     self:resetContent()
+end
+
+--- 把一个玩家的某类数据标脏（第一次标脏时登记一次 flush，下一笔调度统一发）
+---@param player Player
+---@param kind Player.DirtyKind
+function M:markDirty(player, kind)
+    local dirty = self.dirty
+    if not dirty then
+        dirty = {}
+        self.dirty = dirty
+        moe.await.wake(function ()
+            self:flushDirty()
+        end)
+    end
+    local kinds = dirty[player]
+    if not kinds then
+        kinds = {}
+        dirty[player] = kinds
+    end
+    kinds[kind] = true
+end
+
+--- 把攒着的脏玩家统一下发
+---@private
+function M:flushDirty()
+    local dirty = self.dirty
+    if not dirty then
+        return
+    end
+    self.dirty = nil
+    moe.player.sendUpdates(self, dirty)
 end
 
 --- 清空这一局的规则内容（重装规则集时用）

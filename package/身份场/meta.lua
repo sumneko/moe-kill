@@ -20,6 +20,9 @@
 ---@field heroCandidateCount? integer
 ---@field identityConfig? table<integer, 身份场.身份配置项[]>
 
+---@class Proto.Custom
+---@field identity? 身份场.身份 # 身份（由 身份.lua 的 setIdentity 写入；主公正面朝上）
+
 ---@class Player: Class.Base
----@field identity? 身份场.身份 # 身份（由 身份.lua 的 setIdentity 写入）
+---@field identity? 身份场.身份 # 身份（只读：真相在 custom 里，见 身份.lua）
 ---@field isIdentityVisibleTo fun(self: Player, viewer: Player): boolean # 身份牌对他可见吗

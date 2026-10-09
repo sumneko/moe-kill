@@ -46,7 +46,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `server/moe-kill.lua` | 建立全局命名空间 `moe`、挂载工具集与语法糖（全局只在此处赋值一次） |
 | `server/tools/` | 基础设施（event-loop / await / timer / log / json / inspect / uri…）与通用库（class、utility、attribute），照搬；**不要随便改** |
 | `server/session/` | 无头服务器外壳：会话容器、决策挂起/恢复通道、事件收集（不含任何规则）；门面是 `moe.server`（用户 2026-10-09 定：**之后去掉**，职责交回 `User`） |
-| `server/user/` | 座位控制者：`User` 基类（每类询问一个方法的应答方骨架）+ `ClientUser`（只留接口）；`Player.user` 指向它，询问**先问它**、它不表态才走全局时机（见 `references/architecture.md` 第 13 节） |
+| `server/user/` | 座位控制者：`User` 基类（每类询问一个方法 + `update(data)` —— 玩家数据下发的出口，默认空）+ `ClientUser`（持一条 `Client`，`update` 发 `Player.Update` / `Player.UpdateCustom`）；`Player.user` 指向它，询问**先问它**、它不表态才走全局时机（见 `references/architecture.md` 第 13 节） |
 | `server/loop-waiter.lua` | 事件循环的等待器（本 VM 唯一的 `bee.epoll` 实例 + 自唤醒通道）：阻塞等待、非阻塞排空、自唤醒、外部事件源注册（详见 `references/infrastructure.md` 第 6 节） |
 | `server/core/` | 内核模块组：牌、牌区（移动 / 洗牌；**五个基础区由内核建** —— 局上 `抽牌` / `弃牌`，玩家身上 `手牌` / `装备` / `判定`）、属性、随机源、**事件机制**、**桌子**（座位与行动顺序、`getDistance`、`players` / `alivePlayers` 属性式读取）、**玩家**（属性实例 + `setAttr/getAttr/addAttr` 代理（**`addAttr` 返回撤销函数**）+ 牌区 + 标签 + `isAlive/setAlive` + `acting` 派生属性）、**局**（`game.lua`：一张桌子 + 一个随机源 + 内核建好的公共牌区（`抽牌` / `弃牌`），另建牌，并持有**这一局的规则内容**与**效果记牌器**）、**效果族**（`core/effect/`，见下一行）（接口可直接调用、可单测）；全部**直接挂在 `moe` 上**（`moe.desk` / `moe.game` / `moe.loader` …，**没有 `moe.core`**），类名与类型注解**直接用类名本身**（如 `Game` / `Loader`，见 `references/architecture.md` 第 1 节） |
 | `server/core/effect/` | **效果族**：`Effect` 基类与**机制类**（用牌链 / 询问 / 挪牌）住这里；**规则类的效果住 `package/@基础`**（判定 / 伤害 / 回复 / 摸牌 / 濒死 —— 它们是内核的默认规则层，只是落点可被 mod 覆盖，见 `references/architecture.md` §9.6）。`effect.lua` = 基类 `Effect`（由任务驱动 —— `apply()` 驱动 → `settle()` 结算，结果 / 失败读 `.result` / `.err`，父效果读 `.parent`；自带**临时处理区** `getTempZone()`（每个效果自己一块；要用外层结算那块就显式写 `parent:getTempZone()`）与**收尾时机** `'效果-收尾'`（结完时内核把临时区剩下的牌送 `弃牌`）），`init.lua` 只做装载（先 `core.effect.effect` 再各子文件）；子类：`use-card.lua`（`UseCard` + 逐目标 `CardEffect`）、`ask.lua` / `ask-card.lua` / `ask-use-card.lua` / `ask-play-card.lua`（询问：决策 / 要一张牌 / 要一次使用 / 要一张打出的牌）、`move-card.lua`（挪牌）；**模块名 = 路径**（基类模块名 `core.effect.effect`，子类是 `core.effect.use-card` …） |
@@ -54,8 +54,8 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `server/test/` | 无头测试（套件名如 `test.smoke` / `test.session` / `test.core`） |
 | `server/bin/` `server/log/` `server/tmp/` | 构建产物与运行时产物（均 git 忽略） |
 | `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（规则：`@基础` / `身份场` / `标准`，将来 `军争`…；工具：**`@tools`** —— 与游戏规则无关的纯函数工具集，**扩充内容侧的标准库**（给 `table` 加 `filter` / `map` / `contains` / `without` / `mergeArray` / `copy`，另有 `util.defer`））；包 = 一级目录（根下**不许有散落文件**） ，目录名以 `@` 开头表示**默认加载**（`@基础` ⇒ 逻辑包名 `基础`，清单不用写它，引用也不写 `@`）；跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.loader` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参 与热重载；只拿注入的 `game` 与 `Card` / `Depends` / `Class` / `New` 与共享袋 `rule`（内核能力经局收口），不反向； 包目录下可以放一份 **`meta.lua`（纯类型声明，固定叫 `meta`）**给编辑器收窄自己的概念（身份、规则数值…），装载器把它当普通文件执行（里面只有注释）—— 配方见 `references/architecture.md` 9.6 |
-| `server/proto/` | 协议定义（方法名、参数与返回结构），前后端共用的事实来源 |
-| `server/transport/` | 传输层：`jsonrpc.lua`（编解码纯函数）/ `link.lua`（`Link` 类型 + 内存实现）/ `client.lua`（`Client` 端点：`notify` / `request` / `awaitRequest`；`register` 是**模块级**的）；连接与帧格式**还没做**（见 `references/architecture.md` 第 14 节） |
+| `server/proto.d.lua` | 协议类型声明（`Proto.*`：方法名、参数与返回结构），前后端共用的事实来源；**一个方向 + 一类数据一条消息**（见 `references/architecture.md` 第 15 节） |
+| `server/transport/` | 传输层：`jsonrpc.lua`（编解码纯函数）/ `link.lua`（`Link` 类型 + 内存实现）/ `client.lua`（`Client` 端点：`notify` / `request` / `awaitRequest`；`register` 是**模块级**的）/ `clients.lua`（连接集合：`add` / `remove` / `broadcast`）；TCP 连接**还没做**（见 `references/architecture.md` 第 14 节） |
 | `client/`（将来） | 前端（TypeScript / Web）；与 `server/` 平级 |
 
 ## 3. references

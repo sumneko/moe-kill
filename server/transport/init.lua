@@ -2,3 +2,4 @@
 require 'transport.jsonrpc'
 require 'transport.link'
 require 'transport.client'
+require 'transport.clients'

@@ -58,7 +58,7 @@
 ## 3. 协议设计原则（通用协议，一个后端对接多种前端）
 
 1. **不出现任何前端概念**：协议只描述游戏语义与表现事件；贴图路径、动画时长、音效等由前端自行映射资源 id。
-2. **方法命名**统一 `域.动作`（如 `session/create`、`game/submitDecision`），域与方法名集中在 `proto` 里定义，禁止散落在业务代码中拼字符串。
+2. **方法命名**统一 `域.动作`（点号分层，如 `Player.Update` / `Player.UpdateCustom`）—— 落点是 `server/proto.d.lua` 的类型声明（`Proto.S2C.Notify.<域>.<动作>`；**一个方向 + 一类数据一条消息**，见第 15 节），禁止散落在业务代码中拼字符串。
 3. **后端权威、前端无状态**：目标合法性、距离、可用操作列表一律由后端计算下发；前端永不自行推导规则。
 4. **两种下行数据各司其职**：
    - 事件流（notification）：一次操作产生的表现序列，供前端顺序播放动画。
@@ -604,3 +604,21 @@ Card '杀'
 - **断开**：`start()` 起的读循环拿到的 `read` 给空 ⇒ `Client:close(原因)` 收摊（标记关闭 + 把还在等的请求全部以「连接断开」收尾）；不认识的结果记一条 `warn` 丢掉。
 - **`start()` 用 `executeSync` 内联跑到第一个挂起点** ⇒ 返回时读循环已经挂在「等消息」上（调用方不必再让出一次）。⚠️ 用 `executeAsync` 的话它要等一个调度才跑，用例里就得先 `sleep(0)`。
 - **本批不做**（用户 2026-10-09 定）：TCP 与帧格式、请求超时（**不做**）、`server/proto/` 的方法名常量、`ClientUser` 的接线、删除 `server/session/`。
+
+## 15. 玩家的自定义数据与增量下发（`player.custom` + `Player.Update`）
+
+**要解决的问题**：武将牌、身份、将来的装备 / 技能 / 状态……都得让客户端看见，但**谁看得见**各不相同（武将公开、身份只有主公与自己）。于是把「内容侧往玩家身上挂的自由数据」收进一个容器，**可见性由容器记账**，下发时**按视角裁剪**。
+
+- **容器 `player.custom`**（`server/core/custom.lua`，`Custom` 类；建玩家时就建好）：
+  - `custom.proxy` —— 内容侧**读写**的那张表（`player.custom.proxy.heroName = '刘备'`）；**写走元表**：进 `raw` → 调 `hook(key, value)`（可选）→ `player:markDirty('custom')`。
+  - `custom.raw` —— 真实数据（内核遍历用）；`visibles` —— 逐键可见性（私有）。
+  - `custom:setVisible(key, options)` / `isVisible(key, viewer)` / `allVisibles(viewer)`；`options` 就是通用的 `Visibility`（`true` / `false` / 一名角色 / 角色表 / 谓词，见 `moe.visibility`）。
+  - **默认只有自己看得见**（fail-closed）：没设过可见性的键，别人一律看不见；自己没有值也照样「看得见自己那份」（读出来是空）。
+- **内容的落点**：身份写在 `package/身份场/身份.lua`（`setIdentity` 写 `proxy.identity`，主公 `setVisible('identity', true)`）；武将牌面写在 `package/@基础/武将.lua`（`heroName` / `heroSex` 公开）。**协议类型由内容包自己补** —— 各包在自己的 `meta.lua` 里给 `---@class Proto.Custom` 加字段（class 声明是合并语义）。
+- **`player.identity` 是只读的便捷读法**（`M.__getter.identity`，真相在容器里）—— 读的地方保持「像字段」（`code-style.md` §11 的口径），写入只有 `setIdentity` 一处。
+- **置脏与批量下发**（`game` 上）：`player:markDirty(种类)` → `game:markDirty(player, kind)`；**第一次标脏时登记一次** `moe.await.wake(flush)`（不是计时器、也不是「每帧」），`kind` 现在两种：`'base'`（id / 用户名 / 座位）与 `'custom'`。**一笔调度里改多少字段都只发一次**，flush 完就清（不会重复发）。
+- **按视角组装**（`moe.player.sendUpdates(game, dirty)`）：基础信息一份（`Proto.Player.Base` = `id` / `userName` / `seat`，人人相同）合成**一条** `Player.Update`；custom **每个收件人各组装一份**（`custom:allVisibles(viewer)`），**一个玩家一条** `Player.UpdateCustom`（载荷 `Proto.Player.Custom` = `{ id, custom }`），**看得见的键一个都没有就跳过**。**没有 `user` 的玩家（或视角）不下发**。
+- **`User:update(data)`** 是唯一出口：`data.base?` / `data.custom?` 各是「要发的载荷」，基类空实现（不表态），`ClientUser` 覆写成两条 `notify`。**内核不认识协议** —— 它只把组装好的表交出去（与 `player.user` 同一路：只依赖类型注解，不 `require` 实现）。
+- **连接集合**（`server/transport/clients.lua`，`moe.clients`）：`add(client)`（**返回撤销函数**）/ `remove` / `broadcast(method, build)`（`build(client)` 各造一份，返回 `nil` 即跳过）。**内核不碰它** —— 谁持有集合、谁往里放连接由外壳决定。
+- **一类数据一条协议**（用户 2026-10-10 定）：`Update` 只带基础信息、`UpdateCustom` 只带 custom；将来 `Zone` / `Skill` / `Buff` 各自一条，**不做「一个大快照」**。
+- **增量由客户端比对**（用户 2026-10-10 定）：本批**不做差分**，每次发的是该类数据的**全量**（custom 会按视角裁键，但发出去的都是当前值）。

@@ -1,3 +1,5 @@
+---@alias Player.DirtyKind 'base'|'custom'
+
 ---@class Player.CreateOptions
 ---@field attributes Attributes
 ---@field name? string
@@ -16,6 +18,8 @@
 ---@field private limitDeltas table<string, table<string, integer>> # 各阶段里各名字的上限增减（阶段名 → 名字 → 增减）
 ---@field game Game # 属于哪一局（牌区顺着归属者找到局）
 ---@field user? User # 谁在控制他（没有就是没人应答，交给全局时机）
+---@field id integer # 局内唯一号（建号走局上的号源）
+---@field custom Custom # 内容侧往他身上挂的自由数据（写就同步）
 local M = Class 'Player'
 
 ---@param game Game
@@ -24,6 +28,8 @@ local M = Class 'Player'
 function M:__init(game, attributes, name)
     self.game        = game
     self.name        = name
+    self.id          = game:nextId()
+    self.custom      = moe.custom.create(self)
     self.attributes  = attributes
     self.zoneList    = {}
     self.zoneMap     = {}
@@ -398,6 +404,62 @@ end
 
 ---@class Player.API
 moe.player = {}
+
+--- 把这个玩家的一类数据标脏（下一笔调度之前真正发）
+---@param kind Player.DirtyKind
+function M:markDirty(kind)
+    self.game:markDirty(self, kind)
+end
+
+--- 组装这个玩家的基础信息
+---@param player Player
+---@return Proto.Player.Base
+function moe.player.toBase(player)
+    return {
+        id       = player.id,
+        userName = player:getName() or '',
+        seat     = player.game.desk:getIndex(player),
+    }
+end
+
+--- 把这一批脏玩家下发下去（基础信息人人一份、custom 按各人视角裁剪）
+---@param game Game
+---@param dirty table<Player, table<string, boolean>>
+function moe.player.sendUpdates(game, dirty)
+    ---@type Proto.Player.Base[]
+    local baseList = {}
+    for player, kinds in pairs(dirty) do
+        if kinds.base then
+            baseList[#baseList + 1] = moe.player.toBase(player)
+        end
+    end
+    for _, viewer in ipairs(game.desk.players) do
+        local user = viewer.user
+        if user then
+            ---@type Proto.Update
+            local data = {}
+            if #baseList > 0 then
+                data.base = baseList
+            end
+            ---@type Proto.Player.Custom[]
+            local customList = {}
+            for player, kinds in pairs(dirty) do
+                if kinds.custom then
+                    local visible = player.custom:allVisibles(viewer)
+                    if next(visible) then
+                        customList[#customList + 1] = { id = player.id, custom = visible }
+                    end
+                end
+            end
+            if #customList > 0 then
+                data.custom = customList
+            end
+            if data.base or data.custom then
+                user:update(data)
+            end
+        end
+    end
+end
 
 --- 建一个玩家
 ---@param game Game

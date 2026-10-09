@@ -15,6 +15,11 @@
 --- 势力（由武将写入；官方：魏 / 蜀 / 吴 / 群 / 西 / 神，标准包只用前四个）
 ---@alias 基础.势力 '魏'|'蜀'|'吴'|'群'
 
+--- 武将牌面（公开信息）也走玩家的 custom 容器
+---@class Proto.Custom
+---@field heroName? string # 武将名
+---@field heroSex? 基础.性别 # 性别
+
 ---@class Player: Class.Base
 ---@field sex? 基础.性别
 ---@field hero? HeroDef # 这名角色用的是哪张武将（由 @基础/武将.lua 的 setHero 写入）

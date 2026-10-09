@@ -69,4 +69,9 @@ end
 function M:askPanel(ask)
 end
 
+--- 玩家数据变了（`base?` / `custom?`，内核已经按视角组装好；默认什么都不做）
+---@param data Proto.Update
+function M:update(data)
+end
+
 return M
