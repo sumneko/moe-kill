@@ -37,9 +37,11 @@ Skill '遗计'
                         break
                     end
                     local ask = game:askCardWithTarget(skill.owner, '遗计', {
-                        zone = shown,
-                        min  = 1,
-                        max  = shown:count(),
+                        card = {
+                            zone = shown,
+                            min  = 1,
+                            max  = shown:count(),
+                        },
                     })
                     if #ask.cards == 0 then
                         -- 取消 = 剩下的全归自己

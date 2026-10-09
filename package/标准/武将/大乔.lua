@@ -19,18 +19,20 @@ Skill '流离'
         options.ignoreDistance = true
         local candidates = table.filter(game:getLegalTargets(useCard.user, useCard.card, options), function (player)
             return player ~= owner
-               and owner:isInRange(player, owner:getAttr('攻击范围'))
+               and owner:isInRange(player)
         end)
         if #candidates == 0 then
             return
         end
         local ask = game:askCardWithTarget(owner, '流离', {
-            zone      = rule.ownZones,
-            min       = 1,
-            max       = 1,
-            targets   = candidates,
-            minTarget = 1,
-            maxTarget = 1,
+            card = {
+                zone = rule.ownZones,
+                min  = 1,
+                max  = 1,
+            },
+            target = {
+                player = candidates,
+            },
         })
         -- 没答 = 不发动（弃牌与转移是一件事的两半，不分开问）
         if not ask.target then

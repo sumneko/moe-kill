@@ -6,10 +6,8 @@ Card '杀'
     : limit('出牌', 1)
     : targets {
         filter = function (player, plan)
-            local user  = plan.user
-            local range = user:getAttr('攻击范围')
-            return player ~= user
-               and user:isInRange(player, range, plan.useOptions)
+            return player ~= plan.user
+               and plan.user:isInRange(player, nil, plan.useOptions)
         end,
     }
     : on('生效', function (cardEffect, useCard)

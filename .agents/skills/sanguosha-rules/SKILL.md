@@ -210,10 +210,8 @@ Card '杀'
     : limit('出牌', 1)                            -- 每出牌阶段限一次：限额写在定义上（不写就是 1000 = 不限）
     : targets {                                  -- 目标条件：个数区间 + 逐角色谓词（不声明整条 = 这张牌没有「对角色使用」这一支）
         filter = function (player, plan)          -- 合法目标由牌自己当场判：内核不作任何具体判定
-            local user  = plan.user
-            local range = user:getAttr('攻击范围')
-            return player ~= user
-               and user:isInRange(player, range, plan.useOptions)
+            return player ~= plan.user            -- 射程给 nil = 自己的攻击范围（要显式射程就写第 2 参）
+               and plan.user:isInRange(player, nil, plan.useOptions)
         end,                                     -- 没人过 = 空列表 = 现在用不了
     }
     : on('生效', function (cardEffect)         -- 每个目标各跑一次
@@ -818,7 +816,7 @@ Skill '奇才'
 - 【集智】是**自动同意**（`: auto(true)`）：发动没代价、纯收益，不必问玩家。
 - 时机订**使用者**那份 **`'卡牌-来源-结算前'`**（全局那份叫 `'卡牌-结算前'` —— 对当事人再发一份带方向词；只收自己的用牌、不用再判 `user`）—— 它对应官方的「使用结算开始时」。
 - **【奇才】用「这次使用的选项」**：由**使用者**在收集时加上 `ignoreDistance` ⇒ 射程判断（`Player:isInRange` 直接算在）⇒ 带距离的锦囊（【顺手牵羊】）不受限；**只管锦囊**（【杀】照旧受射程限制）。
-- `ignoreDistance` 的消费者要接的是**判射程的地方**：内容侧写 `user:isInRange(对方, 范围, plan.useOptions)`（【杀】与【顺手牵羊】的 `targets` filter 都是这么写的），裸写 `user:distance(对方)` 就认不到它。
+- `ignoreDistance` 的消费者要接的是**判射程的地方**：内容侧写 `user:isInRange(对方, nil, plan.useOptions)`（**射程给 `nil` = 自己的攻击范围**；要显式射程就写数字，如【顺手牵羊】的 `isInRange(对方, 1, plan.useOptions)`）——【杀】与【顺手牵羊】的 `targets` filter 都是这么写的，裸写 `user:distance(对方)` 就认不到它。
 
 ### 9.22 孙权【制衡】【救援】（已落地，2026-10-08 / 09）
 
@@ -942,9 +940,11 @@ Skill '遗计'
                         break
                     end
                     local ask = game:askCardWithTarget(skill.owner, '遗计', {
-                        zone = shown,
-                        min  = 1,
-                        max  = shown:count(),
+                        card = {
+                            zone = shown,
+                            min  = 1,
+                            max  = shown:count(),
+                        },
                     })
                     if #ask.cards == 0 then
                         -- 取消 = 剩下的全归自己
@@ -959,7 +959,7 @@ Skill '遗计'
 ```
 
 - **「观看」= 抽到自己这轮的临时区**（`cast:getTempZone()`，用户 2026-10-09 定的形状）—— 牌一旦离堆必须有去处，而本技能保证「要么分出去、要么取消时归自己」⇒ **整段不会剩牌**，也就不需要「置回牌堆顶 / 底」那套能力。
-- **反复询问用现成的 `askCardWithTarget`**（**不必新开询问**）：`zone` 传**区对象** ⇒ 候选就是临时区里的牌；`min = 1`、**`max = 当前剩余张数`**（一次答复可以给同一个人 1~N 张）；`maxTarget` 不写 = 1 ⇒ 一次答复只指一个目标；`cancelable` 默认允许取消 ⇒ **取消 = 剩下的全归自己**、这一轮结束；循环写成 **`for _ = 1, 1000 do`（带上限，不用 `while`** —— 用户 2026-10-09 定，见 `moe-kill-dev` 的 `code-style.md` §14；【濒死】求桃那圈也照此改了）。
+- **反复询问用现成的 `askCardWithTarget`**（**不必新开询问**）：条件分**两半具名**（2026-10-09 收成 `card` / `target`）—— **牌那半**：`zone` 传**区对象** ⇒ 候选就是临时区里的牌，`min = 1`、**`max = 当前剩余张数`**（一次答复可以给同一个人 1~N 张）；**角色那半整条不写** ⇒ 默认正好一个目标；`cancelable` 默认允许取消（`AskCard.Condition` 的字段都写在 `card` 那半）⇒ **取消 = 剩下的全归自己**、这一轮结束；循环写成 **`for _ = 1, 1000 do`（带上限，不用 `while`** —— 用户 2026-10-09 定，见 `moe-kill-dev` 的 `code-style.md` §14；【濒死】求桃那圈也照此改了）。
 - **分配权在被问者（郭嘉）手上**，不是让被给的人挑（与【五谷丰登】的「逐目标自选一张」相反）—— `askCardWithTarget` 问的是发起方。
 - **「观看」的可见性：把这块临时区只指给郭嘉看**（2026-10-09 定）：临时区默认全桌可见（它也是「处理区」，亮牌 / 判定都靠这一点），而官方是「**你**观看」⇒ `shown:setVisible(skill.owner)`（**`setVisible` 的名单语义**：给一名或一批角色 = 只有他们看得见；`true` = 所有人、`false` = 无人）⇒ 协议层遮蔽照 `isVisibleTo` 读即可。**这是第一个私有处理区**。**牌级可见性（展示 / 覆盖）还没有** —— 官方「展示」（所有人可见）与「观看」（只有你）是两个动作，等【反间】或协议层那批一次定透。
 
@@ -1218,18 +1218,20 @@ Skill '流离'
         options.ignoreDistance = true
         local candidates = table.filter(game:getLegalTargets(useCard.user, useCard.card, options), function (player)
             return player ~= owner
-               and owner:isInRange(player, owner:getAttr('攻击范围'))
+               and owner:isInRange(player)
         end)
         if #candidates == 0 then
             return
         end
         local ask = game:askCardWithTarget(owner, '流离', {
-            zone      = rule.ownZones,
-            min       = 1,
-            max       = 1,
-            targets   = candidates,
-            minTarget = 1,
-            maxTarget = 1,
+            card = {
+                zone = rule.ownZones,
+                min  = 1,
+                max  = 1,
+            },
+            target = {
+                player = candidates,
+            },
         })
         -- 没答 = 不发动（弃牌与转移是一件事的两半，不分开问）
         if not ask.target then
@@ -1244,9 +1246,9 @@ Skill '流离'
 
 - **官方「转移」的落地 = `UseCard:replaceTarget(换掉谁, 换成谁)`**（本批产出）。规则集 Ch2/S5「转移」条写得很清楚：「取消此目标并生成一个与角色 B 具有对应关系的新的目标并将此目标加入此牌的目标列表，然后**将所有还未生成过『成为目标时』的目标重新排序**」。⇒ ① 是**替换**（不是新增、也不是取消后重开）；② 新目标**会生成「成为目标时」** ⇒ 内核必须**补发**一遍三份「指定目标后」（全局 → 使用者 → 新目标），否则链式根本不成立；③ 生效那轮按现算的行动顺序 ⇒ 正好是官方说的「重新排序」。
 - **「流离能触发流离吗」= 能**（用户 2026-10-09 问、已用用例钉住）：A 流离给 B（B 也是大乔）⇒ B 收到「成为目标」⇒ B 可以再流离给 C。规则集里没有禁止连锁的条文；循环也失控不了（每次转移都要弃一张牌、牌有限 + 内核深度安全阀兜底）⇒ **不额外加「已转移过」标记**。
-- **底本那两句判据要分开读**（括号的位置很关键）：①「**你攻击范围内**」= 用**大乔自己**的攻击范围、**要算距离**（`owner:isInRange(player, owner:getAttr('攻击范围'))`）；②「为此【杀】合法目标（**无距离限制**）」= 那句括号修饰的是**后半句** —— 判「是不是这张【杀】的合法目标」时**不判距离**（`Game.UseOptions.ignoreDistance` 正是这个语义）。⇒ 两半都用现成件：② 走 **`game:getLegalTargets(使用者, 这张牌, 选项)`**（本批产出：只筛目标、不判「能不能用」、不合并选项），① 由内容侧自己 filter 一次。
+- **底本那两句判据要分开读**（括号的位置很关键）：①「**你攻击范围内**」= 用**大乔自己**的攻击范围、**要算距离**（`owner:isInRange(player)` —— 射程给 `nil` 就是自己的攻击范围，2026-10-09 整理）；②「为此【杀】合法目标（**无距离限制**）」= 那句括号修饰的是**后半句** —— 判「是不是这张【杀】的合法目标」时**不判距离**（`Game.UseOptions.ignoreDistance` 正是这个语义）。⇒ 两半都用现成件：② 走 **`game:getLegalTargets(使用者, 这张牌, 选项)`**（本批产出：只筛目标、不判「能不能用」、不合并选项），① 由内容侧自己 filter 一次。
 - **`ignoreDistance` 的声明搬出内核**（用户 2026-10-09 提）：它只被 `@基础/距离.lua` 的 `isInRange` 读 ⇒ 按「谁读谁声明」搬进那个文件（内核不再认识它）；内容侧要叠加选项就自己 `table.copy(useCard.useOptions or {})` 再改字段（内核选项表是普通表）。
-- **弃牌与转移一次问完**：`askCardWithTarget(自己, '流离', { zone = rule.ownZones, min = 1, max = 1, targets = 候选, minTarget = 1, maxTarget = 1 })` —— 一次拿到「弃哪张 + 转给谁」，**没答就是不发动**（照【张辽】口径：不问「发不发动」，选不出就是不发动）；发动那一次套 `skill:cast`（归因）。
+- **弃牌与转移一次问完**：`askCardWithTarget(自己, '流离', { card = { zone = rule.ownZones, min = 1, max = 1 }, target = { player = 候选 } })` —— 一次拿到「弃哪张 + 转给谁」，**没答就是不发动**（照【张辽】口径：不问「发不发动」，选不出就是不发动）；发动那一次套 `skill:cast`（归因）。
 - **不做的**：【国色】（「你可以将一张方块牌当【乐不思蜀】使用」）—— 撞上「虚拟牌进不了牌区」：延时锦囊的使用结算要把牌放进判定区，而 `Zone:accept` 会把虚拟牌降级成实体子牌 ⇒ 判定期会跑**那张实体牌**的『生效』（方块【杀】会对判定者要闪/挨打）✗ 待「虚拟牌进判定区」的机制定了再做（大乔文件里已注明）。
 - 用例：`core.effect.play` +2（换目标 ⇒ 生效跑新目标、旧目标不生效 / 新目标收到补发的三份）；`core.can-use` +3（全量合法目标不受这次目标收窄影响且不问「能否使用」/ 按调用方给的选项算 / 牌没声明目标条件给空表）；`rule/hero-skill` +4（转移并弃一张 / **能触发流离**（两个大乔）/ 不答不发动 / 攻击范围内没合法目标时连问都不问）。**反向验证**：拆掉补发 ⇒ 红 2（补发那条 + 链式那条）；`getLegalTargets` 丢掉调用方的选项 ⇒ 红 4。
 

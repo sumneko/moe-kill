@@ -4,6 +4,43 @@
 ---@field min? integer # 至少要选几个（省略 = 1）
 ---@field max? integer # 至多选几个（省略 = min）
 
+--- 归一化之后的形状：候选解算成名单（不填 = 不做限制），`min` / `max` 一定给出
+---@class AskPlayer.NormalizedCondition
+---@field players? Player[] # 候选名单（不填 = 不做限制；空表 = 一个都不行）
+---@field min integer
+---@field max integer
+
+--- 把条件归一化一次：`player` 的四种写法解算成候选名单（谓词在**存活角色**里筛）、`min` / `max` 补默认
+---@param game Game
+---@param condition AskPlayer.Condition?
+---@return AskPlayer.NormalizedCondition?
+local function normalizeCondition(game, condition)
+    if not condition then
+        return nil
+    end
+    local min = condition.min or 1
+    ---@type AskPlayer.NormalizedCondition
+    local normalized = {
+        min = min,
+        max = condition.max or min,
+    }
+    local player = condition.player
+    if type(player) == 'function' then
+        ---@cast player fun(player: Player): boolean
+        ---@type Player[]
+        local list = {}
+        for _, one in ipairs(game.desk.alivePlayers) do
+            if player(one) then
+                list[#list + 1] = one
+            end
+        end
+        normalized.players = list
+    elseif player ~= nil and player ~= true then
+        normalized.players = moe.util.toList(player)
+    end
+    return normalized
+end
+
 ---@class AskPlayer.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
@@ -14,7 +51,7 @@
 ---@class AskPlayer : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
----@field condition? AskPlayer.Condition # 要什么样的角色
+---@field condition? AskPlayer.NormalizedCondition # 要什么样的角色（构造时归一化）
 ---@field options? Player[] # 候选名单（没给条件时为空 = 不做限制）
 ---@field player? Player # 答复给出的第一个角色（没答就是空）
 ---@field players Player[] # 答复给出的角色（恒列表，没答就是空表）
@@ -31,27 +68,13 @@ function M:__init(game, to, reason, condition)
     self.kind      = 'askPlayer'
     self.to        = to
     self.reason    = reason
-    self.condition = condition
+    self.condition = normalizeCondition(game, condition)
 end
 
---- 候选名单（没给条件 / 给 `true` 就是空 = 不做限制；谓词在**存活角色**里筛）
+--- 候选名单（不填 = 不做限制）
 ---@return Player[]?
 function M:collectOptions()
-    local player = self.condition?.player
-    if type(player) == 'function' then
-        ---@type Player[]
-        local list = {}
-        for _, one in ipairs(self.game.desk.alivePlayers) do
-            if player(one) then
-                list[#list + 1] = one
-            end
-        end
-        return list
-    end
-    if player == nil or player == true then
-        return nil
-    end
-    return moe.util.toList(player)
+    return self.condition?.players
 end
 
 --- 答复落在候选名单与个数区间里吗（不在就给原因；默认正好一名）
@@ -103,6 +126,14 @@ end
 
 ---@class AskPlayer.API
 moe.askPlayer = {}
+
+--- 把条件归一化一次：`player` 的四种写法解算成候选名单（谓词在**存活角色**里筛）、`min` / `max` 补默认
+---@param game Game
+---@param condition AskPlayer.Condition?
+---@return AskPlayer.NormalizedCondition?
+function moe.askPlayer.normalizeCondition(game, condition)
+    return normalizeCondition(game, condition)
+end
 
 ---@param options AskPlayer.CreateOptions
 ---@return AskPlayer

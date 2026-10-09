@@ -175,6 +175,8 @@ lt.test('杀：带「无视距离」的使用选项，范围外也够得着', fu
     lt.assertEquals('隔一位的 3 号位距离 2（distance 只给真值）', 2, user:distance(target))
     lt.assertEquals('照常不在射程内（攻击范围 1）', false, user:isInRange(target, 1))
     lt.assertEquals('「无视距离」的选项：算在', true, user:isInRange(target, 1, { ignoreDistance = true }))
+    lt.assertEquals('射程给 nil ⇒ 按攻击范围算（还是够不着）', false, user:isInRange(target))
+    lt.assertEquals('射程给 nil + 无视距离 ⇒ 算在', true, user:isInRange(target, nil, { ignoreDistance = true }))
 
     lt.assertFailed('照常够不着', run.game:useCard(user, card, { target }))
 

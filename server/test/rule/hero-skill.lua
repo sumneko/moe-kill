@@ -3108,7 +3108,7 @@ lt.test('流离：把【杀】转给攻击范围内的别人（自己弃一张�
             return
         end
         asked = asked + 1
-        candidates = ask.condition.targets
+        candidates = assert(assert(ask.targetCondition, '流离没摆候选名单').players)
         if ask.to == daqiao then
             return { card = cost, targets = other }
         end

@@ -958,15 +958,15 @@ end
 --- 要一张牌（要一次给出：一批牌 + 接收它们的角色）
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskCardWithTarget.Condition # 要什么样的牌（比 `askCard` 多 `targets` / `minTarget` / `maxTarget`；省略 = 不做限制）
+---@param conditions? AskCardWithTarget.Conditions # 两半条件（牌那半 `card`、目标那半 `target`；省略 = 都不做限制）
 ---@return AskCardWithTarget # 这次询问（已经结完：答复读 `.cards`（全部）/ `.target`（第一个目标）、`.targets`（全部目标），失败读 `.err`）
 ---@async
-function M:askCardWithTarget(to, reason, condition)
+function M:askCardWithTarget(to, reason, conditions)
     local ask = moe.askCardWithTarget.create {
-        game      = self,
-        to        = to,
-        reason    = reason,
-        condition = condition,
+        game       = self,
+        to         = to,
+        reason     = reason,
+        conditions = conditions,
     }
     ask:apply():await()
     return ask
