@@ -14,12 +14,12 @@ Card '被动牌'
         end)
     end)
 Card '装备样'
-    : on('进入区域', function (card, zone)
+    : on('卡牌-进入区域', function (card, zone)
         if zone.owner then
             card:enablePassive()
         end
     end)
-    : on('离开区域', function (card, zone)
+    : on('卡牌-离开区域', function (card, zone)
         if zone.owner then
             card:disablePassive()
         end
@@ -29,6 +29,17 @@ Card '装备样'
         host:bindGC(function ()
             game:setValue('装备样撤销', (game:getValue('装备样撤销') or 0) + 1)
         end)
+    end)
+Card '记区域'
+    : on('卡牌-进入区域', function (card, zone)
+        local seen = game:getValue('区域事件') or {}
+        seen[#seen + 1] = '牌自己-进入'
+        game:setValue('区域事件', seen)
+    end)
+    : on('卡牌-离开区域', function (card, zone)
+        local seen = game:getValue('区域事件') or {}
+        seen[#seen + 1] = '牌自己-离开'
+        game:setValue('区域事件', seen)
     end)
 ]]
 
@@ -372,4 +383,41 @@ lt.test('牌区：可见性就按给的那批人（默认全员）', function ()
     nobody:setVisible(other)
     lt.assertEquals('没有归属的区也能指名给谁看', true, nobody:isVisibleTo(other))
     lt.assertEquals('名单外的看不见', false, nobody:isVisibleTo(mine))
+end)
+
+lt.test('牌区：区域事件对区的主人再发一份（公共区没有主人）', function ()
+    local _ <close> = useProbe()
+    local game     = newProbeGame()
+    local system   = moe.attribute.create()
+    local mine     = moe.player.create(game, { attributes = system:createInstance() })
+    local other    = moe.player.create(game, { attributes = system:createInstance() })
+
+    local function watch(player, label)
+        local function record(text)
+            return function ()
+                local list = game:getValue('区域事件') or {}
+                list[#list + 1] = label .. text
+                game:setValue('区域事件', list)
+            end
+        end
+        player:on('卡牌-进入区域', record('-进入'))
+        player:on('卡牌-离开区域', record('-离开'))
+    end
+    watch(mine, '主人')
+    watch(other, '旁人')
+
+    local card = game:createCard('记区域')
+    game:moveCard(card, mine:getZone('手牌'))
+
+    ---@type string[]
+    local entered = game:getValue('区域事件')
+    lt.assertEquals('进入：牌自己先跑，然后才轮到区的主人（旁人收不到）',
+        '牌自己-进入,主人-进入', table.concat(entered, ','))
+
+    game:moveCard(card, '弃牌')
+
+    ---@type string[]
+    local left = game:getValue('区域事件')
+    lt.assertEquals('公共区没有主人：只跑牌自己那份（离开私人区时主人仍收得到）',
+        '牌自己-进入,主人-进入,牌自己-离开,主人-离开,牌自己-进入', table.concat(left, ','))
 end)

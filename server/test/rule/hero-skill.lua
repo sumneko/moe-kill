@@ -2639,3 +2639,156 @@ lt.test('离间：候选只有其他男性角色，且出牌阶段限一次', fu
     lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
     lt.assertEquals('但离间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).options))
 end)
+
+lt.test('枭姬：装备区的牌离开就摸两张（默认自动同意，不问）', function ()
+    local run = support.start { count = 2, packages = { '标准' } }
+    local me  = run.players[1]
+    me:setHero(assert(run.game:getHero('孙尚香')))
+    lt.assertEquals('技能随武将挂上', true, me:hasSkill('枭姬'))
+
+    local weapon = run.game:createCard('青龙偃月刀', '黑桃', 5)
+    assert(me:getZone('手牌')):accept(weapon)
+    run.game:moveCard(weapon, assert(me:getZone('武器')))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '枭姬' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:moveCard(weapon, '弃牌')
+
+    lt.assertEquals('没问（默认自动同意）', 0, asked)
+    lt.assertEquals('摸了两张', 2, assert(me:getZone('手牌')):count())
+end)
+
+lt.test('枭姬：换装也算失去（旧的离开武器区，照样摸两张）', function ()
+    local run = support.start { count = 2, packages = { '标准' } }
+    local me  = run.players[1]
+    me:setHero(assert(run.game:getHero('孙尚香')))
+
+    local old = run.game:createCard('青龙偃月刀', '黑桃', 5)
+    assert(me:getZone('手牌')):accept(old)
+    me:equipCard(old)
+
+    local new = run.game:createCard('雌雄双股剑', '黑桃', 2)
+    assert(me:getZone('手牌')):accept(new)
+    me:equipCard(new)
+
+    lt.assertEquals('旧的不在武器区了', false, moe.util.arrayHas(assert(me:getZone('武器')):list(), old))
+    lt.assertEquals('新的装上了', true, moe.util.arrayHas(assert(me:getZone('武器')):list(), new))
+    lt.assertEquals('换装也算失去装备 ⇒ 摸两张', 2, assert(me:getZone('手牌')):count())
+end)
+
+lt.test('枭姬：手牌离开、或别人的装备离开，都不摸', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local me    = run.players[1]
+    local other = run.players[2]
+    me:setHero(assert(run.game:getHero('孙尚香')))
+    other:setHero(assert(run.game:getHero('关羽')))
+
+    local hand = run.game:createCard('杀', '黑桃', 7)
+    assert(me:getZone('手牌')):accept(hand)
+    run.game:moveCard(hand, '弃牌')
+    lt.assertEquals('手牌离开不算失去装备', 0, assert(me:getZone('手牌')):count())
+
+    local weapon = run.game:createCard('青龙偃月刀', '黑桃', 5)
+    assert(other:getZone('手牌')):accept(weapon)
+    other:equipCard(weapon)
+    run.game:moveCard(weapon, '弃牌')
+    lt.assertEquals('别人失去装备，自己不摸', 0, assert(me:getZone('手牌')):count())
+end)
+
+lt.test('结姻：弃两张手牌 + 一名已受伤的男性 ⇒ 双方各回 1 点，且出牌阶段限一次', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local me    = run.players[1]
+    local other = run.players[2]
+    me:setHero(assert(run.game:getHero('孙尚香')))
+    other:setHero(assert(run.game:getHero('关羽')))
+    lt.assertEquals('技能随武将挂上', true, me:hasSkill('结姻'))
+
+    run.game:damage(nil, me, 1)
+    run.game:damage(nil, other, 1)
+    lt.assertEquals('自己伤了 1 点', 1, me:getLostHp())
+    lt.assertEquals('对方也伤了 1 点', 1, other:getLostHp())
+
+    local first  = run.game:createCard('杀', '黑桃', 7)
+    local second = run.game:createCard('闪', '红桃', 2)
+    assert(me:getZone('手牌')):accept(first)
+    assert(me:getZone('手牌')):accept(second)
+
+    local jieyin = findSkill(me, '结姻')
+
+    ---@type AskUseSkill? # 第二轮（用过之后）
+    local secondAsk = nil
+    ---@type integer
+    local asked     = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        ---@cast ask AskUseSkill
+        if asked == 1 then
+            return { skill = jieyin, cards = { first, second }, targets = { other } }
+        end
+        secondAsk = ask
+        return nil
+    end)
+    local _ <close> = run.game:enterPhase(me, '出牌')
+
+    lt.assertEquals('自己回满了', 3, me:getAttr('体力'))
+    lt.assertEquals('对方也回满了', 4, other:getAttr('体力'))
+    local thrown = assert(run.game:getZone('弃牌')):list()
+    lt.assertEquals('弃的第一张进了弃牌堆', true, moe.util.arrayHas(thrown, first))
+    lt.assertEquals('弃的第二张也进了弃牌堆', true, moe.util.arrayHas(thrown, second))
+    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
+    lt.assertEquals('但结姻已经不在选项里（限一次）', 0, #assert(secondAsk).options)
+end)
+
+lt.test('结姻：候选只有已受伤的其他男性角色', function ()
+    local run      = support.start { count = 4, packages = { '标准' } }
+    local me       = run.players[1]
+    local fullMan  = run.players[2]
+    local hurtMan  = run.players[3]
+    local hurtGirl = run.players[4]
+    me:setHero(assert(run.game:getHero('孙尚香')))
+    fullMan:setHero(assert(run.game:getHero('关羽')))
+    hurtMan:setHero(assert(run.game:getHero('张飞')))
+    hurtGirl:setHero(assert(run.game:getHero('甄姬')))
+
+    run.game:damage(nil, me, 1)
+    run.game:damage(nil, hurtMan, 1)
+    run.game:damage(nil, hurtGirl, 1)
+
+    local first  = run.game:createCard('杀', '黑桃', 7)
+    local second = run.game:createCard('闪', '红桃', 2)
+    assert(me:getZone('手牌')):accept(first)
+    assert(me:getZone('手牌')):accept(second)
+
+    ---@type AskUseSkill? # 出牌阶段那次询问
+    local ask = nil
+    run.game:on('技能-询问', function (asked)
+        ---@cast asked AskUseSkill
+        if not ask then
+            ask = asked
+        end
+        return nil
+    end)
+
+    local _ <close> = run.game:enterPhase(me, '出牌')
+
+    ---@type AskUseSkill.Option?
+    local option = nil
+    for _, item in ipairs(assert(ask, '出牌阶段该问过一次').options) do
+        if item.targets then
+            option = item
+        end
+    end
+
+    local legal = assert(assert(option, '结姻该带目标那半').targets).legal
+    lt.assertEquals('只有一名候选', 1, #legal)
+    lt.assertEquals('就是那名受伤的男性', true, moe.util.arrayHas(legal, hurtMan))
+    lt.assertEquals('不算自己', false, moe.util.arrayHas(legal, me))
+    lt.assertEquals('不算满血男性', false, moe.util.arrayHas(legal, fullMan))
+    lt.assertEquals('不算女性', false, moe.util.arrayHas(legal, hurtGirl))
+end)

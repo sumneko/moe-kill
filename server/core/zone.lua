@@ -22,19 +22,21 @@ function M:__init(game)
     self.game     = game
 end
 
---- 牌进来了：本区被禁用就先压它一层，再跑它定义上的「进入区域」钩子
+--- 牌进来了：本区被禁用就先压它一层，再跑它定义上的「卡牌-进入区域」钩子（有主人的区还给主人发一份）
 ---@param card Card
 function M:notifyEnter(card)
     if self.disabled > 0 then
         card:disablePassive()
     end
-    card:fireHandlers('进入区域', card, self)
+    card:fireHandlers('卡牌-进入区域', card, self)
+    self.owner?:fire('卡牌-进入区域', card, self)
 end
 
---- 牌离开了：先跑它定义上的「离开区域」钩子，再松开本区压的那一层（发的时候牌已经不在本区里）
+--- 牌离开了：先跑它定义上的「卡牌-离开区域」钩子（有主人的区也给主人发一份），再松开本区压的那一层（发的时候牌已经不在本区里）
 ---@param card Card
 function M:notifyLeave(card)
-    card:fireHandlers('离开区域', card, self)
+    card:fireHandlers('卡牌-离开区域', card, self)
+    self.owner?:fire('卡牌-离开区域', card, self)
     if self.disabled > 0 then
         card:enablePassive()
     end
@@ -74,7 +76,7 @@ function M:takeIn(cards)
     return moves
 end
 
---- 一起发这批搬动的事件（按每条记录自己的源区 / 目标区发）：先所有「离开区域」、再所有「进入区域」
+--- 一起发这批搬动的事件（按每条记录自己的源区 / 目标区发）：先所有「卡牌-离开区域」、再所有「卡牌-进入区域」
 ---@protected
 ---@param moves Zone.Move[]
 function M:notifyMoved(moves)
@@ -89,7 +91,7 @@ function M:notifyMoved(moves)
     end
 end
 
---- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「离开区域」/「进入区域」；收的是每张牌的实体牌 —— 虚拟牌进不了牌区，收它就等于收它的素材）
+--- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「卡牌-离开区域」/「卡牌-进入区域」；收的是每张牌的实体牌 —— 虚拟牌进不了牌区，收它就等于收它的素材）
 ---@param cards Card|Card[] # 要收的牌（单张或一批）
 ---@return boolean # 收下了没有
 ---@return string? # 没收下的原因
@@ -103,7 +105,7 @@ function M:accept(cards)
     return true
 end
 
---- 把这张牌从本区拿出来（摘掉、解绑、发「离开区域」；内核自己用：清空、取顶）
+--- 把这张牌从本区拿出来（摘掉、解绑、发「卡牌-离开区域」；内核自己用：清空、取顶）
 ---@protected
 ---@param card Card
 ---@return Card? # 本区没这张牌就是空
@@ -148,7 +150,7 @@ function M:list()
     return moe.util.copy(self.cards)
 end
 
---- 清空整个牌区（每张牌都发一次「离开区域」）
+--- 清空整个牌区（每张牌都发一次「卡牌-离开区域」）
 ---@return integer # 清掉几张
 function M:clear()
     local cards = self:list()

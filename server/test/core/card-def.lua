@@ -94,14 +94,14 @@ Card '基'
     : kind '基本'
     : zone '手牌'
     : limit('出牌', 2)
-    : on('进入区域', function ()
+    : on('卡牌-进入区域', function ()
         local user = game.desk:getPlayer(1)
         user:setTag('顺序', (user:getTag('顺序') or '') .. '基')
     end)
 Card '子'
     : extends '基'
     : limit('出牌', 5)
-    : on('进入区域', function ()
+    : on('卡牌-进入区域', function ()
         local user = game.desk:getPlayer(1)
         user:setTag('顺序', (user:getTag('顺序') or '') .. '子')
     end)
@@ -113,7 +113,7 @@ Card '子'
     lt.assertEquals('抄来了牌区', '手牌', def:getZone())
     lt.assertEquals('自己写的限额覆盖基类的', 5, def:getLimit('出牌'))
 
-    local handlers = def:getHandlers('进入区域')
+    local handlers = def:getHandlers('卡牌-进入区域')
     lt.assertEquals('两个钩子都在', 2, #handlers)
     for _, handler in ipairs(handlers) do
         handler()
@@ -251,11 +251,11 @@ Card '子'
     lt.assertEquals('抄来的在后面加的仍留着', '装备,坐骑,进攻马', kindsOf(game, '子'))
 end)
 
-lt.test('定义：牌进玩家的牌区就发「进入区域」，给的是那个区', function ()
+lt.test('定义：牌进玩家的牌区就发「卡牌-进入区域」，给的是那个区', function ()
     local guard <close> = useProbe()
     local game, player = newGame([[
 Card '甲'
-    : on('进入区域', function (card, zone)
+    : on('卡牌-进入区域', function (card, zone)
         local owner = assert(zone.owner, '发钩子的时候应该读得到归属者')
         owner:setTag('记录', (owner:getTag('记录') or '')
             .. card.name .. '@' .. tostring(zone == owner:getZone('武器')) .. ';')
@@ -272,11 +272,11 @@ Card '甲'
     lt.assertEquals('进武器子区时收到的就是那个区', '甲@false;甲@true;', player:getTag('记录'))
 end)
 
-lt.test('定义：公共区也发「进入区域」，定义跟着牌走', function ()
+lt.test('定义：公共区也发「卡牌-进入区域」，定义跟着牌走', function ()
     local guard <close> = useProbe()
     local game, player = newGame([[
 Card '甲'
-    : on('进入区域', function (card, zone)
+    : on('卡牌-进入区域', function (card, zone)
         local seat = game.desk.seats[1]
         seat:setTag('记录', (seat:getTag('记录') or '')
             .. tostring(zone.owner ~= nil) .. ';')
@@ -294,7 +294,7 @@ end)
 
 --- 一个钩子的源码（牌定义里用：game 是注入进去的）
 ---@param label string # 记录里写的短标签（离 / 进）
----@param event string # 钩子名（离开区域 / 进入区域）
+---@param event string # 钩子名（卡牌-离开区域 / 卡牌-进入区域）
 ---@return string
 local function recordEvent(label, event)
     return [[
@@ -305,9 +305,9 @@ local function recordEvent(label, event)
     end)]]
 end
 
-lt.test('定义：一起收一批牌时，先发完所有「离开区域」再发所有「进入区域」', function ()
+lt.test('定义：一起收一批牌时，先发完所有「卡牌-离开区域」再发所有「卡牌-进入区域」', function ()
     local guard <close> = useProbe()
-    local game, player = newGame('Card \'甲\'' .. recordEvent('离', '离开区域') .. recordEvent('进', '进入区域'))
+    local game, player = newGame('Card \'甲\'' .. recordEvent('离', '卡牌-离开区域') .. recordEvent('进', '卡牌-进入区域'))
 
     local seat   = player
     local from   = moe.zone.create(game)

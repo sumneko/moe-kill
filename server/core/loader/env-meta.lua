@@ -29,8 +29,8 @@ rule = nil
 
 --- 牌的钩子是**固定**的：名字由内核约定、与启用的包无关，清单以本文件为准（不留 string 兜底，拼错在编辑期就报）
 ---@class CardDef
----@field on fun(self: CardDef, event: '进入区域', handler: fun(card: Card, zone: Zone): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发）
----@field on fun(self: CardDef, event: '离开区域', handler: fun(card: Card, zone: Zone): any): CardDef # 这张牌离开某个牌区时跑（发的时候它已经不在那个区里）
+---@field on fun(self: CardDef, event: '卡牌-进入区域', handler: fun(card: Card, zone: Zone): any): CardDef # 这张牌进入某个牌区之后跑（只有有归属者的区会发）
+---@field on fun(self: CardDef, event: '卡牌-离开区域', handler: fun(card: Card, zone: Zone): any): CardDef # 这张牌离开某个牌区时跑（发的时候它已经不在那个区里）
 ---@field on fun(self: CardDef, event: '使用', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前；声明了 skipEffect 的牌就到这）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard?)): CardDef # 一次生效（使用期逐目标 / 判定阶段每张一次）
 ---@field on fun(self: CardDef, event: '被动', handler: fun(card: Card, zone: Zone, host: GCHost)): CardDef # 被动启用时跑一次：要挂什么就 `host:bindGC(…)`（停用时内核释放容器）
@@ -62,6 +62,8 @@ rule = nil
 ---@field on fun(self: SkillDef, event: '使用', handler: fun(cast: SkillCast)): SkillDef # 主动发动时跑（`cast` = 这次发动：`cast.source` 技能 / `cast.from` 发动者 / `cast.use` 带的牌与目标）
 ---@field event fun(self: SkillDef, name: '卡牌-来源-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef # 自己使用的牌开始结算（订自己那份）
 ---@field event fun(self: SkillDef, name: '卡牌-来源-使用选项', handler: fun(skill: Skill, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): SkillDef # 自己这次使用的选项（**收集式**：回调返回值会被 `fire` 收走；它跑在 `game:collect` 里 ⇒ 别在里面 await）
+---@field event fun(self: SkillDef, name: '卡牌-进入区域', handler: fun(skill: Skill, card: Card, zone: Zone): any): SkillDef # 主人名下的区里有牌进来（公共区没有主人、不发）
+---@field event fun(self: SkillDef, name: '卡牌-离开区域', handler: fun(skill: Skill, card: Card, zone: Zone): any): SkillDef # 主人名下的区里有牌离开（【枭姬】用它）
 ---@field event fun(self: SkillDef, name: '阶段-开始', handler: fun(skill: Skill, phase: Phase): any): SkillDef
 ---@field event fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
 ---@field event fun(self: SkillDef, name: '卡牌-来源-指定目标后', handler: fun(skill: Skill, useCard: UseCard, target: Player): any): SkillDef
@@ -142,6 +144,10 @@ rule = nil
 
 --- 玩家自己的时机表（与 Game 同形）：技能挂在它身上，只在自己被问到的那一段醒来
 ---@class Player
+---@field on fun(self: Player, name: '卡牌-进入区域', callback: fun(card: Card, zone: Zone): any): function # 自己名下的区里有牌进来（牌自己那份之外、对区的主人再发一份；公共区没有主人、不发）
+---@field fire fun(self: Player, name: '卡牌-进入区域', card: Card, zone: Zone): any
+---@field on fun(self: Player, name: '卡牌-离开区域', callback: fun(card: Card, zone: Zone): any): function # 自己名下的区里有牌离开（同上；【枭姬】挂这里）
+---@field fire fun(self: Player, name: '卡牌-离开区域', card: Card, zone: Zone): any
 ---@field on fun(self: Player, name: '阶段-开始', callback: fun(phase: Phase): any): function # 自己这个玩家的阶段开始（全局那份之外、对当事人再发一份）
 ---@field fire fun(self: Player, name: '阶段-开始', phase: Phase): any
 ---@field on fun(self: Player, name: '阶段-生效', callback: fun(phase: Phase): any): function # 自己这个玩家的阶段生效（全局那份之外、对当事人再发一份）

@@ -5,13 +5,13 @@ Card '装备牌'
     : kind '装备'
     : targets { min = 0 }
     : zone '手牌'
-    : on('进入区域', function (card, zone)
+    : on('卡牌-进入区域', function (card, zone)
         local owner = zone.owner
         if owner and owner:equipZoneOf(card) == zone then
             card:enablePassive()
         end
     end)
-    : on('离开区域', function (card, zone)
+    : on('卡牌-离开区域', function (card, zone)
         local owner = zone.owner
         if owner and owner:equipZoneOf(card) == zone then
             card:disablePassive()

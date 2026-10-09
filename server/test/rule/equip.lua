@@ -319,7 +319,7 @@ lt.test('装备：两类坐骑各自是一个定义，分类与钩子都在这�
         lt.assertEquals(name .. '：距离修正也在这里定下', name == '进攻马' and -1 or 1,
             def:getValue('距离修正'))
         lt.assertEquals(name .. '：被动钩子也从坐骑牌抄来了', 1, #def:getHandlers('被动'))
-        lt.assertEquals(name .. '：启停钩子（装备模板的）也在', 1, #def:getHandlers('进入区域'))
+        lt.assertEquals(name .. '：启停钩子（装备模板的）也在', 1, #def:getHandlers('卡牌-进入区域'))
     end
 end)
 
