@@ -21,12 +21,12 @@
 - [x] 3.2 `game:askPanel` ⇒ `deck:placeTop(result.rows[1])` / `deck:placeBottom(result.rows[2])`；没答上就按面板当前形状放回；删掉 `arrange` 占位
 - [x] 3.3 用例：原来那条改成「没人摆 ⇒ 照原顺序放回牌堆顶」；新增两条 —— 「把牌摆到「牌堆底」那一行」与「答复中途被拒收 ⇒ 已经摆好的照摆」（同时钉住 `placeBottom` 与「照面板形状放回」）
 
-## 4. 内容：五谷丰登（面板版 + 兜底）—— ⏳ 待做
+## 4. 内容：五谷丰登（面板版 + 兜底）—— ✅ 已做完
 
-- [ ] 4.1 `'使用'`：亮出的牌建一块面板（`min = 1, max = 1, cancelable = false`）挂到这次使用上（`bindGC` + `setTag`）
-- [ ] 4.2 `'生效'`：`game:askPanel(target, '五谷丰登', panel).card`；`disableCard` + `addMark('${hero:{name}}')` + `moveCard` 到手牌
-- [ ] 4.3 **兜底**：没答 ⇒ 替他拿**第一张没被禁用的**（`panel:cards()` + `isDisabled` 扫过去）
-- [ ] 4.4 用例：三人各拿一张、拿走的不能再被拿、`addMark` 记的是拿走者、**没答那条（兜底拿到第一张可用的）**、剩余进弃牌堆
+- [x] 4.1 `'使用'`：亮出的牌建一块面板（`min = 1, max = 1, cancelable = false`）挂到这次使用上（`bindGC` + `setTag`）；**只摆 `drawCards` 返回的那批**（处理区里还有这张锦囊自己）
+- [x] 4.2 `'生效'`：`game:askPanel(target, '五谷丰登', panel).card`；`disableCard` + `addMark('${hero:{name}}')` + `moveCard` 到手牌
+- [x] 4.3 **兑底**：没答 ⇒ 替他拿**第一张没被禁用的**（`panel:cards()` + `isDisabled` 扫过去）
+- [x] 4.4 用例：三家各拿一张、拿走的被禁用且记着是谁拿的、**没人答的那家服务器替他拿第一张还没被拿走的**、剩余进弃牌堆、两条顺序锚点
 
 ## 5. 协议（`specs/` 增量）
 
@@ -37,12 +37,12 @@
 
 - [x] 6.1 `server/bin/moe-kill.exe --test` 全绿（**1063 → 1081**）
 - [x] 6.2 问题面板 information 及以上 0
-- [x] 6.3 反向验证：注释掉观星的 `placeBottom` ⇒ 1 红；观星改成「全放顶」（不照面板形状）⇒ 2 红（上批那条已知缺口也一并钉住了）；⏳ 待做：变化校验 / `min` 确定校验 / 五谷兜底
+- [x] 6.3 反向验证：注释掉观星的 `placeBottom` ⇒ 1 红；观星改成「全放顶」⇒ 2 红（上批那条已知缺口也一并钉住）；去掉五谷兜底 ⇒ 1 红；去掉五谷的 `disableCard` ⇒ 5 红
 - [x] 6.4 `openspec validate --all --strict`（36/36；本变更有 specs，不再 skip）
 - [x] 6.5 停在待确认状态，等「提交」
 
-## 7. 文档 —— ⏳ 待做
+## 7. 文档
 
-- [ ] 7.1 `architecture.md`：`Panel` / `askPanel` 行、`'面板-询问'` 时机、`createPanel` 全局
-- [ ] 7.2 `sanguosha-rules`：§9.33 观星改成面板版；五谷丰登的口径（「获得」= 必须 + 兜底）
-- [ ] 7.3 `progress.md`：基线 + 本批条目
+- [x] 7.1 `architecture.md`：`Panel` / `askPanel` 行、`'面板-询问'` / `'面板-答复'` 时机、`createPanel` 全局
+- [x] 7.2 `sanguosha-rules`：§9.33 观星改成面板版（删掉「服务器暂定占位」那句）；§9.10 五谷丰登的口径（「获得」= 必须 + 兜底）
+- [x] 7.3 `progress.md`：基线 1082 + 本批条目 + 缺口表补「面板」一行

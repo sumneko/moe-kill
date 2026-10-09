@@ -275,11 +275,8 @@ lt.test('五谷丰登：亮出等同于目标数的牌，每人拿一张，剩�
     local deck = assert(run.game:getZone('抽牌'), '没有抽牌')
     local before = deck:count()
 
-    run.game:on('卡牌-询问', function (ask)
-        local answer = support.pickFirst(ask)
-        if answer then
-            return answer
-        end
+    run.game:on('面板-询问', function (askPanel)
+        return support.pickPanelCard(askPanel)
     end)
 
     run.game:useCard(user, card, run.game.desk.alivePlayers)
@@ -291,25 +288,55 @@ lt.test('五谷丰登：亮出等同于目标数的牌，每人拿一张，剩�
     lt.assertEquals('弃牌里只剩下那张用过的锦囊', 1, assert(run.game:getZone('弃牌')):count())
 end)
 
-lt.test('五谷丰登：没人答的那一轮拿不到牌，剩下的进弃牌', function ()
+lt.test('五谷丰登：没人答的那一家，服务器替他拿第一张还没被拿走的', function ()
     local run  = support.start { count = 3, packages = { '标准' } }
     local user = run.players[1]
     local card = takeCard(run, user, '五谷丰登')
 
-    run.game:on('卡牌-询问', function (ask)
-        if ask.to == user then
-            local answer = support.pickFirst(ask)
-            if answer then
-                return answer
-            end
+    -- 只有使用者答（他自己挑），另外两家不表态
+    run.game:on('面板-询问', function (askPanel)
+        if askPanel.to == user then
+            return support.pickPanelCard(askPanel)
         end
     end)
 
     run.game:useCard(user, card, run.game.desk.alivePlayers)
 
-    lt.assertEquals('只有答了的那家拿到牌', 1, assert(user:getZone('手牌')):count())
-    lt.assertEquals('另外两家没拿到', 0, assert(run.players[2]:getZone('手牌')):count())
-    lt.assertEquals('剩下的两张连用过的一起进弃牌', 3, assert(run.game:getZone('弃牌')):count())
+    lt.assertEquals('答了的那家拿一张', 1, assert(user:getZone('手牌')):count())
+    lt.assertEquals('没答的第二家也拿到了（服务器替他拿的）', 1, assert(run.players[2]:getZone('手牌')):count())
+    lt.assertEquals('没答的第三家也拿到了', 1, assert(run.players[3]:getZone('手牌')):count())
+    lt.assertEquals('三张全发完，弃牌里只剩用过的锦囊', 1, assert(run.game:getZone('弃牌')):count())
+end)
+
+lt.test('五谷丰登：拿走的牌留在面板上被禁用，并记着是谁拿的', function ()
+    local run  = support.start { count = 3, packages = { '标准' }, names = { '甲', '乙', '丙' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '五谷丰登')
+
+    ---@type Panel?
+    local panel = nil
+    ---@type Card[] # 按被问顺序，每家拿走的那张
+    local taken = {}
+    run.game:on('面板-询问', function (askPanel)
+        panel = askPanel.panel
+        local answer = support.pickPanelCard(askPanel)
+        if answer then
+            taken[#taken + 1] = answer.card
+        end
+        return answer
+    end)
+
+    run.game:useCard(user, card, run.game.desk.alivePlayers)
+
+    local board = assert(panel)
+    lt.assertEquals('三家各拿一张、互不相同', true,
+        taken[1] ~= taken[2] and taken[2] ~= taken[3] and taken[1] ~= taken[3])
+    lt.assertEquals('拿走的牌仍留在面板上', 3, #board:cards())
+    lt.assertEquals('三张都被禁用了', true,
+        board:isDisabled(taken[1]) and board:isDisabled(taken[2]) and board:isDisabled(taken[3]))
+    lt.assertEquals('甲拿的那张标的是甲', '${hero:甲}', board:marks(taken[1])[1])
+    lt.assertEquals('乙拿的那张标的是乙', '${hero:乙}', board:marks(taken[2])[1])
+    lt.assertEquals('丙拿的那张标的是丙', '${hero:丙}', board:marks(taken[3])[1])
 end)
 
 lt.test('五谷丰登：从顺序锚点起依次选牌', function ()
@@ -319,16 +346,10 @@ lt.test('五谷丰登：从顺序锚点起依次选牌', function ()
 
     ---@type string[] # 被问的座位号（按被问顺序）
     local asked = {}
-    run.game:on('卡牌-询问', function (ask)
-        if isNullifyAsk(ask) then
-            return
-        end
-        local to = assert(ask.to)
+    run.game:on('面板-询问', function (askPanel)
+        local to = assert(askPanel.to)
         asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
-        local answer = support.pickFirst(ask)
-        if answer then
-            return answer
-        end
+        return support.pickPanelCard(askPanel)
     end)
 
     run.game:useCard(user, card, run.game.desk.alivePlayers)
@@ -344,16 +365,10 @@ lt.test('五谷丰登：起点是顺序锚点，不是使用者', function ()
 
     ---@type string[] # 被问的座位号（按被问顺序）
     local asked = {}
-    run.game:on('卡牌-询问', function (ask)
-        if isNullifyAsk(ask) then
-            return
-        end
-        local to = assert(ask.to)
+    run.game:on('面板-询问', function (askPanel)
+        local to = assert(askPanel.to)
         asked[#asked + 1] = tostring(assert(run.desk:getIndex(to)))
-        local answer = support.pickFirst(ask)
-        if answer then
-            return answer
-        end
+        return support.pickPanelCard(askPanel)
     end)
 
     run.game:useCard(user, card, run.game.desk.alivePlayers)

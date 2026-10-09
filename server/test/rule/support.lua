@@ -10,6 +10,7 @@ local M = {}
 ---@field count integer # 座位数
 ---@field sources? string[] # 包来源（省略时用默认来源）
 ---@field seed? integer
+---@field names? string[] # 每个玩家的名字（省略就不给）
 ---@field answers? Card[] # 脚本化的答复（按顺序给出牌；省略时一律不响应）
 ---@field beforeStart? fun(game: Game, players: Player[]) # 开局之前跑一次（选将这类装配动作放这里）
 
@@ -52,6 +53,19 @@ function M.pickFirst(ask)
     return { card = option.card }
 end
 
+--- 面板上第一张还没被拿走的牌，答「选它 + 确定」（客户端会这么答）
+---@param askPanel AskPanel
+---@return AskPanel.Change?
+function M.pickPanelCard(askPanel)
+    local panel = askPanel.panel
+    for _, card in ipairs(panel:cards()) do
+        if not panel:isDisabled(card) then
+            return { card = card, done = true }
+        end
+    end
+    return nil
+end
+
 ---@param options Test.RuleSupport.StartOptions
 ---@return Test.RuleSupport # 已经开局，并宣告轮到 1 号位
 function M.start(options)
@@ -68,7 +82,10 @@ function M.start(options)
     ---@type Player[]
     local players = {}
     for i = 1, options.count do
-        local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
+        local player = moe.player.create(game, {
+            attributes = attributeSystem:createInstance(),
+            name       = options.names and options.names[i],
+        })
         desk:sit(i, player)
         players[i] = player
     end
