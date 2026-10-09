@@ -344,7 +344,7 @@ lt.test('闪电：打死回合角色就结束这个回合，后面的阶段不�
     lt.assertEquals('只走到判定阶段', '准备,判定', table.concat(starts, ','))
     lt.assertEquals('闪电之后没再判乐不思蜀', '闪电', table.concat(reasons, ','))
     lt.assertEquals('闪电进了弃牌堆', true, moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), bolt))
-    lt.assertEquals('阵亡清算不在本批（判定区的乐不思蜀还留着）', 1, victim:getZone('判定'):count())
+    lt.assertEquals('阵亡清算把判定区的牌也清了', 0, victim:getZone('判定'):count())
     lt.assertEquals('流程到这里就结束了（没有下一个回合）', true, assert(state.task).resolved)
 end)
 

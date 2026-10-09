@@ -1720,8 +1720,8 @@ lt.test('急救：自己的回合里就不能把红牌当【桃】了', function
     huatuo.turn = nil
 
     lt.assertEquals('回合里 ⇒ 急救不成立，没救回来', 0, huatuo:getAttr('体力'))
-    lt.assertEquals('红牌还在手上（没被当素材用掉）', true,
-        moe.util.arrayHas(assert(huatuo:getZone('手牌')):list(), red))
+    lt.assertEquals('红牌没被当素材用掉（阵亡清算把他的手牌清了）', 0,
+        assert(huatuo:getZone('手牌')):count())
 end)
 
 lt.test('马术：装上后距离减 1，停用就复原', function ()

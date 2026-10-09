@@ -157,6 +157,7 @@ test.require 'test.rule.draw'
 test.require 'test.rule.game-over'
 test.require 'test.rule.judge'
 test.require 'test.rule.delayed-trick'
+test.require 'test.rule.death'
 
 local bodyDone = false
 local bodyFailures = 0

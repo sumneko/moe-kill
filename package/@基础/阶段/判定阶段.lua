@@ -7,10 +7,6 @@ local function resolveJudgeZone(player)
     local zone  = player:getZone('判定')
     local cards = zone:list()
     for i = #cards, 1, -1 do
-        -- 玩家已死就不再往下结算（阵亡清算还没做，死者的牌暂时还留在判定区里）
-        if not player:isAlive() then
-            return
-        end
         local card = cards[i]
         -- 快照可能过期：这张已经不在判定区里（被拿走 / 清掉）就不结算
         if card:getZone() ~= zone then
