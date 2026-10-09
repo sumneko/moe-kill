@@ -1091,8 +1091,8 @@ end
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskPlayer.Condition # 要什么样的角色（省略 = 不做限制）
----@return AskPlayer # 这次询问（已经结完：答复读 `.player`，失败读 `.err`）
+---@param condition? AskPlayer.Condition # 要什么样的角色（候选名单 + `min` / `max` 个数区间；省略 = 不做限制、正好一名）
+---@return AskPlayer # 这次询问（已经结完：答复读 `.player` / `.players`，失败读 `.err`）
 function M:askPlayer(to, reason, condition)
     local ask = moe.askPlayer.create {
         game      = self,

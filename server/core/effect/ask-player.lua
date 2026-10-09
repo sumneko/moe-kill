@@ -1,6 +1,8 @@
---- 要什么样的角色：候选名单（发起方算好；答复必须落在这里面）
+--- 要什么样的角色：候选（发起方算好；答复必须落在这里面）+ 个数区间
 ---@class AskPlayer.Condition
----@field players Player[] # 候选角色
+---@field player? Player|Player[]|true|fun(player: Player): boolean # 候选：一名 / 一批 / `true` = 不限 / 谓词（在存活角色里筛）
+---@field min? integer # 至少要选几个（省略 = 1）
+---@field max? integer # 至多选几个（省略 = min）
 
 ---@class AskPlayer.CreateOptions
 ---@field game Game
@@ -8,13 +10,14 @@
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
 ---@field condition? AskPlayer.Condition # 要什么样的角色（省略 = 不做限制）
 
---- 要一名角色：候选名单由内核摆好，答复必须是里面的一个
+--- 要若干名角色：候选名单由内核摆好，答复必须是里面的（个数落在 `min` / `max` 之间、不重复）
 ---@class AskPlayer : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
 ---@field condition? AskPlayer.Condition # 要什么样的角色
 ---@field options? Player[] # 候选名单（没给条件时为空 = 不做限制）
----@field player? Player # 答复给出的那名角色（= `.result`）
+---@field player? Player # 答复给出的第一个角色（没答就是空）
+---@field players Player[] # 答复给出的角色（恒列表，没答就是空表）
 local M = Class 'AskPlayer'
 
 Extends('AskPlayer', 'Effect')
@@ -31,31 +34,51 @@ function M:__init(game, to, reason, condition)
     self.condition = condition
 end
 
---- 候选名单（没给条件就是空 = 不做限制）
+--- 候选名单（没给条件 / 给 `true` 就是空 = 不做限制；谓词在**存活角色**里筛）
 ---@return Player[]?
 function M:collectOptions()
-    return self.condition?.players
+    local player = self.condition?.player
+    if type(player) == 'function' then
+        ---@type Player[]
+        local list = {}
+        for _, one in ipairs(self.game.desk.alivePlayers) do
+            if player(one) then
+                list[#list + 1] = one
+            end
+        end
+        return list
+    end
+    if player == nil or player == true then
+        return nil
+    end
+    return moe.util.toList(player)
 end
 
---- 答复落在候选里吗（不在就给原因）
----@param value Player
+--- 答复落在候选名单与个数区间里吗（不在就给原因；默认正好一名）
+---@param value Player|Player[]
 ---@return any # 通过就是空
 function M:checkAnswer(value)
-    local options = self.options
-    if not options then
-        return nil
-    end
-    if moe.util.arrayHas(options, value) then
-        return nil
-    end
-    return '答复不在可选角色里'
+    local min = self.condition?.min or 1
+    local max = self.condition?.max or min
+    return moe.askCard.checkTargets(moe.util.toList(value), self.options, min, max)
 end
 
---- 答复给出的那名角色
+--- 答复给出的角色（恒列表：没答就是空表）
+---@param self AskPlayer
+---@return Player[]
+M.__getter.players = function (self)
+    local result = self.result
+    if result == nil then
+        return {}
+    end
+    return moe.util.toList(result)
+end
+
+--- 答复给出的第一个角色（没答就是空）
 ---@param self AskPlayer
 ---@return Player?
 M.__getter.player = function (self)
-    return self.result
+    return self.players[1]
 end
 
 --- 把询问交给应答方（候选先摆好；答复一到，结果就定下了）

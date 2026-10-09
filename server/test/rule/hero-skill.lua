@@ -2421,3 +2421,95 @@ lt.test('遗计：不发动就什么也不做', function ()
     lt.assertEquals('牌堆顶没动', top, deck:peek(1))
     lt.assertEquals('谁的手牌都没多', 0, assert(guojia:getZone('手牌')):count())
 end)
+
+lt.test('突袭：发动就放弃摸牌，改为拿两名其他角色各一张手牌', function ()
+    local run       = support.start { count = 3, packages = { '标准' } }
+    local zhangliao = run.players[1]
+    local one       = run.players[2]
+    local two       = run.players[3]
+    zhangliao:setHero(assert(run.game:getHero('张辽')))
+    lt.assertEquals('技能随武将挂上', true, zhangliao:hasSkill('突袭'))
+
+    takeCard(run, one, '杀')
+    takeCard(run, two, '闪')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '突袭' then
+            return
+        end
+        ---@cast ask AskPlayer
+        asked = asked + 1
+        return { one, two }
+    end)
+
+    drawPhase(run, zhangliao)
+
+    lt.assertEquals('问过一次（不另问「发不发动」）', 1, asked)
+    lt.assertEquals('没摸牌，只拿到两张', 2, assert(zhangliao:getZone('手牌')):count())
+    lt.assertEquals('一位被拿了手牌', 0, assert(one:getZone('手牌')):count())
+    lt.assertEquals('另一位也被拿了手牌', 0, assert(two:getZone('手牌')):count())
+end)
+
+lt.test('突袭：不发动就照常摸两张', function ()
+    local run       = support.start { count = 3, packages = { '标准' } }
+    local zhangliao = run.players[1]
+    local one       = run.players[2]
+    zhangliao:setHero(assert(run.game:getHero('张辽')))
+    takeCard(run, one, '杀')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '突袭' then
+            return
+        end
+        asked = asked + 1
+    end)
+
+    drawPhase(run, zhangliao)
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('照常摸两张', 2, assert(zhangliao:getZone('手牌')):count())
+    lt.assertEquals('别人手里的牌没动', 1, assert(one:getZone('手牌')):count())
+end)
+
+lt.test('突袭：一个都不选就是不发动，照常摸两张', function ()
+    local run       = support.start { count = 3, packages = { '标准' } }
+    local zhangliao = run.players[1]
+    local one       = run.players[2]
+    zhangliao:setHero(assert(run.game:getHero('张辽')))
+    takeCard(run, one, '杀')
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '突袭' then
+            return
+        end
+        return {}
+    end)
+
+    drawPhase(run, zhangliao)
+
+    lt.assertEquals('照常摸两张', 2, assert(zhangliao:getZone('手牌')):count())
+    lt.assertEquals('别人的牌没动', 1, assert(one:getZone('手牌')):count())
+end)
+
+lt.test('突袭：别人都没手牌就不问、照常摸牌', function ()
+    local run       = support.start { count = 3, packages = { '标准' } }
+    local zhangliao = run.players[1]
+    zhangliao:setHero(assert(run.game:getHero('张辽')))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '突袭' then
+            asked = asked + 1
+        end
+    end)
+
+    drawPhase(run, zhangliao)
+
+    lt.assertEquals('没问过', 0, asked)
+    lt.assertEquals('照常摸两张', 2, assert(zhangliao:getZone('手牌')):count())
+end)

@@ -39,7 +39,7 @@ Card '借刀杀人'
             return
         end
 
-        local chosen = game:askPlayer(user, '借刀杀人', { players = reachable(holder) }).player
+        local chosen = game:askPlayer(user, '借刀杀人', { player = reachable(holder) }).player
 
         if chosen then
             local ask = game:askUseCard(holder, '借刀杀人', { name = '杀', target = chosen })
