@@ -1,4 +1,5 @@
 ---@class OrderedZone : Zone
+--- 区顶 = 列表的第 1 位（`peek(1)` / `draw` 取的就是它）
 ---@field private random? Random
 ---@field private shortage? fun(zone: OrderedZone) # 取空了怎么补（内容侧挂）
 local M = Class 'OrderedZone'
@@ -36,6 +37,18 @@ end
 ---@param handler fun(zone: OrderedZone)
 function M:setShortageHandler(handler)
     self.shortage = handler
+end
+
+--- 把一批牌按给定顺序置于区顶（第一张最靠顶）
+---@param cards Card|Card[]
+function M:placeTop(cards)
+    self:notifyMoved(self:takeIn(self:toPhysical(cards), nil, 1))
+end
+
+--- 把一批牌按给定顺序置于区底（第一张更靠上、最后一张最靠底）—— 与 `accept` 同一件事，单列出来让「顺序约定」只写在一处
+---@param cards Card|Card[]
+function M:placeBottom(cards)
+    self:accept(cards)
 end
 
 --- 就地洗牌

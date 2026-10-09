@@ -3631,3 +3631,168 @@ lt.test('无双：中途失去技能，这次使用里的要求照旧（官方 C
     lt.assertEquals('下一次：技能停用 ⇒ 只要一张', 1, asked)
     lt.assertEquals('出得掉 ⇒ 不受伤', 4, target:getAttr('体力'))
 end)
+
+lt.test('观星：准备阶段开始观看牌堆顶 X 张（X = 存活角色数），看完放回牌堆', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local zhuge = run.players[1]
+    local other = run.players[2]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+    lt.assertEquals('技能随武将挂上', true, zhuge:hasSkill('观星'))
+
+    local deck   = assert(run.game:getZone('抽牌'))
+    local before = deck:count()
+    local top    = { assert(deck:peek(1)), assert(deck:peek(2)), assert(deck:peek(3)) }
+    local rest   = assert(deck:peek(4))
+
+    -- 这次发动（拿得下它的临时区 = 观看的那块地）
+    ---@type SkillCast?
+    local cast = nil
+    run.game:on('效果-能否生效', function (effect)
+        if effect.kind == 'cast' then
+            ---@cast effect SkillCast
+            cast = effect
+        elseif effect.kind == 'moveCard' and cast then
+            ---@cast effect MoveCard
+            -- 先藏好再搬进来：搬牌生效前那一刻，那块区就已经只有他看得见
+            if moe.util.arrayHas(effect.cards, top[1]) then
+                lt.assertEquals('搬进来之前那块区就藏好了', false, cast:getTempZone():isVisibleTo(other))
+            end
+        end
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '观星' then
+            return
+        end
+        asked = asked + 1
+        return '发动'
+    end)
+
+    local _ <close> = run.game:enterPhase(zhuge, '准备')
+
+    lt.assertEquals('问过一次（要不要发动）', 1, asked)
+
+    local shown = assert(cast):getTempZone()
+    lt.assertEquals('观看的那批放回之后临时区空了（一张不多不少）', 0, shown:count())
+    lt.assertEquals('观看时只有他看得见', true, shown:isVisibleTo(zhuge))
+    lt.assertEquals('别人看不见', false, shown:isVisibleTo(other))
+
+    lt.assertEquals('牌堆一张不多不少', before, deck:count())
+    lt.assertEquals('没被看到的第 4 张还在原位', rest, deck:peek(4))
+    -- ⚠️ 分配是**服务器暂定**的占位（逆序置于牌堆顶）—— 换成「排列」询问类之后这条要跟着改
+    lt.assertEquals('暂定分配：逆序置于牌堆顶', true,
+        top[3] == deck:peek(1) and top[2] == deck:peek(2) and top[1] == deck:peek(3))
+end)
+
+lt.test('观星：不发动就什么都不做（不观看、牌堆不动）', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local zhuge = run.players[1]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+
+    local deck   = assert(run.game:getZone('抽牌'))
+    local before = deck:count()
+    local top    = assert(deck:peek(1))
+
+    ---@type integer
+    local looked = 0
+    run.game:on('效果-能否生效', function (effect)
+        if effect.kind == 'cast' then
+            looked = looked + 1
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(zhuge, '准备')
+
+    lt.assertEquals('没发动（一次 cast 都没有）', 0, looked)
+    lt.assertEquals('牌堆没动', before, deck:count())
+    lt.assertEquals('顶还是原来那张', top, deck:peek(1))
+end)
+
+lt.test('观星：X 至多为 5（六人局也只观看 5 张）', function ()
+    local run   = support.start { count = 6, packages = { '标准' } }
+    local zhuge = run.players[1]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+
+    local deck = assert(run.game:getZone('抽牌'))
+    ---@type Card[]
+    local top = {}
+    for i = 1, 6 do
+        top[i] = assert(deck:peek(i))
+    end
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '观星' then
+            return '发动'
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(zhuge, '准备')
+
+    -- 暂定分配是逆序置顶 ⇒ 前 5 张倒着排在顶上、其余的没动
+    lt.assertEquals('存活 6 人也只看 5 张', true,
+        top[5] == deck:peek(1) and top[4] == deck:peek(2) and top[3] == deck:peek(3)
+        and top[2] == deck:peek(4) and top[1] == deck:peek(5))
+    lt.assertEquals('第 6 张没被看过，还在第 6 位', top[6], deck:peek(6))
+end)
+
+lt.test('空城：没有手牌时不能被选为【杀】/【决斗】的目标', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local user  = run.players[1]
+    local zhuge = run.players[2]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+    lt.assertEquals('技能随武将挂上', true, zhuge:hasSkill('空城'))
+    lt.assertEquals('手牌为空', 0, assert(zhuge:getZone('手牌')):count())
+
+    local slash = takeCard(run, user, '杀')
+    local noTarget, noTargetReason = run.game:canUse(user, slash)
+    lt.assertEquals('唯一能指定的人被挡掉 ⇒ 现在用不了', false, noTarget)
+    lt.assertEquals('原因是没有合法目标', '「标准.杀」现在没有合法目标', noTargetReason)
+
+    local duel = takeCard(run, user, '决斗')
+    lt.assertEquals('【决斗】同样指定不了他', false, (run.game:canUse(user, duel, zhuge)))
+
+    local virtual = run.game:createVirtualCard('杀')
+    lt.assertEquals('视为的【杀】也算', false, (run.game:canUse(user, virtual, zhuge)))
+end)
+
+lt.test('空城：候选里有别人、没有他（硬指定也过不去）', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local user  = run.players[1]
+    local zhuge = run.players[2]
+    local other = run.players[3]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+
+    local slash = takeCard(run, user, '杀')
+    local ok, _, plan = run.game:canUse(user, slash)
+    ---@cast plan Game.UsableTargets
+    lt.assertEquals('还能用（别人能被指定）', true, ok)
+    lt.assertEquals('候选里有别人', true, moe.util.arrayHas(assert(plan.legal), other))
+    lt.assertEquals('候选里没有他', false, moe.util.arrayHas(assert(plan.legal), zhuge))
+
+    local blocked, blockedReason = run.game:canUse(user, slash, zhuge)
+    lt.assertEquals('硬指定也过不去', false, blocked)
+    lt.assertEquals('理由是「不能以这个角色为目标」', '「标准.杀」不能以这个角色为目标', blockedReason)
+end)
+
+lt.test('空城：有手牌时照旧可以被指定', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local user  = run.players[1]
+    local zhuge = run.players[2]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+    assert(zhuge:getZone('手牌')):accept(run.game:createCard('闪', '红桃', 2))
+
+    local slash = takeCard(run, user, '杀')
+    lt.assertEquals('有手牌 ⇒ 能被指定', true, (run.game:canUse(user, slash, zhuge)))
+end)
+
+lt.test('空城：别的牌不受影响（【乐不思蜀】照样能指定他）', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local user  = run.players[1]
+    local zhuge = run.players[2]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+
+    local card = takeCard(run, user, '乐不思蜀')
+    lt.assertEquals('照样能指定他', true, (run.game:canUse(user, card, zhuge)))
+end)

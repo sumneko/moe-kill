@@ -329,6 +329,35 @@ lt.test('有序牌区：取空了会调不足回调，补到就接着取', funct
     lt.assertEquals('按补进来的顺序取', '甲,乙,丙', labels(cards))
 end)
 
+lt.test('有序牌区：置于区顶 / 区底按给定顺序，取出来的牌能放回', function ()
+    local zone = lt.orderedZone()
+    fill(zone, { '甲', '乙' })
+
+    zone:placeTop { lt.card('丙'), lt.card('丁') }
+    lt.assertEquals('置顶：第一张最靠顶', '丙,丁,甲,乙', zoneLabels(zone))
+
+    zone:placeBottom { lt.card('戊') }
+    lt.assertEquals('置底：追加在最后', '丙,丁,甲,乙,戊', zoneLabels(zone))
+
+    local drawn = zone:draw(2)
+    lt.assertEquals('取出前两张', '丙,丁', labels(drawn))
+    zone:placeBottom { drawn[1] }
+    zone:placeTop { drawn[2] }
+    lt.assertEquals('取出来的牌能分别放回底 / 顶', '丁,甲,乙,戊,丙', zoneLabels(zone))
+
+    zone:placeTop {}
+    lt.assertEquals('空列表什么都不做', 5, zone:count())
+end)
+
+lt.test('有序牌区：本来就在区里的牌挪到区顶不会变两份', function ()
+    local zone = lt.orderedZone()
+    fill(zone, { '甲', '乙', '丙' })
+
+    zone:placeTop { assert(zone:peek(3)) }
+    lt.assertEquals('挪到最前、其余顺延', '丙,甲,乙', zoneLabels(zone))
+    lt.assertEquals('张数不变', 3, zone:count())
+end)
+
 lt.test('有序牌区：回调补不到牌就少给', function ()
     local zone = lt.orderedZone()
 

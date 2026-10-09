@@ -1,6 +1,6 @@
 ---@class Zone
 ---@field kind string
----@field protected cards Card[]
+---@field protected cards Card[] # 从区顶到区底（有序区靠这个顺序说话：1 = 顶）
 ---@field private disabled integer # 被禁用的层数（0 = 启用）
 ---@field private visible Visibility # 可见性：`true` = 所有人、`false` = 无人、一批角色 = 只有他们（默认 `true`）
 ---@field owner? Player # 这个区属于谁（公共区没有归属者）
@@ -56,12 +56,26 @@ function M:detach(card)
     end
 end
 
+--- 把一批牌化成实体牌（虚拟牌进不了牌区：收它就是收它的素材）
+---@protected
+---@param cards Card|Card[]
+---@return Card[]
+function M:toPhysical(cards)
+    ---@type Card[]
+    local list = {}
+    for _, card in ipairs(moe.util.toList(cards)) do
+        moe.util.arrayMerge(list, card.physical)
+    end
+    return list
+end
+
 --- 静默把这批牌收进本区（只摘、置、绑，不发任何事件）
 ---@protected
 ---@param cards Card[]
 ---@param visible? Visibility # 这次搬动对谁可见
+---@param at? integer # 插到第几位（省略 = 追加到末尾）
 ---@return Zone.Move[] # 这次搬动的记录（发事件时用）
-function M:takeIn(cards, visible)
+function M:takeIn(cards, visible, at)
     ---@type Zone.Move[]
     local moves = {}
     for i, card in ipairs(cards) do
@@ -70,7 +84,7 @@ function M:takeIn(cards, visible)
             from:detach(card)
         end
         -- 一次搬动就一次归属变更：中间不留「无主」态（那会被当成一次「离开」）
-        self.cards[#self.cards + 1] = card
+        table.insert(self.cards, at and (at + i - 1) or (#self.cards + 1), card)
         card:bindZone(self)
         moves[i] = {
             card    = card,
@@ -103,12 +117,7 @@ end
 ---@return boolean # 收下了没有
 ---@return string? # 没收下的原因
 function M:accept(cards, visible)
-    ---@type Card[]
-    local list = {}
-    for _, card in ipairs(moe.util.toList(cards)) do
-        moe.util.arrayMerge(list, card.physical)
-    end
-    self:notifyMoved(self:takeIn(list, visible))
+    self:notifyMoved(self:takeIn(self:toPhysical(cards), visible))
     return true
 end
 
