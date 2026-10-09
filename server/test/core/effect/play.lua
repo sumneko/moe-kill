@@ -21,13 +21,16 @@ local function useProbe()
     end)
 end
 
+---@param seats? integer # 座位数（省略 = 2）
 ---@return Game # 局（来源只有探针包）
 ---@return Player # 使用者（坐 1 号位）
 ---@return Player # 目标（坐 2 号位）
 ---@return Zone # 使用者的手牌区
-local function newGame()
+---@return Player[] # 所有座位
+local function newGame(seats)
+    seats = seats or 2
     local game = moe.game.create {
-        seats    = 2,
+        seats    = seats,
         random   = moe.random.create(1),
         sources  = { probeDir:string() .. '/*' },
         packages = { '探针' },
@@ -41,7 +44,7 @@ local function newGame()
     })
     ---@type Player[]
     local players = {}
-    for i = 1, 2 do
+    for i = 1, seats do
         local player = moe.player.create(game, { attributes = attributeSystem:createInstance() })
         desk:sit(i, player)
         player:setAttr('体力', 4)
@@ -49,7 +52,7 @@ local function newGame()
     end
     game.turnPlayer = players[1]
     local hand = players[1]:getZone('手牌')
-    return game, players[1], players[2], hand
+    return game, players[1], players[2], hand, players
 end
 
 lt.test('使用：用一张牌并结算', function ()
@@ -1090,4 +1093,69 @@ lt.test('定义：基类的数据被抄过来，抄完就脱钩', function ()
 
     derived:value('新加的一条', true)
     lt.assertEquals('抄完就脱钩：子类后加的不会跑到基类', nil, base:getValue('新加的一条'))
+end)
+
+lt.test('使用：换目标之后，生效跑新目标、旧目标不生效', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : targets {}
+    : on('生效', function (cardEffect)
+        cardEffect.target:setTag('挨打', (cardEffect.target:getTag('挨打') or 0) + 1)
+    end)
+]])
+
+    local game, user, target, hand, players = newGame(3)
+    local third = players[3]
+    local card  = game:createCard('测试杀')
+    hand:accept(card)
+
+    game:on('卡牌-指定目标后', function (current, to)
+        ---@cast current UseCard
+        if to == target then
+            current:replaceTarget(target, third)
+        end
+    end)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('被换掉的没生效', 0, target:getTag('挨打') or 0)
+    lt.assertEquals('换上的生效一次', 1, third:getTag('挨打'))
+end)
+
+lt.test('使用：换上的新目标照「成为目标」再发一遍三份时机', function ()
+    local guard <close> = useProbe()
+    write('探针/牌.lua', [[
+Card '测试杀'
+    : targets {}
+]])
+
+    local game, user, target, hand, players = newGame(3)
+    local third = players[3]
+    local card  = game:createCard('测试杀')
+    hand:accept(card)
+
+    ---@type Player[]
+    local globalGot = {}
+    ---@type integer
+    local thirdGot = 0
+    game:on('卡牌-指定目标后', function (current, to)
+        globalGot[#globalGot + 1] = to
+    end)
+    third:on('卡牌-目标-指定目标后', function ()
+        thirdGot = thirdGot + 1
+    end)
+
+    game:on('卡牌-指定目标后', function (current, to)
+        ---@cast current UseCard
+        if to == target then
+            current:replaceTarget(target, third)
+        end
+    end)
+
+    game:useCard(user, card, { target })
+
+    lt.assertEquals('全局那份发了两次（原目标 + 新目标）', 2, #globalGot)
+    lt.assertEquals('第二次发的是新目标', third, globalGot[2])
+    lt.assertEquals('新目标收到他自己那份', 1, thirdGot)
 end)

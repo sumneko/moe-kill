@@ -64,9 +64,9 @@ function table.mergeArray(list, ...)
     return list
 end
 
----@generic K, V
----@param source table<K, V>
----@return table<K, V> # 浅拷贝（改它不影响原表）
+---@generic T: table
+---@param source T
+---@return T # 浅拷贝（改它不影响原表）
 function table.copy(source)
     local result = {}
     for key, value in pairs(source) do

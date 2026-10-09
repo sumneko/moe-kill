@@ -6,6 +6,13 @@ local attributeSystem = game:getAttributeSystem()
 attributeSystem:define('进攻修正', { simple = true })
 attributeSystem:define('防御修正', { simple = true })
 
+--- 这次使用的选项（内核只管它自己读的几条；`ignoreDistance` 是距离这边认的，就近声明）
+---@class Game.UseOptions
+---@field ignoreDistance? boolean # 无视距离（`isInRange` 认它：这次使用的射程判断直接算在）
+
+---@class Game.UseOptionsInput
+---@field ignoreDistance? boolean
+
 ---@class Player
 local M = Class 'Player'
 

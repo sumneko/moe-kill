@@ -124,6 +124,19 @@ Card '测试杀'
     }
 ]]
 
+local PLAIN = [[
+Card '测试杀'
+]]
+
+local LIFT = [[
+Card '测试杀'
+    : targets {
+        filter = function (player, plan)
+            return player ~= plan.user and plan.useOptions?.ignoreDistance
+        end,
+    }
+]]
+
 lt.test('校验：能用的牌给出合法目标', function ()
     local guard <close> = useProbe()
     local run = newGame(SIMPLE)
@@ -178,6 +191,48 @@ lt.test('校验：候选者自己也能否决（不能成为目标）', function
     local okAgain, reasonAgain = run.game:canUse(run.user, card, { third })
     lt.assertEquals('直接指定他就用不了', false, okAgain)
     lt.assertEquals('原因是「不能以这个角色为目标」', '「探针.测试杀」不能以这个角色为目标', reasonAgain)
+end)
+
+lt.test('校验：全量合法目标不受这次目标影响，也不问「能不能用」', function ()
+    local guard <close> = useProbe()
+    local run   = newGame(TWO, 3)
+    local card  = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    local third = assert(run.game.desk:getPlayer(3))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-能否使用', function ()
+        asked = asked + 1
+    end)
+
+    local legal = run.game:getLegalTargets(run.user, card)
+    lt.assertEquals('给出全部合法目标', 2, #legal)
+    lt.assertEquals('含 2 号位', true, moe.util.arrayHas(legal, run.target))
+    lt.assertEquals('含 3 号位', true, moe.util.arrayHas(legal, third))
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(legal, run.user))
+    lt.assertEquals('没问「能不能用」', 0, asked)
+end)
+
+lt.test('校验：全量合法目标按调用方给的选项算', function ()
+    local guard <close> = useProbe()
+    local run   = newGame(LIFT, 3)
+    local card  = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    lt.assertEquals('不给选项 ⇒ 一个都没有', 0, #run.game:getLegalTargets(run.user, card))
+    lt.assertEquals('给了选项 ⇒ 两个都在', 2,
+        #run.game:getLegalTargets(run.user, card, { ignoreDistance = true }))
+end)
+
+lt.test('校验：牌没声明目标条件时，全量合法目标是空表', function ()
+    local guard <close> = useProbe()
+    local run   = newGame(PLAIN)
+    local card  = run.game:createCard('测试杀')
+    run.hand:accept(card)
+
+    lt.assertEquals('空表', 0, #run.game:getLegalTargets(run.user, card))
 end)
 
 lt.test('校验：没有内容定义 ⇒ 建牌时就报错', function ()

@@ -99,6 +99,23 @@ function M:isResponseBanned(target)
     return banned ~= nil and moe.util.arrayHas(banned, target)
 end
 
+--- 把这次使用的一个目标换成别人（新目标照「成为目标」再发一遍三份时机）
+---@param from Player # 被换掉的目标（必须已经在这次使用的目标里）
+---@param to Player # 换上的新目标
+---@return UseCard
+function M:replaceTarget(from, to)
+    for i, target in ipairs(self.targets) do
+        if target == from then
+            self.targets[i] = to
+            self.game:fire('卡牌-指定目标后', self, to)
+            self.user:fire('卡牌-来源-指定目标后', self, to)
+            to:fire('卡牌-目标-指定目标后', self, to)
+            return self
+        end
+    end
+    error('这个角色不是这次使用的目标', 2)
+end
+
 ---@async
 function M:settle()
     -- 内容侧可以给这次使用加选项（【奇才】这类）：写回自己的，后续钩子（如【杀】读 `isResponseBanned`）都认得

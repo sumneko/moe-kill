@@ -432,8 +432,8 @@ end
 ---@field max integer # 最多几个（已与合法目标数取小）
 
 --- 这次使用的选项：给这一次使用开的几条特殊通道（都不填 = 照常；由发起方给，**使用过程中内容侧也可以追** —— 见 `UseCard:addUseOptions`）
+--- 这里只列**内核自己要读**的几条：其余名字由读它的那个包自己声明类型（如 `ignoreDistance` 声明在 `@基础/距离.lua`）+ 自己消费
 ---@class Game.UseOptions
----@field ignoreDistance? boolean # 无视距离（`Player:isInRange` 认它：这次使用的射程判断直接算在）
 ---@field ignoreUseLimit? boolean # 无视使用次数上限（不检查「本阶段用过没」）
 ---@field notCounted? boolean # 不计入使用次数（不写 `useCount`）
 ---@field extraTargets? integer # 最多能多指定几个目标（加在上限上，可负；多份选项累加；最终仍与合法目标数取小）
@@ -441,7 +441,6 @@ end
 
 --- 追加使用选项时可给的形状（`Game.UseOptions` 的宽松版：`unrespondable` 收四种写法，写入时归一）
 ---@class Game.UseOptionsInput
----@field ignoreDistance? boolean
 ---@field ignoreUseLimit? boolean
 ---@field notCounted? boolean
 ---@field extraTargets? integer # 最多能多指定几个目标（可负；多份选项累加）
@@ -1271,6 +1270,52 @@ local function collectLegalTargets(game, def, user, card, targets, useOptions)
     return legal
 end
 
+--- 目标那半：筛出合法目标 +（给了目标时）校验个数与归属
+---@param game Game
+---@param def CardDef
+---@param user Player
+---@param card Card
+---@param targets? Player[] # 要校验的目标（省略 = 不判目标那一条）
+---@param useOptions? Game.UseOptions
+---@return boolean # 这块成立吗
+---@return any # 不成立的原因
+---@return Game.UsableTargets? # 成立时的可用目标与数量区间
+local function checkTargets(game, def, user, card, targets, useOptions)
+    local min, max = card:getTargetCount(useOptions)
+    if min == 0 and max == 0 then
+        if targets and #targets > 0 then
+            return false, '「{}」不需要指定目标' % { def.fullName }
+        end
+        return true, nil, { legal = {}, min = min, max = max }
+    end
+    local legal, reason = collectLegalTargets(game, def, user, card, targets, useOptions)
+    if not legal then
+        return false, reason
+    end
+    max = math.min(max, #legal)
+    if targets then
+        if #targets < min then
+            return false, '「{}」至少要指定 {} 个目标' % { def.fullName, min }
+        end
+        if #targets > max then
+            return false, '「{}」至多指定 {} 个目标' % { def.fullName, max }
+        end
+        ---@type Player[]
+        local wanted = {}
+        for _, player in ipairs(targets) do
+            if not moe.util.arrayHas(legal, player) then
+                return false, '「{}」不能以这个角色为目标' % { def.fullName }
+            end
+            if moe.util.arrayHas(wanted, player) then
+                return false, '「{}」不能重复指定同一个目标' % { def.fullName }
+            end
+            wanted[#wanted + 1] = player
+        end
+        legal = wanted
+    end
+    return true, nil, { legal = legal, min = min, max = max }
+end
+
 --- 牌本身能不能用（两条入口共用）：在使用者身上 / 所在区没被禁用 / 在声明的牌区 / 次数（虚拟牌不进牌区，前三条跳过）
 ---@param game Game
 ---@param user Player
@@ -1323,6 +1368,16 @@ function M:mergeUseOptions(user, card, base, targets)
     return result or {}
 end
 
+--- 这张牌此刻的全量合法目标（跑牌的 filter + 问候选者「能不能被指定」；**不合并选项、不判「能不能用」**）
+--- 选项由调用方自己给（要叠加就自己叠好再传）—— 改目标 / 「也成为目标」类效果用它：先拿到全量，再自己交叉
+---@param user Player # 使用者
+---@param card Card # 要用（或已在用）的牌
+---@param useOptions? Game.UseOptions # 这次使用的选项
+---@return Player[] # 合法目标（一个都没有 / 牌没声明目标条件 = 空表）
+function M:getLegalTargets(user, card, useOptions)
+    return collectLegalTargets(self, card.def, user, card, nil, useOptions) or {}
+end
+
 ---@param user Player # 使用者
 ---@param card Card # 要用的牌
 ---@param target? Player|Player[] # 要校验的目标（省略 = 不判目标那一条）
@@ -1341,41 +1396,9 @@ function M:canUse(user, card, target, useOptions)
         return false, problem
     end
 
-    -- 目标：给了目标才判个数与归属；「最少 0、最多 0」就是不指定目标
-    local min, max = card:getTargetCount(useOptions)
-    ---@type Player[] # 能用时的合法目标（「不指定目标」的牌是空表）
-    local legal = {}
-    if min == 0 and max == 0 then
-        if targets and #targets > 0 then
-            return false, '「{}」不需要指定目标' % { def.fullName }
-        end
-    else
-        local list, reason = collectLegalTargets(self, def, user, card, targets, useOptions)
-        if not list then
-            return false, reason
-        end
-        legal = list
-        max = math.min(max, #legal)
-        if targets then
-            if #targets < min then
-                return false, '「{}」至少要指定 {} 个目标' % { def.fullName, min }
-            end
-            if #targets > max then
-                return false, '「{}」至多指定 {} 个目标' % { def.fullName, max }
-            end
-            ---@type Player[]
-            local wanted = {}
-            for _, player in ipairs(targets) do
-                if not moe.util.arrayHas(legal, player) then
-                    return false, '「{}」不能以这个角色为目标' % { def.fullName }
-                end
-                if moe.util.arrayHas(wanted, player) then
-                    return false, '「{}」不能重复指定同一个目标' % { def.fullName }
-                end
-                wanted[#wanted + 1] = player
-            end
-            legal = wanted
-        end
+    local ok, reason, plan = checkTargets(self, def, user, card, targets, useOptions)
+    if not ok then
+        return false, reason
     end
 
     -- 内容侧有没有异议
@@ -1390,7 +1413,7 @@ function M:canUse(user, card, target, useOptions)
         end
         return false, refusal
     end
-    return true, nil, { legal = legal, min = min, max = max }
+    return true, nil, plan
 end
 
 --- 这张牌此刻能不能「对一张牌使用」（合法性由 `cardTargets` 条件给出；目标牌由发起方给定）

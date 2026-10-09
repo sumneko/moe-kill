@@ -3085,3 +3085,136 @@ lt.test('连营：关掉自动同意就会问，答否不摸', function ()
     lt.assertEquals('问过了', 1, asked)
     lt.assertEquals('答否 ⇒ 一张没摸', 0, assert(luxun:getZone('手牌')):count())
 end)
+
+lt.test('流离：把【杀】转给攻击范围内的别人（自己弃一张）', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local user   = run.players[1]
+    local daqiao = run.players[2]
+    local other  = run.players[3]
+    lt.assertEquals('技能随武将挂上', true, daqiao:hasSkill('流离'))
+
+    local slash = takeCard(run, user, '杀')
+    local cost  = takeCard(run, daqiao, '闪')
+
+    ---@type Player[]
+    local candidates = {}
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askCardWithTarget' then
+            return
+        end
+        asked = asked + 1
+        candidates = ask.condition.targets
+        if ask.to == daqiao then
+            return { card = cost, targets = other }
+        end
+    end)
+
+    local before = other:getAttr('体力')
+    run.game:useCard(user, slash, { daqiao })
+
+    lt.assertEquals('问了一次', 1, asked)
+    lt.assertEquals('候选里有别人', true, moe.util.arrayHas(candidates, other))
+    lt.assertEquals('候选里没有使用者', false, moe.util.arrayHas(candidates, user))
+    lt.assertEquals('候选里没有她自己', false, moe.util.arrayHas(candidates, daqiao))
+    lt.assertEquals('大乔没被打', 3, daqiao:getAttr('体力'))
+    lt.assertEquals('挨打的是别人', before - 1, other:getAttr('体力'))
+    lt.assertEquals('弃掉的那张在弃牌堆里', true,
+        moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), cost))
+end)
+
+lt.test('流离：能触发流离（转给另一个大乔，她再转给别人）', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', '大乔', nil }
+    local user   = run.players[1]
+    local first  = run.players[2]
+    local second = run.players[3]
+    local victim = run.players[4]
+
+    local slash  = takeCard(run, user, '杀')
+    local costA  = takeCard(run, first, '闪')
+    local costB  = takeCard(run, second, '闪')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askCardWithTarget' then
+            return
+        end
+        asked = asked + 1
+        if ask.to == first then
+            return { card = costA, targets = second }
+        end
+        if ask.to == second then
+            return { card = costB, targets = victim }
+        end
+    end)
+
+    local before = victim:getAttr('体力')
+    run.game:useCard(user, slash, { first })
+
+    lt.assertEquals('两个大乔各问一次', 2, asked)
+    lt.assertEquals('第一个大乔没被打', 3, first:getAttr('体力'))
+    lt.assertEquals('第二个大乔也没被打', 3, second:getAttr('体力'))
+    lt.assertEquals('最终由第三个人挨了 1 点', before - 1, victim:getAttr('体力'))
+end)
+
+lt.test('流离：不答复就是不发动，照常结算自己', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local user   = run.players[1]
+    local daqiao = run.players[2]
+
+    local slash = takeCard(run, user, '杀')
+    local cost  = takeCard(run, daqiao, '闪')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCardWithTarget' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, slash, { daqiao })
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('照常挨 1 点', 2, daqiao:getAttr('体力'))
+    lt.assertEquals('牌没弃出去', 1, assert(daqiao:getZone('手牌')):count())
+    lt.assertEquals('那张【闪】还在手上', true,
+        moe.util.arrayHas(assert(daqiao:getZone('手牌')):list(), cost))
+end)
+
+lt.test('流离：攻击范围内没有合法目标时，连问都不问', function ()
+    useProbe()
+    defineHelpers()
+
+    local run    = startWithHeroes { nil, '大乔', nil, nil }
+    local user   = run.players[1]
+    local daqiao = run.players[2]
+    daqiao:setAttr('攻击范围', 0)
+
+    local slash = takeCard(run, user, '杀')
+    takeCard(run, daqiao, '闪')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind == 'askCardWithTarget' then
+            asked = asked + 1
+        end
+    end)
+
+    run.game:useCard(user, slash, { daqiao })
+
+    lt.assertEquals('没问', 0, asked)
+    lt.assertEquals('照常挨 1 点', 2, daqiao:getAttr('体力'))
+end)

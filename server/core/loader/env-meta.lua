@@ -36,18 +36,36 @@ rule = nil
 ---@field on fun(self: CardDef, event: '被动', handler: fun(card: Card, zone: Zone, host: GCHost)): CardDef # 被动启用时跑一次：要挂什么就 `host:bindGC(…)`（停用时内核释放容器）
 --- **订阅时机**用 `event`（订**这张牌的主人**头上那份）/ `globalEvent`（订局上那份）：只做订阅与生命周期 —— **要不要发动（`card:cast(…)`）由回调自己写**（与 `'被动'` 里手写 `owner:on(…)` 等价）；时机名开放 ⇒ 这里只列内核常用几条、其余走 `fun(card: Card, ...: any)` 兜底，内容侧时机的重载住 `package/@基础/meta.lua`
 ---@field event fun(self: CardDef, name: '卡牌-来源-结算前', handler: fun(card: Card, useCard: UseCard|UseCardToCard): any): CardDef # 主人使用的牌开始结算（订主人那份）
+---@field event fun(self: CardDef, name: '卡牌-进入区域', handler: fun(card: Card, zone: Zone, visible?: Visibility): any): CardDef # 主人名下的区里有牌进来（牌自己那份由 `on('卡牌-进入区域')` 收；公共区没有主人、不发）
+---@field event fun(self: CardDef, name: '卡牌-离开区域', handler: fun(card: Card, zone: Zone, visible?: Visibility): any): CardDef # 主人名下的区里有牌离开（同上）
 ---@field event fun(self: CardDef, name: '卡牌-来源-使用选项', handler: fun(card: Card, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): CardDef # 主人这次使用的选项（**收集式**：返回值会被 `fire` 收走；跑在 `game:collect` 里 ⇒ 别在里面 await）
 ---@field event fun(self: CardDef, name: '卡牌-来源-指定目标后', handler: fun(card: Card, useCard: UseCard, target: Player): any): CardDef
+---@field event fun(self: CardDef, name: '卡牌-目标-指定目标后', handler: fun(card: Card, useCard: UseCard, target: Player): any): CardDef # 主人自己被指定为目标后（逐目标；全局那份之外、对目标再发一份）
+---@field event fun(self: CardDef, name: '卡牌-目标-能否指定', handler: fun(card: Card, plan: CardDef.TargetPlan): any): CardDef # 别人要用牌指定主人时问一句（返回非空 = 不能指定他）
 ---@field event fun(self: CardDef, name: '效果-来源-被抵消', handler: fun(card: Card, ask: AskOffsetCard): any): CardDef # 主人发起的那次生效被抵消了；要驳回就用 `ask:cancel(原因)`（不会返回）
+---@field event fun(self: CardDef, name: '效果-来源-能否生效', handler: fun(card: Card, effect: Effect): any): CardDef # 询问要不要阻止这一次生效（第二段：问来源，`effect.from`）；返回非 nil 即阻止
 ---@field event fun(self: CardDef, name: '效果-目标-能否生效', handler: fun(card: Card, effect: Effect): any): CardDef # 被问的是不是主人自己（`effect.to`）；回调返回字符串就是否决原因
 ---@field event fun(self: CardDef, name: '阶段-开始', handler: fun(card: Card, phase: Phase): any): CardDef
+---@field event fun(self: CardDef, name: '阶段-生效', handler: fun(card: Card, phase: Phase): any): CardDef
+---@field event fun(self: CardDef, name: '阶段-结束', handler: fun(card: Card, phase: Phase): any): CardDef
 ---@field event fun(self: CardDef, name: '效果-收尾', handler: fun(card: Card, effect: Effect): any): CardDef
 ---@field event fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '游戏-开始', handler: fun(card: Card, event: Game.Event.游戏开始): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '卡牌-结算前', handler: fun(card: Card, useCard: UseCard|UseCardToCard): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '卡牌-结算后', handler: fun(card: Card, useCard: UseCard|UseCardToCard): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '卡牌-使用选项', handler: fun(card: Card, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): CardDef # **收集式**（跑在 `game:collect` 里 ⇒ 别在里面 await）
+---@field globalEvent fun(self: CardDef, name: '卡牌-指定目标后', handler: fun(card: Card, useCard: UseCard, target: Player): any): CardDef # 逐目标发（全局那份）
 ---@field globalEvent fun(self: CardDef, name: '卡牌-能否使用', handler: fun(card: Card, check: Game.Event.卡牌能否使用): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '效果-能否生效', handler: fun(card: Card, effect: Effect): any): CardDef # 询问要不要阻止这一次生效（第一段：问全局）；返回非 nil 即阻止
+---@field globalEvent fun(self: CardDef, name: '效果-被抵消', handler: fun(card: Card, ask: AskOffsetCard): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '效果-收尾', handler: fun(card: Card, effect: Effect): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '玩家-死亡', handler: fun(card: Card, player: Player): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '回合-开始', handler: fun(card: Card, turn: Game.Event.Turn): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '回合-结束', handler: fun(card: Card, turn: Game.Event.Turn): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: '阶段-开始', handler: fun(card: Card, phase: Phase): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '阶段-生效', handler: fun(card: Card, phase: Phase): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '阶段-结束', handler: fun(card: Card, phase: Phase): any): CardDef
+---@field globalEvent fun(self: CardDef, name: '游戏-结束', handler: fun(card: Card, result: Game.Result): any): CardDef
 ---@field globalEvent fun(self: CardDef, name: string, handler: fun(card: Card, ...: any): any): CardDef
 
 --- 状态的时机是**固定**的：名字由内核约定、与启用的包无关（清单以本文件为准，不留 string 兜底）
@@ -65,16 +83,31 @@ rule = nil
 ---@field event fun(self: SkillDef, name: '卡牌-进入区域', handler: fun(skill: Skill, card: Card, zone: Zone, visible?: Visibility): any): SkillDef # 主人名下的区里有牌进来（公共区没有主人、不发）
 ---@field event fun(self: SkillDef, name: '卡牌-离开区域', handler: fun(skill: Skill, card: Card, zone: Zone, visible?: Visibility): any): SkillDef # 主人名下的区里有牌离开（【枭姬】用它）
 ---@field event fun(self: SkillDef, name: '阶段-开始', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field event fun(self: SkillDef, name: '阶段-生效', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field event fun(self: SkillDef, name: '阶段-结束', handler: fun(skill: Skill, phase: Phase): any): SkillDef
 ---@field event fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
 ---@field event fun(self: SkillDef, name: '卡牌-来源-指定目标后', handler: fun(skill: Skill, useCard: UseCard, target: Player): any): SkillDef
+---@field event fun(self: SkillDef, name: '卡牌-目标-指定目标后', handler: fun(skill: Skill, useCard: UseCard, target: Player): any): SkillDef # 主人自己被指定为目标后（逐目标；全局那份之外、对目标再发一份；【流离】用它）
+---@field event fun(self: SkillDef, name: '效果-来源-能否生效', handler: fun(skill: Skill, effect: Effect): any): SkillDef # 询问要不要阻止这一次生效（第二段：问来源，`effect.from`）；返回非 nil 即阻止
 ---@field event fun(self: SkillDef, name: '效果-目标-能否生效', handler: fun(skill: Skill, effect: Effect): any): SkillDef
 ---@field event fun(self: SkillDef, name: '卡牌-目标-能否指定', handler: fun(skill: Skill, plan: CardDef.TargetPlan): any): SkillDef # 别人要用牌指定目标时问自己一句（返回非空 = 不能指定我，返回值就是原因；【谦逊】用它）
 ---@field event fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '游戏-开始', handler: fun(skill: Skill, event: Game.Event.游戏开始): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '卡牌-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '卡牌-结算后', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '卡牌-使用选项', handler: fun(skill: Skill, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): SkillDef # **收集式**（跑在 `game:collect` 里 ⇒ 别在里面 await）
+---@field globalEvent fun(self: SkillDef, name: '卡牌-指定目标后', handler: fun(skill: Skill, useCard: UseCard, target: Player): any): SkillDef # 逐目标发（全局那份）
 ---@field globalEvent fun(self: SkillDef, name: '卡牌-能否使用', handler: fun(skill: Skill, check: Game.Event.卡牌能否使用): any): SkillDef
----@field globalEvent fun(self: SkillDef, name: '阶段-开始', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '效果-能否生效', handler: fun(skill: Skill, effect: Effect): any): SkillDef # 询问要不要阻止这一次生效（第一段：问全局）；返回非 nil 即阻止
+---@field globalEvent fun(self: SkillDef, name: '效果-被抵消', handler: fun(skill: Skill, ask: AskOffsetCard): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: '效果-收尾', handler: fun(skill: Skill, effect: Effect): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '玩家-死亡', handler: fun(skill: Skill, player: Player): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '回合-开始', handler: fun(skill: Skill, turn: Game.Event.Turn): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '回合-结束', handler: fun(skill: Skill, turn: Game.Event.Turn): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '阶段-开始', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '阶段-生效', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '阶段-结束', handler: fun(skill: Skill, phase: Phase): any): SkillDef
+---@field globalEvent fun(self: SkillDef, name: '游戏-结束', handler: fun(skill: Skill, result: Game.Result): any): SkillDef
 ---@field globalEvent fun(self: SkillDef, name: string, handler: fun(skill: Skill, ...: any): any): SkillDef
 
 --- 目前没有事件参数：触发时给空表，环境对象从 game 取
@@ -114,6 +147,8 @@ rule = nil
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
 ---@field on fun(self: Game, name: '卡牌-使用选项', callback: fun(check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): function # 这次使用选项的全局那份（使用者身上还有一份）
+---@field collect fun(self: Game, name: '卡牌-使用选项', check: Game.Event.卡牌使用选项): Game.UseOptionsInput[] # 收集每个来源贡献的选项片段（这就是上面那条的收集式叫法）
+---@field collect fun(self: Game, name: string, ...: any): any[] # 动态时机名走这条（收集所有回调的第一个返回值）
 ---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function
@@ -166,6 +201,8 @@ rule = nil
 ---@field on fun(self: Player, name: '卡牌-来源-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function # 自己使用的牌开始结算时再发一份（全局那份叫「卡牌-结算前」、对使用者再发一份带方向词）
 ---@field fire fun(self: Player, name: '卡牌-来源-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Player, name: '卡牌-来源-使用选项', callback: fun(check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): function # 自己使用的牌的选项（全局那份之外、对使用者再发一份）
+---@field collect fun(self: Player, name: '卡牌-来源-使用选项', check: Game.Event.卡牌使用选项): Game.UseOptionsInput[] # 收集使用者自己那几个来源贡献的选项片段
+---@field collect fun(self: Player, name: string, ...: any): any[] # 动态时机名走这条（收集所有回调的第一个返回值）
 ---@field on fun(self: Player, name: '卡牌-来源-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 自己使用的牌指定目标后（逐目标；全局那份之外、对使用者再发一份）
 ---@field fire fun(self: Player, name: '卡牌-来源-指定目标后', useCard: UseCard, target: Player): any
 ---@field on fun(self: Player, name: '卡牌-目标-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 自己被指定为目标后（逐目标；全局那份之外、对目标再发一份）
