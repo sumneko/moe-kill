@@ -436,7 +436,7 @@ function moe.player.sendUpdates(game, dirty)
     for _, viewer in ipairs(game.desk.players) do
         local user = viewer.user
         if user then
-            ---@type Proto.Update
+            ---@type Proto.Notify.Update
             local data = {}
             if #baseList > 0 then
                 data.base = baseList

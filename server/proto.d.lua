@@ -1,3 +1,31 @@
+---@class JSONRPC.Notify
+---@field jsonrpc '2.0'
+---@field method string
+---@field params table
+
+---@class JSONRPC.Request
+---@field jsonrpc '2.0'
+---@field method string
+---@field id integer
+---@field params table
+
+---@class JSONRPC.Result
+---@field jsonrpc '2.0'
+---@field id integer
+---@field result table
+
+---@class JSONRPC.Error
+---@field jsonrpc '2.0'
+---@field id integer
+---@field error { code: integer, message: string, data?: table }
+
+--- 可取消请求的基类
+---@class Proto.Cancelable
+---@field cancelid integer
+
+---@class Proto.Notify.Cancel
+---@field cancelid integer
+
 ---@class Proto.Player.Base
 ---@field id integer # 唯一ID
 ---@field userName string # 用户名
@@ -6,20 +34,18 @@
 --- 自定义数据：字段由各包自己的 meta.lua 补（内核只认「有这么一张自由表」）
 ---@class Proto.Custom
 
----@class Proto.Player : Proto.Player.Base
+---@class Proto.Player
+---@field base Proto.Player.Base
 ---@field custom Proto.Custom # 自定义数据，由 package 组装
 
 ---@class Proto.SnapShot
 ---@field players Proto.Player[] # 玩家列表
-
----@class Proto.S2C.Notify.Player.Update
----@field players Proto.Player.Base[] # 基础信息变了的玩家
 
 ---@class Proto.Player.Custom
 ---@field id integer # 玩家ID
 ---@field custom Proto.Custom # 他的自定义数据（全量）
 
 --- 一次下发的打包（内核按视角组装好交给 User；基础信息合成一条、custom 一人一条）
----@class Proto.Update
+---@class Proto.Notify.Update
 ---@field base? Proto.Player.Base[] # 基础信息变了的那些玩家
 ---@field custom? Proto.Player.Custom[] # custom 变了的那些玩家

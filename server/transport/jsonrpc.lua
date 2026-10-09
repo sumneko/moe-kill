@@ -1,16 +1,6 @@
----@class Jsonrpc.Error
----@field code integer # 错误码
----@field message string # 给对端看的说明
----@field data? any # 附带的细节（可选）
-
---- 一条 JSON-RPC 消息：四种形状共用一个类型，按字段区分（带 `method` = 请求 / 通知，带 `result` / `error` = 响应）
----@class Jsonrpc.Message
----@field jsonrpc? string
----@field id? integer|string # 请求与响应带它；通知不带
----@field method? string
----@field params? any
----@field result? any
----@field error? Jsonrpc.Error
+--- 解码后得到的四种形状之一（按字段区分：带 `method` = 请求 / 通知，带 `result` / `error` = 响应）
+--- 形状本身声明在 `server/proto.d.lua`（`JSONRPC.*`）
+---@alias Jsonrpc.Message JSONRPC.Request|JSONRPC.Notify|JSONRPC.Result|JSONRPC.Error
 
 ---@class Jsonrpc.API
 local API = {}
@@ -75,7 +65,6 @@ end
 ---@param data? any
 ---@return string
 function API.encodeError(id, code, message, data)
-    ---@type Jsonrpc.Error
     local errObj = { code = code, message = message }
     if data ~= nil then
         errObj.data = data

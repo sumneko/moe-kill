@@ -58,7 +58,7 @@
 ## 3. 协议设计原则（通用协议，一个后端对接多种前端）
 
 1. **不出现任何前端概念**：协议只描述游戏语义与表现事件；贴图路径、动画时长、音效等由前端自行映射资源 id。
-2. **方法命名**统一 `域.动作`（点号分层，如 `Player.Update` / `Player.UpdateCustom`）—— 落点是 `server/proto.d.lua` 的类型声明（`Proto.S2C.Notify.<域>.<动作>`；**一个方向 + 一类数据一条消息**，见第 15 节），禁止散落在业务代码中拼字符串。
+2. **方法命名**统一 `域.动作`（点号分层，如 `Player.Update` / `Player.UpdateCustom`）—— 落点是 `server/proto.d.lua` 的类型声明：**线上消息本身的形状**是 `JSONRPC.*`（通知 / 请求 / 结果 / 错误），**游戏消息**是 `Proto.Notify.<动作>`（`Proto.Update` = 一次玩家数据下发；可取消请求另有 `Proto.Cancelable` / `Proto.Notify.Cancel`），禁止散落在业务代码中拼字符串。
 3. **后端权威、前端无状态**：目标合法性、距离、可用操作列表一律由后端计算下发；前端永不自行推导规则。
 4. **两种下行数据各司其职**：
    - 事件流（notification）：一次操作产生的表现序列，供前端顺序播放动画。
@@ -592,7 +592,7 @@ Card '杀'
 
   | 文件 | 职责 | 认识的边界 |
   | --- | --- | --- |
-  | `jsonrpc.lua` | 编解码**纯函数**（`decode` / `encodeCall` / `encodeResult` / `encodeError` + 标准错误码） | 只认识「表 ↔ 字符串」 |
+  | `jsonrpc.lua` | 编解码**纯函数**（`decode` / `encodeCall` / `encodeResult` / `encodeError` + 标准错误码）；**线上消息的形状声明在 `server/proto.d.lua`（`JSONRPC.*`）**，`Jsonrpc.Message` 只是那四类的联合别名 | 只认识「表 ↔ 字符串」 |
   | `link.lua` | 传输：`read` / `write`（+ 可选 `close`） | 只认识「一条消息 = 一个字符串」 |
   | `client.lua` | 端点：`create(link)` / `start()` / `onMessage` / `notify` / `request` / `awaitRequest`；`register` 走**模块级** | 只认识 `Link` 的那几个方法 |
 

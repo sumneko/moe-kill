@@ -74,13 +74,16 @@ function M:onMessage(text)
         return
     end
     if message.method then
+        ---@cast message JSONRPC.Request
         if message.id ~= nil then
             self:dispatchCall(message)
         else
+            ---@cast message JSONRPC.Notify
             self:dispatchNotification(message)
         end
         return
     end
+    ---@cast message JSONRPC.Result|JSONRPC.Error
     if message.id ~= nil then
         self:settleCall(message)
     end
@@ -170,7 +173,7 @@ end
 
 --- 入站请求：交给注册的处理器，结果编成响应发回去（处理器另起一个协程跑，读循环不被它挡住）
 ---@private
----@param message Jsonrpc.Message
+---@param message JSONRPC.Request
 function M:dispatchCall(message)
     local method  = assert(message.method)
     local id      = assert(message.id)
@@ -194,7 +197,7 @@ end
 
 --- 入站通知：交给注册的处理器（没有地方回答，出错只记日志）
 ---@private
----@param message Jsonrpc.Message
+---@param message JSONRPC.Notify
 function M:dispatchNotification(message)
     local method  = assert(message.method)
     local handler = moe.client._handlers[method]
@@ -212,7 +215,7 @@ end
 
 --- 出站请求回来了：把等它的那个任务交出去
 ---@private
----@param message Jsonrpc.Message
+---@param message JSONRPC.Result|JSONRPC.Error
 function M:settleCall(message)
     local id   = assert(message.id)
     local task = self.pendings[id]
@@ -222,8 +225,10 @@ function M:settleCall(message)
     end
     self.pendings[id] = nil
     if message.error then
+        ---@cast message JSONRPC.Error
         task:reject(message.error)
     else
+        ---@cast message JSONRPC.Result
         task:resolve(message.result)
     end
     Delete(task)

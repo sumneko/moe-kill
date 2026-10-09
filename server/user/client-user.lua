@@ -13,7 +13,7 @@ function M:__init(client)
 end
 
 --- 玩家数据变了：基础信息合成一条、custom 一人一条
----@param data Proto.Update
+---@param data Proto.Notify.Update
 function M:update(data)
     if data.base then
         self.client:notify('Player.Update', { players = data.base })
