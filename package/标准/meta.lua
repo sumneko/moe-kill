@@ -11,3 +11,9 @@
 ---@field getValue fun(self: Game, name: string): any
 ---@field setValue fun(self: Game, name: '牌表', value: 标准.牌表项[])
 ---@field setValue fun(self: Game, name: string, value: any)
+
+--- 【无懈可击】自己认的「使用选项」字段：这次使用不能被无懈（内核不预设选项名 ⇒ 谁读谁注入）
+---@class Game.UseOptions
+---@field unnullifiable? boolean
+---@class Game.UseOptionsInput
+---@field unnullifiable? boolean

@@ -41,6 +41,10 @@ end
 ---@param effect CardEffect|CardEffectToCard
 ---@return string? # 要抵消就给原因（这次生效被阻止）
 local function nullify(effect)
+    -- 使用者声明了「这次使用不能被无懈」⇒ 连问都不问（这个字段是内容侧的，内核不预设；类型面在 标准/meta.lua）
+    if effect.useCard?.useOptions?.unnullifiable then
+        return nil
+    end
     if canNullify(effect.card) and nullified(effect.card) then
         return '无懈可击'
     end

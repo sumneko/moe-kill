@@ -684,6 +684,27 @@ lt.test('无懈可击：有人用它 ⇒ 那张锦囊对这个目标不生效', 
     lt.assertEquals('被抵消的锦囊也进了弃牌堆', true, moe.util.arrayHas(discard, card))
 end)
 
+lt.test('无懈可击：这次使用声明了「不能被无懈」⇒ 连问都不问（字段是内容侧的）', function ()
+    local run     = support.start { count = 3, packages = { '标准' } }
+    local user    = run.players[1]
+    local card    = takeCard(run, user, '无中生有')
+    local nullify = takeCard(run, run.players[2], '无懈可击')
+
+    ---@type boolean
+    local asked = false
+    run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) then
+            asked = true
+        end
+    end)
+
+    run.game:useCard(user, card, { user }, { unnullifiable = true })
+
+    lt.assertEquals('没人被问要不要用无懈', false, asked)
+    lt.assertEquals('锦囊照常生效（摸到两张）', 2, assert(user:getZone('手牌')):count())
+    lt.assertEquals('手里的无懈没动', nullify, assert(run.players[2]:getZone('手牌')):peek(1))
+end)
+
 lt.test('无懈可击：它自己也能被抵消 ⇒ 原锦囊照常生效', function ()
     local run  = support.start { count = 3, packages = { '标准' } }
     local user = run.players[1]

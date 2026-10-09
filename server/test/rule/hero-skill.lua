@@ -2513,3 +2513,129 @@ lt.test('突袭：别人都没手牌就不问、照常摸牌', function ()
     lt.assertEquals('没问过', 0, asked)
     lt.assertEquals('照常摸两张', 2, assert(zhangliao:getZone('手牌')):count())
 end)
+
+lt.test('闭月：结束阶段摸一张牌（默认自动同意，不问）', function ()
+    local run      = support.start { count = 2, packages = { '标准' } }
+    local diaochan = run.players[1]
+    diaochan:setHero(assert(run.game:getHero('貂蝉')))
+    lt.assertEquals('技能随武将挂上', true, diaochan:hasSkill('闭月'))
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '闭月' then
+            asked = asked + 1
+        end
+    end)
+
+    local _ <close> = run.game:enterPhase(diaochan, '结束')
+
+    lt.assertEquals('没问（默认自动同意）', 0, asked)
+    lt.assertEquals('摸了一张', 1, assert(diaochan:getZone('手牌')):count())
+end)
+
+lt.test('闭月：关掉自动同意就会问，答否就不摸', function ()
+    local run      = support.start { count = 2, packages = { '标准' } }
+    local diaochan = run.players[1]
+    diaochan:setHero(assert(run.game:getHero('貂蝉')))
+    findSkill(diaochan, '闭月').auto = false
+
+    ---@type integer
+    local asked = 0
+    run.game:on('决策-询问', function (ask)
+        if ask.reason ~= '闭月' then
+            return
+        end
+        asked = asked + 1
+    end)
+
+    local _ <close> = run.game:enterPhase(diaochan, '结束')
+
+    lt.assertEquals('问过了', 1, asked)
+    lt.assertEquals('答否 ⇒ 一张没摸', 0, assert(diaochan:getZone('手牌')):count())
+end)
+
+lt.test('离间：弃一张牌，后选的男性角色对先选的用一张【决斗】，且不能被无懈', function ()
+    local run      = support.start { count = 3, packages = { '标准' } }
+    local diaochan = run.players[1]
+    local first    = run.players[2]
+    local second   = run.players[3]
+    diaochan:setHero(assert(run.game:getHero('貂蝉')))
+    first:setHero(assert(run.game:getHero('关羽')))
+    second:setHero(assert(run.game:getHero('张飞')))
+    lt.assertEquals('技能随武将挂上', true, diaochan:hasSkill('离间'))
+
+    local thrown = takeCard(run, diaochan, '杀')
+    local lijian = findSkill(diaochan, '离间')
+
+    ---@type Player? # 决斗的响应问的是谁（= 先选的那个挨打）
+    local askedTo = nil
+    ---@type integer
+    local nullifyAsked = 0
+    run.game:on('卡牌-询问', function (ask)
+        ---@cast ask AskCard
+        if ask.kind == 'askPlayCard' and ask.reason == '决斗' then
+            askedTo = ask.to
+        end
+        if ask.kind == 'askUseCardToCard' then
+            nullifyAsked = nullifyAsked + 1
+        end
+    end)
+
+    ---@type integer
+    local asked = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        if asked > 1 then
+            return nil
+        end
+        ---@cast ask AskUseSkill
+        return { skill = lijian, cards = { thrown }, targets = { first, second } }
+    end)
+
+    local _ <close> = run.game:enterPhase(diaochan, '出牌')
+
+    lt.assertEquals('决斗是先选的那个要响应', first, askedTo)
+    lt.assertEquals('先选的没【杀】⇒ 挨 1 点', 3, first:getAttr('体力'))
+    lt.assertEquals('后选的毫发无损', 4, second:getAttr('体力'))
+    lt.assertEquals('没人被问要不要用无懈', 0, nullifyAsked)
+    lt.assertEquals('弃的牌进了弃牌堆', true, moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), thrown))
+end)
+
+lt.test('离间：候选只有其他男性角色，且出牌阶段限一次', function ()
+    local run      = support.start { count = 4, packages = { '标准' } }
+    local diaochan = run.players[1]
+    diaochan:setHero(assert(run.game:getHero('貂蝉')))
+    run.players[2]:setHero(assert(run.game:getHero('关羽')))
+    run.players[3]:setHero(assert(run.game:getHero('张飞')))
+    run.players[4]:setHero(assert(run.game:getHero('甄姬')))
+    local lijian = findSkill(diaochan, '离间')
+
+    local thrown = takeCard(run, diaochan, '杀')
+
+    ---@type AskUseSkill? # 第二轮（用过之后）
+    local secondAsk = nil
+    ---@type AskUseSkill? # 第一轮
+    local firstAsk  = nil
+    ---@type integer
+    local asked     = 0
+    run.game:on('技能-询问', function (ask)
+        asked = asked + 1
+        ---@cast ask AskUseSkill
+        if asked == 1 then
+            firstAsk = ask
+            return { skill = lijian, cards = { thrown }, targets = { run.players[2], run.players[3] } }
+        end
+        secondAsk = ask
+        return nil
+    end)
+
+    local _ <close> = run.game:enterPhase(diaochan, '出牌')
+
+    local legal = assert(assert(assert(firstAsk).options[1]).targets, '离间该带目标那半').legal
+    lt.assertEquals('候选是那两名男性', 2, #legal)
+    lt.assertEquals('不含自己', false, moe.util.arrayHas(legal, diaochan))
+    lt.assertEquals('不含女性', false, moe.util.arrayHas(legal, run.players[4]))
+    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
+    lt.assertEquals('但离间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).options))
+end)
