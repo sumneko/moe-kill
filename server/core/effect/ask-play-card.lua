@@ -6,6 +6,12 @@ local M = Class 'AskPlayCard'
 
 Extends('AskPlayCard', 'AskCard')
 
+---@param user User
+---@return AskCard.Answer?
+function M:askUser(user)
+    return user:askPlayCard(self)
+end
+
 function M:__init()
     self.kind = 'askPlayCard'
 end

@@ -25,6 +25,12 @@ local M = Class 'AskUseCardToCard'
 
 Extends('AskUseCardToCard', 'AskCard')
 
+---@param user User
+---@return AskCard.Answer?
+function M:askUser(user)
+    return user:askUseCardToCard(self)
+end
+
 function M:__init()
     self.kind = 'askUseCardToCard'
 end

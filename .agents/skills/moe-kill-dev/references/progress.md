@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1114 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1121 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -339,6 +339,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **规则数值与内容数据改挂共享袋 `rule`（2026-10-09，`move-rule-values-to-rule`）**：`rule` 原来是「装载器每轮建的空表」，这次把它正式定成**规则数值与内容数据的落点** —— 7 个字段从 `game:setValue/getValue` 搬过去，一律**英文、扁平**（`rule.defaultHp` / `rule.lordHpBonus` / `rule.defaultDrawCount` / `rule.phases`（阶段清单，原来是 `@基础/回合.lua` 里的 `local PHASES`）/ `rule.cardTable` / `rule.heroCandidateCount` / `rule.identityConfig`），**读的时候才取**（改字段、改表内容、整张换掉都当场生效）。① 内核：装载器把这一轮那张袋**同时挂到局上**（`game.rule`，与注入的全局 `rule` 同一张表 ⇒ 局外读得到），`resetContent` 换一张空的；`env-meta` 给 `Game` 补 `rule` 字段与**通用** `setValue` / `setValues` / `getValue` / `getValues`（那几条**保留** —— 测试探针还要用，只是不再传规则数值）。② 类型：各包 `meta.lua` 里给 `Game:getValue/setValue` 写的具名重载删掉，改成 `Loader.Rule` 的 `---@field`（**可空** —— 袋建出来时是空的；一行中文说明写在字段上，赋值处也留一行）。③ 用例：`rule/base`（覆盖 / 清空 / 换表当场生效）、`rule/turn`（阶段清单换了就按新的走）、`rule/identity`、`rule/equip`、`core/game`、`core/reload` 改读 `game.rule.X`。**反向验证**：不把袋挂到局上 ⇒ 13 红；默认体力仍旧走 `setValue` ⇒ 3 红；阶段清单硬编码 ⇒ 1 红。**验收基线 1107 → 1109**。
 
 - **阵亡清算（2026-10-09，`add-death-clearance`）**：死亡规则的最后一块 —— 新增 `package/@基础/阵亡.lua` 订阅 `'玩家-死亡'`：① **先把死者身上的技能全部停用**（`skill:disablePassive()`；否则这批牌离区时死者的【枭姬】之类还会响应，违反官方「已死亡的角色不能发动技能」`Ch1/S2:46`）；② 把死者**所有牌区**的牌照单一次 `game:moveCard(cards, '弃牌')`（手牌 + 判定 + 四个装备子区）。**顺序天然正确**：`@基础` 是默认包、排在清单项之前 ⇒ 处理器先注册先跑 ⇒ 清算 → 奖惩 → 胜负判定（官方 `Ch1/S2:64` 马谡例：死亡时先亮身份 → 技能时机 → **最后**来源执行奖惩）。**顺带撤掉一层临时措施**：`@基础/阶段/判定阶段.lua` 里「回合角色死了就停」的提前退出（已无必要 —— 死者的判定区被清空，循环里的快照过期守卫会跳过剩下的）。**用例 1109 → 1114**（新套件 `rule/death` 5 条：三类牌区都清 / 没牌的死者不炸 / 死者技能被禁用（探针技能记账）/ 对照（活着的会响应）/ 与奖惩共存；另两条旧用例的前提变了跟着改：`delayed-trick` 的「阵亡清算不在本批」、`hero-skill` 的【急救】手牌断言）。**反向验证**：不先禁用技能 ⇒ 1 红；只清手牌 ⇒ 3 红；不清牌 ⇒ 5 红。**已知**：清算与奖惩的先后**不可观测**（奖惩读凶手的手牌、清算动死者的牌，互不影响）⇒ 用例钉不住先后（靠默认包的加载顺序保证）。
+
+- **座位控制者 `User` + 询问优先问它（2026-10-09，`add-user`）**：① **内核**：`Player` 加 `user` 字段（**可空**）+ `Player:setUser(user?)`（绑定 / **中途更换** / 解绑）；**11 个询问类取答复时先问 `self.to.user` 的对应方法，返回空才走全局时机** —— `AskChoice` / `AskPlayer` / `AskHero` / `AskUseSkill` / `AskPanel` 各在自己的取值处就地写 `local answer = self.to.user?:askXxx(self) or self.game:fire(时机, self)`；**`Ask` 例外**（答复可能是 `false` 这个合法值，`or` 串会把它吞掉 ⇒ 显式判空）；`AskCard` 一族共用 `collectAnswer`，故加可覆写钩子 **`AskCard:askUser(user)`**（基类转发 `askCard`，四个子类各覆写一行）。② **新增 `server/user/`**：`user.lua` 的 `User` 基类（**每类询问一个方法、共 11 个，默认全返回空 = 不表态**）+ `client-user.lua` 的 `ClientUser`（**协议没做，只留接口**），`init.lua` **只做装载**（先基类后子类）；走 `require`（在 `server/moe-kill.lua` 里 `require 'user'`；**不参与热重载**）；没有工厂 ⇒ 不挂门面。③ **用例 +7**（新套件 `test.core.user`：设置 / 更换 / 解绑、表态 ⇒ 全局不被问、不表态 ⇒ 回落全局、都表态 ⇒ 按 User 的、没有 User ⇒ 照旧、`askCard` 那一路（钩子）、`askPlayer` 那一路）⇒ **验收基线 1114 → 1121**。④ **本批不做**（用户定）：`AIUser`（真 AI 另开）、`ClientUser` 的协议实现、`AskPanel` 的多轮形状、删 `server/session/`（「之后去掉」）。⑤ 文档：`architecture.md` 新增第 13 节。
 
 ## 2 下一步：待用户挑（**尚未开工**）
 

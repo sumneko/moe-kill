@@ -228,7 +228,8 @@ end
 function M:settle()
     local rounds = 0
     while true do
-        local answer = self.game:fire('面板-询问', self)
+        local answer = self.to.user?:askPanel(self)
+                    or self.game:fire('面板-询问', self)
         if answer == nil then
             -- 没人表态：允许「一个都不选」就当空答复（成立），否则算取消
             -- （不允许取消的询问连取消入口都没有：记成拒收）

@@ -395,6 +395,13 @@ function M:beforeResolve(value)
     return value
 end
 
+--- 把这次询问交给他本人的 User（返回空 = 不表态；子类覆写 —— 每类询问在 User 上各有一个方法）
+---@param user User
+---@return AskCard.Answer?
+function M:askUser(user)
+    return user:askCard(self)
+end
+
 --- 取值：这次响应被禁止的直接拒收（连问都不问）→ 开替代窗口 → 没人替代就问应答方（**第一个给出答复的胜出，后面的订阅者不再调**）
 ---@async
 ---@return boolean # 有没有拿到答复（答复不合法时也已经拒收）
@@ -410,7 +417,11 @@ function M:collectAnswer()
         return true
     end
 
-    local answer = self.game:fire('卡牌-询问', self)
+    local user = self.to.user
+    local answer = user and self:askUser(user) or nil
+    if answer == nil then
+        answer = self.game:fire('卡牌-询问', self)
+    end
     if answer == nil then
         -- 没人表态：这次允许「一个都不给」就当空答复（成立、没有结果），否则是「取消」
         -- （不允许取消的询问连取消入口都没有：记成拒收）

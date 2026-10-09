@@ -15,6 +15,7 @@
 ---@field private alive boolean
 ---@field private limitDeltas table<string, table<string, integer>> # 各阶段里各名字的上限增减（阶段名 → 名字 → 增减）
 ---@field game Game # 属于哪一局（牌区顺着归属者找到局）
+---@field user? User # 谁在控制他（没有就是没人应答，交给全局时机）
 local M = Class 'Player'
 
 ---@param game Game
@@ -68,6 +69,12 @@ end
 ---@return string? # 名字（建玩家时可以不给）
 function M:getName()
     return self.name
+end
+
+--- 指定谁在控制他（换人 / 解绑都走这里）
+---@param user? User
+function M:setUser(user)
+    self.user = user
 end
 
 --- 加一个牌区（返回撤销这次添加的函数）

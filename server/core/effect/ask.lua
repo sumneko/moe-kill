@@ -36,7 +36,15 @@ end
 --- 把询问交给应答方（答复一到，结果就定下了）
 ---@async
 function M:settle()
-    local answer = self.game:fire('决策-询问', self)
+    -- 答复可能是 `false`（合法答复），不能写成 `or` 串
+    local user = self.to.user
+    local answer = nil
+    if user then
+        answer = user:ask(self)
+    end
+    if answer == nil then
+        answer = self.game:fire('决策-询问', self)
+    end
     if answer == nil then
         -- 没人表态就是「取消」：这次询问没成立
         self.task:reject('取消')

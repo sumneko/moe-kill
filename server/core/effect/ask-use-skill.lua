@@ -266,7 +266,8 @@ end
 function M:settle()
     self.options = self:collectOptions()
 
-    local answer = self.game:fire('技能-询问', self)
+    local answer = self.to.user?:askUseSkill(self)
+                or self.game:fire('技能-询问', self)
     if answer == nil then
         -- 没人表态就是「取消」：这次询问没成立
         self.task:reject('取消')

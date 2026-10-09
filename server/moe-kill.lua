@@ -104,6 +104,8 @@ require 'core'
 
 require 'session'
 
+require 'user'
+
 local inspect = require 'tools.inspect'
 
 local inspectOptions = {

@@ -103,7 +103,8 @@ end
 function M:settle()
     self.options = self:collectOptions()
 
-    local answer = self.game:fire('武将-询问', self)
+    local answer = self.to.user?:askHero(self)
+                or self.game:fire('武将-询问', self)
     if answer == nil then
         -- 没人表态：这次允许「一个都不选」就当空答复（成立、没有答复），否则是「取消」
         if not self:allowNone() then

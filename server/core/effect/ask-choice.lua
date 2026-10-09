@@ -48,7 +48,8 @@ end
 --- 把询问交给应答方（选项已经摆在身上；答复一到，结果就定下了）
 ---@async
 function M:settle()
-    local answer = self.game:fire('决策-询问', self)
+    local answer = self.to.user?:askChoice(self)
+                or self.game:fire('决策-询问', self)
     if answer == nil then
         -- 没人表态就是「取消」：这次询问没成立
         self.task:reject('取消')

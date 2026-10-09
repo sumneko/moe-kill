@@ -20,6 +20,12 @@ local M = Class 'AskCardWithTarget'
 
 Extends('AskCardWithTarget', 'AskCard')
 
+---@param user User
+---@return AskCard.Answer?
+function M:askUser(user)
+    return user:askCardWithTarget(self)
+end
+
 ---@param conditions AskCardWithTarget.Conditions? # 两半条件（父类先拿整份空转一遍，这里把它换成牌那半的归一结果）
 function M:__init(_, _, _, conditions)
     self.kind = 'askCardWithTarget'

@@ -32,6 +32,12 @@ local M = Class 'AskUseCard'
 
 Extends('AskUseCard', 'AskCard')
 
+---@param user User
+---@return AskCard.Answer?
+function M:askUser(user)
+    return user:askUseCard(self)
+end
+
 ---@param condition AskUseCard.Condition? # 要什么样的牌（父类已归一遍基类字段，这里补归 `target`）
 ---@param useOptions Game.UseOptions? # 这次使用的选项（照原样带去那次使用）
 function M:__init(_, _, _, condition, useOptions)
