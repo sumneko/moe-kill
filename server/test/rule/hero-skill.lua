@@ -3681,9 +3681,85 @@ lt.test('观星：准备阶段开始观看牌堆顶 X 张（X = 存活角色数�
 
     lt.assertEquals('牌堆一张不多不少', before, deck:count())
     lt.assertEquals('没被看到的第 4 张还在原位', rest, deck:peek(4))
-    -- ⚠️ 分配是**服务器暂定**的占位（逆序置于牌堆顶）—— 换成「排列」询问类之后这条要跟着改
-    lt.assertEquals('暂定分配：逆序置于牌堆顶', true,
-        top[3] == deck:peek(1) and top[2] == deck:peek(2) and top[1] == deck:peek(3))
+    lt.assertEquals('没人摆（空答复也算成立）⇒ 照原顺序放回牌堆顶', true,
+        top[1] == deck:peek(1) and top[2] == deck:peek(2) and top[3] == deck:peek(3))
+end)
+
+lt.test('观星：把牌摆到「牌堆底」那一行（面板上摆完点确定）', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local zhuge = run.players[1]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+
+    local deck   = assert(run.game:getZone('抽牌'))
+    local before = deck:count()
+    local top    = { assert(deck:peek(1)), assert(deck:peek(2)), assert(deck:peek(3)) }
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '观星' then
+            return '发动'
+        end
+    end)
+
+    ---@type integer
+    local replies = 0
+    run.game:on('面板-询问', function (askPanel)
+        if askPanel.panel.name ~= '观星' then
+            return
+        end
+        replies = replies + 1
+        if replies == 1 then
+            lt.assertEquals('摊了两行', 2, #askPanel.panel.rows)
+            lt.assertEquals('观看的牌都摆在第一行（牌堆顶）', 3, #askPanel.panel.rows[1].cells)
+            -- 把顶上第一张挪到「牌堆底」那一行
+            return { moves = { { cards = top[1], row = 2 } } }
+        end
+        return { done = true }
+    end)
+
+    local _ <close> = run.game:enterPhase(zhuge, '准备')
+
+    lt.assertEquals('摆了两次（一次挪、一次确定）', 2, replies)
+    lt.assertEquals('牌堆一张不多不少', before, deck:count())
+    lt.assertEquals('顶上剩两张，顺序照旧', true, top[2] == deck:peek(1) and top[3] == deck:peek(2))
+    local bottom = deck:list()
+    lt.assertEquals('挪到底的那张在最底下', top[1], bottom[#bottom])
+end)
+
+lt.test('观星：答复中途被拒收 ⇒ 已经摆好的照摆（不回到原样）', function ()
+    local run   = support.start { count = 3, packages = { '标准' } }
+    local zhuge = run.players[1]
+    zhuge:setHero(assert(run.game:getHero('诸葛亮')))
+
+    local deck = assert(run.game:getZone('抽牌'))
+    local top  = { assert(deck:peek(1)), assert(deck:peek(2)), assert(deck:peek(3)) }
+
+    run.game:on('决策-询问', function (ask)
+        if ask.reason == '观星' then
+            return '发动'
+        end
+    end)
+
+    ---@type integer
+    local replies = 0
+    run.game:on('面板-询问', function (askPanel)
+        if askPanel.panel.name ~= '观星' then
+            return
+        end
+        replies = replies + 1
+        if replies == 1 then
+            -- 先把一张摆到「牌堆底」那一行
+            return { moves = { { cards = top[1], row = 2 } } }
+        end
+        -- 再给一条不合法的（行号不存在）⇒ 这次询问被拒收
+        return { moves = { { cards = top[2], row = 9 } } }
+    end)
+
+    local _ <close> = run.game:enterPhase(zhuge, '准备')
+
+    lt.assertEquals('摆了两次（第二次被拒收）', 2, replies)
+    lt.assertEquals('顶上剩两张，顺序照旧', true, top[2] == deck:peek(1) and top[3] == deck:peek(2))
+    local bottom = deck:list()
+    lt.assertEquals('已经摆到底行的那张还在最底下', top[1], bottom[#bottom])
 end)
 
 lt.test('观星：不发动就什么都不做（不观看、牌堆不动）', function ()
@@ -3730,10 +3806,10 @@ lt.test('观星：X 至多为 5（六人局也只观看 5 张）', function ()
 
     local _ <close> = run.game:enterPhase(zhuge, '准备')
 
-    -- 暂定分配是逆序置顶 ⇒ 前 5 张倒着排在顶上、其余的没动
+    -- 没人摆 ⇒ 照原顺序放回牌堆顶
     lt.assertEquals('存活 6 人也只看 5 张', true,
-        top[5] == deck:peek(1) and top[4] == deck:peek(2) and top[3] == deck:peek(3)
-        and top[2] == deck:peek(4) and top[1] == deck:peek(5))
+        top[1] == deck:peek(1) and top[2] == deck:peek(2) and top[3] == deck:peek(3)
+        and top[4] == deck:peek(4) and top[5] == deck:peek(5))
     lt.assertEquals('第 6 张没被看过，还在第 6 位', top[6], deck:peek(6))
 end)
 

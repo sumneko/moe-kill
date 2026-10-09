@@ -440,6 +440,8 @@ function moe.loader.install(game, options)
         Buff    = function (name) return game:declareBuff(name) end,
         Hero    = function (name) return game:declareHero(name) end,
         Skill   = function (name) return game:declareSkill(name) end,
+        -- 面板：内容侧建一块牌面（与 `Card` / `Skill` / `Hero` 一样落成全局）
+        createPanel = function (name, visible, options) return moe.panel.create(game, name, visible, options) end,
         Depends = function (items) return moe.loader.declareDepends(game, ctx, items) end,
         Class   = Class,
         New     = New,

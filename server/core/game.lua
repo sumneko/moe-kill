@@ -1120,6 +1120,23 @@ function M:askChoice(to, reason, options)
     return ask
 end
 
+--- 要他在一块面板上摆 / 挑（`{ moveable = true }` 才允许移动牌）—— 一次询问**开着**到点「确定」为止，中间可以来回很多次
+---@async
+---@param to Player # 被问者
+---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param panel Panel # 摆在哪块面板上（内容侧用 `createPanel` 建）
+---@return AskPanel # 这次询问（已经结完：各行读 `.rows`、选中的牌读 `.card` / `.cards`，失败读 `.err`）
+function M:askPanel(to, reason, panel)
+    local ask = moe.askPanel.create {
+        game   = self,
+        to     = to,
+        reason = reason,
+        panel  = panel,
+    }
+    ask:apply():await()
+    return ask
+end
+
 --- 一次「几路取先」的赢家
 ---@class Game.AnyWinner
 ---@field win integer # 赢家编号

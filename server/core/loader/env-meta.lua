@@ -19,6 +19,10 @@ Hero = nil
 ---@type fun(name: string): SkillDef
 Skill = nil
 
+--- 建一块牌面（把一批牌摊成若干行，可以在上面摆 / 挑）
+---@type fun(name: string, visible?: Visibility, options?: Panel.Options): Panel
+createPanel = nil
+
 ---@type fun(items: string[])
 Depends = nil
 
@@ -171,6 +175,10 @@ rule = nil
 ---@field fire fun(self: Game, name: '决策-询问', ask: Ask|AskPlayer|AskChoice): any # 返回值就是答复（`Ask` / `AskChoice` 是任意值、`AskPlayer` 是一名或几名角色；没人表态给空）
 ---@field on fun(self: Game, name: '决策-答复', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function
 ---@field fire fun(self: Game, name: '决策-答复', ask: Ask|AskPlayer|AskChoice): any
+---@field on fun(self: Game, name: '面板-询问', callback: fun(askPanel: AskPanel): any): function # 问应答方要一次回复（**开着**的询问：应答方回变化值，直到它点「确定」）；**第一个给出回复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '面板-询问', askPanel: AskPanel): any # 返回值就是一次回复（`AskPanel.Change`；没人表态给空）
+---@field on fun(self: Game, name: '面板-答复', callback: fun(askPanel: AskPanel): any): function # 收到了一次回复（变化已经验证并生效；面板的当前形状照它读）
+---@field fire fun(self: Game, name: '面板-答复', askPanel: AskPanel): any
 ---@field on fun(self: Game, name: '技能-询问', callback: fun(ask: AskUseSkill): any): function # 问应答方要发动哪个技能：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
 ---@field fire fun(self: Game, name: '技能-询问', ask: AskUseSkill): any # 返回值就是答复（`{ skill = …, cards = …, targets = … }`；没人表态给空）
 ---@field on fun(self: Game, name: '游戏-结束', callback: fun(result: Game.Result): any): function

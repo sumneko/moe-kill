@@ -8,19 +8,6 @@ Hero '诸葛亮'
 
 -- 【观星】准备阶段开始时，你可以观看牌堆顶的 X 张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X 为存活角色数且至多为 5）
 
---- 分配：⚠️ 本批**服务器暂定** —— 「排列」询问类还没做，先按一个任意的占位来分（逆序置于牌堆顶），不代表任何策略；等那个询问类到位就换成玩家的答复
----@param shown Card[] # 观看的那些牌（原顺序）
----@return Card[] # 放顶的（第一张最靠顶）
----@return Card[] # 放底的
-local function arrange(shown)
-    ---@type Card[]
-    local top = {}
-    for i = #shown, 1, -1 do
-        top[#top + 1] = shown[i]
-    end
-    return top, {}
-end
-
 Skill '观星'
     : event('阶段-开始', function (skill, phase)
         if phase.name ~= '准备' then
@@ -34,10 +21,15 @@ Skill '观星'
             local shown = cast:getTempZone()
             shown:setVisible(skill.owner)
             game:moveCard(seen, shown)
-            -- 看完全放回牌堆（顶 / 底两半合起来就是全部）—— 剩在临时区的会被默认收尾送进弃牌
-            local top, bottom = arrange(shown:list())
-            deck:placeTop(top)
-            deck:placeBottom(bottom)
+            -- 摊成面板：顶堆 / 底堆两行，归他自己摆（`moveable` = 允许把牌在两行之间挪）；不动就能直接确定
+            local panel = createPanel('观星', skill.owner, { moveable = true, min = 0 })
+                : row(shown:list(), '牌堆顶')
+                : row({}, '牌堆底')
+            game:askPanel(skill.owner, '观星', panel)
+            -- 摆成什么样就照什么样放回：问没问成、答复到了哪一步，摆的事都记在面板上（剩在临时区的会被默认收尾送进弃牌）
+            local rows = panel.cardsByRow
+            deck:placeTop(rows[1])
+            deck:placeBottom(rows[2])
         end)
     end)
 
