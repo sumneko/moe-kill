@@ -26,6 +26,17 @@ end
 ---@field dirty? table<Player, table<Player.DirtyKind, true>> # 还没下发的脏玩家（下一笔调度统一发）
 local S = Class 'Game.PlayerSync'
 
+--- 组装一个玩家的基础信息
+---@param player Player
+---@return Proto.Player.Base
+function moe.playerSync.toBase(player)
+    return {
+        id       = player.id,
+        userName = player:getName() or '',
+        seat     = player.game.desk:getIndex(player),
+    }
+end
+
 ---@param game Game
 function S:__init(game)
     self.game = game
@@ -54,17 +65,6 @@ function S:markDirty(player, kind)
     kinds[kind] = true
 end
 
---- 组装一个玩家的基础信息
----@param player Player
----@return Proto.Player.Base
-local function toBase(player)
-    return {
-        id       = player.id,
-        userName = player:getName() or '',
-        seat     = player.game.desk:getIndex(player),
-    }
-end
-
 --- 把攒着的脏玩家发下去（基础信息人人一份、custom 按各人视角裁）
 function S:flush()
     local dirty = self.dirty
@@ -77,7 +77,7 @@ function S:flush()
     local baseList = {}
     for player, kinds in pairs(dirty) do
         if kinds.base then
-            baseList[#baseList + 1] = toBase(player)
+            baseList[#baseList + 1] = moe.playerSync.toBase(player)
         end
     end
 

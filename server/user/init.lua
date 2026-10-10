@@ -2,4 +2,5 @@
 require 'user.user'
 require 'user.card-sync'
 require 'user.player-sync'
+require 'user.snapshot'
 require 'user.client-user'

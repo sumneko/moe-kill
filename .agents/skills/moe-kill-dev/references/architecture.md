@@ -636,6 +636,18 @@ Card '杀'
 - **批量与出口**：`Create` / `Update` / `Remove` 攒到一次调度末尾合并发（`moe.await.wake`，脏牌按 `card.id` 排序 ⇒ 下发顺序可复现），`Move` 例外（当场）。出口是 `User` 上两条（`moveCards` / `updateCards`，基类空实现），`ClientUser` 转发给视图 ⇒ 视图自己决定发哪几种。
 - **快照**：`view.snapshot` 遍历 `cardZones` 拼出 `Proto.Card[]`（按号排），接 `Proto.SnapShot.cards`。**客户端收到即整份重建**（不叠加、也不需要服务端发 Remove）⇒ 开局 / 重连都走它，不再有 `syncAll` 那种「撤旧号 + 灌新份」的通知式重发（2026-10-10 用户定）。
 
+## 17. 协议入口：接入与整局快照（`moe.room` / `Game.Join` / `Game.SnapShot`）
+
+**要解决的问题**：客户端要能「接进来、拿到现在长什么样」—— 前端不维护权威状态（§3），状态都从后端取。
+
+- **房间层 `server/session/room.lua`**（2026-10-10 用户定）：
+  - `moe.room.open { seats, packages, sources?, seed? }` —— 建局 + 装配（`moe.game.create` 已含装配）+ `moe.snapshot.attach(game)`，**先不开局**（等人齐）；
+  - `moe.room.join(client, { name? })` —— 找个空座（用 `desk:getPlayer(i)` 探）：建玩家 + `desk:sit` + `player:setUser(New 'ClientUser' (game, client))` + `user:attach()`（§13）；**坐满就自动开局**；返回 `Proto.SnapShot`；
+  - `moe.room.start(prepare?)` —— 人齐（或自己调）时开局：fire `'游戏-准备'`（载荷 `config = prepare`，不给就是默认：随机身份 + 洗座次）+ `'游戏-开始'` + `game:runFlow()`。
+- **协议方法 `Game.Join`**（请求，参数 `{ name? }`）⇒ result = `Proto.SnapShot`。注册是**懒的**（`moe.room.open` 第一次调时往 `moe.client` 注册 —— 那时 transport 已加载，不用挑加载顺序）。
+- **`Game.SnapShot`**（请求，无参）⇒ result 同样是一份 `Proto.SnapShot`（重连 / 纠错要的时候再要一份）—— **状态快照走 request 的 result**（§3 第 3 条），不走通知那条路。落点 `server/user/snapshot.lua`：`moe.snapshot.attach(game)` 记下当前局（一个 VM 一局），`moe.snapshot.build(game, user)` 是唯一的拼装处（`join` 与这条请求共用）；拼装时 custom 按收件人视角裁、`cards` 就是 `user.cardView.snapshot`（§16）。
+- **连接 → 人**：从连接反查座位上的 user（座位不多，直接找）；**还没入座的连接**报错 —— 原因只进日志，线上回统一的「处理这个方法时出错」（`INTERNAL_ERROR`），不把内部细节发给客户端。
+
 ## 15. 玩家的自定义数据与增量下发（`player.custom` + `Player.Update`）
 
 **要解决的问题**：武将牌、身份、将来的装备 / 技能 / 状态……都得让客户端看见，但**谁看得见**各不相同（武将公开、身份只有主公与自己）。于是把「内容侧往玩家身上挂的自由数据」收进一个容器，**可见性由容器记账**，下发时**按视角裁剪**。
