@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1228 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1229 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -391,6 +391,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **技能在协议上有了身份 + 技能下行与自动开关（2026-10-10，用户「先把技能完善了」，可见性定「目前总是可见」）**：① **proto（用户写）**：`Proto.Skill` = `{ name, id, player, auto?, tag?, disabled? }`、`Proto.Notify.skill.Update` / `Proto.Notify.Skill.Remove`、`Proto.Request/Result.Skill.ChangeAuto`；`Proto.ViewAs.sourceSkill` 从名字换成 **id**。② **内核只发事件**：`Skill` 加 `id`（`game:nextId()`）、`Skill:setAuto`（收口 + 没变不发）、`Skill.__getter.disabled`（压制层数 > 0）、`'技能-数据变化'` 两种 kind（`'base'` / `'removed'`）—— 调用点是 `enablePassive` / `disablePassive`（跨 0/1）、`setAuto`、`Player:removeSkill`；`env-meta.lua` 补 `Game:on` / `Game:fire` 的重载声明。③ **user 侧 `skill-sync.lua`**（照 card-sync / player-sync）：账本 `game.skillSync`、脏标记一笔调度一次发完、**技能总是可见 ⇒ 全广播不裁字段**。④ **上行 `Skill.ChangeAuto`**（`moe.client.register`，照 `Game.SnapShot`）—— 连接找座位用 `moe.snapshot.userOf`（**为复用把局部函数改成公开方法**），不是自己的技能 ⇒ 报错。⑤ **踩到两个类型坑（都已修）**：`---@class GCHost` **不含 `: Class.Base`** ⇒ `---@class Skill : GCHost` 拿不到 `Class.Base` 的 `__getter`（「给类挂 getter」报「未定义的属性/字段 `__getter`」），类声明要写 **`: GCHost, Class.Base`**；`__getter` 除了 `---@param self X` 还要**配套占位声明**（`---@type boolean` + `S.disabled = nil`，照 `card.lua` 的 `M.face = nil`）。⑥ **夹具**：`newGame` / `newPackageGame` 多返回一个**前端端点列表**（要自己发请求的用例用）、`seatAll` 顺手 `moe.snapshot.attach(game)`（模拟外壳）。⑦ 用例 +5（`test/user/skill-sync` 4 条 + `ask-use-card` 多一条「技能当来源的视为，来源发技能号」）⇒ **验收基线 1220 → 1225**。**`Ask.UseSkill` 明确下轮再做**（用户 2026-10-10 定）。
 
 - **接上技能询问：`ClientUser:askUseSkill`（2026-10-10，proto 由用户按草案定稿）**：① **协议**（用户写）：`Proto.SkillPlan` = `{ id, cards?, targets? }`、`Proto.Request.Ask.UseSkill`（`reason` / `cancelable` 恒 true / `skills`）、`Proto.Result.Ask.UseSkill`（`usedSkill` / `cards` / `targets`）。② **`ClientUser:askUseSkill`**：候选按 `AskUseSkill.Option` 逐项序列化（技能号 + `cards` 计划 + `targets` 计划），回包按技能号反查真技能（认不到 ⇒ 返回空 ⇒ 内核走「取消」）。③ **同时把「协议号 ⇄ 对象」抽成四个助手**（`playerIds` / `cardIds` / `playerList` / `cardList`），`select` / `use` / `cardPlan` / `viewAsParams` 都改用它，几段重复的遍历一并收掉 —— 落实「按协议形状收口」的收尾。④ 用例 +3（`test/user/ask-use-skill`：候选与发动 / 技能号不认 / 该给牌却没给被拒收；夹具用【青囊】—— 一张手牌 + 一个受伤目标，回调不依赖阶段，避开「开阶段会触发额外询问」）。⇒ **验收基线 1225 → 1228**。⑤ **剩三个没接**：`ask`（内核零语义、去留待定）/ `askHero` / `askPanel`。
+
+- **卡牌下行换号：从「逐张扫全区」改成「一批洗一次」（2026-10-11，用户「先做个 1 看看」）**：原来每张暗牌进账都要 `arrayFilter` 扫一遍该区、再随机挑一张对调 ⇒ 建抽牌堆（107 张 × 8 个视图）触发 **856 次**全区扫描，是 $O(n^2)$。改成：`V:hidden(card)` 换成 **`V:shuffleHidden(key)`**（把该区所有「看不见面」的牌的号整体洗一遍），调用点从「每张牌一次」挪到 **`updateCards` 处理完整批之后、对动过的区各一次**（用 `shuffled[newPZoneKey] = true` 收集）—— 语义不变（都是「号落在谁背上随机」），整区洗比两两对调更彻底。**实测（8 人 + 标准包）**：洗号 **856 次 / 8 ms → 8 次 / 1 ms**，开局总耗时 **23 ms → 17 ms**；剩下的约 16 ms 在 `toPCard`（856 次）与 JSON 编码上（方向 2 / 3 再说）。用例 +1（`test/user/card-sync` 加「一批暗牌进区，号不重不漏、都不带面」的不变式；原有那条换号用例改名对齐新语义）⇒ **验收基线 1228 → 1229**。
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 

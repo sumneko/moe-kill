@@ -1,8 +1,8 @@
 --- 卡牌下行同步：每个 ClientUser 一份「他看得见的那份牌」的账 + 按局的收发
 ---
 --- 视图 id **不进内核**：由视图自己的号源发；看不见内容的区里的牌只有 id（匿名代号）。
---- 新牌进账时，看不见牌面的那些会把号与同区另一张匿名牌对调 —— 客户端那边只是多了一个新号，
---- 服务端内部这张新牌背上的却是旧号，之后移除 / 移动报出去的号都认不出是哪张。
+--- 一批牌进账后，把该区「看不见面」的牌的号整体洗一遍 —— 客户端那边只是多了几个新号，
+--- 服务端内部这些号落在谁背上却是随机的，之后移除 / 移动报出去的号都认不出是哪张。
 
 ---@class CardSync.API
 moe.cardSync = {}
@@ -169,30 +169,32 @@ function V:toPZone(zone)
     }
 end
 
----@param card Card
-function V:hidden(card)
-    if self:isCardVisible(card) then
+--- 把一个区里所有「看不见面」的牌的号整体洗一遍 —— 新牌进账时叫一次，让号与牌的对应关系翻乱
+--- 一批牌只洗一次（号码池子就是这一区现存的暗牌号）；整区洗比「两两对调」更彻底，代价是 O(这一区牌数)
+---@param key string
+function V:shuffleHidden(key)
+    local cards = self.cardZones[key]
+    if not cards then
         return
     end
-    local pzone = self:toPZone(card:getZone())
-    local cards = self.cardZones[keyOfPZone(pzone)]
-    ---@type Card[]
-    local hidden = moe.util.arrayFilter(cards, function (c)
-        return not self:isCardVisible(c)
-    end)
-
-    if #hidden == 0 then
+    ---@type Proto.Card[]
+    local hidden = {}
+    ---@type integer[]
+    local ids    = {}
+    for _, card in ipairs(cards) do
+        if not self:isCardVisible(card) then
+            local pcard = assert(self.cardMap[card])
+            hidden[#hidden + 1] = pcard
+            ids[#ids + 1]       = pcard.id
+        end
+    end
+    if #hidden < 2 then
         return
     end
-
-    local target = self.random:pick(hidden)
-    if target == card then
-        return
+    self.random:shuffle(ids)
+    for i, pcard in ipairs(hidden) do
+        pcard.id = ids[i]
     end
-
-    local a = self.cardMap[card]
-    local b = self.cardMap[target]
-    a.id, b.id = b.id, a.id
 end
 
 --- 协议区域是不是同一个（「这一搬在客户端眼里有没有变化」）
@@ -289,6 +291,8 @@ function V:updateCards(cards)
     local removes = {}
     ---@type Proto.Card[]
     local creates = {}
+    ---@type table<string, true> # 这一批里被动过号的区（末尾各洗一次，不逐张扫）
+    local shuffled = {}
     for _, card in ipairs(cards) do
         ---@type Proto.Card?
         local pcard = self.cardMap[card]
@@ -314,9 +318,13 @@ function V:updateCards(cards)
             pcard = self:toPCard(card)
             pcard.id = self:nextId()
             self.cardMap[card] = pcard
-            self:hidden(card)
+            shuffled[newPZoneKey] = true
             creates[#creates+1] = pcard
         end
+    end
+
+    for key in pairs(shuffled) do
+        self:shuffleHidden(key)
     end
 
     if #updates > 0 then

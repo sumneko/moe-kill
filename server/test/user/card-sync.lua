@@ -153,8 +153,8 @@ lt.test('卡牌同步：牌进区发创建、离区发移除', function ()
 end)
 
 ---@async
-lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', function ()
-    -- 换号挑牌用的是视图自带的随机源（不碰局里的）—— 用例把种子固定下来逐轮盯着看（也可能抽到自己 = 不换）
+lt.test('卡牌同步：暗区里进新牌，号会被洗一遍', function ()
+    -- 洗号用的是视图自带的随机源（不碰局里的）—— 用例把种子固定下来逐轮盯着看（洗了也可能恰好不动）
     local swapped = 0
     for seed = 1, 8 do
         local game, players = newGame(seed)
@@ -187,6 +187,38 @@ lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', fu
         end
     end
     lt.assertEquals('有时候会把先来那张的号换走（说明换过号）', true, swapped > 0)
+end)
+
+---@async
+lt.test('卡牌同步：一批暗牌进区，号不重不漏、都不带面', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    game:getZone('抽牌'):setVisible(false)
+    attach(players)
+
+    local deck = game:getZone('抽牌')
+    ---@type Card[]
+    local batch = {}
+    for i = 1, 20 do
+        batch[i] = game:createCard('杀')
+    end
+    game:moveCard(batch, deck)
+    moe.await.sleep(0)
+
+    local view = assert(assert(me.user).cardView)
+    ---@type table<integer, true>
+    local seen  = {}
+    local count = 0
+    for _, list in pairs(view.cardZones) do
+        for _, card in ipairs(list) do
+            local pcard = assert(view.cardMap[card])
+            count = count + 1
+            lt.assertEquals('暗牌不带面', nil, pcard.face)
+            lt.assertEquals('号没重复', nil, seen[pcard.id])
+            seen[pcard.id] = true
+        end
+    end
+    lt.assertEquals('20 张牌、20 个号', 20, count)
 end)
 
 ---@async
