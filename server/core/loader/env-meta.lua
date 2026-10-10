@@ -179,6 +179,8 @@ rule = nil
 ---@field fire fun(self: Game, name: '卡牌-指定目标后', useCard: UseCard, target: Player): any
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(player: Player): any): function
 ---@field fire fun(self: Game, name: '玩家-死亡', player: Player): any
+---@field on fun(self: Game, name: '玩家-数据变化', callback: fun(player: Player, kind: Player.DirtyKind): any): function # 某个玩家的一类数据变了（`'base'` 基础信息 / `'custom'` 自由数据）
+---@field fire fun(self: Game, name: '玩家-数据变化', player: Player, kind: Player.DirtyKind): any
 ---@field on fun(self: Game, name: '回合-开始', callback: fun(turn: Game.Event.Turn): any): function
 ---@field fire fun(self: Game, name: '回合-开始', turn: Game.Event.Turn): any
 ---@field on fun(self: Game, name: '回合-结束', callback: fun(turn: Game.Event.Turn): any): function

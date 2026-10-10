@@ -45,11 +45,11 @@ local function connect()
     return front, back
 end
 
---- 两个客户端都接入：读一下各自的牌视图（它把当时的现场建账，之后走增量）
+--- 两个客户端都接入（建账 + 收下行）
 ---@param players Player[]
 local function attach(players)
     for _, player in ipairs(players) do
-        assert(assert(player.user).cardView)
+        assert(player.user):attach()
     end
 end
 

@@ -412,59 +412,10 @@ end
 ---@class Player.API
 moe.player = {}
 
---- 把这个玩家的一类数据标脏（下一笔调度之前真正发）
+--- 这个玩家的一类数据变了（在局上发一条 —— 谁要同步谁自己去听）
 ---@param kind Player.DirtyKind
 function M:markDirty(kind)
-    self.game:markDirty(self, kind)
-end
-
---- 组装这个玩家的基础信息
----@param player Player
----@return Proto.Player.Base
-function moe.player.toBase(player)
-    return {
-        id       = player.id,
-        userName = player:getName() or '',
-        seat     = player.game.desk:getIndex(player),
-    }
-end
-
---- 把这一批脏玩家下发下去（基础信息人人一份、custom 按各人视角裁剪）
----@param game Game
----@param dirty table<Player, table<string, boolean>>
-function moe.player.sendUpdates(game, dirty)
-    ---@type Proto.Player.Base[]
-    local baseList = {}
-    for player, kinds in pairs(dirty) do
-        if kinds.base then
-            baseList[#baseList + 1] = moe.player.toBase(player)
-        end
-    end
-    for _, viewer in ipairs(game.desk.players) do
-        local user = viewer.user
-        if user then
-            if #baseList > 0 then
-                ---@type Proto.Notify.Player.Update
-                local data = { players = baseList }
-                user:playerUpdate(data)
-            end
-            ---@type Proto.Player.Custom[]
-            local customList = {}
-            for player, kinds in pairs(dirty) do
-                if kinds.custom then
-                    local visible = player.custom:allVisibles(viewer)
-                    if next(visible) then
-                        customList[#customList + 1] = { id = player.id, custom = visible }
-                    end
-                end
-            end
-            if #customList > 0 then
-                ---@type Proto.Notify.Player.UpdateCustom
-                local data = { players = customList }
-                user:playerUpdateCustom(data)
-            end
-        end
-    end
+    self.game:fire('玩家-数据变化', self, kind)
 end
 
 --- 建一个玩家

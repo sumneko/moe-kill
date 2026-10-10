@@ -34,6 +34,15 @@ local function newGame(count)
     }
 end
 
+--- 给玩家接上一个客户端（连上 + 接入）
+---@param game Game
+---@param player Player
+---@param client Client
+local function connectUser(game, player, client)
+    player:setUser(New 'ClientUser' (game, client))
+    assert(player.user):attach()
+end
+
 --- 造一个还没坐下的玩家
 ---@param game Game
 ---@return Player
@@ -47,7 +56,7 @@ lt.test('ClientUser：坐下之后收到 Player.Update', function ()
     local got, undo = collect('Player.Update')
     local game = newGame(2)
     local player = newPlayer(game)
-    player:setUser(New 'ClientUser' (game, back))
+    connectUser(game, player, back)
 
     game.desk:sit(1, player)
     moe.await.sleep(0)
@@ -67,7 +76,7 @@ lt.test('ClientUser：改 custom 收到 Player.UpdateCustom', function ()
     local got, undo = collect('Player.UpdateCustom')
     local game = newGame(2)
     local player = newPlayer(game)
-    player:setUser(New 'ClientUser' (game, back))
+    connectUser(game, player, back)
     game.desk:sit(1, player)
     moe.await.sleep(0)
 
@@ -86,7 +95,7 @@ lt.test('ClientUser：同一笔调度里写几次也只发一条', function ()
     local got, undo = collect('Player.UpdateCustom')
     local game = newGame(2)
     local player = newPlayer(game)
-    player:setUser(New 'ClientUser' (game, back))
+    connectUser(game, player, back)
     game.desk:sit(1, player)
     moe.await.sleep(0)
 
@@ -106,7 +115,7 @@ lt.test('ClientUser：发过就清了，不会重复发', function ()
     local got, undo = collect('Player.UpdateCustom')
     local game = newGame(2)
     local player = newPlayer(game)
-    player:setUser(New 'ClientUser' (game, back))
+    connectUser(game, player, back)
     game.desk:sit(1, player)
     moe.await.sleep(0)
 
@@ -128,7 +137,7 @@ lt.test('ClientUser：别人只看得到公开字段', function ()
     local b = newPlayer(game)
     game.desk:sit(1, a)
     game.desk:sit(2, b)
-    b:setUser(New 'ClientUser' (game, back))
+    connectUser(game, b, back)
     moe.await.sleep(0)
 
     a.custom.proxy.heroName = '刘备'

@@ -13,6 +13,12 @@ function M:__init(game, client)
     self.client = client
 end
 
+--- 客户端接入了：把这一局的下行账都带起来（外壳在接入时调；重复调无害）
+function M:attach()
+    moe.cardSync.attach(self)
+    moe.playerSync.attach(self)
+end
+
 ---@param method string
 ---@param params table
 function M:notify(method, params)
@@ -82,31 +88,6 @@ end
 ---@param ask AskPanel
 ---@return AskPanel.Change?
 function M:askPanel(ask)
-end
-
---- 玩家基础信息变了（内核已经按视角组装好；默认什么都不做）
----@param data Proto.Notify.Player.Update
-function M:playerUpdate(data)
-end
-
---- 玩家的自定义数据变了（一人一条；内核已经按视角裁好；默认什么都不做）
----@param data Proto.Notify.Player.UpdateCustom
-function M:playerUpdateCustom(data)
-end
-
---- 有新出现的牌（默认什么都不做）
----@param data Proto.Notify.Card.Create
-function M:cardCreate(data)
-end
-
---- 有牌原地更新（区域没变；默认什么都不做）
----@param data Proto.Notify.Card.Update
-function M:cardUpdate(data)
-end
-
---- 有牌消失（默认什么都不做）
----@param data Proto.Notify.Card.Remove
-function M:cardRemove(data)
 end
 
 --- 有牌搬动了（当场发的动画预通知；默认什么都不做）

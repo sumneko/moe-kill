@@ -620,7 +620,7 @@ Card '杀'
 
 - **两层对象，各管一段**（2026-10-10 用户定）：
   - **按局**：`Game.CardSync` 类懒建在 `game.cardSync`（card-sync.lua 给 `Game` 注入的 `package` getter ⇒ 同一局才一份、只给本文件看，内核不认识协议、不写进 `game.lua`）。它只留 `dirtyCards`（还没下发的脏卡）与 `viewSeq`，**建账那一刻自己把订阅装上**（`watchEvent`）⇒ 外部不再需要 `watch(game)`。
-  - **按视角**：`CardSync.View` 懒建在 `user.cardView`（`User` 基类声明可空字段 = 这个控制者不收下行；`ClientUser` 的 `__getter` 建并缓存；换 `ClientUser` 就是换新视图）。**客户端接入 = 读一次 `user.cardView`**：它建账（把当时的现场算进 `cardMap` / `cardZones`）并把按局账本带起来，之后走增量。`Player:setUser` 顺手反向记 `user.player`（换人 / 解绑清旧的 —— §13）。**视图只跟 `User` 说话**（`user:notify`），不碰连接。
+  - **按视角**：`CardSync.View` 懒建在 `user.cardView`（`User` 基类声明可空字段 = 这个控制者不收下行；`ClientUser` 的 `__getter` 建并缓存；换 `ClientUser` 就是换新视图）。**客户端接入 = `user:attach()`**（基类一行：`moe.cardSync.attach` + `moe.playerSync.attach`）：它建账（把当时的现场算进 `cardMap` / `cardZones`）并把按局账本带起来，之后走增量。`Player:setUser` 顺手反向记 `user.player`（换人 / 解绑清旧的 —— §13）。**视图只跟 `User` 说话**（`user:notify`），不碰连接。
 - **只订两个时机，不攒因果账**（2026-10-10 用户定，当天改）：`'卡牌-批量移动'`（一次搬动的整批 `Zone.Move[]`，每条自带 `card` / `from` / `to` / `visible`）与 `'卡牌-变化'`（牌名 / 花色 / 点数这类，没换区）。原先订 `'卡牌-进入区域'` / `'卡牌-离开区域'` 时要自己攒 `lastLeave`（上次在哪）与 `lastVisible`（上次可见性）—— 前者被 `Move.from` 取代，**后者没有了**：搬动可见性只描述「移动过程」、只给 `Card.Move` 读（见下），牌面可见性完全由区级决定。
 - **牌面分两层**（2026-10-10 用户定；协议字段叫 `face` / `modifier`）：`face` = **牌自己那份**面（`card.ownFace`，永不变）、`modifier` = **所有「转化」叠出来的那一份**（`card.modifier`，没挂转化就不带）。**合并只在内核做一份**（`card.face` 是最终值），客户端把两层叠起来即可。`Card.Move` 只带 `face`（客户端本地已有 `modifier`）。
 - **判定口径**（用户 2026-10-10 定）：牌动过就**置脏**；`flush` 时把「新算的一份」与「这份账里已有的那份」逐字段比 ——
@@ -647,9 +647,9 @@ Card '杀'
   - **默认只有自己看得见**（fail-closed）：没设过可见性的键，别人一律看不见；自己没有值也照样「看得见自己那份」（读出来是空）。
 - **内容的落点**：身份写在 `package/身份场/身份.lua`（`setIdentity` 写 `proxy.identity`，主公 `setVisible('identity', true)`）；武将牌面写在 `package/@基础/武将.lua`（`heroName` / `heroSex` 公开）。**协议类型由内容包自己补** —— 各包在自己的 `meta.lua` 里给 `---@class Proto.Custom` 加字段（class 声明是合并语义）。
 - **`player.identity` 是只读的便捷读法**（`M.__getter.identity`，真相在容器里）—— 读的地方保持「像字段」（`code-style.md` §11 的口径），写入只有 `setIdentity` 一处。
-- **置脏与批量下发**（`game` 上）：`player:markDirty(种类)` → `game:markDirty(player, kind)`；**第一次标脏时登记一次** `moe.await.wake(flush)`（不是计时器、也不是「每帧」），`kind` 现在两种：`'base'`（id / 用户名 / 座位）与 `'custom'`。**一笔调度里改多少字段都只发一次**，flush 完就清（不会重复发）。
-- **按视角组装**（`moe.player.sendUpdates(game, dirty)`）：基础信息一份（`Proto.Player.Base` = `id` / `userName` / `seat`，人人相同）合成**一条** `Player.Update`；custom **每个收件人各组装一份**（`custom:allVisibles(viewer)`），**一个玩家一条** `Player.UpdateCustom`（载荷 `Proto.Player.Custom` = `{ id, custom }`），**看得见的键一个都没有就跳过**。**没有 `user` 的玩家（或视角）不下发**。
-- **`User:update(data)`** 是唯一出口：`data.base?` / `data.custom?` 各是「要发的载荷」，基类空实现（不表态），`ClientUser` 覆写成两条 `notify`。**内核不认识协议** —— 它只把组装好的表交出去（与 `player.user` 同一路：只依赖类型注解，不 `require` 实现）。
+- **内核只发一条事件**：`player:markDirty(种类)` → 在局上 `fire('玩家-数据变化', player, kind)`（`kind` 两种：`'base'` = id / 用户名 / 座位，`'custom'` = 自由数据；`Custom.proxy` 的写钩子与 `Desk:sit` 是仅有的两个调用点）。**内核不留脏账、不认识协议** —— 原来的 `game.dirty` / `game:flushDirty` / `moe.player.sendUpdates` / `moe.player.toBase` 全删（2026-10-10 用户定：核心里只发事件，脏标记由收的一方自己打）。
+- **user 侧自己收、自己攒、自己拼**（`server/user/player-sync.lua`，与 card-sync 同形）：`Game.PlayerSync` 懒建在 `game.playerSync`（本文件注入的 `package` getter，**建账即订事件**）；收到事件后**在账本里自己打脏标记**（`dirty[player][kind]`），第一次标脏 `moe.await.wake` 登记一次下发 ⇒ **一笔调度里改多少字段都只发一次**，发完就清。组装也在这一层：`base` 人人一份合成**一条** `Player.Update`（`Proto.Player.Base` = `id` / `userName` / `seat`）；`custom` **按各自视角**用 `custom:allVisibles(viewer)` 裁、**一个玩家一条** `Player.UpdateCustom`（载荷 `Proto.Player.Custom` = `{ id, custom }`），**看得见的键一个都没有就跳过**；**没有 `user` 的玩家不下发**。
+- **出口是 `user:notify`**：拼好直接发 —— `User` / `ClientUser` 上不再有 `playerUpdate` / `playerUpdateCustom` 这类转发方法（拼装本来就该在这一层）。**接入入口统一是 `User:attach()`**（用户 2026-10-10 定）：基类里一行，调 `moe.cardSync.attach(self)` 与 `moe.playerSync.attach(self)` 把这一局的两本下行账都带起来（重复调无害），由会话层在客户端接入时调一次。
 - **连接集合**（`server/transport/clients.lua`，`moe.clients`）：`add(client)`（**返回撤销函数**）/ `remove` / `broadcast(method, build)`（`build(client)` 各造一份，返回 `nil` 即跳过）。**内核不碰它** —— 谁持有集合、谁往里放连接由外壳决定。
 - **一类数据一条协议**（用户 2026-10-10 定）：`Update` 只带基础信息、`UpdateCustom` 只带 custom；将来 `Zone` / `Skill` / `Buff` 各自一条，**不做「一个大快照」**。
 - **增量由客户端比对**（用户 2026-10-10 定）：本批**不做差分**，每次发的是该类数据的**全量**（custom 会按视角裁键，但发出去的都是当前值）。

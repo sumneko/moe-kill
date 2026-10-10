@@ -7,6 +7,13 @@
 ---@class CardSync.API
 moe.cardSync = {}
 
+--- 客户端接入了：把这一局的卡牌账带起来（重复调无害）
+---@param user User
+---@return CardSync.View?
+function moe.cardSync.attach(user)
+    return user.cardView
+end
+
 ---@class Game: Class.Base
 ---@field package cardSync Game.CardSync # 这一局的卡牌下行账本
 local Game = Class 'Game'
