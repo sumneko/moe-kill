@@ -54,13 +54,10 @@ lt.test('询问：要角色时问客户端，回包的 id 转回 Player', functi
     local me  = assert(players[1])
     local you = assert(players[2])
 
+    ---@type Proto.Request.Ask.Player?
+    local sent = nil
     local undo = reply(function (params)
-        lt.assertEquals('缘由原样带过去', '突袭', params.reason)
-        lt.assertEquals('候选就一个', 1, #params.players)
-        lt.assertEquals('候选是他', you.id, params.players[1])
-        lt.assertEquals('个数区间带上了', 1, params.min)
-        lt.assertEquals('区间上限同默认', 1, params.max)
-        lt.assertEquals('可取消请求要有号', true, params.cancelid ~= nil)
+        sent = params
         return { players = { you.id } }
     end)
 
@@ -72,6 +69,13 @@ lt.test('询问：要角色时问客户端，回包的 id 转回 Player', functi
     }
     ask:apply():await()
 
+    local params = assert(sent, '没问过客户端')
+    lt.assertEquals('缘由原样带过去', '突袭', params.reason)
+    lt.assertEquals('候选就一个', 1, #params.players)
+    lt.assertEquals('候选是他', you.id, params.players[1])
+    lt.assertEquals('个数区间带上了', 1, params.min)
+    lt.assertEquals('区间上限同默认', 1, params.max)
+    lt.assertEquals('可取消的请求带着号', true, params.cancelToken ~= nil)
     lt.assertEquals('这次成了', true, ask.success)
     lt.assertEquals('答复是他', you, ask.player)
     undo()
@@ -103,7 +107,7 @@ lt.test('询问：不限候选时把存活角色都列出来', function ()
 end)
 
 ---@async
-lt.test('询问：回包里的 id 不认就得报错（原因只进日志）', function ()
+lt.test('询问：回包里的 id 不认 ⇒ 这次不算成立', function ()
     local game, players = newGame()
     local me = assert(players[1])
 
@@ -122,4 +126,65 @@ lt.test('询问：回包里的 id 不认就得报错（原因只进日志）', f
     lt.assertEquals('这次没成', false, ask.success)
     lt.assertEquals('原因里说清楚了', true, tostring(ask.err):match('不在这一局里') ~= nil)
     undo()
+end)
+
+---@async
+lt.test('询问：客户端那边出错 ⇒ 就是答不出来（业务层不问原因）', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+
+    lt.expectErrors(1)
+    local undo = moe.client.register('Ask.Player', function ()
+        error('客户端自己炸了')
+    end)
+
+    local ask = moe.askPlayer.create {
+        game      = game,
+        to        = me,
+        reason    = '测试',
+        condition = { player = players[2] },
+    }
+    ask:apply():await()
+
+    lt.assertEquals('这次不算成立', false, ask.success)
+    lt.assertEquals('没拿到答复', nil, ask.player)
+    undo()
+end)
+
+---@async
+lt.test('请求：宿主被收掉 ⇒ 叫停客户端，等待按「请求被取消」收', function ()
+    local game, players = newGame()
+    local user = assert(assert(players[1]).user)
+    ---@cast user ClientUser
+
+    ---@type integer?
+    local token = nil
+    ---@type Proto.Notify.Cancel?
+    local stopped = nil
+    local answerUndo = moe.client.register('Ask.Player', function (_, params)
+        ---@cast params Proto.Request.Ask.Player
+        token = params.cancelToken
+        moe.await.sleep(10)
+    end)
+    local stopUndo = moe.client.register('Cancel', function (_, params)
+        ---@cast params Proto.Notify.Cancel
+        stopped = params
+    end)
+
+    local host    = moe.gc.host()
+    local request = user:request('Ask.Player', {}, host)
+    moe.await.sleep(0)
+    lt.assertEquals('请求带上了取消号', true, token ~= nil)
+
+    Delete(host)
+
+    lt.assertEquals('叫停的正是那一次请求', token, assert(stopped, '该叫停客户端').cancelToken)
+    local result, err = request:await()
+    lt.assertEquals('没结果', nil, result)
+    local canceled = assert(err, '该以失败收尾')
+    lt.assertEquals('按「请求被取消」收', -1, canceled.code)
+    lt.assertEquals('原因照协议写', 'request canceled', canceled.message)
+
+    answerUndo()
+    stopUndo()
 end)

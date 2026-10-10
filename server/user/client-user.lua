@@ -16,11 +16,35 @@ M.__getter.cardView = function (self)
     return New 'CardSync.View' (self), true
 end
 
+--- 发一条通知
+---@param method string
+---@param params table
 function M:notify(method, params)
     self.client:notify(method, params)
 end
 
---- 要若干名角色：问客户端（候选摆进参数，再把回包的 id 转回 `Player`）
+--- 发一个请求：给了 `host` 就带上取消号（这次请求的寿命跟着它走；不给就是不能取消）
+---@param method string
+---@param params table
+---@param host? GCHost # 这次请求挂在谁身上（它被收掉时叫停这次请求）
+---@return Task
+function M:request(method, params, host)
+    if not host then
+        return self.client:request(method, params)
+    end
+    params.cancelToken = params.cancelToken or self.game:nextId()
+    local request = self.client:request(method, params)
+    host:bindGC(function ()
+        if request.resolved then
+            return
+        end
+        self:cancel(params.cancelToken)
+        request:reject { code = -1, message = 'request canceled' }
+    end)
+    return request
+end
+
+--- 要若干名角色：问客户端（候选摆进参数，再把回包的 id 转回 `Player`；答不出来就是空）
 ---@async
 ---@param ask AskPlayer
 ---@return Player[]?
@@ -31,15 +55,15 @@ function M:askPlayer(ask)
     for _, player in ipairs(ask.options) do
         ids[#ids + 1] = player.id
     end
+
     ---@type Proto.Request.Ask.Player
-    local request = {
-        cancelid = game:nextId(),
-        reason   = ask.reason,
-        players  = ids,
-        min      = ask.condition.min,
-        max      = ask.condition.max,
+    local params = {
+        reason  = ask.reason,
+        players = ids,
+        min     = ask.condition.min,
+        max     = ask.condition.max,
     }
-    local result = self.client:awaitRequest('Ask.Player', request)
+    local result = self:request('Ask.Player', params, ask):await()
     if not result then
         return nil
     end
@@ -49,6 +73,12 @@ function M:askPlayer(ask)
         answer[#answer + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
     end
     return answer
+end
+
+--- 叫停一次请求（客户端收到后不再回话，只按「请求被取消」回个包）
+---@param cancelToken integer
+function M:cancel(cancelToken)
+    self.client:notify('Cancel', { cancelToken = cancelToken })
 end
 
 ---@param moves Zone.Move[]

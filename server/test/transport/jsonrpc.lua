@@ -9,10 +9,11 @@ lt.test('JSON-RPC：编一次调用再解回来', function ()
 end)
 
 lt.test('JSON-RPC：不给 id 就是通知', function ()
-    local message = assert(moe.jsonrpc.decode(moe.jsonrpc.encodeCall(nil, '测试/通知')))
+    local message = assert(moe.jsonrpc.decode(moe.jsonrpc.encodeCall(nil, '测试/通知', {})))
 
     lt.assertEquals('没有 id', nil, message.id)
     lt.assertEquals('方法名在', '测试/通知', message.method)
+    lt.assertEquals('参数是空表', true, next(message.params) == nil)
 end)
 
 lt.test('JSON-RPC：成功响应（结果为空也编成 null）', function ()

@@ -30,18 +30,16 @@ end
 --- 编一次调用（不给 `id` 就是通知）
 ---@param id? integer|string
 ---@param method string
----@param params? any
+---@param params table
 ---@return string
 function API.encodeCall(id, method, params)
     local message = {
         jsonrpc = '2.0',
         method  = method,
+        params  = params,
     }
     if id ~= nil then
         message.id = id
-    end
-    if params ~= nil then
-        message.params = params
     end
     return moe.json.encode(message)
 end

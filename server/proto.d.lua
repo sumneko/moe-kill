@@ -17,14 +17,30 @@
 ---@class JSONRPC.Error
 ---@field jsonrpc '2.0'
 ---@field id integer
----@field error { code: integer, message: string, data?: table }
+---@field error Proto.Error
+
+---@class Proto.Error
+---@field code integer
+---@field message string
+---@field data? table
+
+--- 请求方取消了请求
+---@class Proto.Error.REQUEST_CANCELED
+---@field code -1
+---@field message 'request canceled'
+
+--- 客户端自己不想答（它直接回这个错误）
+---@class Proto.Error.CANCELED
+---@field code -2
+---@field message 'canceled'
 
 --- 可取消请求的基类
 ---@class Proto.Cancelable
----@field cancelid integer
+---@field cancelToken? integer
 
+--- 取消一个请求。取消后那个请求应当返回： error: Proto.Error.REQUEST_CANCELED
 ---@class Proto.Notify.Cancel
----@field cancelid integer
+---@field cancelToken integer
 
 ---@class Proto.Player.Base
 ---@field id integer # 唯一ID

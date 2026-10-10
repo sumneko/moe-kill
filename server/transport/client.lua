@@ -1,5 +1,5 @@
 --- 收到某条连接上的调用时跑哪个处理器：**全局一张表**（与具体连接无关 —— 重连不用重注册）
----@alias Client.Handler async fun(client: Client, params: any): any
+---@alias Client.Handler async fun(client: Client, params: table): any
 
 ---@type integer # 长度头占几个字节
 local HEADER_SIZE = 4
@@ -99,7 +99,7 @@ function M:close(reason)
     local text = reason or '连接已关闭'
     for id, task in pairs(self.pendings) do
         self.pendings[id] = nil
-        task:reject(text)
+        task:reject { code = moe.jsonrpc.INTERNAL_ERROR, message = text }
         Delete(task)
     end
     -- 连接那头没断的话（比如被直接关掉），把它也叫醒
@@ -111,7 +111,7 @@ end
 
 --- 发一个通知
 ---@param method string
----@param params? any
+---@param params table
 ---@return boolean
 ---@return string?
 function M:notify(method, params)
@@ -123,8 +123,8 @@ end
 
 --- 发一个请求（返回它这次的任务；给了 `callback` 就同时挂上，参数同 `Task:await` 的两个返回值）
 ---@param method string
----@param params? any
----@param callback? fun(result: any, err: any)
+---@param params table
+---@param callback? fun(result?: table, err?: Proto.Error)
 ---@return Task
 function M:request(method, params, callback)
     self.nextId = self.nextId + 1
@@ -142,7 +142,10 @@ function M:request(method, params, callback)
     local ok, err = self:send(moe.jsonrpc.encodeCall(id, method, params))
     if not ok then
         self.pendings[id] = nil
-        task:reject(err or '发送失败')
+        task:reject {
+            code = moe.jsonrpc.INTERNAL_ERROR,
+            message = err or '发送失败'
+        }
         Delete(task)
     end
     return task
@@ -151,9 +154,9 @@ end
 --- 发一个请求并等它回来（拿不到就给空 + 原因，不抛）
 ---@async
 ---@param method string
----@param params? any
----@return any # 结果
----@return any # 失败的原因（没有就是空）
+---@param params table
+---@return table? # 结果
+---@return Proto.Error? # 失败的原因（没有就是空）
 function M:awaitRequest(method, params)
     return self:request(method, params):await()
 end
@@ -183,7 +186,7 @@ function M:dispatchCall(message)
         return
     end
     local client  = self
-    local params  = message.params
+    local params  = message.params or {}
     ---@async
     moe.await.call(function ()
         local ok, result = xpcall(handler, log.error, client, params)
@@ -206,7 +209,7 @@ function M:dispatchNotification(message)
         return
     end
     local client = self
-    local params = message.params
+    local params = message.params or {}
     ---@async
     moe.await.call(function ()
         xpcall(handler, log.error, client, params)

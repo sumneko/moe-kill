@@ -48,6 +48,7 @@ lt.test('房间：客户端坐进来就拿到自己的快照', function ()
 
     local result, err = front:awaitRequest('Game.Join', { name = '甲' })
     lt.assertEquals('没出错', nil, err)
+    assert(result, '没拿到快照')
     lt.assertEquals('只带自己一个玩家', 1, #result.players)
     lt.assertEquals('名字带上了', '甲', result.players[1].base.userName)
     lt.assertEquals('坐上 1 号位', 1, result.players[1].base.seat)
@@ -74,13 +75,14 @@ lt.test('房间：坐满就开局', function ()
     local first = assert(fronts[1]):awaitRequest('Game.Join', { name = '甲' })
     lt.assertEquals('第一个进来还没开局', nil, game.turnPlayer)
     for i = 2, 4 do
-        assert(fronts[i]):awaitRequest('Game.Join')
+        assert(fronts[i]):awaitRequest('Game.Join', {})
     end
     moe.await.sleep(0)
 
     lt.assertEquals('四个座位都有人', 4, #game.desk.players)
     lt.assertEquals('身份都定了', true, game.desk.players[1].identity ~= nil)
     lt.assertEquals('轮次挂上了', true, game.turnPlayer ~= nil)
+    assert(first, '没拿到快照')
     lt.assertEquals('第一个进来那份只有自己', 1, #first.players)
     close(game, clients)
     drain()
