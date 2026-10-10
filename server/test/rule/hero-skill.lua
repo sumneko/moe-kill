@@ -613,7 +613,7 @@ lt.test('武圣：响应【南蛮入侵】时用红牌当【杀】顶上', funct
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '杀' then
+        if ask.kind == 'askCard' and ask.reason == '武圣' then
             return { card = red }
         end
     end)
@@ -697,7 +697,7 @@ lt.test('龙胆：把一张【杀】当【闪】打出，响应掉那张【杀�
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '闪' then
+        if ask.kind == 'askCard' and ask.reason == '龙胆' then
             return { card = mine }
         end
     end)
@@ -755,7 +755,7 @@ lt.test('龙胆：响应【南蛮入侵】时用一张【闪】当【杀】打�
     local jink  = takeCard(run, zhaoyun, '闪')
 
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '杀' then
+        if ask.kind == 'askCard' and ask.reason == '龙胆' then
             return { card = jink }
         end
     end)
@@ -1330,7 +1330,7 @@ lt.test('倾国：把一张黑色手牌当【闪】打出，响应掉那张【�
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '闪' then
+        if ask.kind == 'askCard' and ask.reason == '倾国' then
             return { card = black }
         end
     end)

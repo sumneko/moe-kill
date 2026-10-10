@@ -1812,7 +1812,7 @@ lt.test('丈八蛇矛：两张手牌当【杀】打出，两张手牌一起进�
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '杀' then
+        if ask.kind == 'askCard' and ask.reason == '丈八蛇矛' then
             return { card = { first, second } }
         end
     end)
@@ -1841,7 +1841,7 @@ lt.test('丈八蛇矛：手牌不够两张就不发动（连问都不问）', fu
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '杀' then
+        if ask.kind == 'askCard' and ask.reason == '丈八蛇矛' then
             asked = asked + 1
         end
     end)
@@ -1867,7 +1867,7 @@ lt.test('丈八蛇矛：拆下后就不发动', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '杀' then
+        if ask.kind == 'askCard' and ask.reason == '丈八蛇矛' then
             asked = asked + 1
         end
     end)

@@ -81,7 +81,7 @@ function M:produce(materials)
     if not condition then
         return self.game:createVirtualCard(self.name)
     end
-    local ask = self.game:askCard(self.owner, self.name, condition)
+    local ask = self.game:askCard(self.owner, self.source?.name or self.name, condition)
     if #ask.cards == 0 then
         return nil
     end
