@@ -6,8 +6,8 @@
 ---@class AskUseCard.Option : AskCard.Option
 ---@field plan Game.UsableTargets # 「不指定目标」的牌是 legal 空表、0、0
 
---- 要什么样的牌：`AskCard.Condition` 那些条件 + 一条 target
----@class AskUseCard.Condition : AskCard.Condition
+--- 要什么样的牌：`AskCard.OneCardCondition` 那些条件 + 一条 target
+---@class AskUseCard.Condition : AskCard.OneCardCondition
 ---@field target? Player|Player[] # 可用目标要与它至少有一个重合
 
 --- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`target` 归一成 `targets` 列表）
@@ -18,12 +18,12 @@
 ---@field game Game
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@field condition? AskUseCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@field condition? AskUseCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
 ---@field useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 
 --- 要一次「使用」：候选逐张跑 canUse（用不了的牌不进选项），答复必须带目标
 ---@class AskUseCard : AskCard
----@field condition? AskUseCard.NormalizedCondition # 要什么样的牌（比基类多一条 targets）
+---@field condition AskUseCard.NormalizedCondition # 要什么样的牌（比基类多一条 targets）
 ---@field useOptions? Game.UseOptions # 这次使用的选项（照原样带去那次使用）
 ---@field options? AskUseCard.Option[] # 合法选项（覆写基类：带可用目标与数量区间）
 ---@field targets? Player[] # 答复指定的目标（= `.result.targets`；无目标牌是「不存在」）
@@ -38,13 +38,15 @@ function M:askUser(user)
     return user:askUseCard(self)
 end
 
----@param condition AskUseCard.Condition? # 要什么样的牌（父类已归一遍基类字段，这里补归 `target`）
+---@param condition AskUseCard.Condition? # 要什么样的牌（父类已归一遍基类字段，这里补归 `target`、把张数钉成一张）
 ---@param useOptions Game.UseOptions? # 这次使用的选项（照原样带去那次使用）
 function M:__init(_, _, _, condition, useOptions)
     self.kind       = 'askUseCard'
     self.useOptions = useOptions
+    local normalized = self.condition
+    normalized.min = 1
+    normalized.max = 1
     if condition and condition.target then
-        local normalized = assert(self.condition)
         normalized.targets = moe.util.toList(condition.target)
         rawset(normalized, 'target', nil)
     end
@@ -54,7 +56,7 @@ end
 ---@param card Card
 ---@return AskUseCard.Option?
 function M:makeOption(card)
-    local ok, _, plan = self.game:canUse(self.to, card, self.condition?.targets, self.useOptions)
+    local ok, _, plan = self.game:canUse(self.to, card, self.condition.targets, self.useOptions)
     if not ok then
         return nil
     end
@@ -65,7 +67,7 @@ end
 --- 追加「视为」声明的选项：素材收得到、且这次用得出去才出现（牌名对不上这次要的牌就不试）
 ---@param options AskCard.Option[]
 function M:collectExtraOptions(options)
-    local names = self.condition?.names
+    local names = self.condition.names
     for _, viewAs in ipairs(self.to:getViewAsList()) do
         if not names or moe.util.arrayHas(names, viewAs.name) then
             local plan = self:viewAsPlan(viewAs)
@@ -84,7 +86,7 @@ function M:viewAsPlan(viewAs)
         return nil
     end
     local probe = self.game:createVirtualCard(viewAs.name)
-    local ok, _, plan = self.game:canUse(self.to, probe, self.condition?.targets, self.useOptions)
+    local ok, _, plan = self.game:canUse(self.to, probe, self.condition.targets, self.useOptions)
     Delete(probe)
     if not ok then
         return nil

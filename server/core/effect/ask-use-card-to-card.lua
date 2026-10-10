@@ -1,5 +1,5 @@
---- 要什么样的牌：`AskCard.Condition` 那些条件 + 一条 `target`（要对哪张牌使用）
----@class AskUseCardToCard.Condition : AskCard.Condition
+--- 要什么样的牌：`AskCard.OneCardCondition` 那些条件 + 一条 `target`（要对哪张牌使用）
+---@class AskUseCardToCard.Condition : AskCard.OneCardCondition
 ---@field target Card # 要使用在哪张牌上（由发起方给定）
 
 --- 归一化之后的形状（基类那几条见 `AskCard.NormalizedCondition`；`target` 是一张牌，原样保留）
@@ -33,6 +33,9 @@ end
 
 function M:__init()
     self.kind = 'askUseCardToCard'
+    local normalized = self.condition
+    normalized.min = 1
+    normalized.max = 1
 end
 
 --- 能把这张牌用在目标牌上才进选项

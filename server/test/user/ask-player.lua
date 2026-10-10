@@ -39,11 +39,11 @@ local function newGame()
 end
 
 --- 替「他」答应答（注册一次，返回撤销函数；收尾写 `local _ <close> = reply(...)` 就行）
----@param answer fun(params: Proto.Request.Ask.Player): Proto.Result.Ask.Player?
+---@param answer fun(params: Proto.Request.Ask.Select): Proto.Result.Ask.Select?
 ---@return fun()
 local function reply(answer)
-    return moe.client.register('Ask.Player', function (_, params)
-        ---@cast params Proto.Request.Ask.Player
+    return moe.client.register('Ask.Select', function (_, params)
+        ---@cast params Proto.Request.Ask.Select
         return answer(params)
     end)
 end
@@ -54,11 +54,11 @@ lt.test('询问：要角色时问客户端，回包的 id 转回 Player', functi
     local me  = assert(players[1])
     local you = assert(players[2])
 
-    ---@type Proto.Request.Ask.Player?
+    ---@type Proto.Request.Ask.Select?
     local sent = nil
     local _ <close> = reply(function (params)
         sent = params
-        return { players = { you.id } }
+        return { player = { you.id } }
     end)
 
     local ask = moe.askPlayer.create {
@@ -71,10 +71,11 @@ lt.test('询问：要角色时问客户端，回包的 id 转回 Player', functi
 
     local params = assert(sent, '没问过客户端')
     lt.assertEquals('缘由原样带过去', '突袭', params.reason)
-    lt.assertEquals('候选就一个', 1, #params.players)
-    lt.assertEquals('候选是他', you.id, params.players[1])
-    lt.assertEquals('个数区间带上了', 1, params.min)
-    lt.assertEquals('区间上限同默认', 1, params.max)
+    local condition = assert(params.player, '该带上角色条件')
+    lt.assertEquals('候选就一个', 1, #condition.ids)
+    lt.assertEquals('候选是他', you.id, condition.ids[1])
+    lt.assertEquals('个数区间带上了', 1, condition.min)
+    lt.assertEquals('区间上限同默认', 1, condition.max)
     lt.assertEquals('可取消的请求带着号', true, params.cancelToken ~= nil)
     lt.assertEquals('这次成了', true, ask.success)
     lt.assertEquals('答复是他', you, ask.player)
@@ -87,8 +88,8 @@ lt.test('询问：不限候选时把存活角色都列出来', function ()
 
     local seen = 0
     local _ <close> = reply(function (params)
-        seen = #params.players
-        return { players = {} }
+        seen = #assert(params.player).ids
+        return { player = {} }
     end)
 
     local ask = moe.askPlayer.create {
@@ -110,7 +111,7 @@ lt.test('询问：回包里的 id 不认 ⇒ 这次不算成立', function ()
     local me = assert(players[1])
 
     local _ <close> = reply(function ()
-        return { players = { 9999 } }
+        return { player = { 9999 } }
     end)
 
     local ask = moe.askPlayer.create {
@@ -131,7 +132,7 @@ lt.test('询问：客户端那边出错 ⇒ 就是答不出来（业务层不问
     local me = assert(players[1])
 
     lt.expectErrors(1)
-    local _ <close> = moe.client.register('Ask.Player', function ()
+    local _ <close> = moe.client.register('Ask.Select', function ()
         error('客户端自己炸了')
     end)
 
@@ -157,8 +158,8 @@ lt.test('请求：宿主被收掉 ⇒ 叫停客户端，等待按「请求被取
     local token = nil
     ---@type Proto.Notify.Cancel?
     local stopped = nil
-    local _ <close> = moe.client.register('Ask.Player', function (_, params)
-        ---@cast params Proto.Request.Ask.Player
+    local _ <close> = moe.client.register('Ask.Select', function (_, params)
+        ---@cast params Proto.Request.Ask.Select
         token = params.cancelToken
         moe.await.sleep(10)
     end)
@@ -168,7 +169,7 @@ lt.test('请求：宿主被收掉 ⇒ 叫停客户端，等待按「请求被取
     end)
 
     local host    = moe.gc.host()
-    local request = user:request('Ask.Player', {}, host)
+    local request = user:request('Ask.Select', {}, host)
     moe.await.sleep(0)
     lt.assertEquals('请求带上了取消号', true, token ~= nil)
 
@@ -191,15 +192,15 @@ lt.test('请求：取消之后回包才到 ⇒ 结果不会被改回来', functi
 
     ---@type fun()?
     local resumeAnswer = nil
-    local _ <close> = moe.client.register('Ask.Player', function ()
+    local _ <close> = moe.client.register('Ask.Select', function ()
         moe.await.yield(function (resume)
             resumeAnswer = resume
         end)
-        return { players = {} }
+        return { player = {} }
     end)
 
     local host    = moe.gc.host()
-    local request = user:request('Ask.Player', {}, host)
+    local request = user:request('Ask.Select', {}, host)
     moe.await.sleep(0)
 
     Delete(host)
@@ -226,14 +227,14 @@ lt.test('请求：已经拿到结果就不叫停（收掉宿主也不发 Cancel�
         ---@cast params Proto.Notify.Cancel
         stopped = params
     end)
-    local _ <close> = moe.client.register('Ask.Player', function ()
-        return { players = {} }
+    local _ <close> = moe.client.register('Ask.Select', function ()
+        return { player = {} }
     end)
 
     local host    = moe.gc.host()
-    local request = user:request('Ask.Player', {}, host)
+    local request = user:request('Ask.Select', {}, host)
     local result, err = request:await()
-    lt.assertEquals('拿到了结果', 0, #assert(result).players)
+    lt.assertEquals('拿到了结果', 0, #(assert(result).player or {}))
     lt.assertEquals('没失败', nil, err)
 
     Delete(host)
@@ -247,15 +248,15 @@ lt.test('请求：不给宿主就不是可取消的请求（不带号）', funct
     local user = assert(assert(players[1]).user)
     ---@cast user ClientUser
 
-    ---@type Proto.Request.Ask.Player?
+    ---@type Proto.Request.Ask.Select?
     local sent = nil
-    local _ <close> = moe.client.register('Ask.Player', function (_, params)
-        ---@cast params Proto.Request.Ask.Player
+    local _ <close> = moe.client.register('Ask.Select', function (_, params)
+        ---@cast params Proto.Request.Ask.Select
         sent = params
-        return { players = {} }
+        return { player = {} }
     end)
 
-    local result = user:request('Ask.Player', {}, nil):await()
-    lt.assertEquals('拿到了结果', 0, #assert(result).players)
+    local result = user:request('Ask.Select', {}, nil):await()
+    lt.assertEquals('拿到了结果', 0, #(assert(result).player or {}))
     lt.assertEquals('没有取消号', nil, assert(sent, '没问到客户端').cancelToken)
 end)

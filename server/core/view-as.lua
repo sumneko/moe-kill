@@ -58,14 +58,15 @@ function M:getHandlers(event)
     return moe.util.copy(list)
 end
 
---- 素材收得到吗（同步判：收不够就跳过这份声明，连表态都不问）
+--- 素材收得到吗（同步判：收不够就跳过这份声明，连表态都不问；没声明素材条件 = 不用素材）
 ---@return boolean
 function M:canGatherMaterials()
-    local condition = moe.askCard.normalizeCondition(self.game, self.owner, self.options?.condition)
+    local condition = self.options?.condition
     if not condition then
         return true
     end
-    return #moe.askCard.collectCandidates(self.owner, condition) >= condition.min
+    local normalized = moe.askCard.normalizeCondition(self.game, self.owner, condition)
+    return #moe.askCard.collectCandidates(self.owner, normalized) >= normalized.min
 end
 
 --- 照声明造一张虚拟牌（`materials` 是这次发动自带的素材 —— 给了就不再去收）

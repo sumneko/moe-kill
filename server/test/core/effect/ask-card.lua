@@ -101,7 +101,8 @@ lt.test('询问：条件构造时归一化（列表 + 默认张数）', function
     lt.assertEquals('旧的单数名不再留着', nil, rawget(condition, 'name'))
 
     local loose = game:askCard(players[2], nil)
-    lt.assertEquals('没给条件就是不限制（也不归一）', nil, loose.condition)
+    lt.assertEquals('没给条件也归一（不筛）', '1,1', loose.condition.min .. ',' .. loose.condition.max)
+    lt.assertEquals('于是没有筛选项', nil, loose.condition.names)
 end)
 
 lt.test('询问：条件里的区名构造时解析成区对象（解析不到的丢掉）', function ()
@@ -513,15 +514,30 @@ lt.test('询问：条件按牌名筛，手牌里没有就不算选项', function
 end)
 
 
-lt.test('询问：不给条件就不做限制', function ()
+lt.test('询问：不给条件 = 不筛（候选就是他牌区里的牌）', function ()
     local game, players = newGame(2)
-    local anything = game:createCard('随便')
-    answerWith(game, { anything })
+    local mine = game:createCard('随便')
+    putInHand(players[2], { mine })
+    answerWith(game, { mine })
 
     local ask = game:askCard(players[2], nil, nil)
 
-    lt.assertEquals('照样收下答复', anything, ask.card)
+    lt.assertEquals('候选就是他手上那张', 1, #assert(ask.options))
+    lt.assertEquals('照样收下答复', mine, ask.card)
     lt.assertEquals('不算失败', nil, ask.err)
+end)
+
+lt.test('询问：不给条件时，别人手上的牌不算候选', function ()
+    local game, players = newGame(2)
+    local other = game:createCard('随便')
+    putInHand(players[1], { other })
+    answerWith(game, { other })
+
+    local ask = game:askCard(players[2], nil, nil)
+
+    lt.assertEquals('候选是空的', 0, #assert(ask.options))
+    lt.assertEquals('答复被拒', nil, ask.card)
+    lt.assertEquals('原因是「不在可选项里」', '答复不在可选项里', ask.err)
 end)
 
 lt.test('询问：条件按区筛（名字在被问者身上解析）', function ()

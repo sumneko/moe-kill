@@ -141,6 +141,17 @@ function V:nextId()
     return self.idCounter
 end
 
+--- 协议号转回真牌（这份账里的号；认不到就是空）
+---@param id integer
+---@return Card?
+function V:cardOf(id)
+    for card, pcard in pairs(self.cardMap) do
+        if pcard.id == id then
+            return card
+        end
+    end
+end
+
 ---@param card Card
 ---@return boolean
 function V:isCardVisible(card)

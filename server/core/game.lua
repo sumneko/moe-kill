@@ -973,7 +973,7 @@ end
 --- 要一张牌
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
 ---@return AskCard # 这次询问（已经结完：答复读 `.card`（第一张）/ `.cards`（全部）/ `.targets`，失败读 `.err`）
 ---@async
 function M:askCard(to, reason, condition)
@@ -990,7 +990,7 @@ end
 --- 要一张牌（要一次给出：一批牌 + 接收它们的角色）
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param conditions? AskCardWithTarget.Conditions # 两半条件（牌那半 `card`、目标那半 `target`；省略 = 都不做限制）
+---@param conditions? AskCardWithTarget.Conditions # 两半条件（牌那半 `card`、目标那半 `target`；省略 = 都不筛）
 ---@return AskCardWithTarget # 这次询问（已经结完：答复读 `.cards`（全部）/ `.target`（第一个目标）、`.targets`（全部目标），失败读 `.err`）
 ---@async
 function M:askCardWithTarget(to, reason, conditions)
@@ -1007,7 +1007,7 @@ end
 --- 起一次「要一张牌并使用」的询问：**只到 apply** —— 不等它、也不替你用出去
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不做限制）
+---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不筛：他所有牌区的牌）
 ---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 ---@return AskUseCard # 这次询问（还没结完：等它用 `:await()`，用出去用 `:use()`）
 function M:startAskUseCard(to, reason, condition, useOptions)
@@ -1026,7 +1026,7 @@ end
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不做限制）
+---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不筛：他所有牌区的牌）
 ---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 ---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，那次使用读 `.useCard`，失败读 `.err`）
 function M:askUseCard(to, reason, condition, useOptions)
@@ -1085,7 +1085,7 @@ end
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制）
+---@param condition? AskPlayCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
 ---@param responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（如「这次响应冲哪次使用」）
 ---@return AskPlayCard # 这次询问（已经结完：答复读 `.card`，**响应成立吗读 `.success`**，失败读 `.err`）
 function M:askPlayCard(to, reason, condition, responseOptions)

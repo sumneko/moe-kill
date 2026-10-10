@@ -7,12 +7,12 @@
 ---@field game Game
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@field conditions? AskCardWithTarget.Conditions # 两半条件（省略 = 都不做限制）
+---@field conditions? AskCardWithTarget.Conditions # 两半条件（省略 = 都不筛：牌 = 他所有牌区的牌、目标 = 存活角色）
 
 --- 要一次「给出」：答复必须带目标（这批牌给出给哪些目标），个数落在目标那半的 `min` / `max` 之间
 --- 「怎么给出去」不归它管 —— 那是发起方（技能 / 装备）自己的事：拿到 `.cards` 与 `.targets` 之后自己处置
 ---@class AskCardWithTarget : AskCard
----@field condition? AskCard.NormalizedCondition # 牌那半（形状与 `AskCard` 一模一样，父类照常读它）
+---@field condition AskCard.NormalizedCondition # 牌那半（形状与 `AskCard` 一模一样，父类照常读它）
 ---@field targetCondition AskPlayer.NormalizedCondition # 目标那半（构造时归一化，候选恒给出；条件里写的是 `target`）
 ---@field targets Player[] # 答复指定的目标（没答就是空表）
 ---@field target? Player # 答复指定的第一个目标（没答就是空）

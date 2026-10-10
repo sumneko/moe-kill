@@ -149,6 +149,7 @@ lt.test('询问：要一张牌那一路也优先问 User（子类覆写的钩子
     local game, players = newGame(1)
     local player = assert(players[1])
     local card = game:createCard('杀')
+    player:getZone('手牌'):accept(card)
     player:setUser(userWith { card = card })
 
     local asked = 0

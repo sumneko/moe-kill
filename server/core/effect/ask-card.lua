@@ -17,7 +17,7 @@
 ---@field targets? Player[] # 这张牌的可用目标（「要一次使用」才有；有它就代表答复必须给目标、且要落在这里）
 
 --- 要什么样的牌：每个字段都是一条筛选条件（数组 = 满足其一；单值 = 当成只有一个的数组；不填 = 无要求）
---- `min` / `max` 是「要给出几张」（`min` 不填 = 1、`max` 不填 = `min`）；「要一次使用」「要一张打出」恒为一张，别带这两个
+--- `min` / `max` 是「要给出几张」（`min` 不填 = 1、`max` 不填 = `min`）；使用 / 打出族恒一张，它们的条件用 `AskCard.OneCardCondition`
 --- 传单值就行 —— 构造询问时归一化一次（见 `AskCard.NormalizedCondition`）
 ---@class AskCard.Condition
 ---@field name? string|string[] # 牌名
@@ -29,6 +29,16 @@
 ---@field min? integer # 至少要给几张（省略 = 1）
 ---@field max? integer # 至多给几张（省略 = min）
 ---@field cancelable? boolean # 允不允许主动取消（省略 = 允许：玩家可以不选 —— 没答复就是空答复；写 `false` 就是不给取消入口，没答复算拒收）
+
+--- 恒一张的牌条件（使用 / 打出族用）：与 `AskCard.Condition` 同形，只是没有 `min` / `max`
+---@class AskCard.OneCardCondition
+---@field name? string|string[]
+---@field suit? string|string[]
+---@field point? integer|integer[]
+---@field color? string|string[]
+---@field zone? string|Zone|(string|Zone)[] # 牌在哪个区里（名字按「被问者 → 局上」解析；别人的区要传区对象）
+---@field card? Card|Card[] # 牌必须在这批里（可以不属于任何牌区）
+---@field cancelable? boolean # 允不允许主动取消（省略 = 允许：玩家可以不选 —— 没答复就是空答复）
 
 --- 询问身上存的是归一化之后的形状：字段名带复数 —— `names` / `cards` 是列表、`zones` 还解析成了区对象，另有 `min` / `max` 一定给出（订阅者与 `collectOptions` 直接读）
 ---@class AskCard.NormalizedCondition
@@ -50,15 +60,15 @@
 ---@field game Game
 ---@field to Player # 被问者
 ---@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@field condition? AskCard.Condition # 要什么样的牌（省略 = 不做限制；构造时归一化）
+---@field condition? AskCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌；构造时归一化）
 ---@field responseOptions? AskCard.ResponseOptions # 这次询问的额外交代
 
 ---@class AskCard : Effect
 ---@field to Player # 被问者
 ---@field reason string # 这次为什么问
----@field condition? AskCard.NormalizedCondition # 要什么样的牌（构造时归一化）
+---@field condition AskCard.NormalizedCondition # 要什么样的牌（构造时归一化，恒给出）
 ---@field responseOptions? AskCard.ResponseOptions # 这次询问的额外交代
----@field options? AskCard.Option[] # 按条件算出的合法选项（询问交给应答方之前就摆好；没给条件时为空 = 不做限制）
+---@field options AskCard.Option[] # 合法选项（询问交给应答方之前就摆好；恒给出）
 ---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
 ---@field cards Card[] # 答复给出的牌（没答就是空表）
 ---@field cancelable boolean # 这次允许主动取消吗（= 条件的 `cancelable`，省略就是允许）
@@ -78,15 +88,13 @@ local function resolveZone(game, to, item)
     return to:getZone(item) or game:getZone(item)
 end
 
---- 把条件归一化一次：`name` → `names` / `card` → `cards` 成列表、`zone` → `zones` 解析成区对象（按「被问者 → 局上」，解析不到的丢掉）、`min` / `max` 补默认；子类自己加的字段原样保留（要归一就由子类自己补）
+--- 把条件归一化一次：`name` → `names` / `card` → `cards` 成列表、`zone` → `zones` 解析成区对象（按「被问者 → 局上」，解析不到的丢掉）、`min` / `max` 补默认；不给条件就是「不筛」（候选 = 被问者所有牌区的牌）；子类自己加的字段原样保留（要归一就由子类自己补）
 ---@param game Game
 ---@param to Player
 ---@param condition AskCard.Condition?
----@return AskCard.NormalizedCondition?
+---@return AskCard.NormalizedCondition
 local function normalizeCondition(game, to, condition)
-    if not condition then
-        return nil
-    end
+    condition = condition or {}
     local normalized = {}
     for key, value in pairs(condition) do
         normalized[key] = value
@@ -241,17 +249,12 @@ function M:makeOption(card)
     return { card = card }
 end
 
---- 按条件算出合法选项（候选默认来自被问者的牌区；给了 `zone` / `card` 就只看那些）
----@return AskCard.Option[]? # 没给条件就是空 = 不做限制
+--- 算出合法选项（候选默认来自被问者的牌区；给了 `zone` / `card` 就只看那些）
+---@return AskCard.Option[] # 恒给出
 function M:collectOptions()
-    local condition = self.condition
-    if not condition then
-        return nil
-    end
-
     ---@type AskCard.Option[]
     local options = {}
-    for _, card in ipairs(collectCandidates(self.to, condition)) do
+    for _, card in ipairs(collectCandidates(self.to, self.condition)) do
         local option = self:makeOption(card)
         if option then
             options[#options + 1] = option
@@ -297,8 +300,8 @@ function M:checkAnswer(value)
     if #cards == 0 and self.cancelable then
         return nil
     end
-    local min   = self.condition?.min or 1
-    local max   = self.condition?.max or min
+    local min = self.condition.min
+    local max = self.condition.max
     if #cards < min then
         return '至少要给 {} 张牌' % { min }
     end
@@ -368,13 +371,13 @@ end
 ---@param self AskCard
 ---@return boolean
 M.__getter.cancelable = function (self)
-    return self.condition?.cancelable ~= false
+    return self.condition.cancelable
 end
 
 --- 这次允许「一个都不给」吗（`min` 为 0 ⇒ 取消也是合法答复、算成立）
 ---@return boolean
 function M:allowNone()
-    return (self.condition?.min or 1) == 0
+    return self.condition.min == 0
 end
 
 --- 答复已定下、答复时机之前跑一次（子类在这里处置那张牌）

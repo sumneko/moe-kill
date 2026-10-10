@@ -1,6 +1,12 @@
 --- 要一张打出的牌：与「要一张牌」同形（条件筛候选、答复只有牌），只是答复的牌**当场交出来**
 --- 给了 `responseTo` = 这是一次**响应**：答复到手就算这次响应成立（发「被响应」两段时机，订阅者要驳回就 `ask:cancel(原因)`）；没答上就是「取消」
 --- 算不算「抵消」由订阅者自己按缘由 / 牌名判（青龙偃月刀 / 贯石斧 只认【杀】的响应）
+--- 要什么样的牌：与 `AskCard.OneCardCondition` 同形（打出恒一张牌）
+---@class AskPlayCard.Condition : AskCard.OneCardCondition
+
+---@class AskPlayCard.CreateOptions : AskCard.CreateOptions
+---@field condition? AskPlayCard.Condition
+
 ---@class AskPlayCard : AskCard
 local M = Class 'AskPlayCard'
 
@@ -14,6 +20,9 @@ end
 
 function M:__init()
     self.kind = 'askPlayCard'
+    local normalized = self.condition
+    normalized.min = 1
+    normalized.max = 1
 end
 
 ---@async
@@ -50,7 +59,7 @@ end
 --- 依次试被问者身上的「视为」声明（按声明顺序）：牌名对上这次要的牌才试，谁先产出一张牌就当答复落定
 ---@async
 function M:beforeAsk()
-    local names = self.condition?.names
+    local names = self.condition.names
     for _, viewAs in ipairs(self.to:getViewAsList()) do
         if not names or moe.util.arrayHas(names, viewAs.name) then
             local card = viewAs:tryProduce(self)
@@ -65,7 +74,7 @@ end
 ---@class AskPlayCard.API
 moe.askPlayCard = {}
 
----@param options AskCard.CreateOptions
+---@param options AskPlayCard.CreateOptions
 ---@return AskPlayCard
 function moe.askPlayCard.create(options)
     return New 'AskPlayCard' (options.game, options.to, options.reason, options.condition, options.responseOptions)

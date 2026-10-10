@@ -1,6 +1,7 @@
 --- 真实玩家的代表：把询问下发给客户端、等客户端回话
 ---@class ClientUser : User
 ---@field client Client # 他走的那条连接
+---@field cardView CardSync.View
 local M = Class 'ClientUser'
 
 Extends('ClientUser', 'User')
@@ -49,30 +50,127 @@ end
 ---@param ask AskPlayer
 ---@return Player[]?
 function M:askPlayer(ask)
-    local game = assert(self.game)
+    local game = self.game
     ---@type integer[]
     local ids = {}
     for _, player in ipairs(ask.options) do
         ids[#ids + 1] = player.id
     end
 
-    ---@type Proto.Request.Ask.Player
+    ---@type Proto.Request.Ask.Select
     local params = {
-        reason  = ask.reason,
-        players = ids,
-        min     = ask.condition.min,
-        max     = ask.condition.max,
+        reason = ask.reason,
+        player = {
+            ids = ids,
+            min = ask.condition.min,
+            max = ask.condition.max,
+        },
     }
-    local result = self:request('Ask.Player', params, ask):await()
+    local result = self:request('Ask.Select', params, ask):await()
     if not result then
         return nil
     end
     ---@type Player[]
     local answer = {}
-    for _, id in ipairs(assert(result).players) do
+    for _, id in ipairs(result.player or {}) do
         answer[#answer + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
     end
     return answer
+end
+
+--- 要几张牌：问客户端（候选摆进参数，再把回包的 id 转回 `Card`；答不出来就是空）
+---@async
+---@param ask AskCard
+---@return AskCard.Answer?
+function M:askCard(ask)
+    local condition = ask.condition
+    local view = self.cardView
+    ---@type integer[]
+    local ids = {}
+    for _, option in ipairs(ask.options) do
+        local card = option.card
+        if card then
+            ids[#ids + 1] = view.cardMap[card].id
+        end
+    end
+
+    ---@type Proto.Request.Ask.Select
+    local params = {
+        reason     = ask.reason,
+        cancelable = condition.cancelable,
+        card       = {
+            ids = ids,
+            min = condition.min,
+            max = condition.max,
+        },
+    }
+    local result = self:request('Ask.Select', params, ask):await()
+    if not result then
+        return nil
+    end
+    ---@type Card[]
+    local cards = {}
+    for _, id in ipairs(result.card or {}) do
+        cards[#cards + 1] = assert(view:cardOf(id), '答复里的牌不在这一局里')
+    end
+    return { card = cards }
+end
+
+--- 要一次「给出」：牌与目标两半一起发（答不出来就是空）
+---@async
+---@param ask AskCardWithTarget
+---@return AskCard.Answer?
+function M:askCardWithTarget(ask)
+    local game       = self.game
+    local cardCond   = ask.condition
+    local targetCond = ask.targetCondition
+
+    local view = self.cardView
+    ---@type integer[]
+    local cardIds = {}
+    for _, option in ipairs(ask.options) do
+        local card = option.card
+        if card then
+            cardIds[#cardIds + 1] = view.cardMap[card].id
+        end
+    end
+    ---@type integer[]
+    local playerIds = {}
+    for _, player in ipairs(targetCond.players) do
+        playerIds[#playerIds + 1] = player.id
+    end
+
+    ---@type Proto.Request.Ask.Select
+    local params = {
+        reason     = ask.reason,
+        cancelable = cardCond.cancelable,
+        card       = {
+            ids = cardIds,
+            min = cardCond.min,
+            max = cardCond.max,
+        },
+        player     = {
+            ids = playerIds,
+            min = targetCond.min,
+            max = targetCond.max,
+        },
+    }
+    local result = self:request('Ask.Select', params, ask):await()
+    if not result then
+        return nil
+    end
+    local answer = result
+    ---@type Card[]
+    local cards = {}
+    for _, id in ipairs(answer.card or {}) do
+        cards[#cards + 1] = assert(view:cardOf(id), '答复里的牌不在这一局里')
+    end
+    ---@type Player[]
+    local targets = {}
+    for _, id in ipairs(answer.player or {}) do
+        targets[#targets + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
+    end
+    return { card = cards, targets = targets }
 end
 
 --- 叫停一次请求（客户端收到后不再回话，只按「请求被取消」回个包）

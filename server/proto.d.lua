@@ -104,12 +104,23 @@
 ---@class Proto.Notify.Card.Move
 ---@field moves Proto.CardMove[]
 
----@class Proto.Request.Ask.Player: Proto.Cancelable
----@field reason string
----@field players integer[] # 候选玩家ID列表
+---@class Proto.Ask.Select.PlayerCondition
+---@field ids integer[] # 候选玩家ID列表
 ---@field min integer # 最少需要的玩家数量
 ---@field max integer # 最多允许的玩家数量
----@field cancelable? boolean # 是否可以主动取消
 
----@class Proto.Result.Ask.Player
----@field players integer[] # 被选中的玩家ID列表
+---@class Proto.Ask.Select.CardCondition
+---@field ids integer[] # 候选卡牌ID列表
+---@field min integer # 最少需要的卡牌数量
+---@field max integer # 最多允许的卡牌数量
+
+--- 要求客户端选择卡牌和玩家（可能是多选）
+---@class Proto.Request.Ask.Select: Proto.Cancelable
+---@field reason      string
+---@field cancelable? boolean # 是否可以主动取消
+---@field player?     Proto.Ask.Select.PlayerCondition
+---@field card?       Proto.Ask.Select.CardCondition
+
+---@class Proto.Result.Ask.Select
+---@field player? integer[] # 被选中的玩家ID列表
+---@field card?   integer[] # 被选中的卡牌ID列表
