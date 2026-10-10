@@ -118,7 +118,7 @@ function V:fillCardZones()
     for _, card in ipairs(allCards) do
         local pcard = self:toPCard(card)
         pcard.id = self:nextId()
-        table.insert(self.cardZones[assert(pcard.zone)], card)
+        table.insert(self.cardZones[pcard.zone or ''], card)
         self.cardMap[card] = pcard
     end
 end
@@ -324,7 +324,7 @@ function V:updateCards(cards)
         ---@type { zone: string, cards: integer[] }[]
         local hideList = {}
         for _, pcard in ipairs(creates) do
-            local zone = assert(pcard.zone)
+            local zone = pcard.zone or ''
             if pcard.face then
                 local entry = shows[zone]
                 if not entry then
