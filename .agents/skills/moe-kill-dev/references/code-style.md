@@ -187,6 +187,7 @@ end
 
 - 理由：中文名是**给写规则的人看的**（读起来像规则），字段与变量是**代码**（给写引擎的人看）；两者混在一起会让「这是标识符还是字符串」变得难分。
 - 测试用例里的**断言说明文本**用中文（它是给人读的消息），但**变量名用英文**；探针字符串里的代码同样遵守本表。
+- **测试里的「登记 / 订阅」收尾用 to-be-closed**（用户 2026-10-10 提）：`local _ <close> = moe.client.register('X', handler)`，自定义帮助就直接返回撤销函数（`local _ <close> = reply(...)`）—— 出作用域自动撤销，**断言失败（抛错展开）也照样撤**，不用手写结尾的 `undo()`，也不会再出现「前一条挂在半路 ⇒ 后几条报『方法已经注册过』」的连带失败。**撤销函数能直接当 to-be-closed 值**：环境开机就调了 **`moe.util.enableCloseFunction()`**（`setmetatable(function () end, { __close = function (f) f() end })` —— 整个 function 类型都挂上了 `__close`）。另两个同效写法：`moe.util.defer(fn)`（表 + `__close`）与 `moe.gc.node(fn)`（`GCNode:__close` = `Delete` ⇒ `onDel`）。⚠️ 拿 `moe-kill.exe -e` 探这门类的事会得到**错的结论** —— `-e` 是裸 Lua，不跑 `moe-kill.lua`、没有 `moe` 那套预置（实测踩过：误报「函数不可 close」，用户当场纠正）。
 - PowerShell 写文件务必指定 `-Encoding UTF8`，否则 UTF-8 源码会乱码（项目源码统一 UTF-8 无 BOM）。
 - 包目录名可以带一个 `@` 前缀（表示该包默认加载，见 `architecture.md` 第 9 节），包内文件名不带。
 - **注入环境给的「函数」用 PascalCase，给的「对象 / 命名空间」小写**（用户 2026-09-19 定）：`Card` / `Depends` 是框架入口（与既有的 `Class` / `New` / `Extends` 同类），`game` / `rule`（与 `moe` 同类）是环境给的对象。理由：包文件里 `local card = game:createCard('杀')` 这类局部变量很自然，小写入口一遮就没了；大写既躲开遮蔽，又能一眼区分「加载期 DSL」与「普通 API」。
