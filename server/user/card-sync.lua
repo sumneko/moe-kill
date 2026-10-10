@@ -98,16 +98,6 @@ end
 ---@field private idCounter integer # 视图 id 的号源（每份视图一套）
 local V = Class 'CardSync.View'
 
---- 协议区域的键（把「同一个区」的牌分到一组用）
----@param zone Proto.Zone?
----@return string
-local function keyOfPZone(zone)
-    if not zone then
-        return ''
-    end
-    return '{}#{}' % { zone.name or '', zone.player or 0 }
-end
-
 ---@param user User
 function V:__init(user)
     self.user      = user
@@ -128,8 +118,7 @@ function V:fillCardZones()
     for _, card in ipairs(allCards) do
         local pcard = self:toPCard(card)
         pcard.id = self:nextId()
-        local pzoneKey = keyOfPZone(pcard.zone)
-        table.insert(self.cardZones[pzoneKey], card)
+        table.insert(self.cardZones[assert(pcard.zone)], card)
         self.cardMap[card] = pcard
     end
 end
@@ -159,14 +148,12 @@ function V:isCardVisible(card)
     return pcard?.face?.name ~= nil
 end
 
---- 协议里的区域：既没有名字也没有归属的（临时区）一律是同一个空区域
+--- 协议里的区域：拼成一个字符串「名字#玩家号」（玩家号 0 = 无主）
+--- 客户端自己拆；同名同主就是同一个区 —— 账本也拿它当索引
 ---@param zone? Zone
----@return Proto.Zone
+---@return string
 function V:toPZone(zone)
-    return {
-        player = zone?.owner?.id,
-        name   = zone?.name,
-    }
+    return '{}#{}' % { zone?.name or '', zone?.owner?.id or 0 }
 end
 
 --- 把一个区里所有「看不见面」的牌的号整体洗一遍 —— 新牌进账时叫一次，让号与牌的对应关系翻乱
@@ -197,14 +184,6 @@ function V:shuffleHidden(key)
     end
 end
 
---- 协议区域是不是同一个（「这一搬在客户端眼里有没有变化」）
----@param a Proto.Zone?
----@param b Proto.Zone?
----@return boolean
-local function samePZone(a, b)
-    return keyOfPZone(a) == keyOfPZone(b)
-end
-
 ---@param moves Zone.Move[]
 function V:moveCards(moves)
     ---@type Proto.CardMove[]
@@ -212,7 +191,7 @@ function V:moveCards(moves)
     for _, move in ipairs(moves) do
         local from = self:toPZone(move.from)
         local to   = self:toPZone(move.to)
-        if not samePZone(from, to) then
+        if from ~= to then
             local visible
             if move.visible then
                 visible = moe.visibility.isVisibleTo(move.visible, self.user.player)
@@ -296,20 +275,18 @@ function V:updateCards(cards)
     for _, card in ipairs(cards) do
         ---@type Proto.Card?
         local pcard = self.cardMap[card]
-        local oldPZone = pcard?.zone
+        local oldPZone = pcard?.zone or ''
         local newPZone = self:toPZone(card:getZone())
-        local oldPZoneKey = keyOfPZone(oldPZone)
-        local newPZoneKey = keyOfPZone(newPZone)
 
-        if oldPZoneKey == newPZoneKey then
+        if oldPZone == newPZone then
             local newPCard = self:toPCard(card)
             if not moe.util.equal(pcard, newPCard) then
                 self.cardMap[card] = newPCard
                 updates[#updates+1] = newPCard
             end
         else
-            moe.util.arrayRemove(self.cardZones[oldPZoneKey], card)
-            table.insert(self.cardZones[newPZoneKey], card)
+            moe.util.arrayRemove(self.cardZones[oldPZone], card)
+            table.insert(self.cardZones[newPZone], card)
 
             if pcard then
                 removes[#removes+1] = pcard.id
@@ -318,7 +295,7 @@ function V:updateCards(cards)
             pcard = self:toPCard(card)
             pcard.id = self:nextId()
             self.cardMap[card] = pcard
-            shuffled[newPZoneKey] = true
+            shuffled[newPZone] = true
             creates[#creates+1] = pcard
         end
     end

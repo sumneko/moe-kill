@@ -64,7 +64,7 @@ lt.test('快照：要一份整局快照（牌 + 玩家）', function ()
 
     lt.assertEquals('牌也带上了', 1, #result.cards)
     lt.assertEquals('牌面在', '闪', assert(result.cards[1].face).name)
-    lt.assertEquals('区域是弃牌堆', '弃牌', assert(result.cards[1].zone).name)
+    lt.assertEquals('区域是弃牌堆', '弃牌#0', result.cards[1].zone)
 end)
 
 ---@async

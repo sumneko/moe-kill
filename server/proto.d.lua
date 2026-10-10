@@ -70,10 +70,6 @@
 ---@class Proto.Notify.Player.UpdateCustom
 ---@field players Proto.Player.Custom[] # custom 变了的那些玩家
 
----@class Proto.Zone
----@field name? string # 没有名字的是临时区
----@field player? integer # 玩家ID，没有的话说明是公共区
-
 ---@class Proto.CardFace
 ---@field name? string # 卡牌名称，没有说明是背面朝上
 ---@field suit? '黑桃' | '红桃' | '梅花' | '方块' # 花色
@@ -83,7 +79,7 @@
 ---@field id integer # 卡牌当前ID，每当进入区域会分配一个新的，离开区域会销毁
 ---@field face? Proto.CardFace # 原始牌信息，如果没有说明是背面朝上
 ---@field modifier? Proto.CardFace # 转化牌信息
----@field zone? Proto.Zone # 卡牌所在的区域，没有说明在临时区
+---@field zone? string # 卡牌所在的区域（`名字#玩家号`；玩家号 0 = 无主）
 
 ---@class Proto.Notify.Card.Update
 ---@field cards Proto.Card[] # 被更新的卡牌列表
@@ -97,8 +93,8 @@
 ---@class Proto.CardMove
 ---@field id? integer # 移动的卡牌ID，方便播放动画确定起始位置
 ---@field face? Proto.CardFace # 移动的卡牌模板信息，没有说明是背面朝上
----@field from Proto.Zone # 来源区域
----@field to Proto.Zone # 目标区域
+---@field from string # 来源区域（`名字#玩家号`）
+---@field to string # 目标区域（`名字#玩家号`）
 
 --- 仅仅是用于播放移动动画，会确保在 `Card.Remove` 之前通知
 ---@class Proto.Notify.Card.Move

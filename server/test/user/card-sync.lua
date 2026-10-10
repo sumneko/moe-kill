@@ -89,8 +89,7 @@ lt.test('卡牌同步：建视图时把当时场上的牌都算进账', function
 
     lt.assertEquals('场上那张在快照里', 1, #cards)
     lt.assertEquals('带着牌面', '闪', assert(cards[1].face).name)
-    lt.assertEquals('区域是弃牌', '弃牌', assert(cards[1].zone).name)
-    lt.assertEquals('没有主人', nil, assert(cards[1].zone).player)
+    lt.assertEquals('区域是弃牌（无主）', '弃牌#0', cards[1].zone)
 end)
 
 ---@async
@@ -109,8 +108,7 @@ lt.test('卡牌同步：看不见的牌只有号与区域', function ()
     lt.assertEquals('看不见别人的手牌', nil, assert(mine[1]).face)
     lt.assertEquals('但那张牌的存在看得见', 1, #mine)
     lt.assertEquals('号是给了的（后续搬动要认它）', true, mine[1].id ~= nil)
-    lt.assertEquals('区域主人的号对得上', you.id, mine[1].zone.player)
-    lt.assertEquals('区名是手牌', '手牌', mine[1].zone.name)
+    lt.assertEquals('区域是「对方的手牌」', '手牌#' .. you.id, mine[1].zone)
     lt.assertEquals('他自己那份看得见牌面', '杀', assert(assert(yours[1]).face).name)
 end)
 
@@ -241,7 +239,7 @@ lt.test('卡牌同步：换区会换新 id（移除 + 创建）', function ()
     lt.assertEquals('旧 id 被移除', before, assert(removes[1]).ids[1])
     local after = assert(creates[1]).cards[1].id
     lt.assertEquals('新 id 不一样', true, after ~= before)
-    lt.assertEquals('新那份在弃牌堆', '弃牌', creates[1].cards[1].zone.name)
+    lt.assertEquals('新那份在弃牌堆', '弃牌#0', creates[1].cards[1].zone)
 end)
 
 ---@async
@@ -323,9 +321,8 @@ lt.test('卡牌同步：搬牌当场发移动通知', function ()
     lt.assertEquals('当场就发了（不用等调度），两个连接各一条', 2, #moves)
     local sent = assert(moves[1]).moves[1]
     lt.assertEquals('带的是搬之前的 id', id, sent.id)
-    lt.assertEquals('来源是对的手牌', '手牌', sent.from.name)
-    lt.assertEquals('来源主人对得上', me.id, sent.from.player)
-    lt.assertEquals('目标是弃牌堆', '弃牌', sent.to.name)
+    lt.assertEquals('来源是对的手牌', '手牌#' .. me.id, sent.from)
+    lt.assertEquals('目标是弃牌堆', '弃牌#0', sent.to)
 end)
 
 ---@async
@@ -428,7 +425,7 @@ lt.test('卡牌同步：一批牌一起挪进暗区，账里的区域要跟得�
         count = count + 1
     end
     for _, snapshot in pairs(view.cardMap) do
-        if assert(snapshot.zone).name == '抽牌' then
+        if snapshot.zone == '抽牌#0' then
             stale = stale + 1
         end
     end
@@ -436,8 +433,7 @@ lt.test('卡牌同步：一批牌一起挪进暗区，账里的区域要跟得�
     lt.assertEquals('没有还挂在抽牌堆的号', 0, stale)
     for i = 1, #cards do
         local snapshot = assert(view.cardMap[cards[i]])
-        lt.assertEquals('账里的区域是手牌', '手牌', assert(snapshot.zone).name)
-        lt.assertEquals('区域主人是对方', you.id, snapshot.zone.player)
+        lt.assertEquals('账里的区域是「对方的手牌」', '手牌#' .. you.id, snapshot.zone)
     end
 end)
 
