@@ -104,22 +104,25 @@
 ---@class Proto.Notify.Card.Move
 ---@field moves Proto.CardMove[]
 
----@class Proto.Ask.Select.PlayerCondition
+---@class Proto.Plan.Player
 ---@field ids integer[] # 候选玩家ID列表
 ---@field min integer # 最少需要的玩家数量
 ---@field max integer # 最多允许的玩家数量
 
----@class Proto.Ask.Select.CardCondition
+---@class Proto.Plan.Card
 ---@field ids integer[] # 候选卡牌ID列表
 ---@field min integer # 最少需要的卡牌数量
 ---@field max integer # 最多允许的卡牌数量
+
+---@class Proto.CardWithPlan: Proto.Plan.Player
+---@field id integer # 卡牌ID
 
 --- 要求客户端选择卡牌和玩家（可能是多选）
 ---@class Proto.Request.Ask.Select: Proto.Cancelable
 ---@field reason      string
 ---@field cancelable? boolean # 是否可以主动取消
----@field player?     Proto.Ask.Select.PlayerCondition
----@field card?       Proto.Ask.Select.CardCondition
+---@field player?     Proto.Plan.Player
+---@field card?       Proto.Plan.Card
 
 ---@class Proto.Result.Ask.Select
 ---@field player? integer[] # 被选中的玩家ID列表
@@ -132,3 +135,22 @@
 
 ---@class Proto.Result.Ask.Choice
 ---@field choice integer # 客户端选择的索引，对应 `options` 中的位置
+
+---@class Proto.ViewAs
+---@field name string # 要视为的卡牌
+---@field sourceCard? integer # 提供这个视为技的卡牌。和 sourceSkill 互斥
+---@field sourceSkill? string # 提供这个视为技的技能名。和 sourceCard 互斥
+---@field card? Proto.Plan.Card # 作为素材的卡牌
+---@field target? Proto.Plan.Player # 作为目标的玩家
+
+---@class Proto.Request.Ask.Use: Proto.Cancelable
+---@field reason string # 这次使用的原因
+---@field cancelable? boolean # 是否可以主动取消
+---@field card   Proto.CardWithPlan[] # 被使用的卡牌列表
+---@field viewAs Proto.ViewAs[] # 可用的视为技列表
+
+---@class Proto.Result.Ask.Use
+---@field usedCard? integer # 被使用的卡牌ID
+---@field usedViewAs? integer # 使用了第几个viewAs效果。和 card 互斥。
+---@field targets? integer[] # 被选中的目标玩家ID列表
+---@field cards? integer[] # 被使用的卡牌ID列表。只有 useViewAs 时才有可能有值

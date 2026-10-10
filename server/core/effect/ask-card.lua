@@ -3,6 +3,7 @@
 ---@class AskCard.Answer
 ---@field card? Card|Card[] # 给出的牌（答不上就是不给）
 ---@field viewAs? ViewAs # 选了哪份「视为」声明（与 `card` 互斥；只有使用族会出现）
+---@field materials? Card|Card[] # 「视为」这次发动自带的素材（使用族：玩家在同一次答复里给的；不填 = 由内核去收）
 ---@field targets? Player|Player[] # 目标：`AskUseCard` / `AskCardWithTarget` 接受（别的类给了会被拒收）
 
 --- 归一化之后存进结果里的形状

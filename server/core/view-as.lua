@@ -88,20 +88,46 @@ function M:produce(materials)
     return self.game:createVirtualCard(self.name, ask.cards)
 end
 
+--- 玩家给的这批素材合不合这份声明的条件（张数落在区间里、每张都在可选区里）
+--- 只管玩家从协议里递进来的素材：钩子自己返回的牌是内核路径，由钩子负责
+---@param materials Card[]
+---@return boolean
+function M:checkMaterials(materials)
+    local condition = self.options?.condition
+    if not condition then
+        return #materials == 0
+    end
+    local normalized = moe.askCard.normalizeCondition(self.game, self.owner, condition)
+    if #materials < normalized.min or #materials > normalized.max then
+        return false
+    end
+    local candidates = moe.askCard.collectCandidates(self.owner, normalized)
+    for _, card in ipairs(materials) do
+        if not moe.util.arrayHas(candidates, card) then
+            return false
+        end
+    end
+    return true
+end
+
 --- 试一次这份声明：素材够，又有人表态成立，就照声明造一张虚拟牌交出去
 --- 要问一句的（`options.confirm`）：**在开这次发动之前**先问，免得「不发动」也被记成一次发动
 --- 有关联来源（`source`）就把整段包成一次「发动」，归因到它名下 —— 装备（`Card:cast`）与技能（`Skill:cast`）共用同一个写法
 ---@async
 ---@param ask AskCard
 ---@param chosen? boolean # 玩家已经亲手选过这份声明了（使用族的选项）⇒ 不必再问
+---@param materials? Card|Card[] # 这次发动自带的素材（使用族：玩家在同一次答复里给的）⇒ 不必再收
 ---@return Card? # 产出的牌（不成给空）
-function M:tryProduce(ask, chosen)
+function M:tryProduce(ask, chosen, materials)
     if not self:canGatherMaterials() then
+        return nil
+    end
+    if materials and not self:checkMaterials(moe.util.toList(materials)) then
         return nil
     end
     local source = self.source
     if not source then
-        return self:launch(ask)
+        return self:launch(ask, materials)
     end
     if not chosen and self.options?.confirm and not source:confirm() then
         return nil
@@ -109,17 +135,22 @@ function M:tryProduce(ask, chosen)
     ---@type Card?
     local card = nil
     source:cast(function ()
-        card = self:launch(ask)
+        card = self:launch(ask, materials)
     end)
     return card
 end
 
 --- 跑「发动」表态：返回真 ⇒ 按声明收素材；返回牌 ⇒ 拿它们当素材；返回假 / 空 ⇒ 不发动
+--- 素材玩家已经给了（`materials`）就直接造牌 —— 选了就是发动，不再表态
 ---@private
 ---@async
 ---@param ask AskCard
+---@param materials? Card|Card[] # 这次发动自带的素材
 ---@return Card? # 产出的牌（不成给空）
-function M:launch(ask)
+function M:launch(ask, materials)
+    if materials then
+        return self:produce(moe.util.toList(materials))
+    end
     local handlers = self:getHandlers('发动')
     if #handlers == 0 then
         return self:produce()
