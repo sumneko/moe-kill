@@ -1,7 +1,7 @@
 --- 一份「转化」：改这张牌的牌名 / 花色 / 点数（后挂的覆盖先挂的）
 ---@class Card.Modifier
 ---@field name? string # 改牌名（内容定义也跟着换）
----@field suit? string # 改花色
+---@field suit? '黑桃' | '红桃' | '梅花' | '方块' # 改花色
 ---@field point? integer # 改点数
 
 --- 一条「随这张牌在牌区里」存活的撤销
@@ -10,15 +10,15 @@
 ---@field keep? fun(zone: Zone?): boolean # 换到哪个区还算「没离开」（省略 = 换区就算离开）
 
 --- 一张牌的「面」：牌名 / 花色 / 点数（叠加了「转化」之后的最终值）
----@class CardFace
+---@class Card.Face
 ---@field name string # 牌名
----@field suit? string # 花色
+---@field suit? '黑桃' | '红桃' | '梅花' | '方块' # 花色
 ---@field point? integer # 点数
 
 ---@class Card: Class.Base
----@field face CardFace # 一张牌的面（叠加了「转化」之后的最终值）
----@field ownFace CardFace # 牌自己那份面（不随「转化」变化）
----@field private id integer # 号（这一局发的）
+---@field face Card.Face # 一张牌的面（叠加了「转化」之后的最终值）
+---@field ownFace Card.Face # 牌自己那份面（不随「转化」变化）
+---@field id integer # 号（这一局发的）
 ---@field virtual boolean # 是不是虚拟牌（没有实体牌；进不了任何牌区）
 ---@field subcards Card[] # 对应的实体牌（普通牌是空表）—— **一律是实体牌**，虚拟牌不进这里（构造时已经解包）
 ---@field physical Card[] # 对应的实体牌（普通牌就是自己、虚拟牌是它的素材）
@@ -33,7 +33,7 @@ local M = Class 'Card'
 ---@param game Game # 属于哪一局（读自己的内容定义时用）
 ---@param name string # 牌名
 ---@param id integer # 号由局发（`game:nextId`）
----@param suit? string # 花色
+---@param suit? '黑桃' | '红桃' | '梅花' | '方块' # 花色
 ---@param point? integer # 点数
 function M:__init(game, name, id, suit, point)
     self.game      = game
@@ -72,11 +72,11 @@ M.__getter.modifier = function (self)
     return merged, true
 end
 
----@type CardFace
+---@type Card.Face
 M.face = nil
 
 ---@param self Card
----@return CardFace # 一张牌的面（有「转化」就取最晚挂的那份）
+---@return Card.Face # 一张牌的面（有「转化」就取最晚挂的那份）
 ---@return true # 将结果缓存下来
 M.__getter.face = function (self)
     local own      = self.ownFace
@@ -388,6 +388,17 @@ function M:bindZone(zone)
         end
     end
     self.zone = zone
+end
+
+--- 这张牌对某个玩家是否可见
+---@param player Player
+---@return boolean
+function M:isVisible(player)
+    local zone = self:getZone()
+    if not zone then
+        return false
+    end
+    return zone:isVisibleTo(player)
 end
 
 ---@return string

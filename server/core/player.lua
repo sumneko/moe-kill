@@ -77,10 +77,17 @@ function M:getName()
     return self.name
 end
 
---- 指定谁在控制他（换人 / 解绑都走这里）
+--- 指定谁在控制他（换人 / 解绑都走这里；反向的 `user.player` 一并维护）
 ---@param user? User
 function M:setUser(user)
+    local old = self.user
+    if old then
+        old.player = nil
+    end
     self.user = user
+    if user then
+        user.player = self
+    end
 end
 
 --- 加一个牌区（返回撤销这次添加的函数）

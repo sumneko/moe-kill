@@ -111,6 +111,8 @@ function M:notifyMoved(moves)
     for _, move in ipairs(moves) do
         move.to:notifyEnter(move.card, move.visible)
     end
+
+    self.game:fire('卡牌-批量移动', moves)
 end
 
 --- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「卡牌-离开区域」/「卡牌-进入区域」；收的是每张牌的实体牌 —— 虚拟牌进不了牌区，收它就等于收它的素材）

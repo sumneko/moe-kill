@@ -169,6 +169,8 @@ rule = nil
 ---@field fire fun(self: Game, name: '卡牌-进入区域', card: Card, zone: Zone, visible?: Visibility): any
 ---@field on fun(self: Game, name: '卡牌-离开区域', callback: fun(card: Card, zone: Zone, visible?: Visibility): any): function # 任何一张牌离开了某个区（同上）
 ---@field fire fun(self: Game, name: '卡牌-离开区域', card: Card, zone: Zone, visible?: Visibility): any
+---@field on fun(self: Game, name: '卡牌-批量移动', callback: fun(moves: Zone.Move[]): any): function # 一批牌一起搬完了（「卡牌-离开区域」/「卡牌-进入区域」都发完之后，把整批记录一次发出来）
+---@field fire fun(self: Game, name: '卡牌-批量移动', moves: Zone.Move[]): any
 ---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function

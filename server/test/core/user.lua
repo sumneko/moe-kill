@@ -72,6 +72,23 @@ lt.test('玩家：User 可以设置、更换、解绑', function ()
     lt.assertEquals('解绑之后没有', nil, player.user)
 end)
 
+lt.test('玩家：绑定时反向记着控制的是谁（换人 / 解绑都清旧）', function ()
+    local _, players = newGame(1)
+    local player = assert(players[1])
+
+    local first = userWith(1)
+    player:setUser(first)
+    lt.assertEquals('绑定时反向记上', player, first.player)
+
+    local second = userWith(2)
+    player:setUser(second)
+    lt.assertEquals('换人后旧的那份清掉', nil, first.player)
+    lt.assertEquals('新的人记上了', player, second.player)
+
+    player:setUser(nil)
+    lt.assertEquals('解绑后也清掉', nil, second.player)
+end)
+
 ---@async
 lt.test('询问：优先问本人的 User（表态了就不再问全局）', function ()
     local game, players = newGame(1)

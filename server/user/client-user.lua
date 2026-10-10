@@ -10,6 +10,21 @@ function M:__init(client)
     self.client = client
 end
 
+--- 他看得见的那份牌（懒建：第一次读的时候按座位建一份）
+---@type CardSync.View?
+M.cardView = nil
+
+---@param self ClientUser
+---@return CardSync.View? # 他看得见的那份牌
+---@return true # 将结果缓存下来
+M.__getter.cardView = function (self)
+    return New 'CardSync.View' (self), true
+end
+
+function M:notify(method, params)
+    self.client:notify(method, params)
+end
+
 --- 玩家基础信息变了
 ---@param data Proto.Notify.Player.Update
 function M:playerUpdate(data)
@@ -37,9 +52,15 @@ function M:cardRemove(data)
     self.client:notify('Card.Remove', data)
 end
 
----@param data Proto.Notify.Card.Move
-function M:cardMove(data)
-    self.client:notify('Card.Move', data)
+---@param moves Zone.Move[]
+function M:moveCards(moves)
+    self.cardView:moveCards(moves)
 end
+
+---@param cards Card[]
+function M:updateCards(cards)
+    self.cardView:updateCards(cards)
+end
+
 
 return M

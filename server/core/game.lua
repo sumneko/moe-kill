@@ -489,6 +489,8 @@ function M:__init(seats, random)
     self.list     = {}
     self.idCounter = 0
     self.phaseStack = {}
+    ---@type Card[]
+    self.allCards   = {}
     self:createZone('抽牌', true)
     self:createZone('弃牌')
     self:resetContent()
@@ -972,7 +974,9 @@ function M:createCard(name, suit, point)
     if type(name) ~= 'string' or name == '' then
         error('牌名必须是非空字符串', 2)
     end
-    return moe.card.create(self, name, self:nextId(), suit, point)
+    local card = moe.card.create(self, name, self:nextId(), suit, point)
+    self.allCards[#self.allCards+1] = card
+    return card
 end
 
 --- 按牌名建一张虚拟牌（原始牌可给一或多张；花色与点数默认：一张 ⇒ 抄它，其余 ⇒ 无）

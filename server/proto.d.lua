@@ -58,15 +58,15 @@
 ---@field name? string # 没有名字的是临时区
 ---@field player? integer # 玩家ID，没有的话说明是公共区
 
----@class Proto.CardTemplate
+---@class Proto.CardFace
 ---@field name? string # 卡牌名称，没有说明是背面朝上
 ---@field suit? '黑桃' | '红桃' | '梅花' | '方块' # 花色
 ---@field point? integer # 卡牌点数
 
 ---@class Proto.Card
 ---@field id integer # 卡牌当前ID，每当进入区域会分配一个新的，离开区域会销毁
----@field template? Proto.CardTemplate # 原始牌信息，如果没有说明是背面朝上
----@field modifier? Proto.CardTemplate # 转化牌信息
+---@field face? Proto.CardFace # 原始牌信息，如果没有说明是背面朝上
+---@field modifier? Proto.CardFace # 转化牌信息
 ---@field zone? Proto.Zone # 卡牌所在的区域，没有说明在临时区
 
 ---@class Proto.Notify.Card.Update
@@ -78,12 +78,12 @@
 ---@class Proto.Notify.Card.Create
 ---@field cards Proto.Card[] # 被创建的卡牌列表
 
----@class Proto.MovingCard
+---@class Proto.CardMove
 ---@field id? integer # 移动的卡牌ID，方便播放动画确定起始位置
----@field template? Proto.CardTemplate # 移动的卡牌模板信息，没有说明是背面朝上
+---@field face? Proto.CardFace # 移动的卡牌模板信息，没有说明是背面朝上
+---@field from Proto.Zone # 来源区域
+---@field to Proto.Zone # 目标区域
 
 --- 仅仅是用于播放移动动画，会确保在 `Card.Remove` 之前通知
 ---@class Proto.Notify.Card.Move
----@field cards Proto.MovingCard[]
----@field from Proto.Zone # 来源区域
----@field to Proto.Zone # 目标区域
+---@field moves Proto.CardMove[]

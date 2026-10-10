@@ -157,8 +157,7 @@ lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', fu
         moe.await.sleep(0)
 
         local user = assert(players[1].user)
-        ---@cast user ClientUser
-        local view = assert(moe.cardSync.views[user.client])
+        local view = assert(user.cardView)
         local idFirst = assert(view.cards[first]).id
 
         clear(got)
@@ -306,8 +305,7 @@ lt.test('卡牌同步：无名区（临时区）之间互移不发移动、也�
     lt.assertEquals('不发移除', 0, #removes)
     lt.assertEquals('也没有新创建', 0, #creates)
     local user = assert(me.user)
-    ---@cast user ClientUser
-    local view = moe.cardSync.views[user.client]
+    local view = user.cardView
     lt.assertEquals('视图里那张牌的 id 没变', id, assert(view).cards[card].id)
 end)
 
@@ -354,8 +352,7 @@ lt.test('卡牌同步：一批牌一起挪进暗区，账里的区域要跟得�
     moe.await.sleep(0)
 
     local user = assert(me.user)
-    ---@cast user ClientUser
-    local view = assert(moe.cardSync.views[user.client])
+    local view = assert(user.cardView)
     local count = 0
     local stale = 0
     for _, snapshot in pairs(view.cards) do
@@ -445,4 +442,15 @@ lt.test('卡牌同步：全量重发不丢掉「最近一次搬动」的可见�
 
     lt.assertEquals('重灌后我照旧看得见', '闪', assert(assert(got[1]).cards[1]).template.name)
     lt.assertEquals('重灌后对方照旧看不见', nil, assert(assert(got[2]).cards[1]).template)
+end)
+
+lt.test('卡牌同步：视图挂在 ClientUser 上（懒建、同一份、知道主人）', function ()
+    local _, players = newGame()
+    local me = assert(players[1])
+    local user = assert(me.user)
+
+    lt.assertEquals('第一次读就懒建出来', true, user.cardView ~= nil)
+    local view = assert(user.cardView)
+    lt.assertEquals('再读还是同一份', true, user.cardView == view)
+    lt.assertEquals('知道自己是哪个座位的', me, view.player)
 end)

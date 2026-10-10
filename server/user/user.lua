@@ -1,7 +1,19 @@
 --- 一个座位的控制者（真实玩家 / 电脑 / 测试夹具）：内核的询问优先问他，他不表态才回落全局时机
 --- 每个方法收这次询问的实例，返回与内核同一形状的答复；返回空 = 不表态
 ---@class User : Class.Base
+---@field player? Player # 他控制的座位（`Player:setUser` 维护）
+---@field cardView? CardSync.View # 他看得见的那份牌（默认没有 —— 要收卡牌下行的子类自己挂）
 local M = Class 'User'
+
+---@param game Game
+function M:__init(game)
+    self.game = game
+end
+
+---@param method string
+---@param params table
+function M:notify(method, params)
+end
 
 --- 要一个决策
 ---@param ask Ask
@@ -95,8 +107,12 @@ function M:cardRemove(data)
 end
 
 --- 有牌搬动了（当场发的动画预通知；默认什么都不做）
----@param data Proto.Notify.Card.Move
-function M:cardMove(data)
+---@param moves Zone.Move[]
+function M:moveCards(moves)
+end
+
+---@param cards Card[]
+function M:updateCards(cards)
 end
 
 return M
