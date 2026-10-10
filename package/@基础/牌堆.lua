@@ -1,9 +1,10 @@
--- 开局建牌堆：按牌表造牌并洗牌；手牌标暗；抽牌堆不够时把弃牌洗回来（洗不回来就地判平局）
+-- 开局建牌堆：按牌表造牌并洗牌；抽牌堆与手牌标暗；抽牌堆不够时把弃牌洗回来（洗不回来就地判平局）
 game:on('游戏-开始', function ()
     local cardTable = assert(rule.cardTable, '没有牌表：需要一个内容包提供牌表（例如 标准）')
 
     local deck    = game:getZone('抽牌')
     local discard = game:getZone('弃牌')
+    deck:setVisible(false)
     ---@type Card[]
     local cards = {}
     for _, entry in ipairs(cardTable) do

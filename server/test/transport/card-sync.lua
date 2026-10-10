@@ -143,6 +143,54 @@ lt.test('卡牌同步：牌进区发创建、离区发移除', function ()
 end)
 
 ---@async
+lt.test('卡牌同步：看不见的区里移除一张，报出去的 id 不是它自己那个', function ()
+    -- 打乱本身是随机的 ⇒ 单次可能恰好还落在原 id 上，所以跑若干轮统计
+    local sameCount = 0
+    for round = 1, 6 do
+        local game, players = newGame()
+        local you = assert(players[2])
+        local creates = collect('Card.Create')
+        local removes = collect('Card.Remove')
+
+        ---@type Card[]
+        local hand = {}
+        for i = 1, 8 do
+            hand[i] = game:createCard('杀')
+            you:getZone('手牌'):accept(hand[i])
+        end
+        moe.await.sleep(0)
+        clear(creates)
+        clear(removes)
+
+        local user = assert(players[1].user)
+        ---@cast user ClientUser
+        local view = moe.cardSync.views[user.client]
+        local mine = assert(view).cards
+        ---@type table<integer, Card>
+        local byId = {}
+        for _, card in ipairs(hand) do
+            local snapshot = assert(mine[card])
+            byId[snapshot.id] = card
+        end
+
+        local target   = assert(hand[1])
+        local idBefore = assert(mine[target]).id
+
+        game:moveCard(target, '弃牌')
+        moe.await.sleep(0)
+
+        lt.assertEquals('两个连接各一条移除', 2, #removes)
+        local removed = assert(removes[1]).ids[1]
+        lt.assertEquals('移除的必须是他手牌里的匿名 id 之一', true, byId[removed] ~= nil)
+        lt.assertEquals('弃牌堆那张照样看得见牌面', '杀', assert(creates[1]).cards[1].template.name)
+        if removed == idBefore then
+            sameCount = sameCount + 1
+        end
+    end
+    lt.assertEquals('不会每一轮都报「那张自己的 id」（说明打乱过）', true, sameCount < 6)
+end)
+
+---@async
 lt.test('卡牌同步：换区会换新 id（移除 + 创建）', function ()
     local game, players = newGame()
     local me = assert(players[1])

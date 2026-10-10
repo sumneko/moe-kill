@@ -138,23 +138,43 @@ local function sameCard(a, b)
     return true
 end
 
---- 从视图里随机挑一个「看不见内容」的 id（客户端反正分不清是哪张）
+--- 协议区域的键（把「同一个区」的牌分到一组用）
+---@param zone Proto.Zone?
+---@return string
+local function zoneKey(zone)
+    if not zone then
+        return ''
+    end
+    return '{}#{}' % { zone.name or '', zone.player or 0 }
+end
+
+--- 把这个连接视图里某个区中「看不见内容」的那些 id 打乱
+--- 客户端那边的 id 集合一个都不变，换的只是「哪个 id 属于哪张真牌」
+--- ⇒ 之后移除 / 移动报出去的 id 都是随机的（客户端没法把它与真牌对上）
 ---@param view CardSync.View
----@param zone Zone
----@return Card? # 挑中的那张（视图里的记法）
-local function pickHidden(view, zone)
-    local key = toZone(zone)
-    ---@type Card[]
-    local candidates = {}
+---@param key string
+local function shuffleHidden(view, key)
+    ---@type { card: Card, snapshot: Proto.Card }[]
+    local entries = {}
     for card, snapshot in pairs(view.cards) do
-        if snapshot.template == nil and sameZone(snapshot.zone, key) then
-            candidates[#candidates + 1] = card
+        if snapshot.template == nil and zoneKey(snapshot.zone) == key then
+            entries[#entries + 1] = { card = card, snapshot = snapshot }
         end
     end
-    if #candidates == 0 then
-        return nil
+    if #entries < 2 then
+        return
     end
-    return candidates[math.random(#candidates)]
+    -- 只按视图号排（它与视图一一对应，与 `pairs` 的遍历顺序无关），再打乱
+    table.sort(entries, function (a, b) return a.snapshot.id < b.snapshot.id end)
+    ---@type Proto.Card[]
+    local snapshots = {}
+    for i, entry in ipairs(entries) do
+        snapshots[i] = entry.snapshot
+    end
+    view.player.game.random:shuffle(snapshots)
+    for i, entry in ipairs(entries) do
+        view.cards[entry.card] = snapshots[i]
+    end
 end
 
 --- 标脏一张牌（第一次标脏给这个局登记一次 flush）
@@ -223,6 +243,20 @@ function moe.cardSync.flush(game)
     end
     moe.cardSync.dirty[game] = nil
     broadcast(game, function (view)
+        -- 隐私：先把这个连接看不到内容的那些区里的 id 打乱，再算变化 ——
+        -- 这样「移除的是哪个匿名 id」是随机的，客户端没法把它与真牌对上
+        local touched = {}
+        for card in pairs(dirty) do
+            local old = view.cards[card]
+            if old then
+                touched[zoneKey(old.zone)] = true
+            end
+            touched[zoneKey(toZone(card:getZone()))] = true
+        end
+        for key in pairs(touched) do
+            shuffleHidden(view, key)
+        end
+
         ---@type Proto.Card[]
         local creates = {}
         ---@type Proto.Card[]
