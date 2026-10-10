@@ -1,11 +1,8 @@
 --- 卡牌下行同步：每个连接一份「这个客户端看见的牌」的账
 ---
---- 视图 id **不进内核**：由每个连接自己的号源发；看不见内容的区里的牌只有 id（匿名代号），
---- 从这种区移除时随机挑一个 id，免得客户端把刚消失的匿名牌与刚出现的明牌配起来。
----@class CardSync.View
----@field player Player # 这个连接是谁
----@field cards table<Card, Proto.Card> # 这个客户端当前看到的每张牌（背面牌也在里面，只是没有牌面）
----@field nextId integer # 视图 id 的号源（每个连接一套）
+--- 视图 id **不进内核**：由每个连接自己的号源发；看不见内容的区里的牌只有 id（匿名代号）。
+--- 新牌进账时，看不见牌面的那些会把号与同区另一张匿名牌对调 —— 客户端那边只是多了一个新号，
+--- 服务端内部这张新牌背上的却是旧号，之后移除 / 移动报出去的号都认不出是哪张。
 
 ---@class CardSync.API
 moe.cardSync = {}
@@ -18,6 +15,10 @@ moe.cardSync.views = moe.cardSync.views or setmetatable({}, { __mode = 'k' })
 ---@type table<Game, table<Card, true>>
 moe.cardSync.dirty = moe.cardSync.dirty or setmetatable({}, { __mode = 'k' })
 
+--- 每个局「哪些真牌在哪个协议区域」（跟连接无关，一份共用 —— 挑同区匿名牌用）—— 懒创建
+---@type table<Game, table<string, Card[]>>
+moe.cardSync.zones = moe.cardSync.zones or setmetatable({}, { __mode = 'k' })
+
 --- 每张牌最近一次进区时那次搬动的可见性（组装要用）
 ---@type table<Card, Visibility>
 moe.cardSync.lastVisible = moe.cardSync.lastVisible or setmetatable({}, { __mode = 'k' })
@@ -25,27 +26,6 @@ moe.cardSync.lastVisible = moe.cardSync.lastVisible or setmetatable({}, { __mode
 --- 每张牌最近一次离开的区（进区时配对发移动通知用）
 ---@type table<Card, Zone>
 moe.cardSync.lastLeave = moe.cardSync.lastLeave or setmetatable({}, { __mode = 'k' })
-
---- 取某个玩家的视图（他没有连接就没有）
----@param player Player
----@return CardSync.View?
-local function getView(player)
-    local user = player.user
-    if not user then
-        return nil
-    end
-    ---@cast user ClientUser
-    local client = user.client
-    if not client then
-        return nil
-    end
-    local view = moe.cardSync.views[client]
-    if not view then
-        view = { player = player, cards = {}, nextId = 0 }
-        moe.cardSync.views[client] = view
-    end
-    return view
-end
 
 --- 协议里的区域：既没有名字也没有归属的（临时区）一律是同一个空区域
 ---@param zone? Zone
@@ -93,26 +73,6 @@ local function contentVisible(zone, visible, player)
     return moe.visibility.isVisibleTo(visible, player)
 end
 
---- 按视角组装一张牌（看不见内容就只给 id 与区域）
----@param view CardSync.View
----@param card Card
----@param id integer
----@return Proto.Card
-local function toCard(view, card, id)
-    local zone = card:getZone()
-    ---@type Proto.Card
-    local result = { id = id, zone = toZone(zone) }
-    if zone and contentVisible(zone, moe.cardSync.lastVisible[card], view.player) then
-        local own = card.ownFace
-        result.template = { name = own.name, suit = own.suit, point = own.point }
-        local modifier = card.modifier
-        if modifier then
-            result.modifier = { name = modifier.name, suit = modifier.suit, point = modifier.point }
-        end
-    end
-    return result
-end
-
 --- 两份快照是不是完全一样
 ---@param a Proto.Card
 ---@param b Proto.Card
@@ -148,33 +108,176 @@ local function zoneKey(zone)
     return '{}#{}' % { zone.name or '', zone.player or 0 }
 end
 
---- 把这个连接视图里某个区中「看不见内容」的那些 id 打乱
---- 客户端那边的 id 集合一个都不变，换的只是「哪个 id 属于哪张真牌」
---- ⇒ 之后移除 / 移动报出去的 id 都是随机的（客户端没法把它与真牌对上）
+--- 这个连接在某个区里看不见牌面的那些牌（`card` 自己也算一个 —— 抽到自己就等于不换）
 ---@param view CardSync.View
----@param key string
-local function shuffleHidden(view, key)
-    ---@type { card: Card, snapshot: Proto.Card }[]
-    local entries = {}
-    for card, snapshot in pairs(view.cards) do
-        if snapshot.template == nil and zoneKey(snapshot.zone) == key then
-            entries[#entries + 1] = { card = card, snapshot = snapshot }
+---@param card Card
+---@param zone Zone
+---@return Card[]
+local function hiddenIn(view, card, zone)
+    ---@type Card[]
+    local hidden = { card }
+    local areas  = moe.cardSync.zones[view.player.game]
+    local cards  = areas?[zoneKey(toZone(zone))]
+    if cards then
+        for i = 1, #cards do
+            local other    = cards[i]
+            local snapshot = view.cards[other]
+            if other ~= card and snapshot and snapshot.template == nil then
+                hidden[#hidden + 1] = other
+            end
         end
     end
-    if #entries < 2 then
+    return hidden
+end
+
+--- 记下这张牌进了哪个协议区域（懒创建那个区的列表）
+---@param game Game
+---@param card Card
+---@param zone Zone
+local function addToZone(game, card, zone)
+    local areas = moe.cardSync.zones[game]
+    if not areas then
+        areas = {}
+        moe.cardSync.zones[game] = areas
+    end
+    local key   = zoneKey(toZone(zone))
+    local cards = areas[key]
+    if not cards then
+        cards = {}
+        areas[key] = cards
+    end
+    cards[#cards + 1] = card
+end
+
+--- 记下这张牌离开了哪个协议区域
+---@param game Game
+---@param card Card
+---@param zone Zone
+local function removeFromZone(game, card, zone)
+    local cards = moe.cardSync.zones[game]?[zoneKey(toZone(zone))]
+    if not cards then
         return
     end
-    -- 只按视图号排（它与视图一一对应，与 `pairs` 的遍历顺序无关），再打乱
-    table.sort(entries, function (a, b) return a.snapshot.id < b.snapshot.id end)
-    ---@type Proto.Card[]
-    local snapshots = {}
-    for i, entry in ipairs(entries) do
-        snapshots[i] = entry.snapshot
+    for i = 1, #cards do
+        if cards[i] == card then
+            table.remove(cards, i)
+            return
+        end
     end
-    view.player.game.random:shuffle(snapshots)
-    for i, entry in ipairs(entries) do
-        view.cards[entry.card] = snapshots[i]
+end
+
+--- 这一局所有牌区（局上的公共区 + 各玩家的区）
+---@param game Game
+---@return Zone[]
+local function allZones(game)
+    local zones = game:getZones()
+    for _, player in ipairs(game.desk.players) do
+        for _, zone in ipairs(player:getZones()) do
+            zones[#zones + 1] = zone
+        end
     end
+    return zones
+end
+
+--- 一个连接的那份账（视图 id 是这个连接自己的号：每张新牌进来发一个，离区就作废）
+---@class CardSync.View : Class.Base
+---@field player Player # 这个连接是谁
+---@field cards table<Card, Proto.Card> # 这个客户端当前看到的每张牌（背面牌也在里面，只是没有牌面）
+---@field private idCounter integer # 视图 id 的号源（每个连接一套）
+local M = Class 'CardSync.View'
+
+---@param player Player
+function M:__init(player)
+    self.player    = player
+    self.cards     = {}
+    self.idCounter = 0
+end
+
+--- 发一个视图号
+---@return integer
+function M:nextId()
+    self.idCounter = self.idCounter + 1
+    return self.idCounter
+end
+
+--- 按这个视角组装一张牌（看不见内容就只给 id 与区域）
+---@param card Card
+---@param id integer
+---@return Proto.Card
+function M:toCard(card, id)
+    local zone   = card:getZone()
+    ---@type Proto.Card
+    local result = { id = id, zone = toZone(zone) }
+    if zone and contentVisible(zone, moe.cardSync.lastVisible[card], self.player) then
+        local own = card.ownFace
+        result.template = { name = own.name, suit = own.suit, point = own.point }
+        local modifier = card.modifier
+        if modifier then
+            result.modifier = { name = modifier.name, suit = modifier.suit, point = modifier.point }
+        end
+    end
+    return result
+end
+
+--- 这个连接多了一张新牌：发号、记账；看不见牌面的还要与同区一张匿名牌把号对调
+---@param card Card
+---@return Proto.Card # 要发给这个客户端的快照
+function M:create(card)
+    local snapshot = self:toCard(card, self:nextId())
+    self.cards[card] = snapshot
+    local zone = card:getZone()
+    if zone and snapshot.template == nil then
+        local other = self.player.game.random:pick(hiddenIn(self, card, zone))
+        if other ~= card then
+            self.cards[card], self.cards[other] = self.cards[other], snapshot
+        end
+    end
+    return snapshot
+end
+
+--- 同一区里牌面变了没有：变了就原地换一份快照（号不变）
+---@param card Card
+---@return Proto.Card? # 变了才给（没变就不用发）
+function M:update(card)
+    local old   = self.cards[card]
+    local fresh = self:toCard(card, old.id)
+    if sameCard(old, fresh) then
+        return nil
+    end
+    self.cards[card] = fresh
+    return fresh
+end
+
+--- 这个连接看不到这张牌了：从账里划掉
+---@param card Card
+function M:remove(card)
+    self.cards[card] = nil
+end
+
+--- 丢掉现在这份账（全量重发前用）
+function M:reset()
+    self.cards = {}
+end
+
+--- 取某个玩家的视图（他没有连接就没有）
+---@param player Player
+---@return CardSync.View?
+local function getView(player)
+    local user = player.user
+    if not user then
+        return nil
+    end
+    ---@cast user ClientUser
+    local client = user.client
+    if not client then
+        return nil
+    end
+    local view = moe.cardSync.views[client]
+    if not view then
+        view = New 'CardSync.View' (player)
+        moe.cardSync.views[client] = view
+    end
+    return view
 end
 
 --- 标脏一张牌（第一次标脏给这个局登记一次 flush）
@@ -243,20 +346,6 @@ function moe.cardSync.flush(game)
     end
     moe.cardSync.dirty[game] = nil
     broadcast(game, function (view)
-        -- 隐私：先把这个连接看不到内容的那些区里的 id 打乱，再算变化 ——
-        -- 这样「移除的是哪个匿名 id」是随机的，客户端没法把它与真牌对上
-        local touched = {}
-        for card in pairs(dirty) do
-            local old = view.cards[card]
-            if old then
-                touched[zoneKey(old.zone)] = true
-            end
-            touched[zoneKey(toZone(card:getZone()))] = true
-        end
-        for key in pairs(touched) do
-            shuffleHidden(view, key)
-        end
-
         ---@type Proto.Card[]
         local creates = {}
         ---@type Proto.Card[]
@@ -264,26 +353,18 @@ function moe.cardSync.flush(game)
         ---@type integer[]
         local removes = {}
         for card in pairs(dirty) do
-            local zone   = card:getZone()
-            local old    = view.cards[card]
+            local old = view.cards[card]
             if not old then
-                view.nextId = view.nextId + 1
-                local fresh = toCard(view, card, view.nextId)
-                view.cards[card] = fresh
-                creates[#creates + 1] = fresh
-            else
-                local fresh = toCard(view, card, old.id)
-                if not sameCard(old, fresh) then
-                    if sameZone(old.zone, fresh.zone) then
-                        view.cards[card] = fresh
-                        updates[#updates + 1] = fresh
-                    else
-                        removes[#removes + 1] = old.id
-                        view.nextId = view.nextId + 1
-                        view.cards[card] = toCard(view, card, view.nextId)
-                        creates[#creates + 1] = assert(view.cards[card])
-                    end
+                creates[#creates + 1] = view:create(card)
+            elseif sameZone(old.zone, toZone(card:getZone())) then
+                local fresh = view:update(card)
+                if fresh then
+                    updates[#updates + 1] = fresh
                 end
+            else
+                removes[#removes + 1] = old.id
+                view:remove(card)
+                creates[#creates + 1] = view:create(card)
             end
         end
         if #creates + #updates + #removes == 0 then
@@ -313,6 +394,7 @@ function moe.cardSync.watch(game)
             local from = moe.cardSync.lastLeave[card]
             moe.cardSync.lastLeave[card] = nil
             moe.cardSync.lastVisible[card] = visible
+            addToZone(game, card, zone)
             if from then
                 notifyMove(card, from, zone)
             end
@@ -320,6 +402,7 @@ function moe.cardSync.watch(game)
         end),
         game:on('卡牌-离开区域', function (card, zone)
             moe.cardSync.lastLeave[card] = zone
+            removeFromZone(game, card, zone)
             markDirty(game, card)
         end),
         game:on('卡牌-变化', function (card)
@@ -337,25 +420,22 @@ end
 ---@param game Game
 function moe.cardSync.syncAll(game)
     moe.cardSync.dirty[game] = nil
+    -- 区域状态是所有连接共用的一份：先照内核的现状重建一遍
+    moe.cardSync.zones[game] = {}
+    local zones = allZones(game)
+    for _, zone in ipairs(zones) do
+        for _, card in ipairs(zone:list()) do
+            addToZone(game, card, zone)
+        end
+    end
     broadcast(game, function (view)
+        view:reset()
         ---@type Proto.Card[]
         local cards = {}
-        view.cards = {}
-        local function collect(zone)
+        for _, zone in ipairs(zones) do
             for _, card in ipairs(zone:list()) do
                 moe.cardSync.lastVisible[card] = nil
-                view.nextId = view.nextId + 1
-                local fresh = toCard(view, card, view.nextId)
-                view.cards[card] = fresh
-                cards[#cards + 1] = fresh
-            end
-        end
-        for _, zone in ipairs(game:getZones()) do
-            collect(zone)
-        end
-        for _, player in ipairs(game.desk.players) do
-            for _, zone in ipairs(player:getZones()) do
-                collect(zone)
+                cards[#cards + 1] = view:create(card)
             end
         end
         if #cards == 0 then

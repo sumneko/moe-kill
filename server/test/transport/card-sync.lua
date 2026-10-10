@@ -46,13 +46,14 @@ local function connect()
 end
 
 --- 搭一个两人局：每人坐好、都有连接，同步层已经盯上（每条用例一次，顺带撤掉上一轮的收集器）
+---@param seed? integer # 随机种子（要重复抽样时换个种子，不然每轮抽到同一个结果）
 ---@return Game
 ---@return Player[]
-local function newGame()
+local function newGame(seed)
     reset()
     local game = moe.game.create {
         seats   = 2,
-        random  = moe.random.create(1),
+        random  = moe.random.create(seed or 1),
         sources = { lt.cardSource },
     }
     ---@type Player[]
@@ -143,51 +144,40 @@ lt.test('卡牌同步：牌进区发创建、离区发移除', function ()
 end)
 
 ---@async
-lt.test('卡牌同步：看不见的区里移除一张，报出去的 id 不是它自己那个', function ()
-    -- 打乱本身是随机的 ⇒ 单次可能恰好还落在原 id 上，所以跑若干轮统计
-    local sameCount = 0
-    for round = 1, 6 do
-        local game, players = newGame()
+lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', function ()
+    -- 换号是随机的（也可能正好抽到自己 = 不换）⇒ 换几个种子跑几轮统计
+    local swapped = 0
+    for seed = 1, 8 do
+        local game, players = newGame(seed)
         local you = assert(players[2])
-        local creates = collect('Card.Create')
-        local removes = collect('Card.Remove')
+        local got = collect('Card.Create')
 
-        ---@type Card[]
-        local hand = {}
-        for i = 1, 8 do
-            hand[i] = game:createCard('杀')
-            you:getZone('手牌'):accept(hand[i])
-        end
+        local first = game:createCard('杀')
+        you:getZone('手牌'):accept(first)
         moe.await.sleep(0)
-        clear(creates)
-        clear(removes)
 
         local user = assert(players[1].user)
         ---@cast user ClientUser
-        local view = moe.cardSync.views[user.client]
-        local mine = assert(view).cards
-        ---@type table<integer, Card>
-        local byId = {}
-        for _, card in ipairs(hand) do
-            local snapshot = assert(mine[card])
-            byId[snapshot.id] = card
-        end
+        local view = assert(moe.cardSync.views[user.client])
+        local idFirst = assert(view.cards[first]).id
 
-        local target   = assert(hand[1])
-        local idBefore = assert(mine[target]).id
-
-        game:moveCard(target, '弃牌')
+        clear(got)
+        local second = game:createCard('杀')
+        you:getZone('手牌'):accept(second)
         moe.await.sleep(0)
 
-        lt.assertEquals('两个连接各一条移除', 2, #removes)
-        local removed = assert(removes[1]).ids[1]
-        lt.assertEquals('移除的必须是他手牌里的匿名 id 之一', true, byId[removed] ~= nil)
-        lt.assertEquals('弃牌堆那张照样看得见牌面', '杀', assert(creates[1]).cards[1].template.name)
-        if removed == idBefore then
-            sameCount = sameCount + 1
+        local idSent = assert(assert(got[1]).cards[1]).id
+        lt.assertEquals('发出去的是个没用过的号', true, idSent ~= idFirst)
+        local idFirstNow  = assert(view.cards[first]).id
+        local idSecondNow = assert(view.cards[second]).id
+        lt.assertEquals('两张牌占的还是那两个号', true,
+            (idFirstNow == idFirst and idSecondNow == idSent)
+            or (idFirstNow == idSent and idSecondNow == idFirst))
+        if idFirstNow ~= idFirst then
+            swapped = swapped + 1
         end
     end
-    lt.assertEquals('不会每一轮都报「那张自己的 id」（说明打乱过）', true, sameCount < 6)
+    lt.assertEquals('有时候会把先来那张的号换走（说明换过号）', true, swapped > 0)
 end)
 
 ---@async
