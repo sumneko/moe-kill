@@ -24,6 +24,13 @@ local function collect(method)
     return got
 end
 
+--- 一条创建通知里「第一个区的那批正面牌」（用例基本只往一个区里放牌）
+---@param data Proto.Notify.Card.Create
+---@return Proto.Card[]
+local function shown(data)
+    return assert(assert(data.show)[1]).cards
+end
+
 --- 把上一轮用过的收集器全撤掉
 local function reset()
     for i = #pending, 1, -1 do
@@ -93,7 +100,7 @@ lt.test('卡牌同步：建视图时把当时场上的牌都算进账', function
 end)
 
 ---@async
-lt.test('卡牌同步：看不见的牌只有号与区域', function ()
+lt.test('卡牌同步：看不见的牌只按区给号', function ()
     local game, players = newGame()
     local me = assert(players[1])
     local you = assert(players[2])
@@ -103,13 +110,12 @@ lt.test('卡牌同步：看不见的牌只有号与区域', function ()
     you:getZone('手牌'):accept(game:createCard('杀'))
     moe.await.sleep(0)
 
-    local mine  = assert(got[1]).cards
-    local yours = assert(got[2]).cards
-    lt.assertEquals('看不见别人的手牌', nil, assert(mine[1]).face)
-    lt.assertEquals('但那张牌的存在看得见', 1, #mine)
-    lt.assertEquals('号是给了的（后续搬动要认它）', true, mine[1].id ~= nil)
-    lt.assertEquals('区域是「对方的手牌」', '手牌#' .. you.id, mine[1].zone)
-    lt.assertEquals('他自己那份看得见牌面', '杀', assert(assert(yours[1]).face).name)
+    local mine  = assert(assert(got[1]).hide)[1]
+    local yours = assert(assert(got[2]).show)[1]
+    lt.assertEquals('看不见别人的手牌：按区给号', '手牌#' .. you.id, assert(mine).zone)
+    lt.assertEquals('那张牌的号给了（后续搬动要认它）', 1, #assert(mine).cards)
+    lt.assertEquals('不带牌面（暗牌不进明牌项）', nil, assert(got[1]).show)
+    lt.assertEquals('他自己那份看得见牌面', '杀', assert(assert(yours).cards[1].face).name)
 end)
 
 ---@async
@@ -122,8 +128,9 @@ lt.test('卡牌同步：自己的手牌看得见', function ()
     me:getZone('手牌'):accept(game:createCard('桃'))
     moe.await.sleep(0)
 
-    lt.assertEquals('自己那张带牌面', '桃', assert(assert(got[1]).cards[1].face).name)
-    lt.assertEquals('对方那份没有牌面', nil, assert(assert(got[2]).cards[1]).face)
+    lt.assertEquals('自己那张带牌面', '桃', assert(assert(assert(got[1]).show)[1].cards[1].face).name)
+    lt.assertEquals('对方那份只拿到号（明牌项没有）', nil, assert(got[2]).show)
+    lt.assertEquals('对方那份的暗牌按区给了', '手牌#' .. me.id, assert(assert(assert(got[2]).hide)[1]).zone)
 end)
 
 ---@async
@@ -139,9 +146,10 @@ lt.test('卡牌同步：牌进区发创建、离区发移除', function ()
     moe.await.sleep(0)
 
     lt.assertEquals('两个连接各一条创建', 2, #creates)
-    lt.assertEquals('第一条里有一张牌', 1, #assert(creates[1]).cards)
-    lt.assertEquals('是那张牌', '杀', creates[1].cards[1].face.name)
-    local id = creates[1].cards[1].id
+    local sent = shown(assert(creates[1]))
+    lt.assertEquals('第一条里有一张牌', 1, #sent)
+    lt.assertEquals('是那张牌', '杀', sent[1].face.name)
+    local id = sent[1].id
 
     game:moveCard(card, '弃牌')
     moe.await.sleep(0)
@@ -173,7 +181,7 @@ lt.test('卡牌同步：暗区里进新牌，号会被洗一遍', function ()
         you:getZone('手牌'):accept(second)
         moe.await.sleep(0)
 
-        local idSent     = assert(assert(got[1]).cards[1]).id
+        local idSent     = assert(assert(assert(got[1]).hide)[1]).cards[1]
         local idFirstNow  = assert(view.cardMap[first]).id
         local idSecondNow = assert(view.cardMap[second]).id
         lt.assertEquals('两张牌各占一个号', true, idFirstNow ~= idSecondNow)
@@ -230,16 +238,16 @@ lt.test('卡牌同步：换区会换新 id（移除 + 创建）', function ()
     local card = game:createCard('杀')
     me:getZone('手牌'):accept(card)
     moe.await.sleep(0)
-    local before = assert(creates[1]).cards[1].id
+    local before = shown(assert(creates[1]))[1].id
     clear(creates)
 
     game:moveCard(card, '弃牌')
     moe.await.sleep(0)
 
     lt.assertEquals('旧 id 被移除', before, assert(removes[1]).ids[1])
-    local after = assert(creates[1]).cards[1].id
+    local after = shown(assert(creates[1]))[1].id
     lt.assertEquals('新 id 不一样', true, after ~= before)
-    lt.assertEquals('新那份在弃牌堆', '弃牌#0', creates[1].cards[1].zone)
+    lt.assertEquals('新那份在弃牌堆', '弃牌#0', shown(assert(creates[1]))[1].zone)
 end)
 
 ---@async
@@ -253,7 +261,7 @@ lt.test('卡牌同步：区域没变就原地更新（id 不变）', function ()
     local card = game:createCard('杀')
     me:getZone('手牌'):accept(card)
     moe.await.sleep(0)
-    local id = assert(creates[1]).cards[1].id
+    local id = shown(assert(creates[1]))[1].id
 
     card:addModifier { name = '火杀' }
     moe.await.sleep(0)
@@ -276,7 +284,7 @@ lt.test('卡牌同步：没转化就不带 modifier', function ()
     me:getZone('手牌'):accept(card)
     moe.await.sleep(0)
 
-    local sent = assert(creates[1]).cards[1]
+    local sent = shown(assert(creates[1]))[1]
     lt.assertEquals('牌自己那份面照发', '杀', sent.face.name)
     lt.assertEquals('没转化就不带 modifier', nil, sent.modifier)
 end)
@@ -313,7 +321,7 @@ lt.test('卡牌同步：搬牌当场发移动通知', function ()
     local card = game:createCard('杀')
     me:getZone('手牌'):accept(card)
     moe.await.sleep(0)
-    local id = assert(creates[1]).cards[1].id
+    local id = shown(assert(creates[1]))[1].id
     clear(moves)
 
     game:moveCard(card, '弃牌')
@@ -360,7 +368,7 @@ lt.test('卡牌同步：无名区（临时区）之间互移不发移动、也�
     local second = moe.zone.create(game)
     first:accept(card)
     moe.await.sleep(0)
-    local id = assert(creates[1]).cards[1].id
+    local id = shown(assert(creates[1]))[1].id
     clear(creates)
     clear(moves)
 

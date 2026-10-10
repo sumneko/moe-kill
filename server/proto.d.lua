@@ -88,7 +88,8 @@
 ---@field ids integer[] # 被移除的卡牌ID列表
 
 ---@class Proto.Notify.Card.Create
----@field cards Proto.Card[] # 被创建的卡牌列表
+---@field show? { zone: string, cards: Proto.Card[] }[] # 正面朝上的部分，按区域划分
+---@field hide? { zone: string, cards: integer[]    }[] # 背面朝上的部分，按区域划分
 
 ---@class Proto.CardMove
 ---@field id? integer # 移动的卡牌ID，方便播放动画确定起始位置

@@ -396,6 +396,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **协议去掉 `Proto.Zone`：区域改成一个字符串（2026-10-11，用户提「服务端只会拿 key 做索引，客户端自己解析」）**：服务端本来就把「区」压成字符串当账本索引（`cardZones[key]`），协议里再传 `{name, player}` 对象等于拆开又拼回去。改动：① **proto**：删 `Proto.Zone`，`Proto.Card.zone` / `Proto.CardMove.from` / `to` 改成 `string`（格式沿用现状的 `名字#玩家号`，玩家号 `0` = 无主）；② **`card-sync.lua`**：`V:toPZone(zone)` 直接产出字符串（**吸收掉 `keyOfPZone`**），`samePZone` 退化成 `==` 后删掉，`fillCardZones` / `updateCards` 不再「先建表再拼 key」，`moveCards` 每搬一次少建两张表；③ 用例里断言 `zone.name` / `zone.player` 的几处改成断言字符串（`test/user/card-sync` + `test/user/snapshot`）。**量到**：一条 `Card.Create`（107 张暗牌）**3755 → 3006 字节（-20%）**、单次编码 **0.250 → 0.190 ms**（折算 8 份 2.0 → 1.5 ms）；总耗时的降幅在这个量级、会被测量噪声盖住，没单独量。**验收基线不变（1229）**。
 
+- **`Card.Create` 拆成「明牌给对象 / 暗牌按区给号」（2026-10-11，proto 由用户改「区分了一下正面朝上和背面朝上」）**：`Proto.Notify.Card.Create` 现在是 `{ show? = { zone, cards: Proto.Card[] }[], hide? = { zone, cards: integer[] }[] }` —— **两边都按区域分组**：正面朝上的给完整对象，背面朝上的只给号。服务端实现在 `V:updateCards` 收尾：把这一批 `creates` 按 `pcard.face` 分流，**两边各自**用 `zone` 归组（**按出现顺序**输出组、保证确定性；`shows` / `hides` 存 entry 引用，`showList` / `hideList` 保持顺序），空的那半不带字段。**量到**：开局那条（107 张暗牌）**3006 → 360 字节（-88%）**、单次编码 **0.190 → 0.035 ms**（最早那版是 3755 / 0.250）⇒ 8 份从 30 KB 降到约 2.9 KB。用例里与 `Card.Create` 有关的断言跟着改了两轮（先 `back` 后 `show`），测试里加了 `shown(data)` 小助手取「第一个区的那批正面牌」。**验收基线不变（1229）**。
+
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
 | 候选 | 现状 / 前置 |

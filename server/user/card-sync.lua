@@ -315,8 +315,43 @@ function V:updateCards(cards)
         })
     end
     if #creates > 0 then
-        self.user:notify('Card.Create', {
-            cards = creates,
-        })
+        ---@type table<string, { zone: string, cards: Proto.Card[] }> # 正面朝上：给完整对象
+        local shows = {}
+        ---@type { zone: string, cards: Proto.Card[] }[]
+        local showList = {}
+        ---@type table<string, { zone: string, cards: integer[] }> # 背面朝上：只给号
+        local hides = {}
+        ---@type { zone: string, cards: integer[] }[]
+        local hideList = {}
+        for _, pcard in ipairs(creates) do
+            local zone = assert(pcard.zone)
+            if pcard.face then
+                local entry = shows[zone]
+                if not entry then
+                    entry = { zone = zone, cards = {} }
+                    shows[zone] = entry
+                    showList[#showList + 1] = entry
+                end
+                table.insert(entry.cards, pcard)
+            else
+                local entry = hides[zone]
+                if not entry then
+                    entry = { zone = zone, cards = {} }
+                    hides[zone] = entry
+                    hideList[#hideList + 1] = entry
+                end
+                table.insert(entry.cards, pcard.id)
+            end
+        end
+
+        ---@type Proto.Notify.Card.Create
+        local data = {}
+        if #showList > 0 then
+            data.show = showList
+        end
+        if #hideList > 0 then
+            data.hide = hideList
+        end
+        self.user:notify('Card.Create', data)
     end
 end
