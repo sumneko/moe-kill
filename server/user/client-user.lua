@@ -278,7 +278,7 @@ function M:viewAsParams(viewAs, plan)
             params.sourceCard = proto.id
         else
             ---@cast source Skill
-            params.sourceSkill = source.name
+            params.sourceSkill = source.id
         end
     end
     local condition = viewAs.options?.condition

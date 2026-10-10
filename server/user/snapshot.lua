@@ -40,7 +40,7 @@ end
 ---@param game Game
 ---@param client Client
 ---@return User?
-local function userOf(game, client)
+function moe.snapshot.userOf(game, client)
     for _, player in ipairs(game.desk.players) do
         local user = player.user
         if user and user.client == client then
@@ -51,6 +51,6 @@ end
 
 moe.client.register('Game.SnapShot', function (client)
     local game = assert(moe.snapshot._game, '还没开局')
-    local user = assert(userOf(game, client), '这条连接还没入座')
+    local user = assert(moe.snapshot.userOf(game, client), '这条连接还没入座')
     return moe.snapshot.build(game, user)
 end)

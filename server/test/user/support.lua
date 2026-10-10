@@ -19,34 +19,41 @@ function M.connect()
     return front, back
 end
 
---- 让两个座位坐好、每人接一个客户端并接入下行
+--- 让两个座位坐好、每人接一个客户端并接入下行；顺带把「前端」那侧留给用例（要自己发请求的用）
 ---@param game Game
 ---@return Player[]
+---@return Client[] # 每个座位前端的那一个端点
 local function seatAll(game)
+    moe.snapshot.attach(game)
     ---@type Player[]
     local players = {}
+    ---@type Client[]
+    local fronts = {}
     for i = 1, 2 do
         local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
-        local _, back = M.connect()
+        local front, back = M.connect()
         game.desk:sit(i, player)
         player:setUser(New 'ClientUser' (game, back))
         assert(player.user):attach()
         players[i] = player
+        fronts[i]  = front
     end
-    return players
+    return players, fronts
 end
 
 --- 搭一个两人局：每人坐好、都接了客户端并接入下行
 ---@param sources? string[] # 包来源（省略 = 只装公共牌定义）
 ---@return Game
 ---@return Player[]
+---@return Client[]
 function M.newGame(sources)
     local game = moe.game.create {
         seats   = 2,
         random  = moe.random.create(1),
         sources = sources or { lt.cardSource },
     }
-    return game, seatAll(game)
+    local players, fronts = seatAll(game)
+    return game, players, fronts
 end
 
 --- 发两张候选牌并搬进他的手牌（他那份卡牌视图账里才有号）
@@ -76,6 +83,7 @@ end
 --- 搭一个装了「标准」包的两人局（要用真牌的业务链用这个）：角色按标准值初始化属性，不然距离算不出来
 ---@return Game
 ---@return Player[]
+---@return Client[]
 function M.newPackageGame()
     local game = moe.game.create {
         seats    = 2,
@@ -83,13 +91,13 @@ function M.newPackageGame()
         sources  = { M.packageSource },
         packages = { '标准' },
     }
-    local players = seatAll(game)
+    local players, fronts = seatAll(game)
     for _, player in ipairs(players) do
         player:setAttr('体力上限', 4)
         player:setAttr('体力', 4)
         player:setAttr('攻击范围', 1)
     end
-    return game, players
+    return game, players, fronts
 end
 
 --- 造一张内容包里的真牌并搬进他的牌区（他那份卡牌视图账里才有号）

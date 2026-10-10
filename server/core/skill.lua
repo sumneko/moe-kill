@@ -1,3 +1,6 @@
+--- 技能下行的脏标记（`'base'` = 技能本身的形态变了、`'removed'` = 摘掉了）
+---@alias Skill.DirtyKind 'base' | 'removed'
+
 --- 技能的目标条件：个数区间 + 逐角色谓词（`: targets { … }` 声明的形状）
 ---@class SkillDef.TargetCondition
 ---@field min? integer # 至少几个目标（省略 = 1）
@@ -205,13 +208,14 @@ end
 ---@field targets Player[] # 这次发动指定的目标
 
 --- 挂在角色身上的一个技能：订阅与资源由内容侧在「被动」钩子里 `host:bindGC(…)` 挂上，停用时内核释放容器
----@class Skill : GCHost
+---@class Skill : GCHost, Class.Base
 ---@field name string # 定义名（裸名）
+---@field id integer # 协议上的唯一号（= `game:nextId()`；与牌共用一串号）
 ---@field owner Player # 谁拥有
 ---@field auto boolean # 被动触发时要不要自动同意（不询问；玩家 / 客户端可切）
 ---@field def SkillDef # 内容定义（公开字段；收集选项时内核读它的声明）
 ---@field private game Game # 属于哪一局
----@field private passiveSuppress integer # 被压制的层数（出厂 1 = 未启用）
+---@field package passiveSuppress integer # 被压制的层数（出厂 1 = 未启用；getter 要读）
 ---@field private passiveHost? GCHost # 本次应用时给回调的容器（懒建；停用时释放）
 local S = Class 'Skill'
 
@@ -224,9 +228,30 @@ function S:__init(game, def, owner)
     self.game  = game
     self.def   = def
     self.name  = def.name
+    self.id    = game:nextId()
     self.owner = owner
     self.auto  = def.autoFire
     self.passiveSuppress = 1
+end
+
+---@type boolean
+S.disabled = nil
+
+--- 现在被停用了吗（压制的层数 > 0 —— 如被克制 / 封印）
+---@param self Skill
+---@return boolean
+S.__getter.disabled = function (self)
+    return self.passiveSuppress > 0
+end
+
+--- 切自动开关（没变就什么都不做；变了播一次形态变化）
+---@param auto boolean
+function S:setAuto(auto)
+    if self.auto == auto then
+        return
+    end
+    self.auto = auto
+    self.game:fire('技能-数据变化', self, 'base')
 end
 
 --- 问一次要不要发动：自动同意开着就直接放行，否则问「发动」这一句
@@ -294,6 +319,7 @@ function S:enablePassive()
     self.passiveSuppress = self.passiveSuppress - 1
     if self.passiveSuppress == 0 then
         self:applyPassive()
+        self.game:fire('技能-数据变化', self, 'base')
     end
     return function ()
         self:disablePassive()
@@ -306,6 +332,7 @@ function S:disablePassive()
     self.passiveSuppress = self.passiveSuppress + 1
     if self.passiveSuppress == 1 then
         self:removePassive()
+        self.game:fire('技能-数据变化', self, 'base')
     end
     return function ()
         self:enablePassive()

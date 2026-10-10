@@ -17,6 +17,7 @@ end
 function M:attach()
     moe.cardSync.attach(self)
     moe.playerSync.attach(self)
+    moe.skillSync.attach(self)
 end
 
 ---@param method string

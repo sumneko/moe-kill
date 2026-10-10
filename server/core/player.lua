@@ -220,6 +220,7 @@ function M:removeSkill(skill)
     for i, item in ipairs(self.skills) do
         if item == skill then
             table.remove(self.skills, i)
+            self.game:fire('技能-数据变化', skill, 'removed')
             return
         end
     end

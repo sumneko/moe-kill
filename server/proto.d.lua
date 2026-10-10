@@ -104,6 +104,27 @@
 ---@class Proto.Notify.Card.Move
 ---@field moves Proto.CardMove[]
 
+---@class Proto.Skill
+---@field name string # 技能名
+---@field id integer # 唯一ID
+---@field player integer # 在哪个英雄身上
+---@field auto? boolean # 是否是自动技能以及自动技能开关状态
+---@field tag? string[] # 标签
+---@field disabled? boolean # 是否被禁用
+
+---@class Proto.Notify.skill.Update
+---@field skill Proto.Skill # 被更新的技能
+
+---@class Proto.Notify.Skill.Remove
+---@field id integer # 被移除的技能ID
+
+---@class Proto.Request.Skill.ChangeAuto
+---@field id integer # 要改变自动状态的技能ID
+---@field auto boolean # 新的自动状态
+
+---@class Proto.Result.Skill.ChangeAuto
+---@field auto? boolean # 新的自动状态
+
 ---@class Proto.Plan.Player
 ---@field ids integer[] # 候选玩家ID列表
 ---@field min integer # 最少需要的玩家数量
@@ -139,7 +160,7 @@
 ---@class Proto.ViewAs
 ---@field name string # 要视为的卡牌
 ---@field sourceCard? integer # 提供这个视为技的卡牌。和 sourceSkill 互斥
----@field sourceSkill? string # 提供这个视为技的技能名。和 sourceCard 互斥
+---@field sourceSkill? integer # 提供这个视为技的技能名。和 sourceCard 互斥
 ---@field card? Proto.Plan.Card # 作为素材的卡牌
 ---@field target? Proto.Plan.Player # 作为目标的玩家
 

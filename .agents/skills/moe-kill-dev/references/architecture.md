@@ -673,3 +673,14 @@ Card '杀'
 - **连接集合**（`server/transport/clients.lua`，`moe.clients`）：`add(client)`（**返回撤销函数**）/ `remove` / `broadcast(method, build)`（`build(client)` 各造一份，返回 `nil` 即跳过）。**内核不碰它** —— 谁持有集合、谁往里放连接由外壳决定。
 - **一类数据一条协议**（用户 2026-10-10 定）：`Update` 只带基础信息、`UpdateCustom` 只带 custom；将来 `Zone` / `Skill` / `Buff` 各自一条，**不做「一个大快照」**。
 - **增量由客户端比对**（用户 2026-10-10 定）：本批**不做差分**，每次发的是该类数据的**全量**（custom 会按视角裁键，但发出去的都是当前值）。
+
+## 18. 技能下行与自动开关（`server/user/skill-sync.lua`）
+
+- **技能在协议上有了身份**（2026-10-10）：`Skill` 加 `id`（`game:nextId()` —— 「牌与技能共用一串号」早有此口径），`Proto.Skill` = `{ name, id, player, auto?, tag?, disabled? }`；`Proto.ViewAs.sourceSkill` 也从**技能名**换成**技能 id**（`viewAsParams` 跟着改）。
+- **内核只发一条事件**（与 `'玩家-数据变化'` 同形）：`'技能-数据变化'`（`kind` 两种：`'base'` 形态变了 / `'removed'` 摘掉了），`env-meta.lua` 里给 `Game:on` / `Game:fire` 各补一条重载声明。调用点三个：`Skill:enablePassive` / `disablePassive` 跨过 0/1 时（挂上技能就是 `enablePassive` 走 1 → 0，所以「挂上」也走这里）、`Skill:setAuto`（自动开关**收口**在这个方法里，没变就不发）、`Player:removeSkill`。
+- **`disabled` 是算出来的读法**（`Skill.__getter.disabled` = 压制层数 > 0，如被克制 / 封印）；配套两处：`passiveSuppress` 从 `private` 放宽成 **`package`**（getter 里要读它 —— 与 `__getter` 的既有口径一致），以及照 `card.lua` 的写法补一个 `---@type boolean` + `S.disabled = nil` 的占位声明（**没占位，外部读 `skill.disabled` 就报「未定义的属性」**）。
+- **user 侧自己收、自己攒、自己发**（`server/user/skill-sync.lua`，与 card-sync / player-sync 同形）：`Game.SkillSync` 懒建在 `game.skillSync`（本文件注入的 `package` getter，**建账即订事件**）、脏标记 `dirty[skill] = kind`、一笔调度只发一次。
+- **技能总是可见 ⇒ 全广播、不裁字段**（用户 2026-10-10 定）：每个有 `user` 的座位都收到同样的通知 —— 更新走 `Skill.Update`（`Proto.Notify.skill.Update`，**一个技能一条**）、摘掉走 `Skill.Remove`（只带 `id`）。将来若要「暗将」，再加按视角裁。
+- **上行只有一条 `Skill.ChangeAuto`**：`moe.client.register('Skill.ChangeAuto', …)`（照 `Game.SnapShot` 的写法）—— 从连接找座位（`moe.snapshot.userOf`，为复用把它从局部函数改成 `moe.snapshot` 的公开方法）、从座位按 id 找技能（不是他的技能 ⇒ 报错），`Skill:setAuto` 之后回 `{ auto }`，改动同时广播给所有人。
+- **`User:attach()` 现在带起三本账**：`cardSync` / `playerSync` / `skillSync`。
+- **给 `Skill` 挂 getter 要带上 `Class.Base`**：`---@class GCHost`（`server/tools/gc.lua`）**没有**声明 `: Class.Base`，所以 `---@class Skill : GCHost` 拿不到 `Class.Base` 上的 `__getter` —— 类声明要写成 **`: GCHost, Class.Base`**，否则「给类挂 getter」报「未定义的属性/字段 `__getter`」。

@@ -150,3 +150,33 @@ lt.test('询问：视为不带素材 ⇒ 内核再问一次收素材', function 
     lt.assertEquals('这次成了', true, ask.success)
     lt.assertEquals('素材就是那张【闪】', jink, assert(assert(ask.card).subcards)[1])
 end)
+
+---@async
+lt.test('询问：技能当来源的视为，来源发的是技能号', function ()
+    local game, players = support.newPackageGame()
+    local me = assert(players[1])
+
+    local skill = me:addSkill('武圣')
+    support.giveCard(game, me, '桃', '红桃', 3)
+
+    ---@type Proto.Request.Ask.Use?
+    local sent = nil
+    local _ <close> = moe.client.register('Ask.Use', function (_, params)
+        ---@cast params Proto.Request.Ask.Use
+        sent = params
+        return nil
+    end)
+
+    local ask = moe.askUseCard.create {
+        game      = game,
+        to        = me,
+        reason    = '出牌',
+        condition = { zone = '手牌' },
+    }
+    ask:apply():await()
+
+    local viewAs = assert(assert(sent).viewAs[1], '武圣该进选项')
+    lt.assertEquals('声明的牌名', '杀', viewAs.name)
+    lt.assertEquals('来源发的是这个技能的号', skill.id, viewAs.sourceSkill)
+    lt.assertEquals('来源牌那半不给', nil, viewAs.sourceCard)
+end)
