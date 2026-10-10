@@ -25,4 +25,24 @@ function M:update(data)
     end
 end
 
+---@param data Proto.Notify.Card.Create
+function M:cardCreate(data)
+    self.client:notify('Card.Create', data)
+end
+
+---@param data Proto.Notify.Card.Update
+function M:cardUpdate(data)
+    self.client:notify('Card.Update', data)
+end
+
+---@param data Proto.Notify.Card.Remove
+function M:cardRemove(data)
+    self.client:notify('Card.Remove', data)
+end
+
+---@param data Proto.Notify.Card.Move
+function M:cardMove(data)
+    self.client:notify('Card.Move', data)
+end
+
 return M

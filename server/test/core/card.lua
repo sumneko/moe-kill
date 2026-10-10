@@ -89,7 +89,7 @@ lt.test('牌：内核不解释牌名与牌面，只搬运内容给的取值', fu
         end
     end
     table.sort(keys)
-    lt.assertEquals('没给牌面时的字段就是这几样', '_name,def,game,id,modifiers,passiveSuppress,subcards,virtual', table.concat(keys, ','))
+    lt.assertEquals('没给牌面时的字段就是这几样', 'def,game,id,modifiers,ownFace,passiveSuppress,subcards,virtual', table.concat(keys, ','))
 
     ---@type any
     local raw = card
@@ -205,6 +205,34 @@ lt.test('牌：转化改的是读出来的值，自己的字段还在', function
 
     remove()
     lt.assertEquals('重复撤销不会改坏别的', '杀', card.name)
+end)
+
+lt.test('牌：一张牌的面是叠加后的最终值', function ()
+    local card = moe.card.create(lt.game(), '杀', 123, '黑桃', 9)
+    lt.assertEquals('没转化时就是自己那份', '杀', card.face.name)
+    lt.assertEquals('花色也是自己那份', '黑桃', card.face.suit)
+    lt.assertEquals('点数也是自己那份', 9, card.face.point)
+
+    local remove = card:addModifier { name = '闪', suit = '红桃' }
+    lt.assertEquals('面取转化那份（牌名）', '闪', card.face.name)
+    lt.assertEquals('面取转化那份（花色）', '红桃', card.face.suit)
+    lt.assertEquals('没人改的点数照旧', 9, card.face.point)
+
+    remove()
+    lt.assertEquals('撤销后回到自己那份', '杀', card.face.name)
+    lt.assertEquals('撤销后花色也回来', '黑桃', card.face.suit)
+end)
+
+lt.test('牌：面会缓存，挂 / 撤转化时失效', function ()
+    local card = moe.card.create(lt.game(), '杀', 124, '黑桃', 9)
+    lt.assertEquals('第二次读拿到的是同一张表（缓存命中）', card.face, card.face)
+
+    local remove = card:addModifier { name = '闪' }
+    lt.assertEquals('挂上转化后重新算', '闪', card.face.name)
+    lt.assertEquals('重算的那份照样缓存', card.face, card.face)
+
+    remove()
+    lt.assertEquals('撤销后回到自己那份', '杀', card.face.name)
 end)
 
 lt.test('牌：多份转化各改各的字段，同一个字段后挂的覆盖先挂的', function ()

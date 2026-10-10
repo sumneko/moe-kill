@@ -33,6 +33,11 @@ function M:notifyEnter(card, visible)
     end
     card:fireHandlers('卡牌-进入区域', card, self, visible)
     self.owner?:fire('卡牌-进入区域', card, self, visible)
+    for _, watcher in ipairs(self.game.watchers) do
+        if watcher.enter then
+            watcher.enter(card, self, visible)
+        end
+    end
 end
 
 --- 牌离开了：先跑它定义上的「卡牌-离开区域」钩子（有主人的区也给主人发一份），再松开本区压的那一层（发的时候牌已经不在本区里）
@@ -41,6 +46,11 @@ end
 function M:notifyLeave(card, visible)
     card:fireHandlers('卡牌-离开区域', card, self, visible)
     self.owner?:fire('卡牌-离开区域', card, self, visible)
+    for _, watcher in ipairs(self.game.watchers) do
+        if watcher.leave then
+            watcher.leave(card, self, visible)
+        end
+    end
     if self.disabled > 0 then
         card:enablePassive()
     end

@@ -9,18 +9,23 @@
 ---@field disposer function # 离开时要跑的撤销
 ---@field keep? fun(zone: Zone?): boolean # 换到哪个区还算「没离开」（省略 = 换区就算离开）
 
+--- 一张牌的「面」：牌名 / 花色 / 点数（叠加了「转化」之后的最终值）
+---@class CardFace
+---@field name string # 牌名
+---@field suit? string # 花色
+---@field point? integer # 点数
+
 ---@class Card: Class.Base
+---@field face CardFace # 一张牌的面（叠加了「转化」之后的最终值）
+---@field ownFace CardFace # 牌自己那份面（不随「转化」变化）
 ---@field private id integer # 号（这一局发的）
----@field private _name string # 自己的牌名（读 `name`）
----@field private _suit? string # 自己的花色（读 `suit`）
----@field private _point? integer # 自己的点数（读 `point`）
 ---@field virtual boolean # 是不是虚拟牌（没有实体牌；进不了任何牌区）
 ---@field subcards Card[] # 对应的实体牌（普通牌是空表）—— **一律是实体牌**，虚拟牌不进这里（构造时已经解包）
 ---@field physical Card[] # 对应的实体牌（普通牌就是自己、虚拟牌是它的素材）
 ---@field private zone? Zone # 现在在哪个牌区里（不在任何牌区时为「不存在」）
 ---@field private zoneBinds? Card.ZoneBind[] # 随「这张牌在牌区里」存活的撤销（懒建）
 ---@field game Game # 属于哪一局（读内容定义时用）
----@field private modifiers Card.Modifier[] # 挂着的「转化」（按挂载顺序；后挂的覆盖先挂的）
+---@field package modifiers Card.Modifier[] # 挂着的「转化」（按挂载顺序；后挂的覆盖先挂的）
 ---@field private passiveSuppress integer # 被动被压制的层数（出厂 1 = 未启用）
 ---@field private passiveHost? GCHost # 本次应用被动时给回调的容器（懒建；停用时释放）
 local M = Class 'Card'
@@ -33,9 +38,7 @@ local M = Class 'Card'
 function M:__init(game, name, id, suit, point)
     self.game      = game
     self.id        = id
-    self._name     = name
-    self._suit     = suit
-    self._point    = point
+    self.ownFace   = { name = name, suit = suit, point = point }
     self.virtual   = false
     self.subcards  = {}
     self.modifiers = {}
@@ -48,55 +51,92 @@ function M:getId()
     return self.id
 end
 
+--- 所有「转化」叠出来的那一份（没挂转化时是「不存在」）
+---@type Card.Modifier?
+M.modifier = nil
+
+---@param self Card
+---@return Card.Modifier? # 所有「转化」叠出来的那一份（没挂转化时是「不存在」）
+---@return true # 将结果缓存下来
+M.__getter.modifier = function (self)
+    if #self.modifiers == 0 then
+        return nil, true
+    end
+    local merged = {}
+    for i = 1, #self.modifiers do
+        local modifier = self.modifiers[i]
+        merged.name  = modifier.name  or merged.name
+        merged.suit  = modifier.suit  or merged.suit
+        merged.point = modifier.point or merged.point
+    end
+    return merged, true
+end
+
+---@type CardFace
+M.face = nil
+
+---@param self Card
+---@return CardFace # 一张牌的面（有「转化」就取最晚挂的那份）
+---@return true # 将结果缓存下来
+M.__getter.face = function (self)
+    local own      = self.ownFace
+    local modifier = self.modifier
+    if not modifier then
+        return own, true
+    end
+    return {
+        name  = modifier.name  or own.name,
+        suit  = modifier.suit  or own.suit,
+        point = modifier.point or own.point,
+    }, true
+end
+
 ---@type string
 M.name = nil
 
----@return string # 牌名（有「转化」就取最晚挂的那份）
+---@param self Card
+---@return string # 牌名
 M.__getter.name = function (self)
-    for i = #self.modifiers, 1, -1 do
-        local name = self.modifiers[i].name
-        if name then
-            return name
-        end
-    end
-    return self._name
+    return self.face.name
 end
 
 ---@type string?
 M.suit = nil
 
----@return string? # 花色（有「转化」就取最晚挂的那份）
+---@param self Card
+---@return string? # 花色
 M.__getter.suit = function (self)
-    for i = #self.modifiers, 1, -1 do
-        local suit = self.modifiers[i].suit
-        if suit then
-            return suit
-        end
-    end
-    return self._suit
+    return self.face.suit
 end
 
 ---@type integer?
 M.point = nil
 
----@return integer? # 点数（有「转化」就取最晚挂的那份）
+---@param self Card
+---@return integer? # 点数
 M.__getter.point = function (self)
-    for i = #self.modifiers, 1, -1 do
-        local point = self.modifiers[i].point
-        if point then
-            return point
-        end
-    end
-    return self._point
+    return self.face.point
 end
 
 ---@type CardDef
 M.def = nil
 
+---@param self Card
 ---@return CardDef # 内容定义（跟着牌名走：牌名被「转化」改了就用那一份；查不到当场报错）
 ---@return true # 将结果缓存下来
 M.__getter.def = function (self)
-    return assert(self.game:getCard(self.name), '没有叫「{}」的内容定义' % { self.name }), true
+    local name = self.face.name
+    return assert(self.game:getCard(name), '没有叫「{}」的内容定义' % { name }), true
+end
+
+--- 通知旁观者：这张牌自己变了（牌名 / 花色 / 点数这类，没换区）
+---@param card Card
+local function notifyChanged(card)
+    for _, watcher in ipairs(card.game.watchers) do
+        if watcher.change then
+            watcher.change(card)
+        end
+    end
 end
 
 --- 给这张牌挂一份「转化」（改牌名 / 花色 / 点数；后挂的覆盖先挂的；虚拟牌会给每张素材也挂一份）
@@ -105,13 +145,16 @@ end
 function M:addModifier(modifier)
     local stored = moe.util.copy(modifier)
     self.modifiers[#self.modifiers + 1] = stored
-    self.def = nil
+    self.def      = nil
+    self.face     = nil
+    self.modifier = nil
     local forwarded = {}
     if self.virtual then
         for i, physical in ipairs(self.subcards) do
             forwarded[i] = physical:addModifier(stored)
         end
     end
+    notifyChanged(self)
     local removed
     return function ()
         if removed then
@@ -119,7 +162,10 @@ function M:addModifier(modifier)
         end
         removed = true
         moe.util.arrayRemove(self.modifiers, stored)
-        self.def = nil
+        self.def      = nil
+        self.face     = nil
+        self.modifier = nil
+        notifyChanged(self)
         for _, undo in ipairs(forwarded) do
             undo()
         end
@@ -130,6 +176,7 @@ end
 M.physical = nil
 
 --- 这张牌对应的实体牌（普通牌就是它自己，虚拟牌是它的素材）
+---@param self Card
 ---@return Card[]
 M.__getter.physical = function (self)
     if self.virtual then

@@ -74,4 +74,24 @@ end
 function M:update(data)
 end
 
+--- 有新出现的牌（默认什么都不做）
+---@param data Proto.Notify.Card.Create
+function M:cardCreate(data)
+end
+
+--- 有牌原地更新（区域没变；默认什么都不做）
+---@param data Proto.Notify.Card.Update
+function M:cardUpdate(data)
+end
+
+--- 有牌消失（默认什么都不做）
+---@param data Proto.Notify.Card.Remove
+function M:cardRemove(data)
+end
+
+--- 有牌搬动了（当场发的动画预通知；默认什么都不做）
+---@param data Proto.Notify.Card.Move
+function M:cardMove(data)
+end
+
 return M
