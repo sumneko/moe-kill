@@ -124,3 +124,11 @@
 ---@class Proto.Result.Ask.Select
 ---@field player? integer[] # 被选中的玩家ID列表
 ---@field card?   integer[] # 被选中的卡牌ID列表
+
+---@class Proto.Request.Ask.Choice: Proto.Cancelable
+---@field reason string # 这次确认的原因
+---@field options string[] # 可选项列表
+---@field cancelable? boolean # 是否可以主动取消
+
+---@class Proto.Result.Ask.Choice
+---@field choice integer # 客户端选择的索引，对应 `options` 中的位置

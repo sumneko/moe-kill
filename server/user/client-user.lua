@@ -45,6 +45,24 @@ function M:request(method, params, host)
     return request
 end
 
+--- 要他在若干选项里挑一个：问客户端（选项摆进参数，回包的索引换回字符串；答不出来就是空）
+---@async
+---@param ask AskChoice
+---@return string?
+function M:askChoice(ask)
+    ---@type Proto.Request.Ask.Choice
+    local params = {
+        reason     = ask.reason,
+        options    = ask.options,
+        cancelable = true,
+    }
+    local result = self:request('Ask.Choice', params, ask):await()
+    if not result then
+        return nil
+    end
+    return ask.options[assert(result).choice]
+end
+
 --- 要若干名角色：问客户端（候选摆进参数，再把回包的 id 转回 `Player`；答不出来就是空）
 ---@async
 ---@param ask AskPlayer
@@ -171,6 +189,44 @@ function M:askCardWithTarget(ask)
         targets[#targets + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
     end
     return { card = cards, targets = targets }
+end
+
+--- 要一张打出的牌：问客户端（候选摆进参数，再把回包的 id 转回 `Card`；答不出来就是空）
+---@async
+---@param ask AskPlayCard
+---@return AskCard.Answer?
+function M:askPlayCard(ask)
+    local condition = ask.condition
+    local view      = self.cardView
+    ---@type integer[]
+    local ids = {}
+    for _, option in ipairs(assert(ask.options)) do
+        local card = option.card
+        if card then
+            ids[#ids + 1] = view.cardMap[card].id
+        end
+    end
+
+    ---@type Proto.Request.Ask.Select
+    local params = {
+        reason     = ask.reason,
+        cancelable = condition.cancelable,
+        card       = {
+            ids = ids,
+            min = condition.min,
+            max = condition.max,
+        },
+    }
+    local result = self:request('Ask.Select', params, ask):await()
+    if not result then
+        return nil
+    end
+    ---@type Card[]
+    local cards = {}
+    for _, id in ipairs(assert(result).card or {}) do
+        cards[#cards + 1] = assert(view:cardOf(id), '答复里的牌不在这一局里')
+    end
+    return { card = cards }
 end
 
 --- 叫停一次请求（客户端收到后不再回话，只按「请求被取消」回个包）

@@ -1,42 +1,7 @@
-local lt = require 'test.ltest'
+local lt      = require 'test.ltest'
+local support = require 'test.user.support'
 
---- 造一对对接好、都起了读循环的客户端
----@return Client # 前端侧
----@return Client # 后端侧
-local function connect()
-    local a, b = moe.link.pair()
-    local front = moe.client.create(a)
-    local back  = moe.client.create(b)
-    front:start()
-    back:start()
-    return front, back
-end
-
---- 搭一个两人局：每人坐好、都接了客户端并接入下行
----@return Game
----@return Player[]
----@return Client[] # 后端侧（前端那半由用例自己收／答）
-local function newGame()
-    local game = moe.game.create {
-        seats   = 2,
-        random  = moe.random.create(1),
-        sources = { lt.cardSource },
-    }
-    ---@type Player[]
-    local players = {}
-    ---@type Client[]
-    local backs = {}
-    for i = 1, 2 do
-        local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
-        local _, back = connect()
-        game.desk:sit(i, player)
-        player:setUser(New 'ClientUser' (game, back))
-        assert(player.user):attach()
-        players[i] = player
-        backs[i]   = back
-    end
-    return game, players, backs
-end
+local newGame = support.newGame
 
 --- 替「他」答应答（注册一次，返回撤销函数；收尾写 `local _ <close> = reply(...)` 就行）
 ---@param answer fun(params: Proto.Request.Ask.Select): Proto.Result.Ask.Select?

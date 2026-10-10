@@ -1,52 +1,8 @@
-local lt = require 'test.ltest'
+local lt      = require 'test.ltest'
+local support = require 'test.user.support'
 
---- 造一对对接好、都起了读循环的客户端
----@return Client # 前端侧
----@return Client # 后端侧
-local function connect()
-    local a, b = moe.link.pair()
-    local front = moe.client.create(a)
-    local back  = moe.client.create(b)
-    front:start()
-    back:start()
-    return front, back
-end
-
---- 搭一个两人局：每人坐好、都接了客户端并接入下行
----@return Game
----@return Player[]
-local function newGame()
-    local game = moe.game.create {
-        seats   = 2,
-        random  = moe.random.create(1),
-        sources = { lt.cardSource },
-    }
-    ---@type Player[]
-    local players = {}
-    for i = 1, 2 do
-        local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
-        local _, back = connect()
-        game.desk:sit(i, player)
-        player:setUser(New 'ClientUser' (game, back))
-        assert(player.user):attach()
-        players[i] = player
-    end
-    return game, players
-end
-
---- 发两张候选牌并搬进他的手牌（他那份卡牌视图账里才有号）
----@async
----@param game Game
----@param player Player
----@return Card
----@return Card
-local function dealCards(game, player)
-    local c1 = game:createCard('杀', '黑桃', 7)
-    local c2 = game:createCard('闪', '红桃', 2)
-    game:moveCard({ c1, c2 }, player:getZone('手牌'))
-    moe.await.sleep(0)
-    return c1, c2
-end
+local newGame   = support.newGame
+local dealCards = support.dealCards
 
 ---@async
 lt.test('询问：一次「给出」两半一起问（牌 + 目标）', function ()
