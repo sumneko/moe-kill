@@ -175,3 +175,19 @@
 ---@field usedViewAs? integer # 使用了第几个viewAs效果。和 card 互斥。
 ---@field targets? integer[] # 被选中的目标玩家ID列表
 ---@field cards? integer[] # 被使用的卡牌ID列表。只有 useViewAs 时才有可能有值
+
+--- 一个可发动的技能：技能ID + 这次能挑的牌 / 目标（技能没声明就缺哪半）
+---@class Proto.SkillPlan
+---@field id integer # 技能ID
+---@field cards? Proto.Plan.Card
+---@field targets? Proto.Plan.Player
+
+---@class Proto.Request.Ask.UseSkill: Proto.Cancelable
+---@field reason string
+---@field cancelable? boolean # 恒 true：内核里「不表态 = 取消」
+---@field skills Proto.SkillPlan[]
+
+---@class Proto.Result.Ask.UseSkill
+---@field usedSkill? integer # 发动哪个技能（ID；缺 = 取消）
+---@field cards? integer[] # 这次发动带的牌
+---@field targets? integer[] # 这次发动指定的目标

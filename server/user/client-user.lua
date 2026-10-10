@@ -80,26 +80,13 @@ function M:select(ask, params)
     if not result then
         return nil
     end
-    local game   = self.game
-    local view   = self.cardView
-    local answer = result
     ---@type ClientUser.SelectResult
     local parsed = {}
-    if answer.player then
-        ---@type Player[]
-        local players = {}
-        for _, id in ipairs(answer.player) do
-            players[#players + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
-        end
-        parsed.players = players
+    if result.player then
+        parsed.players = self:playerList(result.player)
     end
-    if answer.card then
-        ---@type Card[]
-        local cards = {}
-        for _, id in ipairs(answer.card) do
-            cards[#cards + 1] = assert(view:cardOf(id), '答复里的牌不在这一局里')
-        end
-        parsed.cards = cards
+    if result.card then
+        parsed.cards = self:cardList(result.card)
     end
     return parsed
 end
@@ -114,32 +101,19 @@ function M:use(ask, params)
     if not result then
         return nil
     end
-    local game   = self.game
-    local view   = self.cardView
-    local answer = result
     ---@type ClientUser.UseResult
     local parsed = {}
-    if answer.usedCard then
-        parsed.usedCard = assert(view:cardOf(answer.usedCard), '答复里的牌不在这一局里')
+    if result.usedCard then
+        parsed.usedCard = assert(self.cardView:cardOf(result.usedCard), '答复里的牌不在这一局里')
     end
-    if answer.usedViewAs then
-        parsed.usedViewAs = answer.usedViewAs
+    if result.usedViewAs then
+        parsed.usedViewAs = result.usedViewAs
     end
-    if answer.targets then
-        ---@type Player[]
-        local players = {}
-        for _, id in ipairs(answer.targets) do
-            players[#players + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
-        end
-        parsed.players = players
+    if result.targets then
+        parsed.players = self:playerList(result.targets)
     end
-    if answer.cards then
-        ---@type Card[]
-        local cards = {}
-        for _, id in ipairs(answer.cards) do
-            cards[#cards + 1] = assert(view:cardOf(id), '答复里的牌不在这一局里')
-        end
-        parsed.cards = cards
+    if result.cards then
+        parsed.cards = self:cardList(result.cards)
     end
     return parsed
 end
@@ -156,6 +130,45 @@ function M:playerIds(players)
     return ids
 end
 
+--- 一组牌的协议号（按这份视图发号）
+---@param cards Card[]
+---@return integer[]
+function M:cardIds(cards)
+    local view = self.cardView
+    ---@type integer[]
+    local ids = {}
+    for _, card in ipairs(cards) do
+        ids[#ids + 1] = view.cardMap[card].id
+    end
+    return ids
+end
+
+--- 答复里的角色号转回真角色（认不到就是故障 —— 这些号是我们自己发出去的）
+---@param ids integer[]
+---@return Player[]
+function M:playerList(ids)
+    local game = self.game
+    ---@type Player[]
+    local players = {}
+    for _, id in ipairs(ids) do
+        players[#players + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
+    end
+    return players
+end
+
+--- 答复里的牌号转回真牌
+---@param ids integer[]
+---@return Card[]
+function M:cardList(ids)
+    local view = self.cardView
+    ---@type Card[]
+    local cards = {}
+    for _, id in ipairs(ids) do
+        cards[#cards + 1] = assert(view:cardOf(id), '答复里的牌不在这一局里')
+    end
+    return cards
+end
+
 --- 一组角色的协议形状（`ids` + 个数区间）
 ---@param players Player[]
 ---@param min integer
@@ -170,16 +183,15 @@ end
 ---@return Proto.Plan.Card
 function M:cardPlan(ask)
     local condition = ask.condition
-    local view      = self.cardView
-    ---@type integer[]
-    local ids = {}
+    ---@type Card[]
+    local cards = {}
     for _, option in ipairs(ask.options) do
         local card = option.card
         if card then
-            ids[#ids + 1] = view.cardMap[card].id
+            cards[#cards + 1] = card
         end
     end
-    return { ids = ids, min = condition.min, max = condition.max }
+    return { ids = self:cardIds(cards), min = condition.min, max = condition.max }
 end
 
 --- 一次「选一张牌」的完整实现（候选摆上、回包转回真牌）：`askCard` / `askPlayCard` / `askUseCardToCard` 共用
@@ -264,6 +276,51 @@ function M:askUseCardToCard(ask)
     return self:pickCards(ask)
 end
 
+--- 要一次技能使用：候选技能各带这次能挑的牌与目标（协议：`Ask.UseSkill`）
+---@async
+---@param ask AskUseSkill
+---@return AskUseSkill.Answer?
+function M:askUseSkill(ask)
+    ---@type Proto.SkillPlan[]
+    local skills = {}
+    for _, option in ipairs(ask.options) do
+        ---@type Proto.SkillPlan
+        local plan = { id = option.skill.id }
+        local cards = option.cards
+        if cards then
+            plan.cards = { ids = self:cardIds(cards.legal), min = cards.min, max = cards.max }
+        end
+        local targets = option.targets
+        if targets then
+            plan.targets = self:playerPlan(targets.legal, targets.min, targets.max)
+        end
+        skills[#skills + 1] = plan
+    end
+    ---@type Proto.Request.Ask.UseSkill
+    local params = {
+        reason     = ask.reason,
+        cancelable = true,
+        skills     = skills,
+    }
+    local result = self:request('Ask.UseSkill', params, ask):await()
+    if not result then
+        return nil
+    end
+    local used = result.usedSkill
+    if not used then
+        return nil
+    end
+    for _, option in ipairs(ask.options) do
+        if option.skill.id == used then
+            return {
+                skill   = option.skill,
+                cards   = result.cards and self:cardList(result.cards),
+                targets = result.targets and self:playerList(result.targets),
+            }
+        end
+    end
+end
+
 --- 一份「视为」声明的协议形状（来源二选一：技能给名字、手上的牌给号；素材条件按它能收的区与张数发）
 ---@param viewAs ViewAs
 ---@param plan Game.UsableTargets
@@ -284,12 +341,11 @@ function M:viewAsParams(viewAs, plan)
     local condition = viewAs.options?.condition
     if condition then
         local normalized = moe.askCard.normalizeCondition(self.game, viewAs.owner, condition)
-        ---@type integer[]
-        local ids = {}
-        for _, card in ipairs(moe.askCard.collectCandidates(viewAs.owner, normalized)) do
-            ids[#ids + 1] = self.cardView.cardMap[card].id
-        end
-        params.card = { ids = ids, min = normalized.min, max = normalized.max }
+        params.card = {
+            ids = self:cardIds(moe.askCard.collectCandidates(viewAs.owner, normalized)),
+            min = normalized.min,
+            max = normalized.max,
+        }
     end
     params.target = { ids = self:playerIds(plan.legal), min = plan.min, max = plan.max }
     return params
