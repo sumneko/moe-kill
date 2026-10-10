@@ -926,6 +926,18 @@ function M:getZones()
     return moe.util.copy(self.zoneList)
 end
 
+--- 这一局里 id 是谁（协议层的号转回角色；认不到就是空）
+---@param id integer
+---@return Player?
+function M:getPlayerById(id)
+    for _, player in ipairs(self.desk.players) do
+        if player.id == id then
+            return player
+        end
+    end
+    return nil
+end
+
 --- 发一个新 ID（这一局内不重复；牌与将来的技能共用同一串号）
 ---@return integer
 function M:nextId()
@@ -1092,7 +1104,7 @@ end
 ---@async
 ---@param to Player # 被问者
 ---@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param condition? AskPlayer.Condition # 要什么样的角色（候选名单 + `min` / `max` 个数区间；省略 = 不做限制、正好一名）
+---@param condition? AskPlayer.Condition # 要什么样的角色（候选名单 + `min` / `max` 个数区间；省略 = 存活角色全算候选、正好一名）
 ---@return AskPlayer # 这次询问（已经结完：答复读 `.player` / `.players`，失败读 `.err`）
 function M:askPlayer(to, reason, condition)
     local ask = moe.askPlayer.create {

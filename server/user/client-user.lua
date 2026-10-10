@@ -20,6 +20,37 @@ function M:notify(method, params)
     self.client:notify(method, params)
 end
 
+--- 要若干名角色：问客户端（候选摆进参数，再把回包的 id 转回 `Player`）
+---@async
+---@param ask AskPlayer
+---@return Player[]?
+function M:askPlayer(ask)
+    local game = assert(self.game)
+    ---@type integer[]
+    local ids = {}
+    for _, player in ipairs(ask.options) do
+        ids[#ids + 1] = player.id
+    end
+    ---@type Proto.Request.Ask.Player
+    local request = {
+        cancelid = game:nextId(),
+        reason   = ask.reason,
+        players  = ids,
+        min      = ask.condition.min,
+        max      = ask.condition.max,
+    }
+    local result = self.client:awaitRequest('Ask.Player', request)
+    if not result then
+        return nil
+    end
+    ---@type Player[]
+    local answer = {}
+    for _, id in ipairs(assert(result).players) do
+        answer[#answer + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
+    end
+    return answer
+end
+
 ---@param moves Zone.Move[]
 function M:moveCards(moves)
     self.cardView:moveCards(moves)

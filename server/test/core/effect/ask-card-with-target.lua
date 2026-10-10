@@ -91,7 +91,7 @@ lt.test('给出：条件构造时归一（候选单值 → 列表、个数补默
     lt.assertEquals('显式区间读得到', '2,3', named.min .. ',' .. named.max)
 end)
 
-lt.test('给出：候选写谓词时在存活角色里筛，写 `true` 就是不限制', function ()
+lt.test('给出：候选写谓词时在存活角色里筛，写 `true` 就是它们全体', function ()
     local game, players = newGame(3)
     local slash = game:createCard('杀')
     putInHand(players[1], { slash })
@@ -116,7 +116,7 @@ lt.test('给出：候选写谓词时在存活角色里筛，写 `true` 就是不
     local loose = game:askCardWithTarget(players[1], '测试', {
         target = { player = true },
     })
-    lt.assertEquals('`true` = 不做限制', nil, assert(loose.targetCondition).players)
+    lt.assertEquals('`true` = 存活角色全体', 3, #assert(assert(loose.targetCondition).players))
 end)
 
 lt.test('给出：答复不给目标 ⇒ 拒收', function ()

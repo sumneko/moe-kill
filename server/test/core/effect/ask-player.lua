@@ -97,7 +97,7 @@ lt.test('询问：没人应答时没有答复 = 取消（记成失败）', funct
     lt.assertEquals('取消不是故障，不进错误处理器', 0, #lt.errors)
 end)
 
-lt.test('询问：不给条件就不做限制', function ()
+lt.test('询问：不给条件就是全体存活角色', function ()
     local game, players = newGame(3)
 
     game:on('决策-询问', function (ask)
@@ -108,8 +108,26 @@ lt.test('询问：不给条件就不做限制', function ()
     local ask = game:askPlayer(players[1], '测试', nil)
 
     lt.assertEquals('照样收下答复', players[3], ask.player)
-    lt.assertEquals('没有候选名单', nil, ask.options)
+    lt.assertEquals('候选 = 三名存活角色', 3, #assert(ask.options))
+    lt.assertEquals('一个不缺', true, moe.util.arrayHas(assert(ask.options), players[2]))
     lt.assertEquals('不算失败', nil, ask.err)
+end)
+
+lt.test('询问：不限的候选里没有阵亡者（答复他会被拒收）', function ()
+    local game, players = newGame(3)
+    players[2]:setAlive(false)
+
+    game:on('决策-询问', function (ask)
+        ---@cast ask AskPlayer
+        return players[2]
+    end)
+
+    local ask = game:askPlayer(players[1], '测试', { player = true })
+
+    lt.assertEquals('候选只剩活着的两个', 2, #assert(ask.options))
+    lt.assertEquals('阵亡的那个不在候选里', false, moe.util.arrayHas(assert(ask.options), players[2]))
+    lt.assertEquals('答复阵亡者 ⇒ 拒收', '答复的目标不在可选项里', ask.err)
+    lt.assertEquals('没拿到答复', nil, ask.player)
 end)
 
 lt.test('询问：min / max 摆好个数区间，一次可以选好几名', function ()
@@ -293,7 +311,7 @@ lt.test('答复：有答复才触发答复时机，上下文是这次询问', fu
     lt.assertEquals('答复时机里结果已经定下', players[2], seen[1].player)
 end)
 
-lt.test('询问：条件给 true 就是不做限制', function ()
+lt.test('询问：条件给 true 就是全体存活角色', function ()
     local game, players = newGame(3)
 
     game:on('决策-询问', function (ask)
@@ -303,7 +321,7 @@ lt.test('询问：条件给 true 就是不做限制', function ()
 
     local ask = game:askPlayer(players[1], '测试', { player = true })
 
-    lt.assertEquals('没有候选名单（= 不限）', nil, ask.options)
+    lt.assertEquals('候选 = 三名存活角色', 3, #assert(ask.options))
     lt.assertEquals('照样收下答复', players[3], ask.player)
     lt.assertEquals('不算失败', nil, ask.err)
 end)

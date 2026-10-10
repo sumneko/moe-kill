@@ -13,7 +13,7 @@
 --- 「怎么给出去」不归它管 —— 那是发起方（技能 / 装备）自己的事：拿到 `.cards` 与 `.targets` 之后自己处置
 ---@class AskCardWithTarget : AskCard
 ---@field condition? AskCard.NormalizedCondition # 牌那半（形状与 `AskCard` 一模一样，父类照常读它）
----@field targetCondition? AskPlayer.NormalizedCondition # 目标那半（构造时归一化；条件里写的是 `target`）
+---@field targetCondition AskPlayer.NormalizedCondition # 目标那半（构造时归一化，候选恒给出；条件里写的是 `target`）
 ---@field targets Player[] # 答复指定的目标（没答就是空表）
 ---@field target? Player # 答复指定的第一个目标（没答就是空）
 local M = Class 'AskCardWithTarget'
@@ -26,14 +26,11 @@ function M:askUser(user)
     return user:askCardWithTarget(self)
 end
 
----@param conditions AskCardWithTarget.Conditions? # 两半条件（父类先拿整份空转一遍，这里把它换成牌那半的归一结果）
+---@param conditions AskCardWithTarget.Conditions? # 两半条件（父类先拿整份空转一遍，这里把它换成两半各自的归一结果）
 function M:__init(_, _, _, conditions)
-    self.kind = 'askCardWithTarget'
-    if not conditions then
-        return
-    end
-    self.condition       = moe.askCard.normalizeCondition(self.game, self.to, conditions.card)
-    self.targetCondition = moe.askPlayer.normalizeCondition(self.game, conditions.target)
+    self.kind            = 'askCardWithTarget'
+    self.condition       = moe.askCard.normalizeCondition(self.game, self.to, conditions?.card)
+    self.targetCondition = moe.askPlayer.normalizeCondition(self.game, conditions?.target)
 end
 
 --- 答复要给出目标（个数落在区间里、都在候选名单里、不重复）
@@ -42,20 +39,18 @@ end
 ---@return any # 通过就是空
 function M:checkOption(option, value)
     local condition = self.targetCondition
-    local min = condition?.min or 1
-    local max = condition?.max or min
     ---@type Player[]
     local list = {}
     if value.targets ~= nil then
         list = moe.util.toList(value.targets)
     end
     if #list == 0 then
-        if min == 0 then
+        if condition.min == 0 then
             return nil
         end
         return '这次答复要给出目标'
     end
-    return moe.askCard.checkTargets(list, condition?.players, min, max)
+    return moe.askCard.checkTargets(list, condition.players, condition.min, condition.max)
 end
 
 --- 答复指定的目标（没答就是空表）
