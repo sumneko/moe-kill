@@ -273,8 +273,9 @@ end
 ---@param game Game
 ---@return fun() # 撤销这次登记
 function moe.cardSync.watch(game)
-    return game:watch {
-        enter = function (card, zone, visible)
+    ---@type function[]
+    local undos = {
+        game:on('卡牌-进入区域', function (card, zone, visible)
             local from = moe.cardSync.lastLeave[card]
             moe.cardSync.lastLeave[card] = nil
             moe.cardSync.lastVisible[card] = visible
@@ -282,15 +283,20 @@ function moe.cardSync.watch(game)
                 notifyMove(card, from, zone)
             end
             markDirty(game, card)
-        end,
-        leave = function (card, zone)
+        end),
+        game:on('卡牌-离开区域', function (card, zone)
             moe.cardSync.lastLeave[card] = zone
             markDirty(game, card)
-        end,
-        change = function (card)
+        end),
+        game:on('卡牌-变化', function (card)
             markDirty(game, card)
-        end,
+        end),
     }
+    return function ()
+        for _, undo in ipairs(undos) do
+            undo()
+        end
+    end
 end
 
 --- 把这一局所有牌区里的牌全量发一遍（开局 / 重连用）

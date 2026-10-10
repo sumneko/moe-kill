@@ -235,6 +235,24 @@ lt.test('牌：面会缓存，挂 / 撤转化时失效', function ()
     lt.assertEquals('撤销后回到自己那份', '杀', card.face.name)
 end)
 
+lt.test('牌：挂 / 撤转化时在局上发一次「卡牌-变化」', function ()
+    local card = moe.card.create(lt.game(), '杀', 125, '黑桃', 9)
+    local count = 0
+    local last
+    local undo = lt.game():on('卡牌-变化', function (changed)
+        count = count + 1
+        last = changed
+    end)
+
+    local remove = card:addModifier { name = '闪' }
+    lt.assertEquals('挂上时发了一次', 1, count)
+    lt.assertEquals('载荷就是那张牌', card, last)
+
+    remove()
+    lt.assertEquals('撤销时又发一次', 2, count)
+    undo()
+end)
+
 lt.test('牌：多份转化各改各的字段，同一个字段后挂的覆盖先挂的', function ()
     local card = moe.card.create(lt.game(), '杀', 121, '黑桃', 9)
 

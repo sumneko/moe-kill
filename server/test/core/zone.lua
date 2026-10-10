@@ -107,6 +107,27 @@ local function shuffledLabels(seed)
     return zoneLabels(zone)
 end
 
+lt.test('牌区：进 / 离区还会在局上发一份', function ()
+    local close <close> = useProbe()
+    local game = newProbeGame()
+    local deck = assert(game:getZone('抽牌'))
+
+    local seen = {}
+    local undoIn  = game:on('卡牌-进入区域', function () seen[#seen + 1] = '局上-进入' end)
+    local undoOut = game:on('卡牌-离开区域', function () seen[#seen + 1] = '局上-离开' end)
+
+    local card = game:createCard('记区域')
+    deck:accept(card)
+    game:moveCard(card, '弃牌')
+
+    undoIn()
+    undoOut()
+    ---@type string[]
+    local ownSeen = game:getValue('区域事件')
+    lt.assertEquals('局上那份照实发（进 → 离开 → 进）', '局上-进入,局上-离开,局上-进入', table.concat(seen, ','))
+    lt.assertEquals('牌定义那份也没少', '牌自己-进入,牌自己-离开,牌自己-进入', table.concat(ownSeen, ','))
+end)
+
 lt.test('牌区：放入后计数与查看正确', function ()
     local zone  = lt.zone()
     local cards = fill(zone, { '甲', '乙', '丙' })

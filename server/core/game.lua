@@ -446,12 +446,6 @@ end
 ---@field extraTargets? integer # 最多能多指定几个目标（可负；多份选项累加）
 ---@field unrespondable? Player|Player[]|true|fun(player: Player): boolean # 一个角色 / 一串角色 / `true` = 谁都拦 / 谓词（这些目标不能对此牌做出响应）
 
---- 牌的一次变化（内核级旁观者收到的载荷）
----@class Game.Watcher
----@field enter? fun(card: Card, zone: Zone, visible?: Visibility) # 进了某个区
----@field leave? fun(card: Card, zone: Zone, visible?: Visibility) # 离开了某个区
----@field change? fun(card: Card) # 牌自己变了（牌名 / 花色 / 点数这类，没换区）
-
 ---@class Game
 ---@field list string[] # 上一次用的加载清单
 ---@field private cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
@@ -480,7 +474,6 @@ end
 ---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
 ---@field private dirty? table<Player, table<string, boolean>> # 还没下发的脏玩家（下一笔调度统一发）
----@field watchers Game.Watcher[] # 牌与区域变化的旁观者（**内核级**：不随规则内容清空，给内核其他模块读）
 local M = Class 'Game'
 
 ---@param seats integer
@@ -489,7 +482,6 @@ function M:__init(seats, random)
     self.desk     = moe.desk.create(self, seats)
     self.random   = random
     self.events   = moe.event.create()
-    self.watchers = {}
     self.zoneList = {}
     self.zoneMap  = {}
     self.effects  = {}
@@ -520,27 +512,6 @@ function M:markDirty(player, kind)
         dirty[player] = kinds
     end
     kinds[kind] = true
-end
-
---- 盯住牌与区域的变化（**内核级**旁观者：不随规则内容清空，给内核与传输层用；内容侧用 `'卡牌-进入区域'` / `'卡牌-离开区域'`）
----@param watcher Game.Watcher
----@return fun() # 撤销这次登记
-function M:watch(watcher)
-    self.watchers[#self.watchers + 1] = watcher
-    local removed = false
-    return function ()
-        if removed then
-            return
-        end
-        removed = true
-        local list = self.watchers
-        for i, item in ipairs(list) do
-            if item == watcher then
-                table.remove(list, i)
-                return
-            end
-        end
-    end
 end
 
 --- 把攒着的脏玩家统一下发

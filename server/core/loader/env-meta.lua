@@ -163,6 +163,12 @@ rule = nil
 ---@field on fun(self: Game, name: '卡牌-使用选项', callback: fun(check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): function # 这次使用选项的全局那份（使用者身上还有一份）
 ---@field collect fun(self: Game, name: '卡牌-使用选项', check: Game.Event.卡牌使用选项): Game.UseOptionsInput[] # 收集每个来源贡献的选项片段（这就是上面那条的收集式叫法）
 ---@field collect fun(self: Game, name: string, ...: any): any[] # 动态时机名走这条（收集所有回调的第一个返回值）
+---@field on fun(self: Game, name: '卡牌-变化', callback: fun(card: Card): any): function # 一张牌自己变了（牌名 / 花色 / 点数这类，没换区）
+---@field fire fun(self: Game, name: '卡牌-变化', card: Card): any
+---@field on fun(self: Game, name: '卡牌-进入区域', callback: fun(card: Card, zone: Zone, visible?: Visibility): any): function # 任何一张牌进了某个区（牌定义那份与区主人那份之外、再在局上发一份）
+---@field fire fun(self: Game, name: '卡牌-进入区域', card: Card, zone: Zone, visible?: Visibility): any
+---@field on fun(self: Game, name: '卡牌-离开区域', callback: fun(card: Card, zone: Zone, visible?: Visibility): any): function # 任何一张牌离开了某个区（同上）
+---@field fire fun(self: Game, name: '卡牌-离开区域', card: Card, zone: Zone, visible?: Visibility): any
 ---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function

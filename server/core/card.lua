@@ -132,11 +132,7 @@ end
 --- 通知旁观者：这张牌自己变了（牌名 / 花色 / 点数这类，没换区）
 ---@param card Card
 local function notifyChanged(card)
-    for _, watcher in ipairs(card.game.watchers) do
-        if watcher.change then
-            watcher.change(card)
-        end
-    end
+    card.game:fire('卡牌-变化', card)
 end
 
 --- 给这张牌挂一份「转化」（改牌名 / 花色 / 点数；后挂的覆盖先挂的；虚拟牌会给每张素材也挂一份）
