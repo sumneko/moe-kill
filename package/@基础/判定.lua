@@ -36,9 +36,9 @@ end
 --- 开改判窗口：只有窗口开着的时候才允许换牌
 local function fireReplaceWindow(judge)
     judge.replacing = true
-    local guard <close> = util.defer(function ()
+    local guard <close> = function ()
         judge.replacing = false
-    end)
+    end
     judge.game:fire('判定-前', judge)
     judge.player:fire('判定-前', judge)
 end

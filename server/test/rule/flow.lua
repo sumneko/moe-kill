@@ -12,13 +12,13 @@ local function write(rel, content)
     assert(ok, err)
 end
 
----@return unknown # 配 <close> 用
+---@return fun() # 配 <close> 用
 local function useProbe()
     fs.remove_all(probeDir)
     fs.create_directories(probeDir)
-    return moe.util.defer(function ()
+    return function ()
         fs.remove_all(probeDir)
-    end)
+    end
 end
 
 ---@param items string[]

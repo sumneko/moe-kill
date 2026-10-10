@@ -22,14 +22,14 @@ local function load(items)
     return moe.loader.install(game, { packages = items })
 end
 
----@return unknown
+---@return fun()
 local function prepare()
     fs.remove_all(probeDir)
     fs.create_directories(probeDir)
     game = newGame()
-    return moe.util.defer(function ()
+    return function ()
         fs.remove_all(probeDir)
-    end)
+    end
 end
 
 ---@param rel string

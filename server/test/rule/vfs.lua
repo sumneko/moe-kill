@@ -5,13 +5,13 @@ local vfs    = require 'core.loader.vfs'
 local rootDir = moe.env.ROOT_PATH / 'tmp' / 'vfs-probe'
 local base    = moe.env.ROOT_PATH:parent_path()
 
----@return unknown
+---@return fun()
 local function prepare()
     fs.remove_all(rootDir)
     fs.create_directories(rootDir)
-    return moe.util.defer(function ()
+    return function ()
         fs.remove_all(rootDir)
-    end)
+    end
 end
 
 ---@param rel string

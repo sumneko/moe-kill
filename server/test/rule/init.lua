@@ -22,14 +22,14 @@ local function load(items)
     return moe.loader.install(game, { packages = items })
 end
 
----@return unknown
+---@return fun()
 local function prepare()
     fs.remove_all(probeDir)
     fs.create_directories(probeDir)
     game = newGame()
-    return moe.util.defer(function ()
+    return function ()
         fs.remove_all(probeDir)
-    end)
+    end
 end
 
 ---@param rel string
@@ -456,9 +456,9 @@ lt.test('规则集：跨来源时只执行生效版本', function ()
     local other = moe.env.ROOT_PATH / 'tmp' / 'rule-probe-other'
     fs.remove_all(other)
     fs.create_directories(other / 'pk' / '卡牌')
-    local restore <close> = moe.util.defer(function ()
+    local restore <close> = function ()
         fs.remove_all(other)
-    end)
+    end
 
     write('卡牌/杀.lua', 'Card("前")')
     local ok, err = moe.util.saveFile((other / 'pk' / '卡牌' / '杀.lua'):string(), 'Card("后")')

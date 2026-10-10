@@ -14,9 +14,9 @@ function M.run(source, chunkname, env)
         return false, loadErr
     end
     withoutCheckNil.enable()
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         withoutCheckNil.disable()
-    end)
+    end
     local ok, runErr = pcall(chunk)
     if not ok then
         return false, tostring(runErr)

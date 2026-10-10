@@ -102,7 +102,7 @@ end)
 lt.test('重载：加载失败的模块以明确失败暴露', function ()
     lt.expectErrors(1)
     local modName = 'test.reload.probe.broken'
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         for i, name in ipairs(moe.reload.includedNames) do
             if name == modName then
                 table.remove(moe.reload.includedNames, i)
@@ -110,7 +110,7 @@ lt.test('重载：加载失败的模块以明确失败暴露', function ()
             end
         end
         moe.reload.includedNameMap[modName] = nil
-    end)
+    end
 
     local err = lt.assertError('加载失败会抛出', function ()
         include(modName)
@@ -166,10 +166,10 @@ lt.test('重载：回调的顺序与告知内容', function ()
     local undoAfter = moe.reload.onAfterReload(function (reload, hasReloaded)
         trace[#trace + 1] = 'after:{}' % { tostring(hasReloaded) }
     end)
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         undoBefore()
         undoAfter()
-    end)
+    end
 
     moe.reload.reload()
 
@@ -202,10 +202,10 @@ lt.test('重载：单个回调报错不影响其余', function ()
     local undoOK = moe.reload.onAfterReload(function ()
         reached = true
     end)
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         undoBroken()
         undoOK()
-    end)
+    end
 
     local reloaded = moe.reload.reload()
 
@@ -219,7 +219,7 @@ lt.test('重载：重载期间可被识别', function ()
     local undo = moe.reload.onAfterReload(function ()
         inCallback[#inCallback + 1] = moe.reload.isReloading()
     end)
-    local guard <close> = moe.util.defer(undo)
+    local guard <close> = undo
 
     lt.assertEquals('平时不是重载中', false, moe.reload.isReloading())
 
@@ -297,11 +297,11 @@ lt.test('重载：改磁盘文件后重载生效', function ()
     local dir     = moe.env.ROOT_PATH / 'tmp' / 'reload-probe'
     local file    = dir / (modName .. '.lua')
     local oldPath = package.path
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         package.path = oldPath
         package.loaded[modName] = nil
         fs.remove_all(dir)
-    end)
+    end
 
     fs.create_directories(dir)
     package.path = package.path .. ';' .. dir:string() .. '/?.lua'

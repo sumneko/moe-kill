@@ -5,16 +5,16 @@ local support = require 'test.rule.support'
 local probeDir = moe.env.ROOT_PATH / 'tmp' / 'death-probe'
 
 ---@param content string
----@return unknown # 配 <close> 用
+---@return fun() # 配 <close> 用
 local function useProbe(content)
     fs.remove_all(probeDir)
     fs.create_directories(probeDir)
     fs.create_directories((probeDir / '探针'):string())
     local ok, err = moe.util.saveFile((probeDir / '探针/技能.lua'):string(), content)
     assert(ok, err)
-    return moe.util.defer(function ()
+    return function ()
         fs.remove_all(probeDir)
-    end)
+    end
 end
 
 ---@param run Test.RuleSupport

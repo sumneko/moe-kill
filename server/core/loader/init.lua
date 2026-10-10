@@ -133,11 +133,11 @@ local function loadFile(game, ctx, logical)
     ctx.current           = logical
     ctx.package           = owner
     ctx.loading[logical]  = true
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         ctx.loading[logical] = nil
         ctx.current          = previous
         ctx.package          = previousPackage
-    end)
+    end
     chunk()
     ctx.loaded[logical] = true
     ctx.order[#ctx.order+1] = logical
@@ -456,9 +456,9 @@ function moe.loader.install(game, options)
     game.rule = rule
     ctx.env = makeEnv(ctx.injected)
     game.loading = ctx
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         game.loading = nil
-    end)
+    end
 
     for _, item in ipairs(items) do
         loadItem(game, ctx, item)

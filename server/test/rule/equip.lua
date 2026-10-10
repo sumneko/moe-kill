@@ -4,13 +4,13 @@ local support = require 'test.rule.support'
 
 local probeDir = moe.env.ROOT_PATH / 'tmp' / 'equip-probe'
 
----@return unknown # 配 <close> 用
+---@return fun() # 配 <close> 用
 local function useProbe()
     fs.remove_all(probeDir)
     fs.create_directories(probeDir)
-    return moe.util.defer(function ()
+    return function ()
         fs.remove_all(probeDir)
-    end)
+    end
 end
 
 ---@param rel string

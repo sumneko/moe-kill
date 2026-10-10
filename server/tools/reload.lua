@@ -164,9 +164,9 @@ function require(modname)
         return package.loaded[modname], nil
     end
     M.includeStack[#M.includeStack+1] = false
-    local guard <close> = moe.util.defer(function ()
+    local guard <close> = function ()
         M.includeStack[#M.includeStack] = nil
-    end)
+    end
     local result, loaderdata = originRequire(modname)
     if loaderdata ~= nil then
         M.modNameMap[loaderdata] = modname
