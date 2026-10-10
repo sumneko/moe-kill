@@ -85,7 +85,7 @@ function S:watchEvent()
 end
 
 --- 一份账（视图 id 是这份账自己的号：每张新牌进来发一个，离区就作废 —— 懒建在 `user.cardView` 上）
----@class CardSync.View
+---@class CardSync.View : Class.Base
 ---@field cardMap table<Card, Proto.Card> # 这个客户端当前看到的每张牌（背面牌也在里面，只是没有牌面）
 ---@field cardZones table<string, Card[]> # 按协议区域分组的牌列表
 ---@field private idCounter integer # 视图 id 的号源（每份视图一套）
@@ -177,25 +177,41 @@ function V:hidden(card)
     a.id, b.id = b.id, a.id
 end
 
+--- 协议区域是不是同一个（「这一搬在客户端眼里有没有变化」）
+---@param a Proto.Zone?
+---@param b Proto.Zone?
+---@return boolean
+local function samePZone(a, b)
+    return keyOfPZone(a) == keyOfPZone(b)
+end
+
 ---@param moves Zone.Move[]
 function V:moveCards(moves)
-    local pmoves = moe.util.map(moves, function (move)
-        local visible
-        if move.visible then
-            visible = moe.visibility.isVisibleTo(move.visible, self.user.player)
-        else
-            visible = move.from?:isVisibleTo(self.user.player)
-                   or move.to:isVisibleTo(self.user.player)
+    ---@type Proto.CardMove[]
+    local pmoves = {}
+    for _, move in ipairs(moves) do
+        local from = self:toPZone(move.from)
+        local to   = self:toPZone(move.to)
+        if not samePZone(from, to) then
+            local visible
+            if move.visible then
+                visible = moe.visibility.isVisibleTo(move.visible, self.user.player)
+            else
+                visible = move.from?:isVisibleTo(self.user.player)
+                       or move.to:isVisibleTo(self.user.player)
+            end
+            local pcard = self.cardMap[move.card]
+            pmoves[#pmoves+1] = {
+                id   = visible and pcard?.id   or nil,
+                face = visible and pcard?.face or nil,
+                from = from,
+                to   = to,
+            }
         end
-        local pcard = self.cardMap[move.card]
-        ---@type Proto.CardMove
-        return {
-            id   = visible and pcard?.id   or nil,
-            face = visible and pcard?.face or nil,
-            from = self:toPZone(move.from),
-            to   = self:toPZone(move.to),
-        }
-    end)
+    end
+    if #pmoves == 0 then
+        return
+    end
     self.user:notify('Card.Move', {
         moves = pmoves,
     })
@@ -225,6 +241,26 @@ function V:toPCardFace(face)
         suit  = face.suit,
         point = face.point,
     }
+end
+
+--- 这份账现在的全量快照（每次读实时拼一份，按号排；接了 `Proto.SnapShot.cards`）
+---@type Proto.Card[]
+V.snapshot = nil
+
+---@param self CardSync.View
+---@return Proto.Card[]
+V.__getter.snapshot = function (self)
+    ---@type Proto.Card[]
+    local cards = {}
+    for _, list in pairs(self.cardZones) do
+        for _, card in ipairs(list) do
+            cards[#cards+1] = self.cardMap[card]
+        end
+    end
+    table.sort(cards, function (a, b)
+        return a.id < b.id
+    end)
+    return cards
 end
 
 ---@param cards Card[]

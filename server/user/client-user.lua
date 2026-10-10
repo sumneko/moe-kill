@@ -5,11 +5,6 @@ local M = Class 'ClientUser'
 
 Extends('ClientUser', 'User')
 
----@param client Client
-function M:__init(client)
-    self.client = client
-end
-
 --- 他看得见的那份牌（懒建：第一次读的时候按座位建一份）
 ---@type CardSync.View?
 M.cardView = nil

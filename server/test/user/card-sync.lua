@@ -45,6 +45,14 @@ local function connect()
     return front, back
 end
 
+--- 两个客户端都接入：读一下各自的牌视图（它把当时的现场建账，之后走增量）
+---@param players Player[]
+local function attach(players)
+    for _, player in ipairs(players) do
+        assert(assert(player.user).cardView)
+    end
+end
+
 --- 搭一个两人局：每人坐好、都有连接，同步层已经盯上（每条用例一次，顺带撤掉上一轮的收集器）
 ---@param seed? integer # 随机种子（要重复抽样时换个种子，不然每轮抽到同一个结果）
 ---@return Game
@@ -62,68 +70,69 @@ local function newGame(seed)
         local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
         game.desk:sit(i, player)
         local _, back = connect()
-        player:setUser(New 'ClientUser' (back))
+        player:setUser(New 'ClientUser' (game, back))
         players[i] = player
     end
     players[1]:getZone('手牌'):setVisible { players[1] }
     players[2]:getZone('手牌'):setVisible { players[2] }
-    moe.cardSync.watch(game)
     return game, players
 end
 
 ---@async
-lt.test('卡牌同步：全量灌入把各区的牌都发一遍', function ()
+lt.test('卡牌同步：建视图时把当时场上的牌都算进账', function ()
     local game = newGame()
-    local got = collect('Card.Create')
     game:getZone('弃牌'):accept(game:createCard('闪'))
 
-    moe.cardSync.syncAll(game)
-    moe.await.sleep(0)
+    local me = assert(game.desk.players[1])
+    local user = assert(me.user)
+    local cards = assert(user.cardView).snapshot
 
-    lt.assertEquals('两个连接各一条', 2, #got)
-    lt.assertEquals('弃牌堆那张在里面', 1, #got[1].cards)
-    lt.assertEquals('牌面带上了', '闪', got[1].cards[1].template.name)
-    lt.assertEquals('区域是弃牌', '弃牌', got[1].cards[1].zone.name)
-    lt.assertEquals('没有主人', nil, got[1].cards[1].zone.player)
+    lt.assertEquals('场上那张在快照里', 1, #cards)
+    lt.assertEquals('带着牌面', '闪', assert(cards[1].face).name)
+    lt.assertEquals('区域是弃牌', '弃牌', assert(cards[1].zone).name)
+    lt.assertEquals('没有主人', nil, assert(cards[1].zone).player)
 end)
 
 ---@async
-lt.test('卡牌同步：看不见的牌只有 id 与区域', function ()
+lt.test('卡牌同步：看不见的牌只有号与区域', function ()
     local game, players = newGame()
+    local me = assert(players[1])
     local you = assert(players[2])
+    attach(players)
     local got = collect('Card.Create')
 
     you:getZone('手牌'):accept(game:createCard('杀'))
-    moe.cardSync.syncAll(game)
     moe.await.sleep(0)
 
     local mine  = assert(got[1]).cards
     local yours = assert(got[2]).cards
-    lt.assertEquals('看不见别人的手牌', nil, assert(mine[1]).template)
+    lt.assertEquals('看不见别人的手牌', nil, assert(mine[1]).face)
     lt.assertEquals('但那张牌的存在看得见', 1, #mine)
+    lt.assertEquals('号是给了的（后续搬动要认它）', true, mine[1].id ~= nil)
     lt.assertEquals('区域主人的号对得上', you.id, mine[1].zone.player)
     lt.assertEquals('区名是手牌', '手牌', mine[1].zone.name)
-    lt.assertEquals('他自己那份看得见牌面', '杀', assert(assert(yours[1]).template).name)
+    lt.assertEquals('他自己那份看得见牌面', '杀', assert(assert(yours[1]).face).name)
 end)
 
 ---@async
 lt.test('卡牌同步：自己的手牌看得见', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local got = collect('Card.Create')
 
     me:getZone('手牌'):accept(game:createCard('桃'))
-    moe.cardSync.syncAll(game)
     moe.await.sleep(0)
 
-    lt.assertEquals('自己那张带牌面', '桃', assert(assert(got[1]).cards[1]).template.name)
-    lt.assertEquals('对方那份没有牌面', nil, assert(assert(got[2]).cards[1]).template)
+    lt.assertEquals('自己那张带牌面', '桃', assert(assert(got[1]).cards[1].face).name)
+    lt.assertEquals('对方那份没有牌面', nil, assert(assert(got[2]).cards[1]).face)
 end)
 
 ---@async
 lt.test('卡牌同步：牌进区发创建、离区发移除', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
     local removes = collect('Card.Remove')
 
@@ -133,7 +142,7 @@ lt.test('卡牌同步：牌进区发创建、离区发移除', function ()
 
     lt.assertEquals('两个连接各一条创建', 2, #creates)
     lt.assertEquals('第一条里有一张牌', 1, #assert(creates[1]).cards)
-    lt.assertEquals('是那张牌', '杀', creates[1].cards[1].template.name)
+    lt.assertEquals('是那张牌', '杀', creates[1].cards[1].face.name)
     local id = creates[1].cards[1].id
 
     game:moveCard(card, '弃牌')
@@ -150,15 +159,15 @@ lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', fu
     for seed = 1, 8 do
         local game, players = newGame(seed)
         local you = assert(players[2])
+        attach(players)
         local got = collect('Card.Create')
 
         local first = game:createCard('杀')
         you:getZone('手牌'):accept(first)
         moe.await.sleep(0)
 
-        local user = assert(players[1].user)
-        local view = assert(user.cardView)
-        local idFirst = assert(view.cards[first]).id
+        local view = assert(assert(players[1].user).cardView)
+        local idFirst = assert(view.cardMap[first]).id
 
         clear(got)
         view.random = moe.random.create(seed)
@@ -166,13 +175,13 @@ lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', fu
         you:getZone('手牌'):accept(second)
         moe.await.sleep(0)
 
-        local idSent = assert(assert(got[1]).cards[1]).id
-        lt.assertEquals('发出去的是个没用过的号', true, idSent ~= idFirst)
-        local idFirstNow  = assert(view.cards[first]).id
-        local idSecondNow = assert(view.cards[second]).id
-        lt.assertEquals('两张牌占的还是那两个号', true,
-            (idFirstNow == idFirst and idSecondNow == idSent)
-            or (idFirstNow == idSent and idSecondNow == idFirst))
+        local idSent     = assert(assert(got[1]).cards[1]).id
+        local idFirstNow  = assert(view.cardMap[first]).id
+        local idSecondNow = assert(view.cardMap[second]).id
+        lt.assertEquals('两张牌各占一个号', true, idFirstNow ~= idSecondNow)
+        lt.assertEquals('客户端拿到的号就是账里发出去的那个', idSecondNow, idSent)
+        lt.assertEquals('换号只在对调：原先那个号还在（只是换了主人）', true,
+            idFirstNow == idFirst or idSecondNow == idFirst)
         if idFirstNow ~= idFirst then
             swapped = swapped + 1
         end
@@ -184,6 +193,7 @@ end)
 lt.test('卡牌同步：换区会换新 id（移除 + 创建）', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
     local removes = collect('Card.Remove')
 
@@ -206,6 +216,7 @@ end)
 lt.test('卡牌同步：区域没变就原地更新（id 不变）', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
     local updates = collect('Card.Update')
 
@@ -220,7 +231,7 @@ lt.test('卡牌同步：区域没变就原地更新（id 不变）', function ()
     lt.assertEquals('没有多出创建', 2, #creates)
     lt.assertEquals('只有看得见的那个连接收到更新（另一个没变化）', 1, #updates)
     lt.assertEquals('id 没变', id, assert(updates[1]).cards[1].id)
-    lt.assertEquals('牌自己那份面不动', '杀', updates[1].cards[1].template.name)
+    lt.assertEquals('牌自己那份面不动', '杀', updates[1].cards[1].face.name)
     lt.assertEquals('转化另发一份', '火杀', updates[1].cards[1].modifier.name)
 end)
 
@@ -228,6 +239,7 @@ end)
 lt.test('卡牌同步：没转化就不带 modifier', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
 
     local card = game:createCard('杀')
@@ -235,7 +247,7 @@ lt.test('卡牌同步：没转化就不带 modifier', function ()
     moe.await.sleep(0)
 
     local sent = assert(creates[1]).cards[1]
-    lt.assertEquals('牌自己那份面照发', '杀', sent.template.name)
+    lt.assertEquals('牌自己那份面照发', '杀', sent.face.name)
     lt.assertEquals('没转化就不带 modifier', nil, sent.modifier)
 end)
 
@@ -243,6 +255,7 @@ end)
 lt.test('卡牌同步：加了转化又撤销，等于没变，不发通知', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
     local updates = collect('Card.Update')
 
@@ -263,6 +276,7 @@ end)
 lt.test('卡牌同步：搬牌当场发移动通知', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
     local moves = collect('Card.Move')
 
@@ -275,16 +289,39 @@ lt.test('卡牌同步：搬牌当场发移动通知', function ()
     game:moveCard(card, '弃牌')
 
     lt.assertEquals('当场就发了（不用等调度），两个连接各一条', 2, #moves)
-    lt.assertEquals('带的是搬之前的 id', id, assert(moves[1]).cards[1].id)
-    lt.assertEquals('来源是对的手牌', '手牌', moves[1].from.name)
-    lt.assertEquals('来源主人对得上', me.id, moves[1].from.player)
-    lt.assertEquals('目标是弃牌堆', '弃牌', moves[1].to.name)
+    local sent = assert(moves[1]).moves[1]
+    lt.assertEquals('带的是搬之前的 id', id, sent.id)
+    lt.assertEquals('来源是对的手牌', '手牌', sent.from.name)
+    lt.assertEquals('来源主人对得上', me.id, sent.from.player)
+    lt.assertEquals('目标是弃牌堆', '弃牌', sent.to.name)
+end)
+
+---@async
+lt.test('卡牌同步：看不见的牌搬动时给号、不给牌面', function ()
+    local game, players = newGame()
+    local you = assert(players[2])
+    attach(players)
+    local moves = collect('Card.Move')
+
+    local card = game:createCard('杀')
+    you:getZone('手牌'):accept(card)
+    moe.await.sleep(0)
+    clear(moves)
+
+    game:moveCard(card, '弃牌')
+
+    local mine = assert(moves[1]).moves[1]
+    lt.assertEquals('号给了（客户端靠它认账里那张）', true, mine.id ~= nil)
+    lt.assertEquals('牌面不给（本来是背面）', nil, mine.face)
+    local yours = assert(moves[2]).moves[1]
+    lt.assertEquals('他自己看得见，自带牌面', '杀', assert(yours.face).name)
 end)
 
 ---@async
 lt.test('卡牌同步：无名区（临时区）之间互移不发移动、也不换 id', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
     local removes = collect('Card.Remove')
     local moves   = collect('Card.Move')
@@ -304,15 +341,15 @@ lt.test('卡牌同步：无名区（临时区）之间互移不发移动、也�
     lt.assertEquals('不发移动通知', 0, #moves)
     lt.assertEquals('不发移除', 0, #removes)
     lt.assertEquals('也没有新创建', 0, #creates)
-    local user = assert(me.user)
-    local view = user.cardView
-    lt.assertEquals('视图里那张牌的 id 没变', id, assert(view).cards[card].id)
+    local view = assert(assert(me.user).cardView)
+    lt.assertEquals('视图里那张牌的 id 没变', id, assert(view.cardMap[card]).id)
 end)
 
 ---@async
 lt.test('卡牌同步：一笔调度里连改两次只发一次', function ()
     local game, players = newGame()
     local me = assert(players[1])
+    attach(players)
     local creates = collect('Card.Create')
     local updates = collect('Card.Update')
 
@@ -329,14 +366,15 @@ lt.test('卡牌同步：一笔调度里连改两次只发一次', function ()
     lt.assertEquals('两次改动合成一条更新', 1, #updates)
     lt.assertEquals('两次改动都在同一条里', '红桃', updates[1].cards[1].modifier.suit)
     lt.assertEquals('转化那份带着牌名', '火杀', updates[1].cards[1].modifier.name)
-    lt.assertEquals('牌自己那份面不动', '杀', updates[1].cards[1].template.name)
+    lt.assertEquals('牌自己那份面不动', '杀', updates[1].cards[1].face.name)
 end)
 
 ---@async
-lt.test('卡牌同步：一批牌一起挪进暗区，账里的区域要跟得上（不与没结算的脏牌换号）', function ()
+lt.test('卡牌同步：一批牌一起挪进暗区，账里的区域要跟得上', function ()
     local game, players = newGame()
     local me = assert(players[1])
     local you = assert(players[2])
+    attach(players)
 
     local deck = game:getZone('抽牌')
     deck:setVisible(false)
@@ -351,20 +389,21 @@ lt.test('卡牌同步：一批牌一起挪进暗区，账里的区域要跟得�
     game:moveCard(cards, you:getZone('手牌'))
     moe.await.sleep(0)
 
-    local user = assert(me.user)
-    local view = assert(user.cardView)
+    local view = assert(assert(me.user).cardView)
     local count = 0
     local stale = 0
-    for _, snapshot in pairs(view.cards) do
+    for _ in pairs(view.cardMap) do
         count = count + 1
-        if snapshot.zone.name == '抽牌' then
+    end
+    for _, snapshot in pairs(view.cardMap) do
+        if assert(snapshot.zone).name == '抽牌' then
             stale = stale + 1
         end
     end
     lt.assertEquals('五个号都在账上', 5, count)
     lt.assertEquals('没有还挂在抽牌堆的号', 0, stale)
     for i = 1, #cards do
-        local snapshot = assert(view.cards[cards[i]])
+        local snapshot = assert(view.cardMap[cards[i]])
         lt.assertEquals('账里的区域是手牌', '手牌', assert(snapshot.zone).name)
         lt.assertEquals('区域主人是对方', you.id, snapshot.zone.player)
     end
@@ -381,6 +420,7 @@ lt.test('卡牌同步：换号不消耗局里的随机源', function ()
 
     local gameB, players = newGame(7)
     local you = assert(players[2])
+    attach(players)
     local first = gameB:createCard('杀')
     you:getZone('手牌'):accept(first)
     moe.await.sleep(0)
@@ -396,61 +436,15 @@ lt.test('卡牌同步：换号不消耗局里的随机源', function ()
     lt.assertEquals('两边序列一致（换号没动局里的随机源）', table.concat(numsA, ','), table.concat(numsB, ','))
 end)
 
----@async
-lt.test('卡牌同步：全量重发可以只给一个玩家，旧账的号先撤掉', function ()
+lt.test('卡牌同步：视图挂在 ClientUser 上（懒建、同一份、知道主人、建账就在）', function ()
     local game, players = newGame()
-    local me = assert(players[1])
-    local creates = collect('Card.Create')
-    local removes = collect('Card.Remove')
-
-    local card = game:createCard('闪')
-    game:getZone('弃牌'):accept(card)
-    moe.cardSync.syncAll(game)
-    moe.await.sleep(0)
-
-    lt.assertEquals('开局两台各灌一份', 2, #creates)
-    local idFirst = assert(assert(creates[1]).cards[1]).id
-    clear(creates)
-    clear(removes)
-
-    moe.cardSync.syncAll(game, me)
-    moe.await.sleep(0)
-
-    lt.assertEquals('只有指定玩家收到重灌', 1, #creates)
-    lt.assertEquals('旧账的号先撤掉了', 1, #removes)
-    lt.assertEquals('撤的就是他账上那个号', idFirst, assert(removes[1]).ids[1])
-    local fresh = assert(assert(creates[1]).cards[1])
-    lt.assertEquals('新发的号没用过', true, fresh.id ~= idFirst)
-    lt.assertEquals('新那份还带着牌面', '闪', assert(fresh.template).name)
-end)
-
----@async
-lt.test('卡牌同步：全量重发不丢掉「最近一次搬动」的可见性', function ()
-    local game, players = newGame()
-    local me = assert(players[1])
-    local got = collect('Card.Create')
-
-    local card = game:createCard('闪')
-    game:getZone('弃牌'):accept(card, { me })
-    moe.await.sleep(0)
-    lt.assertEquals('我看得见牌面', '闪', assert(assert(got[1]).cards[1]).template.name)
-    lt.assertEquals('对方看不见（那次搬动只对我可见）', nil, assert(assert(got[2]).cards[1]).template)
-
-    clear(got)
-    moe.cardSync.syncAll(game)
-    moe.await.sleep(0)
-
-    lt.assertEquals('重灌后我照旧看得见', '闪', assert(assert(got[1]).cards[1]).template.name)
-    lt.assertEquals('重灌后对方照旧看不见', nil, assert(assert(got[2]).cards[1]).template)
-end)
-
-lt.test('卡牌同步：视图挂在 ClientUser 上（懒建、同一份、知道主人）', function ()
-    local _, players = newGame()
     local me = assert(players[1])
     local user = assert(me.user)
+    game:getZone('弃牌'):accept(game:createCard('闪'))
 
     lt.assertEquals('第一次读就懒建出来', true, user.cardView ~= nil)
     local view = assert(user.cardView)
     lt.assertEquals('再读还是同一份', true, user.cardView == view)
-    lt.assertEquals('知道自己是哪个座位的', me, view.player)
+    lt.assertEquals('知道自己是哪个人的', user, view.user)
+    lt.assertEquals('连同当时的牌一起建账', 1, #view.snapshot)
 end)

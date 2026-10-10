@@ -2,12 +2,15 @@
 --- 每个方法收这次询问的实例，返回与内核同一形状的答复；返回空 = 不表态
 ---@class User : Class.Base
 ---@field player? Player # 他控制的座位（`Player:setUser` 维护）
+---@field client? Client # 他走的那条连接（只有真实玩家会给）
 ---@field cardView? CardSync.View # 他看得见的那份牌（默认没有 —— 要收卡牌下行的子类自己挂）
 local M = Class 'User'
 
 ---@param game Game
-function M:__init(game)
-    self.game = game
+---@param client? Client # 真实玩家那条连接
+function M:__init(game, client)
+    self.game   = game
+    self.client = client
 end
 
 ---@param method string
