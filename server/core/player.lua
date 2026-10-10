@@ -436,10 +436,10 @@ function moe.player.sendUpdates(game, dirty)
     for _, viewer in ipairs(game.desk.players) do
         local user = viewer.user
         if user then
-            ---@type Proto.Notify.Update
-            local data = {}
             if #baseList > 0 then
-                data.base = baseList
+                ---@type Proto.Notify.Player.Update
+                local data = { players = baseList }
+                user:playerUpdate(data)
             end
             ---@type Proto.Player.Custom[]
             local customList = {}
@@ -452,10 +452,9 @@ function moe.player.sendUpdates(game, dirty)
                 end
             end
             if #customList > 0 then
-                data.custom = customList
-            end
-            if data.base or data.custom then
-                user:update(data)
+                ---@type Proto.Notify.Player.UpdateCustom
+                local data = { players = customList }
+                user:playerUpdateCustom(data)
             end
         end
     end

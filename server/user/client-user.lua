@@ -12,17 +12,16 @@ function M:__init(client)
     self.client = client
 end
 
---- 玩家数据变了：基础信息合成一条、custom 一人一条
----@param data Proto.Notify.Update
-function M:update(data)
-    if data.base then
-        self.client:notify('Player.Update', { players = data.base })
-    end
-    if data.custom then
-        for _, entry in ipairs(data.custom) do
-            self.client:notify('Player.UpdateCustom', entry)
-        end
-    end
+--- 玩家基础信息变了
+---@param data Proto.Notify.Player.Update
+function M:playerUpdate(data)
+    self.client:notify('Player.Update', data)
+end
+
+--- 玩家的自定义数据变了（一人一条）
+---@param data Proto.Notify.Player.UpdateCustom
+function M:playerUpdateCustom(data)
+    self.client:notify('Player.UpdateCustom', data)
 end
 
 ---@param data Proto.Notify.Card.Create

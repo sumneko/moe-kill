@@ -76,8 +76,8 @@ lt.test('ClientUser：改 custom 收到 Player.UpdateCustom', function ()
 
     lt.assertEquals('收到一条', 1, #got)
     undo()
-    lt.assertEquals('发给哪个玩家的', player.id, got[1].id)
-    lt.assertEquals('字段跟过来了', '刘备', got[1].custom.heroName)
+    lt.assertEquals('发给哪个玩家的', player.id, got[1].players[1].id)
+    lt.assertEquals('字段跟过来了', '刘备', got[1].players[1].custom.heroName)
 end)
 
 ---@async
@@ -96,8 +96,8 @@ lt.test('ClientUser：同一笔调度里写几次也只发一条', function ()
 
     lt.assertEquals('只发了一条', 1, #got)
     undo()
-    lt.assertEquals('两个字段都在同一条里', '主公', got[1].custom.identity)
-    lt.assertEquals('先写的也在', '刘备', got[1].custom.heroName)
+    lt.assertEquals('两个字段都在同一条里', '主公', got[1].players[1].custom.identity)
+    lt.assertEquals('先写的也在', '刘备', got[1].players[1].custom.heroName)
 end)
 
 ---@async
@@ -138,9 +138,9 @@ lt.test('ClientUser：别人只看得到公开字段', function ()
 
     lt.assertEquals('收到一条', 1, #got)
     undo()
-    lt.assertEquals('是 a 的 custom', a.id, got[1].id)
-    lt.assertEquals('公开字段看得见', '刘备', got[1].custom.heroName)
-    lt.assertEquals('隐藏字段看不见', nil, got[1].custom.identity)
+    lt.assertEquals('是 a 的 custom', a.id, got[1].players[1].id)
+    lt.assertEquals('公开字段看得见', '刘备', got[1].players[1].custom.heroName)
+    lt.assertEquals('隐藏字段看不见', nil, got[1].players[1].custom.identity)
 end)
 
 ---@async

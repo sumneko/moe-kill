@@ -69,9 +69,14 @@ end
 function M:askPanel(ask)
 end
 
---- 玩家数据变了（`base?` / `custom?`，内核已经按视角组装好；默认什么都不做）
----@param data Proto.Notify.Update
-function M:update(data)
+--- 玩家基础信息变了（内核已经按视角组装好；默认什么都不做）
+---@param data Proto.Notify.Player.Update
+function M:playerUpdate(data)
+end
+
+--- 玩家的自定义数据变了（一人一条；内核已经按视角裁好；默认什么都不做）
+---@param data Proto.Notify.Player.UpdateCustom
+function M:playerUpdateCustom(data)
 end
 
 --- 有新出现的牌（默认什么都不做）
