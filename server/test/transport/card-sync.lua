@@ -145,7 +145,7 @@ end)
 
 ---@async
 lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', function ()
-    -- 换号是随机的（也可能正好抽到自己 = 不换）⇒ 换几个种子跑几轮统计
+    -- 换号挑牌用的是视图自带的随机源（不碰局里的）—— 用例把种子固定下来逐轮盯着看（也可能抽到自己 = 不换）
     local swapped = 0
     for seed = 1, 8 do
         local game, players = newGame(seed)
@@ -162,6 +162,7 @@ lt.test('卡牌同步：看不见的新牌会与同区一张匿名牌换号', fu
         local idFirst = assert(view.cards[first]).id
 
         clear(got)
+        view.random = moe.random.create(seed)
         local second = game:createCard('杀')
         you:getZone('手牌'):accept(second)
         moe.await.sleep(0)
@@ -331,4 +332,117 @@ lt.test('卡牌同步：一笔调度里连改两次只发一次', function ()
     lt.assertEquals('两次改动都在同一条里', '红桃', updates[1].cards[1].modifier.suit)
     lt.assertEquals('转化那份带着牌名', '火杀', updates[1].cards[1].modifier.name)
     lt.assertEquals('牌自己那份面不动', '杀', updates[1].cards[1].template.name)
+end)
+
+---@async
+lt.test('卡牌同步：一批牌一起挪进暗区，账里的区域要跟得上（不与没结算的脏牌换号）', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    local you = assert(players[2])
+
+    local deck = game:getZone('抽牌')
+    deck:setVisible(false)
+    ---@type Card[]
+    local cards = {}
+    for i = 1, 5 do
+        cards[i] = game:createCard('杀')
+    end
+    deck:accept(cards)
+    moe.await.sleep(0)
+
+    game:moveCard(cards, you:getZone('手牌'))
+    moe.await.sleep(0)
+
+    local user = assert(me.user)
+    ---@cast user ClientUser
+    local view = assert(moe.cardSync.views[user.client])
+    local count = 0
+    local stale = 0
+    for _, snapshot in pairs(view.cards) do
+        count = count + 1
+        if snapshot.zone.name == '抽牌' then
+            stale = stale + 1
+        end
+    end
+    lt.assertEquals('五个号都在账上', 5, count)
+    lt.assertEquals('没有还挂在抽牌堆的号', 0, stale)
+    for i = 1, #cards do
+        local snapshot = assert(view.cards[cards[i]])
+        lt.assertEquals('账里的区域是手牌', '手牌', assert(snapshot.zone).name)
+        lt.assertEquals('区域主人是对方', you.id, snapshot.zone.player)
+    end
+end)
+
+---@async
+lt.test('卡牌同步：换号不消耗局里的随机源', function ()
+    local gameA = newGame(7)
+    ---@type integer[]
+    local numsA = {}
+    for i = 1, 6 do
+        numsA[i] = gameA.random:nextInt(1, 1000000)
+    end
+
+    local gameB, players = newGame(7)
+    local you = assert(players[2])
+    local first = gameB:createCard('杀')
+    you:getZone('手牌'):accept(first)
+    moe.await.sleep(0)
+    local second = gameB:createCard('杀')
+    you:getZone('手牌'):accept(second)
+    moe.await.sleep(0)
+
+    ---@type integer[]
+    local numsB = {}
+    for i = 1, 6 do
+        numsB[i] = gameB.random:nextInt(1, 1000000)
+    end
+    lt.assertEquals('两边序列一致（换号没动局里的随机源）', table.concat(numsA, ','), table.concat(numsB, ','))
+end)
+
+---@async
+lt.test('卡牌同步：全量重发可以只给一个玩家，旧账的号先撤掉', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    local creates = collect('Card.Create')
+    local removes = collect('Card.Remove')
+
+    local card = game:createCard('闪')
+    game:getZone('弃牌'):accept(card)
+    moe.cardSync.syncAll(game)
+    moe.await.sleep(0)
+
+    lt.assertEquals('开局两台各灌一份', 2, #creates)
+    local idFirst = assert(assert(creates[1]).cards[1]).id
+    clear(creates)
+    clear(removes)
+
+    moe.cardSync.syncAll(game, me)
+    moe.await.sleep(0)
+
+    lt.assertEquals('只有指定玩家收到重灌', 1, #creates)
+    lt.assertEquals('旧账的号先撤掉了', 1, #removes)
+    lt.assertEquals('撤的就是他账上那个号', idFirst, assert(removes[1]).ids[1])
+    local fresh = assert(assert(creates[1]).cards[1])
+    lt.assertEquals('新发的号没用过', true, fresh.id ~= idFirst)
+    lt.assertEquals('新那份还带着牌面', '闪', assert(fresh.template).name)
+end)
+
+---@async
+lt.test('卡牌同步：全量重发不丢掉「最近一次搬动」的可见性', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    local got = collect('Card.Create')
+
+    local card = game:createCard('闪')
+    game:getZone('弃牌'):accept(card, { me })
+    moe.await.sleep(0)
+    lt.assertEquals('我看得见牌面', '闪', assert(assert(got[1]).cards[1]).template.name)
+    lt.assertEquals('对方看不见（那次搬动只对我可见）', nil, assert(assert(got[2]).cards[1]).template)
+
+    clear(got)
+    moe.cardSync.syncAll(game)
+    moe.await.sleep(0)
+
+    lt.assertEquals('重灌后我照旧看得见', '闪', assert(assert(got[1]).cards[1]).template.name)
+    lt.assertEquals('重灌后对方照旧看不见', nil, assert(assert(got[2]).cards[1]).template)
 end)

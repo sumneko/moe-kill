@@ -1,5 +1,3 @@
-require 'user.user'
-
 --- 真实玩家的代表：把询问下发给客户端、等客户端回话
 ---@class ClientUser : User
 ---@field client Client # 他走的那条连接

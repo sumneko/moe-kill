@@ -27,6 +27,10 @@ moe.cardSync.lastVisible = moe.cardSync.lastVisible or setmetatable({}, { __mode
 ---@type table<Card, Zone>
 moe.cardSync.lastLeave = moe.cardSync.lastLeave or setmetatable({}, { __mode = 'k' })
 
+--- 视图随机源的种子号源（每份视图发一段：换号挑牌用，不碰局里的随机源）
+---@type integer
+moe.cardSync.viewSeq = moe.cardSync.viewSeq or 0
+
 --- 协议里的区域：既没有名字也没有归属的（临时区）一律是同一个空区域
 ---@param zone? Zone
 ---@return Proto.Zone
@@ -108,7 +112,7 @@ local function zoneKey(zone)
     return '{}#{}' % { zone.name or '', zone.player or 0 }
 end
 
---- 这个连接在某个区里看不见牌面的那些牌（`card` 自己也算一个 —— 抽到自己就等于不换）
+--- 这个连接在某个区里看不见牌面、账也落在那个区的牌（`card` 自己也算一个 —— 抽到自己就等于不换；账停在旧区的脏牌不挑 —— 换号会把两边的区域记乱）
 ---@param view CardSync.View
 ---@param card Card
 ---@param zone Zone
@@ -117,12 +121,14 @@ local function hiddenIn(view, card, zone)
     ---@type Card[]
     local hidden = { card }
     local areas  = moe.cardSync.zones[view.player.game]
-    local cards  = areas?[zoneKey(toZone(zone))]
+    local proto  = toZone(zone)
+    local cards  = areas?[zoneKey(proto)]
     if cards then
         for i = 1, #cards do
             local other    = cards[i]
             local snapshot = view.cards[other]
-            if other ~= card and snapshot and snapshot.template == nil then
+            if other ~= card and snapshot and snapshot.template == nil
+                and sameZone(snapshot.zone, proto) then
                 hidden[#hidden + 1] = other
             end
         end
@@ -191,6 +197,8 @@ function M:__init(player)
     self.player    = player
     self.cards     = {}
     self.idCounter = 0
+    moe.cardSync.viewSeq = moe.cardSync.viewSeq + 1
+    self.random    = moe.random.create(moe.cardSync.viewSeq)
 end
 
 --- 发一个视图号
@@ -227,7 +235,7 @@ function M:create(card)
     self.cards[card] = snapshot
     local zone = card:getZone()
     if zone and snapshot.template == nil then
-        local other = self.player.game.random:pick(hiddenIn(self, card, zone))
+        local other = self.random:pick(hiddenIn(self, card, zone))
         if other ~= card then
             self.cards[card], self.cards[other] = self.cards[other], snapshot
         end
@@ -295,21 +303,32 @@ local function markDirty(game, card)
     dirty[card] = true
 end
 
+--- 对每个有连接的玩家跑一遍
+---@param game Game
+---@param fn fun(view: CardSync.View, user: User)
+local function eachView(game, fn)
+    for _, player in ipairs(game.desk.players) do
+        local view = getView(player)
+        if view then
+            local user = player.user
+            if user then
+                fn(view, user)
+            end
+        end
+    end
+end
+
 --- 给每个有连接的玩家发一份（组装用的钩子；发什么由调用方决定）
 ---@param game Game
 ---@param build fun(view: CardSync.View): any # 造不出来的那份就不发
 ---@param send fun(user: User, params: any)
 local function broadcast(game, build, send)
-    for _, player in ipairs(game.desk.players) do
-        local view = getView(player)
-        if view then
-            local params = build(view)
-            local user = player.user
-            if params and user then
-                send(user, params)
-            end
+    eachView(game, function (view, user)
+        local params = build(view)
+        if params then
+            send(user, params)
         end
-    end
+    end)
 end
 
 --- 搬牌那一刻的通知（当场发，供客户端播动画；协议区域没变就不发）
@@ -416,10 +435,39 @@ function moe.cardSync.watch(game)
     end
 end
 
---- 把这一局所有牌区里的牌全量发一遍（开局 / 重连用）
+--- 一个视图的全量重发（先把旧账的号撤掉，再照内核现状灌一份）
+---@param zones Zone[]
+---@param view CardSync.View
+---@param user User
+local function syncView(zones, view, user)
+    ---@type integer[]
+    local removes = {}
+    for _, snapshot in pairs(view.cards) do
+        removes[#removes + 1] = snapshot.id
+    end
+    view:reset()
+    ---@type Proto.Card[]
+    local cards = {}
+    for _, zone in ipairs(zones) do
+        for _, card in ipairs(zone:list()) do
+            cards[#cards + 1] = view:create(card)
+        end
+    end
+    if #removes > 0 then
+        user:cardRemove { ids = removes }
+    end
+    if #cards > 0 then
+        user:cardCreate { cards = cards }
+    end
+end
+
+--- 把这一局所有牌区里的牌全量发一遍（开局 / 重连用；给了 `player` 就只重发他那一份）
 ---@param game Game
-function moe.cardSync.syncAll(game)
-    moe.cardSync.dirty[game] = nil
+---@param player? Player
+function moe.cardSync.syncAll(game, player)
+    if not player then
+        moe.cardSync.dirty[game] = nil
+    end
     -- 区域状态是所有连接共用的一份：先照内核的现状重建一遍
     moe.cardSync.zones[game] = {}
     local zones = allZones(game)
@@ -428,22 +476,16 @@ function moe.cardSync.syncAll(game)
             addToZone(game, card, zone)
         end
     end
-    broadcast(game, function (view)
-        view:reset()
-        ---@type Proto.Card[]
-        local cards = {}
-        for _, zone in ipairs(zones) do
-            for _, card in ipairs(zone:list()) do
-                moe.cardSync.lastVisible[card] = nil
-                cards[#cards + 1] = view:create(card)
-            end
+    if player then
+        local view = getView(player)
+        local user = player.user
+        if view and user then
+            syncView(zones, view, user)
         end
-        if #cards == 0 then
-            return nil
-        end
-        return { cards = cards }
-    end, function (user, params)
-        user:cardCreate(params)
+        return
+    end
+    eachView(game, function (view, user)
+        syncView(zones, view, user)
     end)
 end
 
