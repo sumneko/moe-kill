@@ -84,8 +84,12 @@ lm:executable "moe-kill" {
         "3rd/bee.lua",
         luaDir,
         luaSrc,
+        "3rd/digest",
     },
-    sources = "make/modules.cpp",
+    sources = {
+        "make/modules.cpp",
+        "3rd/digest/sha1.c",
+    },
 }
 
 local platform = require 'bee.platform'

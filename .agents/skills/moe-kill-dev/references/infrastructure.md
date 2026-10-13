@@ -6,6 +6,7 @@
 | --- | --- | --- | --- |
 | bee.lua | `D:\Github\bee.lua` | Lua 运行时与系统库 | 可选链**已在 `master` 上**（构建期补丁，`luamake -optchain` 启用） |
 | utility | `D:\Github\utility` | 通用 Lua 工具库（风格语法糖、class 系统…） | 是 LuaLS 内副本的上游 |
+| digest | `clibs/sha1`（GitHub） | SHA1（**公有领域**，Steve Reid 那份） | 本工程只拿它算 WebSocket 握手的摘要；只多两个文件、零依赖 |
 | lua-language-server | `D:\Github\lua-language-server` | **基础设施与风格的主要参考** | 本地工作区是 2022 年的 `master`；`4.0.0` 已 fetch 为 `origin/4.0.0`，**读它用 `git show origin/4.0.0:<path>`**，不要读工作区文件 |
 | lua-debug | `D:\Github\lua-debug` | 调试器（VS Code 扩展 `actboy168.lua-debug`） | 文档见 `docs/DebuggerInit.md`、`docs/luadebug/` |
 
@@ -194,6 +195,20 @@ end
 | `attribute.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（**LuaLS 4.0.0 里没有它**）；`System:define(name, simple, min, max)` → `Instance:get/set/add/getMin/getMax/event`，含公式（基础值 + 百分比）、上下限、惰性重算与变更事件；2026-09-19 已同步上游 `3f347e4`（“修复属性系统的报错”：给 `compileComplex` 的 `getMax` 生成块补 `local cache = instance.cache`）。**已知上游未修的同类坑**：`compileSimple` 的 `getMax` 生成块（约 613 行）同样缺这行 ⇒ `simple = true` 且 `max` 写字符串引用的属性调 `getMax` 会报 `attempt to index a nil value (global 'cache')`（写入钳制本身是好的） | 内核的“通用属性”直接接它，不自己写一套 |
 | `reload.lua` | **新增照搬文件**：来源 `y3-editor/y3-lualib` 的 `tools/reload.lua`（MIT，`Copyright (c) 2023 y3-editor`）—— `sumneko/utility` 与 LuaLS 4.0.0 都**没有**热重载库。改写点：`y3.util.*` → `moe.util.*`；回调注册**返回 disposer**（并因此修掉「回调数组每次重载整体替换、捕获的引用会失效」）；**`include` 失败时记日志（`log.error`，带堆栈）并抛出错误**（不再返回 `false` —— 出错就让调用方停下，而不是把 `false` 静默赋进门面），重载过程中的失败由 `fire()` 用 `pcall` 隔离 | 内核需要开发期热重载，见 `architecture.md` 第 8 节 |
 | `without-check-nil.lua` | **新增照搬文件**：来源 `sumneko/utility` 上游 HEAD（原样、逐字节相同）。用 `debug.setmetatable(nil, mt)` 给 **`nil` 本身**装元表，让 nil 上的算术 / 拼接 / 索引 / 调用 / 比较都不崩；对外只有 `enable()` / `disable()`（`disable()` 仅在元表仍是它的那份时恢复） | 规则集**预解析试跑**用（`server/core/loader/preparse.lua`）：试跑要执行规则集代码但不该崩。注意它是**进程全局**改动，必须成对开关 |
+
+## 7. 本工程自己的 C 模块（`make/modules.cpp`）
+
+`make.lua` 里 `moe-kill` 这个可执行文件的 `sources` 含 **`make/modules.cpp`** —— 它是给「本工程自己的 C 模块」留的位置（原本只有一行 include）。加一个模块照 bee.lua 的 `binding/lua_*.cpp` 的路子：
+
+1. 在 `make/modules.cpp` 里开一个 `namespace bee::lua_<名字>`，写一个 `static int luaopen(lua_State* L)`（`luaL_newlib` + `luaL_Reg` 表）；
+2. 文件末尾写 **`DEFINE_LUAOPEN(<名字>)`** —— 它展开成一个静态对象，把模块名注册成 `bee.<名字>`（**静态链进 exe，`require 'bee.<名字>'` 直接命中，不用往哪里登记**）；
+3. 依赖的 C 源码加进 `make.lua` 的 `sources`、头文件目录加进 `includes`；
+4. **`luamake -notest` 重建**（改 C 才要 —— 平时只改 Lua 不用构建，见上文）。
+
+现有的：
+
+- **`bee.digest`**（2026-10-13）：`sha1(文本) -> 20 字节` / `base64(文本) -> 文本`，给 WebSocket 握手用。SHA1 用 `3rd/digest/` 里那份 **Steve Reid 的公有领域实现**（只依赖 `<string.h>` / `<stdint.h>` + 自带的 `sha1.h`；本工程给它补了 `BYTE_ORDER` 的探测 —— MSVC 上没有这个宏）；base64 是本工程自己写的三十行。
+  > **为何不用 mbedTLS 那份**（先看过）：它的 `sha1.c` `#include "common.h"` / `mbedtls/sha1.h` / `platform_util.h` / `error.h` / `platform.h`，还要拖它的 config 与平台层 —— **不是单文件**，为 20 字节的摘要不值当。
 
 等待与唤醒的接线在 `server/loop-waiter.lua`（本工程自有，**不属于 `tools/`**；2026-09-28 替换掉原来的 `server/async-io.lua`）：持有**本 VM 唯一的 `bee.epoll` 实例** + 一个自唤醒通道，对外四个口子 —— `wait(seconds)`（阻塞等待，`nil` 表示无限期）、`poll()`（非阻塞排空）、`wake()`（瞬时信号）、`watch(fd, onReadable)`（注册外部事件源，回调自行取走数据）。它同时就是「**本 VM 的 fd 多路复用上下文**」（将来 transport / worker 的消息通道往它上面注册）。文件 IO **一律同步**。
 

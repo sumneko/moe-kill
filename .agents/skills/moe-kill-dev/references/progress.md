@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1258 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1261 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -415,6 +415,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **旧会话外壳退役 + 单局服务器（2026-10-13，用户定）**：① **`server/session/` 整套删掉**（`Server.Session` + 决策挂起/恢复 + 事件收集 + `moe.server.Phase`）—— 它只是「还没有 `User` 概念时为了跑测试临时加的外壳」，职责已由 `user/` 那层承担（问询走 `ClientUser:request`）；连带删掉 17 条旧用例（`test/session/{decision,event,flow,lifecycle}.lua`），`room.lua` 挪到 `server/room.lua`、`test/session/room.lua` 挪到 `test/room.lua`。② **新增 `server/transport/tcp-link.lua`**（`moe.link.tcp(fd)`）：真 TCP 上的 `Link` —— `bee.socket` 是非阻塞的，读 / 写各有自己的槽，就绪挂事件循环的 epoll；**写是「单写协程 + 队列」**（照 `actboy168/lua-debug` 的 `net.lua`）—— 两条协程同时写会把帧撕开；**没人在等就把事件源撤掉**（否则持续可读的 fd 让事件循环空转）。`loop-waiter.lua` 相应加了事件位与 `modify` / `unwatch`（原来只认可读、不能改）。③ **新增 `server/server.lua`**（门面 `moe.server`，见 `architecture.md` §7）：`start{ port, seats, packages, sources?, seed? }` 建局 + 听端口 + accept（**循环收干** —— 一次事件只收一个的话 backlog 里剩下的不会再有事件）+ 接成 `Client`；**只做单局，重开要重启进程**。④ **命令行**：`--single`（必须给；将来默认是 lobby）/ `--port`（默认 31415）/ `--seats`（默认 8）/ `--packages`（逗号分开，默认 `身份场,标准`）。用例 +6（`test/transport/tcp-link.lua` 4 条：双向收发 / 半包粘包 / 一边发一边收 / 对面关掉；`test/server.lua` 2 条：真 TCP 连上坐进来拿快照、坐满开局 + 满员拒客 —— 走真 socket，本地端口由系统分）。**验收基线 1267 → 1256**（-17 旧壳 +6 新增）。
 
 - **房间下行 + 快照补全（2026-10-13，用户定的三步里的前两步）**：① **加入后广播房间状态** —— 新通知 `Proto.Notify.Room.Update { seats, players }`（**开局之前**每次有人入座发一次，给已入座的每个人一份），落点新文件 `server/user/room-sync.lua`（门面 `moe.roomSync.broadcast(game)`，`moe.room.join` 末尾调一次）；**`Proto.SnapShot` 加 `me?`**（这条连接控制的是谁 —— 客户端由此知道自己坐哪）。② **快照补 `skills` / `panels`**（重连要「一次拿全」）：`snapshot.build` 拼 `skills`（遍历座位上的每个玩家 × `player:getSkills()` ⇒ `moe.skillSync.toProto`）与 `panels`（局上现存的每块 ⇒ `moe.panelSync.toProto(user, panel)`，按收件人视角）。为此**内核给局加了一本账 `game.panels`**（`Panel:__init` 登记、`Panel:__del` 摘 —— 强键；内核不解释它，只做登记）—— 原来面板对象只被创建方与 `panel-sync` 的弱键账持有，**没人能列出「局上现在有哪些面板」**。用例 +2（`test/room.lua`「有人坐进来就广播房间状态」；`test/user/snapshot.lua`「技能与面板也一次带上」）。**验收基线 1256 → 1258**。
+
+- **C 模块 `bee.digest`（2026-10-13，用户定：「sha1 / base64 用 C 写、导接口给 Lua」）**：`make/modules.cpp`（`make.lua` 早就把它列进 `sources`，是给本工程 C 模块留的位置）里加了 `bee.digest` —— `sha1(文本) -> 20 字节` / `base64(文本) -> 文本`，**给 WebSocket 握手用**。SHA1 用 `3rd/digest/` 里 **Steve Reid 的公有领域实现**（原本拟用 mbedTLS 那份，读下来发现它 `#include "common.h"` / `mbedtls/sha1.h` / `platform_util.h` / `platform.h`、要拖一串私有头与平台层，**不是单文件** ⇒ 换成公有领域那份：两个文件、零依赖、零许可义务）；本工程给它补了 `BYTE_ORDER` 的探测（MSVC 上没有这个宏；都没有时 `#if 0 == 0` 落小端那支，MSVC 只跑小端）。base64 自己写（三十行）。构建：`make.lua` 的 `includes` 加 `3rd/digest`、`sources` 加 `3rd/digest/sha1.c`；`luamake -notest` 一遍过。用例 +3（`test/digest.lua`：FIPS 180-1 的测试向量 / RFC 4648 的例子 / **RFC 6455 的握手例子** —— 最后一条把「sha1 + base64 + 固定 GUID」整条链钉住）。**验收基线 1258 → 1261**。
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
