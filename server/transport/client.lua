@@ -186,8 +186,20 @@ function M:dispatchCall(message)
         self:send(moe.jsonrpc.encodeError(id, moe.jsonrpc.METHOD_NOT_FOUND, '没有「{}」这个方法' % { method }))
         return
     end
+    local params = message.params or {}
+    -- 外部输入：形状不对就在这里挡下（别让处理器自己去踩）
+    if type(params) ~= 'table' then
+        self:send(moe.jsonrpc.encodeError(id, moe.jsonrpc.INVALID_PARAMS, '参数应该是表'))
+        return
+    end
+    -- 参数的形状照声明推（`Proto.Request.<方法名>`；声明里没有这个方法就不校验）
+    local schema  = moe.proto.shape('Proto.Request.' .. method)
+    local problem = schema and moe.shape.problem(params, schema)
+    if problem then
+        self:send(moe.jsonrpc.encodeError(id, moe.jsonrpc.INVALID_PARAMS, problem))
+        return
+    end
     local client  = self
-    local params  = message.params or {}
     ---@async
     moe.await.call(function ()
         local ok, result, err = xpcall(handler, log.error, client, params)
@@ -256,7 +268,7 @@ moe.client = {}
 ---@type table<string, Client.Handler>
 moe.client._handlers = moe.client._handlers or {}
 
---- 注册一个方法（客户端的请求与通知都走它）；返回撤销这次注册的函数
+--- 注册一个方法（客户端的请求与通知都走它）；`params` 的形状照声明推，不合就回「参数不对」
 ---@param method string
 ---@param handler Client.Handler
 ---@return fun()

@@ -136,7 +136,7 @@ lt.test('请求：宿主被收掉 ⇒ 叫停客户端，等待按「请求被取
     end)
 
     local host    = moe.gc.host()
-    local request = user:request('Ask.Select', {}, host)
+    local request = user:request('Ask.Select', { reason = '随便问' }, host)
     moe.await.sleep(0)
     lt.assertEquals('请求带上了取消号', true, token ~= nil)
 
@@ -167,7 +167,7 @@ lt.test('请求：取消之后回包才到 ⇒ 结果不会被改回来', functi
     end)
 
     local host    = moe.gc.host()
-    local request = user:request('Ask.Select', {}, host)
+    local request = user:request('Ask.Select', { reason = '随便问' }, host)
     moe.await.sleep(0)
 
     Delete(host)
@@ -199,7 +199,7 @@ lt.test('请求：已经拿到结果就不叫停（收掉宿主也不发 Cancel�
     end)
 
     local host    = moe.gc.host()
-    local request = user:request('Ask.Select', {}, host)
+    local request = user:request('Ask.Select', { reason = '随便问' }, host)
     local result, err = request:await()
     lt.assertEquals('拿到了结果', 0, #(assert(result).player or {}))
     lt.assertEquals('没失败', nil, err)
@@ -223,7 +223,7 @@ lt.test('请求：不给宿主就不是可取消的请求（不带号）', funct
         return { player = {} }
     end)
 
-    local result = user:request('Ask.Select', {}, nil):await()
+    local result = user:request('Ask.Select', { reason = '随便问' }, nil):await()
     lt.assertEquals('拿到了结果', 0, #(assert(result).player or {}))
     lt.assertEquals('没有取消号', nil, assert(sent, '没问到客户端').cancelToken)
 end)

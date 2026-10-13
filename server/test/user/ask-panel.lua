@@ -216,6 +216,33 @@ lt.test('询问：挪一张不合法的牌 ⇒ 回包说没挪成，面板不动
 end)
 
 ---@async
+lt.test('询问：挪牌的行号不是数字 ⇒ 回「参数不对」（进不了内核）', function ()
+    local game, me, front, panel = prepare()
+    local first = assert(panel.rows[1].cards[1])
+
+    ---@type Proto.Error?
+    local err = nil
+    local _ <close> = moe.client.register('Ask.Panel', function (_, params)
+        ---@cast params Proto.Request.Ask.Panel
+        local _, why = front:request('Panel.Move', {
+            id   = params.id,
+            card = support.cardId(me, first),
+            row  = '甲',
+            col  = 1,
+        }):await()
+        err = why
+        return {}
+    end)
+
+    local ask = moe.askPanel.create { game = game, to = me, reason = '观星', panel = panel }
+    ask:apply():await()
+
+    lt.assertEquals('错误码说清是参数问题', moe.jsonrpc.INVALID_PARAMS, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '「row」应该是 integer（现在是 string）', assert(err).message)
+    lt.assertEquals('面板没被动过', 2, #panel.rows[1].cards)
+end)
+
+---@async
 lt.test('询问：答复一次就收（协议上答复 = 操作完了）', function ()
     local game, me, _, panel = prepare { moveable = false, min = 1, max = 1 }
     local first = assert(panel.rows[1].cards[1])

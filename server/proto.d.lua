@@ -166,6 +166,13 @@
 ---@field side string # 胜方阵营：主公方 / 反贼 / 内奸 / 平局
 ---@field reason string # 胜负依据（中文短句，前端可直接显示）
 
+--- 一条连接坐进来（座位由服务端分配；坐满就开局）
+---@class Proto.Request.Game.Join
+---@field name? string # 玩家名
+
+--- 要一份当前局面的全量快照（重连用；没有参数）
+---@class Proto.Request.Game.SnapShot
+
 ---@class Proto.Plan.Player
 ---@field ids integer[] # 候选玩家ID列表
 ---@field min integer # 最少需要的玩家数量

@@ -18,6 +18,26 @@ local DEFAULT_TIME_LIMIT = 10
 ---@type number
 local TIME_LIMIT_SLACK = 1
 
+-- 回包的形状（照 `proto.d.lua` 的 `Proto.Result.<方法名>` 推）：不合形状就当这次「答不出来」
+
+--- 某个询问的回包形状（声明里漏了就当场报出来）
+---@param method string
+---@return Shape
+local function resultShape(method)
+    local shape = moe.proto.shape('Proto.Result.' .. method)
+    if not shape then
+        error('协议声明里没有回包形状「Proto.Result.' .. method .. '」')
+    end
+    return shape
+end
+
+local SELECT_RESULT    = resultShape 'Ask.Select'
+local CHOICE_RESULT    = resultShape 'Ask.Choice'
+local USE_RESULT       = resultShape 'Ask.Use'
+local USE_SKILL_RESULT = resultShape 'Ask.UseSkill'
+local HERO_RESULT      = resultShape 'Ask.Hero'
+local PANEL_RESULT     = resultShape 'Ask.Panel'
+
 ---@param self ClientUser
 ---@return CardSync.View? # 他看得见的那份牌
 ---@return true # 将结果缓存下来
@@ -88,7 +108,7 @@ end
 ---@return string?
 function M:choice(ask, params)
     local result = self:request('Ask.Choice', params, ask):await()
-    if not result then
+    if not result or moe.shape.problem(result, CHOICE_RESULT) then
         return nil
     end
     return params.options[result.choice]
@@ -102,7 +122,7 @@ end
 ---@return ClientUser.SelectResult?
 function M:select(ask, params)
     local result = self:request('Ask.Select', params, ask):await()
-    if not result then
+    if not result or moe.shape.problem(result, SELECT_RESULT) then
         return nil
     end
     ---@type ClientUser.SelectResult
@@ -133,7 +153,7 @@ end
 ---@return ClientUser.UseResult?
 function M:use(ask, params)
     local result = self:request('Ask.Use', params, ask):await()
-    if not result then
+    if not result or moe.shape.problem(result, USE_RESULT) then
         return nil
     end
     ---@type ClientUser.UseResult
@@ -381,7 +401,7 @@ function M:askUseSkill(ask)
         timeLimit  = DEFAULT_TIME_LIMIT,
     }
     local result = self:request('Ask.UseSkill', params, ask):await()
-    if not result then
+    if not result or moe.shape.problem(result, USE_SKILL_RESULT) then
         return nil
     end
     local used = result.usedSkill
@@ -441,7 +461,7 @@ function M:askHero(ask)
         timeLimit = ask.timeLimit or DEFAULT_TIME_LIMIT,
     }, ask):await()
 
-    if not result or not result.heroes then
+    if not result or moe.shape.problem(result, HERO_RESULT) or not result.heroes then
         return nil
     end
     return self:heroList(result.heroes)
@@ -462,7 +482,7 @@ function M:askPanel(ask)
     }, ask):await()
     close()
 
-    if not result then
+    if not result or moe.shape.problem(result, PANEL_RESULT) then
         return nil
     end
     -- 答复到手就是「操作完了」：内核那个多轮循环留给 AI / 全局路径用
