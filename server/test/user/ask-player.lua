@@ -71,7 +71,7 @@ lt.test('询问：不限候选时把存活角色都列出来', function ()
 end)
 
 ---@async
-lt.test('询问：回包里的 id 不认 ⇒ 这次不算成立', function ()
+lt.test('询问：回包里的 id 不认 ⇒ 当没答上（不算故障）', function ()
     local game, players = newGame()
     local me = assert(players[1])
 
@@ -83,12 +83,13 @@ lt.test('询问：回包里的 id 不认 ⇒ 这次不算成立', function ()
         game   = game,
         to     = me,
         reason = '乱答',
-        condition = { min = 0, max = 1 },
+        condition = { player = players[2] },
     }
     ask:apply():await()
 
     lt.assertEquals('这次没成', false, ask.success)
-    lt.assertEquals('原因里说清楚了', true, tostring(ask.err):match('不在这一局里') ~= nil)
+    lt.assertEquals('原因就是「取消」（乱答 ≈ 没答）', '取消', ask.err)
+    lt.assertEquals('没有答复', nil, ask.player)
 end)
 
 ---@async

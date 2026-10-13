@@ -84,13 +84,25 @@ lt.test('快照：各人看到的自定义数据不一样', function ()
 end)
 
 ---@async
-lt.test('快照：还没入座的连接要不到', function ()
+lt.test('快照：还没入座的连接要不到（回的是具体错误）', function ()
     newGame()
-    -- 「哪条连接没入座」是服务端自己知道的错：进日志、不回给客户端
-    lt.expectErrors(1)
     local front = select(1, connect())
     local result, err = front:awaitRequest('Game.SnapShot', {})
     lt.assertEquals('没有结果', nil, result)
-    lt.assertEquals('回了错误码', moe.jsonrpc.INTERNAL_ERROR, assert(err).code)
-    lt.assertEquals('错在哪只进日志，线上只说「处理出错」', '处理这个方法时出错', err.message)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '这条连接还没入座', err.message)
+end)
+
+---@async
+lt.test('快照：还没开局要不到（回的是具体错误）', function ()
+    local saved = moe.snapshot._game
+    moe.snapshot._game = nil
+
+    local front = select(1, connect())
+    local result, err = front:awaitRequest('Game.SnapShot', {})
+
+    moe.snapshot._game = saved
+    lt.assertEquals('没有结果', nil, result)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '还没开局', err.message)
 end)

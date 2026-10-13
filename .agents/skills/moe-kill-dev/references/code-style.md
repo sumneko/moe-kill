@@ -224,6 +224,7 @@ end
 - **叫 `check` 的只判断**（2026-09-28 用户定）：`check*` 一律返回真假，**别在叫 `check` 的方法里抛**；要问状态用 `isXxx`（`isEnabled`），要拿「有没有」用可空返回（`player:getZone(名字)` 没这个区 ⇒ 空）。**一行判得出来的别再包一层**（`Zone:checkIndex` 已删 —— 就地写 `local card = self.cards[index]; if not card then return nil end`）。
 - **内容侧（package）拿不到 `error`**（2026-09-28 起加载器不再导出）；**`assert` 也只能用在「触发 = 这局打不下去」的场合**（如没牌表、人数不在配置表）—— **写错调用一类就地退化、不抛**（窗口外改判 = 不换、装备认不出分类 = 不装）。
 - **协议处理器（`moe.client.register` 的回调）不抛错**（2026-10-13 用户定）：客户端发来的东西不对（还没开局 / 这条连接还没入座 / 号认不出 / 这块面板现在不归他操作）**不是故障**（抛错只会换来 `-32603` 加一行错误日志，测试里还会计一条错误）⇒ 当场 `return nil, 原因`：第二个返回值给一个 **`Proto.Error`**（`{code, message}` —— `INVALID_REQUEST` / `INVALID_PARAMS`，见 `architecture.md` §14），由 `dispatchCall` 编成错误回应。**`assert` 只留给「服务器自己坏了」**。
+- **答复解析也不抛**（2026-10-13 同批）：客户端回包里的号认不出来就是**没答上** —— `playerList` / `cardList` 认不到给空、整个答复作废，这次询问以「取消」收尾（与「客户端报错 / 超时都算答不出来」同一条口径，见 `architecture.md` §13）。
 
 ## 11. 读取接口：不需要参数的用字段，别写 `getXxx()`
 

@@ -3,6 +3,10 @@
 ---@class Snapshot.API
 moe.snapshot = {}
 
+--- 这一局（外壳在开局时接上 —— 还没接上就是空）
+---@type Game?
+moe.snapshot._game = nil
+
 --- 盯住某一局（外壳在开局时调；一个 VM 一局）
 ---@param game Game
 function moe.snapshot.attach(game)
@@ -39,18 +43,38 @@ end
 --- 这条连接控制着谁（座位不多，直接找）
 ---@param game Game
 ---@param client Client
----@return User?
+---@return User? # 他控制着谁
+---@return Player? # 他那个座位（给了他就一定有）
 function moe.snapshot.userOf(game, client)
     for _, player in ipairs(game.desk.players) do
         local user = player.user
         if user and user.client == client then
-            return user
+            return user, player
         end
     end
 end
 
+--- 协议处理器拿「这条连接是谁」：还没开局 / 这条连接还没入座就给个能原样回回去的错误
+---@param client Client
+---@return User? # 他控制着谁
+---@return Player? # 他那个座位（给了他就一定有）
+---@return Proto.Error? # 用不了的原因
+function moe.snapshot.requireUser(client)
+    local game = moe.snapshot._game
+    if not game then
+        return nil, nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '还没开局' }
+    end
+    local user, player = moe.snapshot.userOf(game, client)
+    if not user then
+        return nil, nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '这条连接还没入座' }
+    end
+    return user, player
+end
+
 moe.client.register('Game.SnapShot', function (client)
-    local game = assert(moe.snapshot._game, '还没开局')
-    local user = assert(moe.snapshot.userOf(game, client), '这条连接还没入座')
-    return moe.snapshot.build(game, user)
+    local user, _, err = moe.snapshot.requireUser(client)
+    if not user then
+        return nil, err
+    end
+    return moe.snapshot.build(user.game, user)
 end)

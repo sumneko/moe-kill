@@ -103,9 +103,14 @@ end
 
 moe.client.register('Skill.ChangeAuto', function (client, params)
     ---@cast params Proto.Request.Skill.ChangeAuto
-    local game  = assert(moe.snapshot._game, '还没开局')
-    local user  = assert(moe.snapshot.userOf(game, client), '这条连接还没入座')
-    local skill = assert(skillOf(assert(user.player), params.id), '这不是他的技能')
+    local _, player, err = moe.snapshot.requireUser(client)
+    if not player then
+        return nil, err
+    end
+    local skill = skillOf(player, params.id)
+    if not skill then
+        return nil, { code = moe.jsonrpc.INVALID_PARAMS, message = '这不是他的技能' }
+    end
     skill:setAuto(params.auto)
     ---@type Proto.Result.Skill.ChangeAuto
     return { auto = skill.auto }

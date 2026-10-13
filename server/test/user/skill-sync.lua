@@ -79,7 +79,7 @@ lt.test('技能上行：客户端改自动开关 ⇒ 回包并广播更新', fun
 end)
 
 ---@async
-lt.test('技能上行：不是他的技能 ⇒ 请求失败，状态不动', function ()
+lt.test('技能上行：不是他的技能 ⇒ 回具体错误，状态不动', function ()
     local game, players, fronts = support.newPackageGame()
     local me    = assert(players[1])
     local front = assert(fronts[1])
@@ -87,9 +87,26 @@ lt.test('技能上行：不是他的技能 ⇒ 请求失败，状态不动', fun
     local skill = me:addSkill('马术')
     moe.await.sleep(0)
 
-    lt.expectErrors(1)
-    local result = front:request('Skill.ChangeAuto', { id = skill.id + 999, auto = true }):await()
+    local result, err = front:request('Skill.ChangeAuto', { id = skill.id + 999, auto = true }):await()
 
     lt.assertEquals('没有回包', nil, result)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_PARAMS, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '这不是他的技能', err.message)
+    lt.assertEquals('技能没被动过', false, skill.auto)
+end)
+
+---@async
+lt.test('技能上行：没入座的连接 ⇒ 回具体错误', function ()
+    local game, players, _ = support.newPackageGame()
+    local me = assert(players[1])
+    local skill = me:addSkill('马术')
+    moe.await.sleep(0)
+
+    local front = select(1, support.connect())
+    local result, err = front:request('Skill.ChangeAuto', { id = skill.id, auto = true }):await()
+
+    lt.assertEquals('没有回包', nil, result)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '这条连接还没入座', err.message)
     lt.assertEquals('技能没被动过', false, skill.auto)
 end)

@@ -360,20 +360,16 @@ end
 
 moe.client.register('Panel.Move', function (client, params)
     ---@cast params Proto.Request.Panel.Move
-    local game = moe.snapshot._game
-    if not game then
-        return rejected(moe.jsonrpc.INVALID_REQUEST, '还没开局')
-    end
-    local user = moe.snapshot.userOf(game, client)
+    local user, player, err = moe.snapshot.requireUser(client)
     if not user then
-        return rejected(moe.jsonrpc.INVALID_REQUEST, '这条连接还没入座')
+        return nil, err
     end
     ---@cast user ClientUser
-    local ask = moe.panelSync.opened(game, params.id)
+    local ask = moe.panelSync.opened(user.game, params.id)
     if not ask then
         return rejected(moe.jsonrpc.INVALID_REQUEST, '这块面板现在没开着询问')
     end
-    if ask.to ~= user.player then
+    if ask.to ~= player then
         return rejected(moe.jsonrpc.INVALID_REQUEST, '这块面板不是问他的')
     end
 

@@ -71,6 +71,7 @@ function M:choice(ask, params)
 end
 
 --- 发一次 `Ask.Select`：`params` 里传了哪些组件就带上哪些，回包里有几个字段就解析几个
+--- 带的号认不出来就是这次没答上（给空）
 ---@async
 ---@param ask Effect # 这次询问（挂取消号用）
 ---@param params Proto.Request.Ask.Select
@@ -83,15 +84,25 @@ function M:select(ask, params)
     ---@type ClientUser.SelectResult
     local parsed = {}
     if result.player then
-        parsed.players = self:playerList(result.player)
+        ---@type Player[]?
+        local players = self:playerList(result.player)
+        if not players then
+            return nil
+        end
+        parsed.players = players
     end
     if result.card then
-        parsed.cards = self:cardList(result.card)
+        ---@type Card[]?
+        local cards = self:cardList(result.card)
+        if not cards then
+            return nil
+        end
+        parsed.cards = cards
     end
     return parsed
 end
 
---- 发一次 `Ask.Use`：`params` 里传了哪些组件就带上哪些，回包里有几个字段就解析几个
+--- 发一次 `Ask.Use`：`params` 里传了哪些组件就带上哪些，回包里有几个字段就解析几个（带的号认不出来就是没答上）
 ---@async
 ---@param ask Effect # 这次询问（挂取消号用）
 ---@param params Proto.Request.Ask.Use
@@ -104,16 +115,30 @@ function M:use(ask, params)
     ---@type ClientUser.UseResult
     local parsed = {}
     if result.usedCard then
-        parsed.usedCard = assert(self.cardView:cardOf(result.usedCard), '答复里的牌不在这一局里')
+        local usedCard = self.cardView:cardOf(result.usedCard)
+        if not usedCard then
+            return nil
+        end
+        parsed.usedCard = usedCard
     end
     if result.usedViewAs then
         parsed.usedViewAs = result.usedViewAs
     end
     if result.targets then
-        parsed.players = self:playerList(result.targets)
+        ---@type Player[]?
+        local players = self:playerList(result.targets)
+        if not players then
+            return nil
+        end
+        parsed.players = players
     end
     if result.cards then
-        parsed.cards = self:cardList(result.cards)
+        ---@type Card[]?
+        local cards = self:cardList(result.cards)
+        if not cards then
+            return nil
+        end
+        parsed.cards = cards
     end
     return parsed
 end
@@ -143,28 +168,36 @@ function M:cardIds(cards)
     return ids
 end
 
---- 答复里的角色号转回真角色（认不到就是故障 —— 这些号是我们自己发出去的）
+--- 答复里的角色号转回真角色（认不到的号给空 —— 客户端发来的乱号当「没答上」）
 ---@param ids integer[]
----@return Player[]
+---@return Player[]?
 function M:playerList(ids)
     local game = self.game
     ---@type Player[]
     local players = {}
     for _, id in ipairs(ids) do
-        players[#players + 1] = assert(game:getPlayerById(id), '答复里的玩家不在这一局里')
+        local player = game:getPlayerById(id)
+        if not player then
+            return nil
+        end
+        players[#players + 1] = player
     end
     return players
 end
 
---- 答复里的牌号转回真牌
+--- 答复里的牌号转回真牌（认不到的号给空）
 ---@param ids integer[]
----@return Card[]
+---@return Card[]?
 function M:cardList(ids)
     local view = self.cardView
     ---@type Card[]
     local cards = {}
     for _, id in ipairs(ids) do
-        cards[#cards + 1] = assert(view:cardOf(id), '答复里的牌不在这一局里')
+        local card = view:cardOf(id)
+        if not card then
+            return nil
+        end
+        cards[#cards + 1] = card
     end
     return cards
 end
@@ -328,10 +361,26 @@ function M:askUseSkill(ask)
     end
     for _, option in ipairs(ask.options) do
         if option.skill.id == used then
+            ---@type Card[]?
+            local cards = nil
+            if result.cards then
+                cards = self:cardList(result.cards)
+                if not cards then
+                    return nil
+                end
+            end
+            ---@type Player[]?
+            local targets = nil
+            if result.targets then
+                targets = self:playerList(result.targets)
+                if not targets then
+                    return nil
+                end
+            end
             return {
                 skill   = option.skill,
-                cards   = result.cards and self:cardList(result.cards),
-                targets = result.targets and self:playerList(result.targets),
+                cards   = cards,
+                targets = targets,
             }
         end
     end
@@ -386,8 +435,12 @@ function M:askPanel(ask)
         return nil
     end
     -- 答复到手就是「操作完了」：内核那个多轮循环留给 AI / 全局路径用
+    local cards = self:cardList(result.card or {})
+    if not cards then
+        return nil
+    end
     ---@type AskPanel.Change
-    return { done = true, card = self:cardList(result.card or {}) }
+    return { done = true, card = cards }
 end
 
 --- 一份「视为」声明的协议形状（来源二选一：技能给名字、手上的牌给号；素材条件按它能收的区与张数发）

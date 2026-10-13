@@ -106,10 +106,27 @@ lt.test('房间：坐满了再进来要不到位置', function ()
     end
     moe.await.sleep(0)
 
-    lt.expectErrors(1)
     local result, err = assert(fronts[5]):awaitRequest('Game.Join', { name = '丙' })
     lt.assertEquals('没有结果', nil, result)
-    lt.assertEquals('回了错误码', moe.jsonrpc.INTERNAL_ERROR, assert(err).code)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '座位已经坐满', assert(err).message)
     close(game, clients)
+    drain()
+end)
+
+---@async
+lt.test('房间：还没开局就坐进来 ⇒ 回具体的错误', function ()
+    local saved = moe.room._game
+    moe.room._game = nil
+
+    local front, back = connect()
+    local result, err = front:awaitRequest('Game.Join', {})
+
+    moe.room._game = saved
+    lt.assertEquals('没有结果', nil, result)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '还没有开局', assert(err).message)
+    front:close('用例收摊')
+    back:close('用例收摊')
     drain()
 end)

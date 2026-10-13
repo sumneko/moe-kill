@@ -12,6 +12,10 @@
 ---@class Room.API
 moe.room = {}
 
+--- 这一局（`open` 时接上 —— 还没开就是空）
+---@type Game?
+moe.room._game = nil
+
 --- 开一局：建局 + 装配 + 让协议层认识它（先不开局，等人齐）
 ---@param options Room.OpenOptions
 ---@return Game
@@ -45,20 +49,27 @@ local function freeSeat(game)
     end
 end
 
---- 一条连接坐进来：占一个空座、接上下行，回一份快照（坐满就开局）
+--- 一条连接坐进来：占一个空座、接上下行，回一份快照（坐满就开局）；还没开局 / 没空位就把原因回给客户端
 ---@param client Client
 ---@param options? Room.JoinOptions
----@return Proto.SnapShot
+---@return Proto.SnapShot?
+---@return Proto.Error?
 function moe.room.join(client, options)
-    local game  = assert(moe.room._game, '还没有开局')
-    local index = assert(freeSeat(game), '座位已经坐满')
+    local game = moe.room._game
+    if not game then
+        return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '还没有开局' }
+    end
+    local index = freeSeat(game)
+    if not index then
+        return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '座位已经坐满' }
+    end
     local player = moe.player.create(game, {
         attributes = game:getAttributeSystem():createInstance(),
         name       = options?.name,
     })
+    local user = New 'ClientUser' (game, client)
     game.desk:sit(index, player)
-    player:setUser(New 'ClientUser' (game, client))
-    local user = assert(player.user)
+    player:setUser(user)
     user:attach()
     if not freeSeat(game) then
         moe.room.start()
