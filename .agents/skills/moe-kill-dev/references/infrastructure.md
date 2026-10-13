@@ -103,8 +103,9 @@ lm:executable "moe-kill" {
   server/               后端根（代码 + 入口 + 测试 + 产物）
     main.lua  test.lua   进程入口与测试入口
     moe-kill.lua  master.lua  args.lua  debugger.lua  loop-waiter.lua
-    core/  session/  tools/
-    test/                无头测试（test.smoke / test.session / test.core…）
+    server.lua  room.lua 单局服务器与房间（见 architecture.md §7）
+    core/  tools/
+    test/                无头测试（test.smoke / test.room / test.core…）
     bin/                 产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
     log/  tmp/           运行时产物（git 忽略）
   package/             规则集（与 server/ 平级；由 moe.loader 读文件执行，按包组织）

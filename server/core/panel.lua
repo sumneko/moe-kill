@@ -46,11 +46,19 @@ function M:__init(game, name, visible, options)
         visible = true
     end
     self.visible = moe.visibility.normalize(visible)
+    game.panels[#game.panels + 1] = self
     self:notifyChange()
 end
 
---- 面板死了：协议侧据此广播移除
+--- 面板死了：从局上的账里摘掉，协议侧据此广播移除
 function M:__del()
+    local list = self.game.panels
+    for i, panel in ipairs(list) do
+        if panel == self then
+            table.remove(list, i)
+            break
+        end
+    end
     self.game:fire('面板-变化', self, 'removed')
 end
 

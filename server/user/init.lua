@@ -2,6 +2,7 @@
 require 'user.user'
 require 'user.card-sync'
 require 'user.player-sync'
+require 'user.room-sync'
 require 'user.snapshot'
 require 'user.skill-sync'
 require 'user.panel-sync'

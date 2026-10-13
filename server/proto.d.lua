@@ -74,8 +74,11 @@
 ---@field custom Proto.Custom # 自定义数据，由 package 组装
 
 ---@class Proto.SnapShot
+---@field me? integer # 这条连接控制的是谁（还没入座就是空）
 ---@field players Proto.Player[] # 玩家列表
 ---@field cards Proto.Card[] # 局上所有的卡牌列表
+---@field skills? Proto.Skill[] # 场上所有技能（重连用）
+---@field panels? Proto.Panel[] # 场上现存的每块面板（重连用）
 ---@field turnPlayer? integer # 当前回合角色（没人在回合就是空）
 ---@field phase? string # 当前阶段名（不在阶段里就是空）
 
@@ -90,6 +93,11 @@
 --- custom 变了（一条里带一批玩家）
 ---@class Proto.Notify.Player.UpdateCustom
 ---@field players Proto.Player.Custom[] # custom 变了的那些玩家
+
+--- 房间状态（谁进来了 / 还差几个人）：开局之前每次有人入座都发一次
+---@class Proto.Notify.Room.Update
+---@field seats integer # 这一局一共几个座
+---@field players Proto.Player.Base[] # 已经坐下的人（按座位号排）
 
 ---@class Proto.CardFace
 ---@field name? string # 卡牌名称，没有说明是背面朝上

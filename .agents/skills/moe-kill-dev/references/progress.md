@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1267 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1258 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -412,6 +412,10 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **协议形状不再手写：`tools/proto.lua` 从 `proto.d.lua` 推（2026-10-13，用户定）**：新增 `server/tools/proto.lua`（门面 `moe.proto`）—— `parse(文本)`（纯函数：读 `---@class` / `---@field` / 类上方的说明）、`classes()`（读一次 `server/proto.d.lua`，之后用缓存）、`shape(类名)`（按类翻成 `moe.shape` 的形状：**类引用就地展开**、基类字段合并、**字面量联合降级 `'string'`**、数字字面量（`Proto.Error.*` 的 `code: -2`）⇒ `'number'`；声明里没这个类给空）。**形状一律不写在代码里**：`moe.client.register` 的**第三参去掉**（`register(method, handler)`），`dispatchCall` 按方法名取 `Proto.Request.<方法名>`；`client-user.lua` 六张回包形状改成 `moe.proto.shape('Proto.Result.<方法名>')`（`resultShape` 一句兜住「声明漏了」）。**声明里没有的方法不校验**（测试自己注册的方法、通知方向都不归协议管）。为此 `proto.d.lua` 补两个声明：`Proto.Request.Game.Join`（字段同 `Room.JoinOptions`，但**各写各的** —— proto 只归协议用）/ `Proto.Request.Game.SnapShot`。用例 +9（新套件 `test.proto` 8 条：解析 / 继承与引用展开 / 叶子数组可选 / 内联结构数组 / 字面量降级 / **每个类都翻得出形状** / **上线要校验的形状都有声明** / 写错当场炸；`test.user.shape` +1：声明里没有的方法不校验）；`test.user.ask-player` 四条把 `Ask.Select` 的 params 补上必填的 `reason`（假前端是自环的，下行请求也会过一遍上行校验）。**验收基线 1258 → 1267**。
 
+- **旧会话外壳退役 + 单局服务器（2026-10-13，用户定）**：① **`server/session/` 整套删掉**（`Server.Session` + 决策挂起/恢复 + 事件收集 + `moe.server.Phase`）—— 它只是「还没有 `User` 概念时为了跑测试临时加的外壳」，职责已由 `user/` 那层承担（问询走 `ClientUser:request`）；连带删掉 17 条旧用例（`test/session/{decision,event,flow,lifecycle}.lua`），`room.lua` 挪到 `server/room.lua`、`test/session/room.lua` 挪到 `test/room.lua`。② **新增 `server/transport/tcp-link.lua`**（`moe.link.tcp(fd)`）：真 TCP 上的 `Link` —— `bee.socket` 是非阻塞的，读 / 写各有自己的槽，就绪挂事件循环的 epoll；**写是「单写协程 + 队列」**（照 `actboy168/lua-debug` 的 `net.lua`）—— 两条协程同时写会把帧撕开；**没人在等就把事件源撤掉**（否则持续可读的 fd 让事件循环空转）。`loop-waiter.lua` 相应加了事件位与 `modify` / `unwatch`（原来只认可读、不能改）。③ **新增 `server/server.lua`**（门面 `moe.server`，见 `architecture.md` §7）：`start{ port, seats, packages, sources?, seed? }` 建局 + 听端口 + accept（**循环收干** —— 一次事件只收一个的话 backlog 里剩下的不会再有事件）+ 接成 `Client`；**只做单局，重开要重启进程**。④ **命令行**：`--single`（必须给；将来默认是 lobby）/ `--port`（默认 31415）/ `--seats`（默认 8）/ `--packages`（逗号分开，默认 `身份场,标准`）。用例 +6（`test/transport/tcp-link.lua` 4 条：双向收发 / 半包粘包 / 一边发一边收 / 对面关掉；`test/server.lua` 2 条：真 TCP 连上坐进来拿快照、坐满开局 + 满员拒客 —— 走真 socket，本地端口由系统分）。**验收基线 1267 → 1256**（-17 旧壳 +6 新增）。
+
+- **房间下行 + 快照补全（2026-10-13，用户定的三步里的前两步）**：① **加入后广播房间状态** —— 新通知 `Proto.Notify.Room.Update { seats, players }`（**开局之前**每次有人入座发一次，给已入座的每个人一份），落点新文件 `server/user/room-sync.lua`（门面 `moe.roomSync.broadcast(game)`，`moe.room.join` 末尾调一次）；**`Proto.SnapShot` 加 `me?`**（这条连接控制的是谁 —— 客户端由此知道自己坐哪）。② **快照补 `skills` / `panels`**（重连要「一次拿全」）：`snapshot.build` 拼 `skills`（遍历座位上的每个玩家 × `player:getSkills()` ⇒ `moe.skillSync.toProto`）与 `panels`（局上现存的每块 ⇒ `moe.panelSync.toProto(user, panel)`，按收件人视角）。为此**内核给局加了一本账 `game.panels`**（`Panel:__init` 登记、`Panel:__del` 摘 —— 强键；内核不解释它，只做登记）—— 原来面板对象只被创建方与 `panel-sync` 的弱键账持有，**没人能列出「局上现在有哪些面板」**。用例 +2（`test/room.lua`「有人坐进来就广播房间状态」；`test/user/snapshot.lua`「技能与面板也一次带上」）。**验收基线 1256 → 1258**。
+
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
 | 候选 | 现状 / 前置 |
@@ -422,7 +426,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 | **武将系统** | **武将定义 + 装配 + 技能已做**（2026-09-30 起）：`HeroDef` / `Player:setHero` / `SkillDef` / `'被动'` 钩子 / `refreshSkills` 自动挂技能（主公技只给主公）；**〔奸雄】【护驾】【激将】【仁德】【咆哮】【武圣】【龙胆】【奇袭】【克己】【鬼才】【反馈】【苦肉】【洛神】【倾国】【刚烈】【青囊】【急救】【马术】【铁骑】【集智】【奇才】【制衡】【救援】【裸衣】【天妒】【遗计】【突袭】【离间】【闭月】【枭姬】【结姻】【英姿】【反间】【谦逊】【连营】【流离】【国色】已能跑** —— **标准包 25 将全部落地**（**曹操 / 刘备 / 张飞 / 关羽 / 赵云 / 甘宁 / 吕蒙 / 司马懿 / 黄盖 / 甄姬 / 夏侯惇 / 华佗 / 马超 / 黄月英 / 孙权 / 许褚 / 郭嘉 / 张辽 / 貂蝉 / 孙尚香 / 周瑜 / 陆逊 / 大乔 / 诸葛亮 / 吕布**；2026-10-08 / 09）；**已落地**：选将流程（2026-10-09，`add-hero-select`）、阵亡清算（2026-10-09，`add-death-clearance`）；**剩下**：牌表数据与武将技能**文本校对**（文本已入库：`.agents/skills/sanguosha-rules/references/武将牌/`）—— **各将成本清单见本节末「标准包武将：余下各将的实现成本」** |
 | **主动技的发动入口** | **已落地（2026-10-08，`ask-use-skill`）**：`askUseSkill` / `startAskUseSkill` + `Skill:use()` / `hasHandler('使用')` + 出牌阶段两路并行（用牌 / 用技能）、`game:effectRace` —— 见 §1；**【仁德】第一批用上**（2026-10-08）。**还没做**：**「结束阶段」那一路**（要 `countDown`，它要定「超时算谁赢」）—— ⚠️ **请求级时限已做**（2026-10-13，`Proto.Timelimit`：每个询问默认 10 秒，见 §1 新条），还差的是**回合级**的那本账（`player:countDown(30)` + 成功行动 `reset`，见 §3）；**「候选不筛能不能发动」已于同日重构修掉**（前置凑不齐不进选项）——**技能前置声明**（`: cards` / `: targets`）见 §1 末条。 |
 | **时钟 / 虚拟时间** | **已落地（2026-10-01）** —— 做法不是给事件循环加虚拟时间，而是 **把 timer 与真实时间脱钩**（`update(targetMS)`，时钟由调用者推）+ 测试侧 `test.advance` ⇒ **时间冻结**、不再真等。见 §1 最后一条。 |
-| **会话 / 协议** | 前端接线 —— 按用户节奏放最后；届时要写 JSON-RPC 规格（不设 `skip_specs`） |
+| **会话 / 协议** | 前端接线 —— **2026-10-13 已起步**（单局服务器 + 真 TCP Link，见 §1 新条）；剩下：等开局广播 / 快照补 skill+panel / 前端工程与协议类型（`proto.d.lua` → `.d.ts`）；届时要写 JSON-RPC 规格（不设 `skip_specs`） |
 | **询问家族** | `timeout` + `askSkill`，timeout 与答复做 race；**`Ask` 已无内容侧调用点**（弃牌阶段 2026-10-08 改用 `askCard`），去留待定 |
 | **效果分「主要 / 次要」**（处理区归属那一半已做） | 内核小重构（用户 2026-09-23 提）：已由 `inherit-temp-zone`（2026-09-24）落地的部分 = 「只有开结算的效果才有处理区」（用**重写**表达、无标记字段）+「收尾只发给区的归属者」（**2026-09-29 已去掉该闸门** —— 改成每次结完都发，见 §1）；**只剩**：严格模式（次要效果调 `getTempZone()` 报错）、「回溯查找只找最近的主要效果」的通用读法、记牌器要不要只记主要效果 —— 见 §3 |
 

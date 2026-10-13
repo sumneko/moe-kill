@@ -4,7 +4,7 @@ local channel = require 'bee.channel'
 
 ---@class LoopWaiter.Watch
 ---@field fd any
----@field onReadable fun()
+---@field onEvent fun(events: integer)
 
 ---@class LoopWaiter
 local M = {}
@@ -19,7 +19,7 @@ local wakeChannel = channel.create('moe-kill:event-loop#' .. thread.id)
 ---@type LoopWaiter.Watch
 local wakeWatch = {
     fd = wakeChannel:fd(),
-    onReadable = function ()
+    onEvent = function ()
         local ok = wakeChannel:pop()
         while ok do
             ok = wakeChannel:pop()
@@ -34,8 +34,8 @@ end
 
 ---@param timeout integer # 毫秒，-1 表示无限期
 local function waitOnce(timeout)
-    for watch in ep:wait(timeout) do
-        xpcall(watch.onReadable, log.error)
+    for watch, events in ep:wait(timeout) do
+        xpcall(watch.onEvent, log.error, events)
     end
 end
 
@@ -63,21 +63,38 @@ function M.wake()
     wakeChannel:push(true)
 end
 
--- 注册可读事件源：变为可读时调用 onReadable（回调自行取走数据）
+-- 注册事件源：关心的事件就绪时调 onEvent（回调自行取走数据）
 ---@param fd any
----@param onReadable fun()
+---@param onEvent fun(events: integer)
+---@param events? integer # `bee.epoll` 的事件位，可组合（省略 = 只关心可读）
 ---@return LoopWaiter.Watch
-function M.watch(fd, onReadable)
+function M.watch(fd, onEvent, events)
     ---@type LoopWaiter.Watch
     local watch = {
         fd = fd,
-        onReadable = onReadable,
+        onEvent = onEvent,
     }
-    local ok, err = ep:event_add(fd, epoll.EPOLLIN, watch)
+    local ok, err = ep:event_add(fd, events or epoll.EPOLLIN, watch)
     if not ok then
         error('注册外部事件源失败: ' .. tostring(err), 2)
     end
     return watch
+end
+
+-- 改一个事件源关心的事件
+---@param watch LoopWaiter.Watch
+---@param events integer
+function M.modify(watch, events)
+    local ok, err = ep:event_mod(watch.fd, events, watch)
+    if not ok then
+        error('改外部事件源失败: ' .. tostring(err), 2)
+    end
+end
+
+-- 注销一个事件源
+---@param watch LoopWaiter.Watch
+function M.unwatch(watch)
+    ep:event_del(watch.fd)
 end
 
 return M

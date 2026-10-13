@@ -8,7 +8,7 @@
 [transport]  帧编解码、连接生命周期、反向请求路由
 [proto]      方法名 / 参数 / 返回结构的唯一定义（前后端共用事实来源）
 [game]       规则集：项目根 `package/` 按包组织（现有 `基础` / `身份场` / `标准`），只拿注入的 `game`（**这一局的局对象**）与 `Card` / `Depends` / `Class` / `New` / `Extends` / `Delete` 环境函数、加一张共享袋 `rule`（**规则数值与内容数据都挂它**，见 9.7；工具集由默认包 `@tools` 提供）—— 需要的内核对象全从 `game` 取（依赖方向 `package/ → moe`）
-[session]    会话外壳：会话容器 + 决策挂起/恢复通道 + 事件收集（`server/session/`）
+[server]     单局服务器 + 房间：听端口 / 收连接 / 开一局（`server/server.lua` / `server/room.lua`）
 [core]       内核模块组（`server/core/`）：牌 / 牌区（移动、洗牌；**五个基础区由内核建** —— `抽牌` / `弃牌` / `手牌` / `装备` / `判定`）/ 属性 / 随机源 / 桌子（座位与行动顺序）/ 玩家（牌区、标签）/ **局**（一张桌子 + 一个随机源 + 内核建好的基础牌区 + **这一局的规则内容** + **使用牌的机制**，见第 12 节）/ **效果族**（`core/effect/`：`Effect` 与它的全部子类 —— `Effect` 基类在 `core/effect/effect.lua`）/ 规则装载器（`core/loader/`）（**与游戏流程规则无关**，可直接单测）
 [tools]      基础设施：event-loop / await / timer / log / json / inspect / uri / reload …
 ```
@@ -74,7 +74,7 @@
 sequenceDiagram
     participant FE as 前端
     participant TR as transport
-    participant RM as Room（内含会话外壳）
+    participant RM as Room（房间：开局与入座）
     participant G as game 规则集
     participant C as core 内核
 
@@ -105,37 +105,17 @@ sequenceDiagram
   3. 另设一层协议契约测试：对 `proto` 里每个方法做编解码往返与错误分支验证，不必真的开 socket。
 - 回归口径：改引擎必须能只用测试二进制跑完整对局并复现。
 
-## 7. 外壳接口约定（headless-server）
+## 7. 服务端入口（单局）
 
-`server/session/` 是当前唯一的「服务」层，只做容器：它不认识牌、阶段、胜负。规则与协议两边各接一个形状，外壳自身不用改。
+`server/server.lua`（门面 `moe.server`）是唯一「起服务」的地方，只做三件事：**建一局**、**听一个端口**、**把每条连接接成一个客户端**。
 
-### 7.1 逻辑处理器（挂在会话上的规则入口）
+- **只做单局**：`moe.server.start{ port, seats, packages, sources?, seed? }` 先 `moe.room.open{…}` 建局，再 `bind` + `listen`，把监听 fd 挂到事件循环（`moe.loopWaiter.watch`）。**重开要重启进程**（第二次 `start` 直接报错）。将来服务器默认起的是 lobby，单局是 `--single` 这个开关挑的模式 —— **lobby 还没做**。
+- **accept 要循环收干**（2026-10-13 踩过）：一次事件里 `accept` 到 `false` 为止 —— 光收一个的话，backlog 里同时到的其余连接**不会再有事件**，永远没人收。收到就 `moe.client.create(moe.link.tcp(fd))` + `client:start()` + 登记进 `moe.clients`。
+- **命令行走 `moe.args`**：`--single`（现在必须给，否则只记一条错误日志、不起服务）/ `--port`（默认 31415）/ `--seats`（默认 8）/ `--packages`（逗号分开，默认 `身份场,标准`）；`main.lua` 负责把命令行翻成 `moe.server.start` 的选项。
+- **房间 `server/room.lua`（门面 `moe.room`）不认识网络**：`open{ seats, packages, sources?, seed? }` 建局 + 装配（`moe.snapshot.attach`）+ 把 `Game.Join` 注册进协议层；`join(client, options)` 给这条连接找空座、接上下行、回一份快照，**坐满自动开局**（`moe.room.start(prepare?)`）；还没开局 / 没空位都回具体的 `Proto.Error`。
+- **主循环仍归入口**：`moe.server.start` **不接管事件循环** —— 服务模式由 `main.lua` 常驻（`moe.eventLoop.start`），测试模式由 `test.lua` 控制。
 
-- 形状：table + `run(self, session)`（写作 `handler:run(session)`），**入口必须是异步函数**（可被协程承载），否则表现为「会话卡住不动」。
-- 约定：入口内用 `session:requestInput(...)` 索取输入、`session:emit(...)` 上报表现事件、`session:finish()` 结束；入口**正常返回也视为结束**。
-- 入口抛错：会话转「已中止」，原因可用 `session:getAbortReason()` 取到。
-
-### 7.2 驱动者（给输入的一方）
-
-只需三个动作，测试里的「脚本化驱动者」与将来的协议层实现同一形状：
-
-| 动作 | 说明 |
-| ---- | ---- |
-| `session:getPendingRequests()` | 读当前**所有**在等的请求（快照，按登记顺序），形状 `{ kind, payload? }` |
-| `session:submit(request, ...)` | 答复其中一条（把名单里拿到的那条给它），支持多个值；这条不在名单里时报错 |
-| `session:cancelRequest(request, reason?)` | 取消其中一条，挂起方收到取消错误 |
-
-- **可以有很多条请求同时在等**（互不干扰、各自带各自的超时）：`requestInput` 不再独占会话。会话结束 / 中止 / 销毁时，所有挂起方一起被叫醒。
-- 事件的形状同为 `{ kind, payload? }`，`session:getEvents()` 返回只读快照（后续发出的事件不会影响已取得的快照）。
-- `requestInput` 的第三个参数是超时（秒），超时会以错误交回发起方，不静默卡住。
-
-### 7.3 会话阶段
-
-`pending → running → finished / aborted → destroyed`。`finished`、`aborted`、`destroyed` 都是**终态**，之后任何生命周期操作（启动 / 结束 / 中止 / 提交 / 取消 / 发事件）一律报错；阶段常量在 `moe.server.Phase`。
-
-### 7.4 主循环归属
-
-`server.start()` / `server.stop()` **不接管事件循环**，只做状态标记与日志；主循环仍由入口负责 —— 服务模式由 `main.lua` 常驻，测试模式由 `test.lua` 控制。这样外壳的启停是同步的、可直接被测试驱动，也不会在测试里嵌套启动事件循环。
+> **历史**：这里原先是一个「会话外壳」（`server/session/`：`Server.Session` + 决策挂起/恢复 + 事件收集 + `moe.server.Phase` 状态机）。2026-10-13 用户定**整套退役** —— 它只是「还没有 `User` 概念时为了跑测试临时加的外壳」，职责已由 `user/` 那层承担（问询走 `ClientUser:request`、应答走内核的询问家族）；连带删掉 17 条旧用例。`room.lua` 挪到 `server/room.lua`，`moe.server` 这个名字让给新的服务端入口。
 
 ## 8. 热重载（`moe.reload`）
 
@@ -150,7 +130,7 @@ sequenceDiagram
 - `include 'x'` = **可重载**入口：与 `require` 等价，但会把模块登记进重载集合（登记顺序即加载顺序）。
 - `require 'x'` = 一次性加载：**永不参与重载**。因此**不需要**任何名单 / 过滤配置来划分范围。
 - **加载顺序由 `init.lua` 维护，模块内不要单独 `require` 自己的父模块**（用户 2026-09-28 定）：一组模块（`core/init.lua` → `core.effect` → `core.effect.*`）在 **`init.lua` 里按依赖顺序 `include`**（父模块写在子模块前面），顺序的真相源只有这一处；子类文件开头再 `require` 一次父模块是**多余的防御**（`include` 本身就是 `require` + 登记 ⇒ 那行只会命中缓存），而且会让人误以为「顺序是在文件里保证的」。内核里那 15 处（`core.effect.*` → `core.effect.effect` / `ask-card`、`ordered-zone` / `slot-zone` → `core.zone`）已于 2026-09-28 删掉。
-- 目前只有内核（`core/`）用 `include`（`server/core/init.lua` 逐个登记）；`server/tools/`、`session/`、`loop-waiter.lua` 以及热重载自身一律 `require`，从根上避免基础设施被换掉。
+- 目前只有内核（`core/`）用 `include`（`server/core/init.lua` 逐个登记）；`server/tools/`、`server/room.lua` / `server/server.lua`、`loop-waiter.lua` 以及热重载自身一律 `require`，从根上避免基础设施被换掉。
 - **日志先就绪**：`log` 实例与 `moe.env` 在 `server/moe-kill.lua` 里创建，位置早于任何 `include`，所以可重载模块里可以直接用 `log.*`，加载器也能用 `log.error` 报错。
 - `package/` 规则集**不**走 `include` 也不走 `require`，而由自建加载器读文件执行（第 9 节），因此它从根上不参与热重载 —— 这不是「暂且如此」，而是设计要求。
 
@@ -406,7 +386,7 @@ local slash = Card '杀'
 - **效果族的收尾时机 `'效果-收尾'`**（2026-09-23 落地，内核自己 `fire`）：**每次结算结完都发一次** —— 这次效果结完（正常结完 / `reject` 不成立 / 取消 / 超时都算，挂在任务的完成点上），上下文 = **效果自己**，时点在**所有子效果结完之后**、且**先于**叫醒 `await` 的人。**触发条件走了两轮**：落地时就是每次都发；2026-09-24（`inherit-temp-zone`）为了配合「临时区沿 `parent` 继承、谁建的谁清」收紧成「**只发给区的归属者**」，2026-09-28 那条继承撤回（`effect-own-temp-zone`）、2026-09-29 把闸门去掉回到每次都发 ⇒ **订阅方要按载荷自己过滤**（`effect.useCard == 这次使用` / `effect.target == 这个目标` 之类）。**发两份（2026-09-30 起）**：先 `game:fire`，再 `effect.to?:fire`（**承受者头上那一份**，「冲我来的效果结完了」—— 与 `'效果-目标-能否生效'` 同一口径，读得出 `to` 才发；想只关心「冲自己来的」就写 `player:on('效果-收尾', …)`，不用再比 `effect.target`）。用途是「结算期间暂存的牌该走了」：内容侧可以在这里先把要留走的牌搬去别处（装备牌进子区、延时锦囊进判定区），**之后内核把剩下的一批同步送进 `弃牌` 区**（默认收尾，2026-09-24 起；**一次批量** `Zone:accept`，2026-09-29 起 —— 内核只认「结算完的牌回弃牌堆」这一条，其余仍由内容侧定；见第 12 节的 `Effect` 行）。
 - **`'效果-收尾'` 可重入（2026-09-29 去闸门时实测到）**：处理器里起的**任何结算**（`game:moveCard` / `game:damage` / 一次询问…）结完时**同样会发收尾** ⇒ 没按载荷过滤的处理器会一层套一层自激。**内核兜得住**（见第 12 节的 `MAX_DEPTH`：越限层不结算、也不发收尾 ⇒ 链停在 150 层），但会白造上百层空结算 + 一堆 `warn` ⇒ 约定仍是两条：① 处理器**先按载荷筛掉与自己无关的效果**；② 别在收尾里起新结算（内核自己的默认收尾走 `Zone:accept`、不起结算）。
 - **依赖方向**：机制在内核模块组、实例由局持有；内核侧消费者（将来的回合流程、会话）要订阅游戏时机，就用自己那一局（`game:on` / `game:fire`），**不要**自己再造一份。
-- **订阅入口只有 `game:on`**（用户 2026-09-21 定，统一了原来的 `game:on` / `game.events:on` 两个写法）：`game.events` 退成**内部字段**（内核自己 `fire` / `clear` 用），外面一律 `game:on` / `game:fire`。早先 `game:on` 限制「只在加载规则集时可用」、把内核 / 用例逼去直接碰 `game.events` —— 2026-09-21 实测**内核侧一个订阅者都没有**（`server/core/` 只有 `event.lua` 的实现与 `game.lua` 的转发；`server/session/` 也不订阅游戏时机），那道限制于是被删掉（`game:on` 现在任何时刻都能注册，不再报「时机注册只能在加载规则集时声明」）。
+- **订阅入口只有 `game:on`**（用户 2026-09-21 定，统一了原来的 `game:on` / `game.events:on` 两个写法）：`game.events` 退成**内部字段**（内核自己 `fire` / `clear` 用），外面一律 `game:on` / `game:fire`。早先 `game:on` 限制「只在加载规则集时可用」、把内核 / 用例逼去直接碰 `game.events` —— 2026-09-21 实测**内核侧一个订阅者都没有**（`server/core/` 只有 `event.lua` 的实现与 `game.lua` 的转发；当时那个会话外壳也不订阅游戏时机），那道限制于是被删掉（`game:on` 现在任何时刻都能注册，不再报「时机注册只能在加载规则集时声明」）。
 - **但时机表仍然是「内容」**：每次 `resetContent()`（每次装载）都会 `events:clear()` —— **连同运行期注册的那些一起清** ⇒ 内核 / 装配的**长期簿记**（缓存失效…）千万不要挂在它上面，否则重装一次就静默失效（实测：桌子想靠订阅 `'玩家-死亡'` 清 `alivePlayers` 缓存，加载后订阅就没了 ⇒ 改成「不缓存、每次现算」）。内容包与用例无所谓 —— 它们的订阅本来就随这一轮装载 / 这一个用例生灭。
 
 ## 11. 预解析与包元信息
@@ -570,7 +550,7 @@ Card '杀'
 
 ## 13. 座位控制者（User）与询问的分派
 
-- **`User` 是「谁在控制这个座位」**：真实玩家（`ClientUser`，将来走协议）、电脑（将来的 `AIUser`）、测试夹具都是它的子类。落点 `server/user/` —— `init.lua` **只做装载**（`user.user` 先；`user.card-sync` / `user.player-sync` / `user.skill-sync` / `user.panel-sync` / `user.flow-sync` / `user.client-user` 随后）、`user.lua` 是基类、`client-user.lua` 是真实玩家、`card-sync.lua` 是卡牌下行（见 §16）、`flow-sync.lua` 是回合 / 阶段 / 结局下行（见 §19）；走 `require`（**不参与热重载**，与 `server/session/` 同一层）；**没有工厂 ⇒ 不挂门面**，类按 `Class` 名全局可用。**构造签名写在基类**：`User:__init(game, client?)` —— **子类不写 `__init`**（构造沿继承链调父类的、参数是同一份）⇒ 真实玩家是 `New 'ClientUser' (局, 连接)`。
+- **`User` 是「谁在控制这个座位」**：真实玩家（`ClientUser`，将来走协议）、电脑（将来的 `AIUser`）、测试夹具都是它的子类。落点 `server/user/` —— `init.lua` **只做装载**（`user.user` 先；`user.card-sync` / `user.player-sync` / `user.room-sync` / `user.skill-sync` / `user.panel-sync` / `user.flow-sync` / `user.client-user` 随后）、`user.lua` 是基类、`client-user.lua` 是真实玩家、`card-sync.lua` 是卡牌下行（见 §16）、`flow-sync.lua` 是回合 / 阶段 / 结局下行（见 §19）；走 `require`（**不参与热重载**，与 `server/room.lua` 同一层）；**没有工厂 ⇒ 不挂门面**，类按 `Class` 名全局可用。**构造签名写在基类**：`User:__init(game, client?)` —— **子类不写 `__init`**（构造沿继承链调父类的、参数是同一份）⇒ 真实玩家是 `New 'ClientUser' (局, 连接)`。
 - **绑定在玩家身上**：`player.user`（**可空** —— 没有就是没人应答、直接走全局时机）+ `player:setUser(user?)`（绑定 / **中途更换** / 解绑都走它；不发事件；同一处**反向记上** `user.player`、换人 / 解绑把旧的清掉 —— 卡牌视图按身份判可见性、懒建时要用，2026-10-10 加）。内核只依赖**类型**（`Player.user` 上的注解），不 `require` 实现。
 - **每类询问一个方法**（10 个，名字与询问类同名）：`askChoice` / `askPlayer` / `askCard` / `askCardWithTarget` / `askUseCard` / `askUseCardToCard` / `askPlayCard` / `askUseSkill` / `askHero` / `askPanel`；参数是那次询问的实例，返回值就是**与内核同一形状的答复**，**返回空 = 不表态**（回落全局时机；最终按既有口径判「取消 / 必须给出答复」）。基类那 10 个方法都是空的 ⇒「没有 User」「User 不关心这一类」「User 认为该问全局」三者同一个结果。
 - **第一个落地的是 `ClientUser:askPlayer`**（2026-10-10）：它对客户端的职责就两件 —— **组装参数**（候选 → `playerId` 列表、`reason` / `min` / `max`）与**把回包的 Proto 转回内核对象**（`playerId` → `Player`，走 **`game:getPlayerById(id)`** —— 内核侧的「号 → 角色」查询，2026-10-10 加：扫一遍座位（最多 8 个）、认不到给空、报不报错由调用方定）；**校验仍在内核**（`AskPlayer:checkAnswer`），协议层不抢先挡。线上形状：服务端发一个**可取消的请求** `Ask.Player`（`Proto.Request.Ask.Select : Proto.Cancelable`，角色那半是 `Proto.Plan.Player`、牌那半是 `Proto.Plan.Card`）⇒ 客户端回 `Proto.Result.Ask.Select`（`player?: integer[]` / `card?: integer[]`）；**`askCard` 与 `askCardWithTarget` 也走这一条**（两半同时摆上、答复两半同时回）。**二选一确认另开一族 `Ask.Choice`**（`Proto.Request.Ask.Choice : Proto.Cancelable`：`reason` / `options: string[]` / `cancelable?` ⇒ 回 `Proto.Result.Ask.Choice.choice`（**索引**，服务端换回字符串；越界等乱答自然得 nil ⇒ 内核当「没答」）；`cancelable` 恒 `true` —— 内核 `AskChoice` 总是「不答 = 取消」）—— `ClientUser:askChoice` 接它，于是【八卦阵】的 `Card:confirm()` 与【护驾】【激将】的 `Skill:confirm()` 自动能问到真实玩家（它们的 `reason` 就是技能名 / 装备牌名）；**`askPlayCard` 也走 `Ask.Select`**（只用 `card` 半，`min` / `max` 都是 1；「打出」的语义仍由内核 `AskPlayCard` 承担）；**候选直接读 `ask.options`**（内核恒给出：不限 = 存活角色全体 ⇒ User 层不用自己翻译）、答复是**空列表** = 「一个都不选」（`min = 0` 时合法）。**失败一律当「答不出来」**（2026-10-10 用户定：客户端取消 / 服务端取消 / 客户端报错 / 超时，业务层都不必分辨）⇒ `askPlayer` **只有返回值这一个出口**（拿不到就空、不回失败原因）；返回空 ⇒ 内核照原样走「回落全局时机」那条路。
@@ -591,7 +571,7 @@ Card '杀'
 - **`askPanel` 是「面板 + 询问」两半**（2026-10-13 重做，形状是用户给的）：**面板是一等对象** —— `Panel` 有自己的协议号（`id`），创建出来就广播给所有人（`Panel.Create` **发整块**、`Panel.Update` **发增量**：变化的行（完整新状态）/ 新增禁用的 / 被恢复的卡牌 / 增删的标记、`Panel.Remove`），各人按自己的牌视图发号；此后**只能看不能操作**。`askPanel` 只是把某块面板「**开着**」（`Ask.Panel` 只带 `reason` / `cancelable` / `id` —— 能怎么操作从面板属性读，早就在广播里给过）；**挪牌是另一条请求** `Panel.Move`（`{ id, card, row, col }`，**一次一张**）—— 服务端查「这块面板正开着、且问的是你」，走内核 `AskPanel:applyChange` 校验并应用，**回包只给 `{ success }`**，实际形状由随后的 `Panel.Update` 广播。答复是 `{ card? }`（**答复 = 操作完了** —— 协议上不再有 `done`，内核那条「开着收变化」的多轮循环留给 AI / 全局路径）；**请求挂着期间**这块面板才算「开着」（`await` 回来就关），所以答复之后晚到的挪牌会被拒。
 - **询问家族已全部接上协议**（2026-10-13）：11 个询问类在 `ClientUser` 上都有对应的 `askXxx`；只有 `AskPanel` 是「两条请求」的形态（见上）。
 - **「视为」的素材可以在同一次答复里给**（2026-10-10）：`Ask.Use` 的答复带 `cards`（这次发动自带的素材）⇒ `ViewAs:tryProduce(ask, chosen, materials?)` / `launch(ask, materials)` 直接拿去 `produce(materials)` 造牌，**不再多问一次**；`AskCard.Answer` 因此多了 `materials?` 字段。**素材合法性只在这一路校验**（`ViewAs:checkMaterials`：张数落在条件区间、每张都在可选区里）—— 钩子自己返回的牌是内核路径，不校验。
-- **本批只做骨架**：`ClientUser` 只留接口（协议接线是后续批次）；`AIUser`（真 AI）另开变更；`AskPanel` 的多轮接口形状、删除 `server/session/` 都留后（用户 2026-10-09 定：session 是「还没有 User 概念时为了跑测试临时加的外壳」，之后去掉）。
+- **本批只做骨架**：`ClientUser` 只留接口（协议接线是后续批次）；`AIUser`（真 AI）另开变更；`AskPanel` 的多轮接口形状、删除 `server/session/` 都留后（用户 2026-10-09 定：session 是「还没有 `User` 概念时为了跑测试临时加的外壳」，之后去掉）。**后者已完成**（2026-10-13，见 §7）。
 
 ## 14. 传输层与 Client（`server/transport/`）
 
@@ -610,6 +590,7 @@ Card '杀'
 
 - **`Link` 是纯字节通道**（用户 2026-10-09 定）：`read(n)` 读 `n` 个字节（不够就挂起）、`read()` 不给 `n` 就把**能读的全读走**（完全没有数据才挂起）—— 两者都是 `---@async`，断开或出错给 `nil, 原因`；`write(text)` 给 `boolean, 原因?`；`close(reason?)` 可选。**帧不归它管**（它只会拼字符串 / 切字节）。本批带一个**内存实现** `moe.link.pair()`（一对互通 —— 本地回环 / 测试用；**不是测试后门**）。
 - **帧格式：4 字节长度头 + 正文**（用户 2026-10-09 给）—— 头是 `'>I4'`（大端 32 位无符号）、**长度不含头本身**，正文就是 JSON-RPC 那串。三个原语（`HEADER_SIZE` = 4 / `decodeFrameLength` / `encodeFrame`）就住 `client.lua` 的局部 —— **帧不是 JSON-RPC 的一部分**（用户 2026-10-09 定：长度头是传输约定，`jsonrpc.lua` 只管「表 ↔ 字符串」）；**`Client` 不维护字节缓冲**：`send` 先套头再写，读循环写成「`read(4)` 取头 → `decodeFrameLength` → `read(长度)` 取正文 → `onMessage`」—— 凑够一帧这件事**由 `Link` 挂着等**（半包 / 粘包都在 `link:read(n)` 里消化）。
+- **`TcpLink`：真 TCP 上的那条 `Link`**（2026-10-13）：`server/transport/tcp-link.lua`，`moe.link.tcp(fd)` 把一条已经连上的套接字包成链接。`bee.socket` 是非阻塞的（`false` = 等待中），所以读 / 写各在自己的槽里挂起、就绪靠**事件循环的 epoll**（`moe.loopWaiter.watch` / `modify` / `unwatch` —— 2026-10-13 给它加了事件位与「改 / 撤」，原来只认可读、也不能改）。两个要点：① **写是「单写协程 + 队列」**（照 `actboy168/lua-debug` 的 `extension/script/common/net.lua`）—— `write` 收下就返回 `true`，真正发出去由内部的写协程按顺序做；两条协程同时写会把帧**撕开**（服务端同时发询问与回应就会踩到）。② **没人在等就把事件源撤掉**（`waiting == 0` ⇒ `unwatch`），否则一个持续可读的 fd 会让事件循环空转。
 - **`register` 是模块级的**（`moe.client.register(method, handler)`，返回 disposer）：方法表**所有连接共用**，与具体连接无关（重连不用重注册）；同一个 method 重复注册报错。**带 id 的调用当请求**（回调返回值 = `result`；抛错 ⇒ `-32603`）、**不带 id 的当通知**（返回值忽略，抛错只记日志 —— 通知没地方回错）。回调**可以 `await`**（经网络层的东西本来就不可能同步）。
 - **`params` 的形状在门口就查，形状本身从声明推**（2026-10-13，工具见 `infrastructure.md` 的 `shape.lua` / `proto.lua`）：形状**不写在代码里** —— `dispatchCall` 按方法名去 `server/proto.d.lua` 取 **`Proto.Request.<方法名>`**（`moe.proto.shape`，类引用就地展开、字面量联合降级 `string`），调处理器**之前**先过 `moe.shape.problem(params, schema)` —— 不是表、类型不对、多 / 缺字段都回 **`INVALID_PARAMS`**（`message` 就是那句带路径的中文短句 `「row」应该是 integer（现在是 string）`），处理器根本碰不到畸形数据、也不会因此进错误处理器。**声明里没有这个方法就不校验**（测试自己注册的方法、以及服务端往客户端发的通知，都不归协议管）。因此**凡要校验的形状都必须在 `proto.d.lua` 里有声明**（上行参数 `Proto.Request.*`、回包 `Proto.Result.*`；本批为此补了 `Proto.Request.Game.Join` / `Proto.Request.Game.SnapShot` —— 名字与 `proto.d.lua` 里的类名**必须对得上**，否则静默不校验）。
 - **处理器做不了就回错误，不抛错**（2026-10-13 用户定）：回调的**第二个返回值给 `Proto.Error`** ⇒ `dispatchCall` 把它编成错误回应（结果那一位置空），**不进错误处理器**（客户端发的乱参数不是故障 —— 抛错只换来一条 `-32603` 加一行日志）；四个处理器一律这么写：`params` 里哪个号认不出、时机不对（还没开局 / 这条连接还没入座 / 这块面板现在没开着询问 …）都走这条。`proto.d.lua` 里给它两个具名错误（与 `REQUEST_CANCELED` / `CANCELED` 同一族）：`Proto.Error.INVALID_REQUEST`（`-32600`；原因写在 `message` 里）与 `Proto.Error.INVALID_PARAMS`（`-32602`；号认不出）。**「谁在发这条请求」收在 `moe.snapshot.requireUser(client)`**（返回 `用户 + 座位 + 错误`；`Game.SnapShot` / `Skill.ChangeAuto` / `Panel.Move` 共用），`Game.Join` 那条走 `moe.room.join` 的 `(快照, 错误)` 两返回值。**抛错仍然只表示「服务器自己坏了」**（⇒ `-32603` + 日志）。
@@ -655,13 +636,15 @@ Card '杀'
 
 **要解决的问题**：客户端要能「接进来、拿到现在长什么样」—— 前端不维护权威状态（§3），状态都从后端取。
 
-- **房间层 `server/session/room.lua`**（2026-10-10 用户定）：
+- **房间层 `server/room.lua`**（2026-10-10 用户定；2026-10-13 从 `server/session/` 挪到 `server/`）：
   - `moe.room.open { seats, packages, sources?, seed? }` —— 建局 + 装配（`moe.game.create` 已含装配）+ `moe.snapshot.attach(game)`，**先不开局**（等人齐）；
   - `moe.room.join(client, { name? })` —— 找个空座（用 `desk:getPlayer(i)` 探）：建玩家 + `desk:sit` + `player:setUser(New 'ClientUser' (game, client))` + `user:attach()`（§13）；**坐满就自动开局**；返回 `(Proto.SnapShot, Proto.Error?)` —— 还没开局 / 座位坐满都把原因回给客户端（`INVALID_REQUEST`）；
   - `moe.room.start(prepare?)` —— 人齐（或自己调）时开局：fire `'游戏-准备'`（载荷 `config = prepare`，不给就是默认：随机身份 + 洗座次）+ `'游戏-开始'` + `game:runFlow()`。
 - **协议方法 `Game.Join`**（请求，参数 `{ name? }`）⇒ result = `Proto.SnapShot`。注册是**懒的**（`moe.room.open` 第一次调时往 `moe.client` 注册 —— 那时 transport 已加载，不用挑加载顺序）。
 - **`Game.SnapShot`**（请求，无参）⇒ result 同样是一份 `Proto.SnapShot`（重连 / 纠错要的时候再要一份）—— **状态快照走 request 的 result**（§3 第 3 条），不走通知那条路。落点 `server/user/snapshot.lua`：`moe.snapshot.attach(game)` 记下当前局（一个 VM 一局），`moe.snapshot.build(game, user)` 是唯一的拼装处（`join` 与这条请求共用）；拼装时 custom 按收件人视角裁、`cards` 就是 `user.cardView.snapshot`（§16）、**`turnPlayer` / `phase` 读当前回合与阶段**（2026-10-13 加：重连 / 中途进来能立刻显示「谁在动」，不必等下一次切换）。
 - **连接 → 人收在 `moe.snapshot.requireUser(client)`**（2026-10-13）：「还没开局 / 这条连接还没入座」这两个判断与它们的错误包只写一画（三个处理器共用），返回 `用户 + 座位 + 错误`；拿不到就 `return nil, err` 原样回给客户端（见 §14 的处理器契约）。
+- **快照还带 `me` / `skills` / `panels`**（2026-10-13）：`me` = 这条连接控制的是谁（`user.player.id`）—— 客户端由此知道自己坐哪（原来只能靠 `userName` 猜）；`skills` = 场上所有技能（遍历座位上每个玩家的 `player:getSkills()`，用 `moe.skillSync.toProto` 拼）；`panels` = 局上现存的每块面板（`game.panels` × `moe.panelSync.toProto(user, panel)`，按收件人视角）—— **重连要「一次拿全」**，而这两样原来只有增量通知（`Skill.Update` / `Panel.Create`），重连拿不到。**`game.panels` 是内核新加的一本账**（`Panel:__init` 登记、`Panel:__del` 摘；**强键** ⇒ 局持有就不会被回收）：在此之前面板对象只被创建方与 `panel-sync` 的弱键账持有，谁也列不出「局上现在有哪些面板」。
+- **入座后广播房间状态**（2026-10-13）：`Proto.Notify.Room.Update { seats, players }`（`seats` = 这一局一共几个座、`players` = 已经坐下的人按座位排），由 `moe.roomSync.broadcast(game)`（`server/user/room-sync.lua`）在 `moe.room.join` 末尾发一次、**给已入座的每个人一份**（照 `flow-sync.broadcast` 的写法）。**开局之前**前端靠它画「还差几人」；「我坐哪」由快照的 `me` 给 —— `Player.Update` 那种「谁的信息变了」解决不了这件事：它说的是玩家数据，不是房间进度。
 
 ## 15. 玩家的自定义数据与增量下发（`player.custom` + `Player.Update`）
 

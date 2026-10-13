@@ -130,3 +130,29 @@ lt.test('房间：还没开局就坐进来 ⇒ 回具体的错误', function ()
     back:close('用例收摊')
     drain()
 end)
+
+---@async
+lt.test('房间：有人坐进来就广播房间状态', function ()
+    local game = openRoom()
+    local front, back = connect()
+
+    ---@type Proto.Notify.Room.Update?
+    local got = nil
+    local _ <close> = moe.client.register('Room.Update', function (_, params)
+        ---@cast params Proto.Notify.Room.Update
+        got = params
+    end)
+
+    local result, err = front:awaitRequest('Game.Join', { name = '甲' })
+    lt.assertEquals('没出错', nil, err)
+    assert(result, '没拿到快照')
+    lt.assertEquals('快照里知道自己是谁', result.players[1].base.id, result.me)
+
+    drain()
+    lt.assertEquals('收到房间状态', 4, assert(got, '没收到房间状态').seats)
+    lt.assertEquals('已经坐了一个', 1, #assert(got).players)
+    lt.assertEquals('报的是那个人的名字', '甲', assert(got).players[1].userName)
+
+    close(game, { back })
+    drain()
+end)

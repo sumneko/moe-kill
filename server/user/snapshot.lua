@@ -26,17 +26,31 @@ end
 
 --- 拼一份快照（收件人视角）
 ---@param game Game
----@param user User
+---@param user ClientUser
 ---@return Proto.SnapShot
 function moe.snapshot.build(game, user)
+    local player = assert(user.player)
     ---@type Proto.Player[]
     local players = {}
-    for _, player in ipairs(game.desk.players) do
-        players[#players + 1] = toPlayer(player, assert(user.player))
+    ---@type Proto.Skill[]
+    local skills = {}
+    for _, one in ipairs(game.desk.players) do
+        players[#players + 1] = toPlayer(one, player)
+        for _, skill in ipairs(one:getSkills()) do
+            skills[#skills + 1] = moe.skillSync.toProto(skill)
+        end
+    end
+    ---@type Proto.Panel[]
+    local panels = {}
+    for _, panel in ipairs(game.panels) do
+        panels[#panels + 1] = moe.panelSync.toProto(user, panel)
     end
     return {
+        me         = player.id,
         players    = players,
         cards      = assert(user.cardView).snapshot,
+        skills     = skills,
+        panels     = panels,
         turnPlayer = game.turnPlayer?.id,
         phase      = game.phase?.name,
     }
@@ -78,5 +92,6 @@ moe.client.register('Game.SnapShot', function (client)
     if not user then
         return nil, err
     end
+    ---@cast user ClientUser
     return moe.snapshot.build(user.game, user)
 end)

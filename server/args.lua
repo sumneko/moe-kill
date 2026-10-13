@@ -10,6 +10,10 @@
 ---@field LOGLEVEL? string
 ---@field ROOT? string
 ---@field MEM_LIMIT? integer
+---@field SINGLE? boolean # 单局模式（起一局就听端口；将来默认是 lobby）
+---@field PORT? integer | string # 听哪个端口
+---@field SEATS? integer | string # 这一局几个人
+---@field PACKAGES? string # 要装的包（逗号分开）
 local M = {}
 
 ---@alias Args.Value string | number | boolean

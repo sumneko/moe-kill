@@ -74,6 +74,7 @@ function moe.room.join(client, options)
     if not freeSeat(game) then
         moe.room.start()
     end
+    moe.roomSync.broadcast(game)
     return moe.snapshot.build(game, user)
 end
 

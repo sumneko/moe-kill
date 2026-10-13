@@ -1,4 +1,5 @@
-local lt = require 'test.ltest'
+local lt      = require 'test.ltest'
+local support = require 'test.user.support'
 
 --- 造一对对接好、都起了读循环的客户端
 ---@return Client # 前端侧
@@ -38,6 +39,23 @@ local function newGame()
     moe.snapshot.attach(game)
     return game, players, fronts
 end
+
+---@async
+lt.test('快照：技能与面板也一次带上（重连够用）', function ()
+    local game, players, fronts = support.newPackageGame()
+    local me = assert(players[1])
+    me:setHero(assert(game:getHero('刘备')))
+    local panel = moe.panel.create(game, '测面板')
+    panel:row({}, '第一行')
+    moe.await.sleep(0)
+
+    local result, err = assert(fronts[1]):awaitRequest('Game.SnapShot', {})
+    lt.assertEquals('没出错', nil, err)
+    assert(result, '没拿到快照')
+    lt.assertEquals('技能带上了', true, #assert(result.skills) > 0)
+    lt.assertEquals('面板带上了', 1, #assert(result.panels))
+    lt.assertEquals('面板的名字对', '测面板', assert(result.panels)[1].name)
+end)
 
 ---@async
 lt.test('快照：要一份整局快照（牌 + 玩家）', function ()

@@ -107,7 +107,7 @@ end
   - 类型名写成「类名.API」（`Player.API` / `Desk.API`）；类上其余的静态成员（如 `Effect.deep`）仍留在类上、不进 API 表。
   - 没有工厂的模块（`Effect`）**不建门面** —— `moe.effect` 干脆不存在；基类靠 `Extends` 声明继承，类名仍在类注册表里可用。
   - `server/core/loader/init.lua` 同样写 `moe.loader = {}`；它内部 `require` 的 `vfs` / `preparse` 是内部子模块，照旧 `local M` + `return M`。
-  - `server/session/init.lua` 也走这条：`---@class Server` + `moe.server = {}`，`server/moe-kill.lua` 里只 `require 'session'`（不再 `moe.server = require 'session'`）。
+  - `server/server.lua` 也走这条：`---@class Server.API` + `moe.server = {}`，末尾 `return moe.server`，`server/moe-kill.lua` 里只 `require 'server'`。
 - **可叠加的操作必须返回 disposer**：任何“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个撤销函数，形状统一为 `local undo = obj:addXxx(...)` → `undo()` 只撤销那一次添加（重复 `undo()` 安全）。订阅类接口（如 `attrs:onChange(name, cb)`）同样返回 disposer；需要多个可撤销项时就叠加调用各自的 disposer。
   - **但不必每次注册都去撤销它**：热重载下，可重载模块里“跟着模块走”的注册会**自动注销**，此时不要写 disposer；disposer 只用于两类情况——注册发生在不可重载的模块里，或资源必须重建/显式释放（详见 `references/architecture.md` 第 8.5 节）。
 - **模块不许持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的状态挂到**跨重载仍是同一份的载体**上 —— **属于某一局的就挂局实例**（`game` 上的字段，如号源 `game:nextId()`）；**内核级、跨局的**才挂**门面表 `moe`**（在 `moe-kill.lua` 里建立），后者写成「有则复用」（`moe._x = moe._x or <初值>`），用 **`_` 前缀**标明是内核内部状态，并在赋值处标 **`---@package`**（LuaLS 据此强制「只有这个文件能访问」，见 `references/architecture.md` 第 8.4 节）。**不要挂类表**（`Extends` 会把父类字段复制给子类、重载 `reset` 又会清掉），也不要挂模块门面（`moe.card` 由模块自己建，重载重跑模块就换成新表）。重载语义与边界见 `references/architecture.md` 第 8 节。

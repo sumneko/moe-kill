@@ -465,6 +465,7 @@ end
 ---@field private attributeSystem? AttributeSystem
 ---@field private zoneList Zone[]
 ---@field private zoneMap table<string, Zone>
+---@field panels Panel[] # 局上现存的每块面板（建一块加一块、删一块摘一块）
 ---@field private effects Effect[] # 记牌器：发起过的根效果（只增）
 ---@field private events Event # 时机表（内容侧用 game:on / game:fire；每次装载会清空）
 ---@field private idCounter integer # 发号器（牌与将来的技能共用；重装内容也不重置）
@@ -480,6 +481,7 @@ local M = Class 'Game'
 function M:__init(seats, random)
     self.desk     = moe.desk.create(self, seats)
     self.random   = random
+    self.panels   = {}
     self.events   = moe.event.create()
     self.zoneList = {}
     self.zoneMap  = {}

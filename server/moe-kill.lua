@@ -104,12 +104,13 @@ include    = moe.reload.include
 
 require 'core'
 
-require 'session'
-require 'session.room'
+require 'room'
 
 require 'transport'
 
 require 'user'
+
+require 'server'
 
 local inspect = require 'tools.inspect'
 
