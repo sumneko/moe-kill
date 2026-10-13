@@ -169,6 +169,22 @@ function M:cardList(ids)
     return cards
 end
 
+--- 答复里的武将全名（`包名.定义名`）转回真定义（认不到就给空 —— 名字是自由串，不像号那样「是我们自己发出去的」）
+---@param fullNames string[]
+---@return HeroDef[]?
+function M:heroList(fullNames)
+    ---@type HeroDef[]
+    local heroes = {}
+    for _, fullName in ipairs(fullNames) do
+        local hero = self.game:getHero(fullName)
+        if not hero then
+            return nil
+        end
+        heroes[#heroes + 1] = hero
+    end
+    return heroes
+end
+
 --- 一组角色的协议形状（`ids` + 个数区间）
 ---@param players Player[]
 ---@param min integer
@@ -319,6 +335,37 @@ function M:askUseSkill(ask)
             }
         end
     end
+end
+
+--- 要他在若干武将里挑（协议：`Ask.Hero`；候选是一份武将全名，名单缺省 = 不做限制）
+---@async
+---@param ask AskHero
+---@return HeroDef|HeroDef[]?
+function M:askHero(ask)
+    local condition = ask.condition
+    local min       = condition?.min or 1
+
+    ---@type string[]?
+    local fullNames = nil
+    local options = ask.options
+    if options then
+        fullNames = {}
+        for _, hero in ipairs(options) do
+            fullNames[#fullNames + 1] = hero.fullName
+        end
+    end
+
+    local result = self:request('Ask.Hero', {
+        reason = ask.reason,
+        heroes = fullNames,
+        min    = min,
+        max    = condition?.max or min,
+    }, ask):await()
+
+    if not result or not result.heroes then
+        return nil
+    end
+    return self:heroList(result.heroes)
 end
 
 --- 一份「视为」声明的协议形状（来源二选一：技能给名字、手上的牌给号；素材条件按它能收的区与张数发）

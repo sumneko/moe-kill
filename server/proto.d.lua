@@ -188,3 +188,13 @@
 ---@field usedSkill? integer # 发动哪个技能（ID；缺 = 取消）
 ---@field cards? integer[] # 这次发动带的牌
 ---@field targets? integer[] # 这次发动指定的目标
+
+--- 要在若干武将里挑：候选是一份武将全名（`包名.定义名`；不给 = 不做限制）
+---@class Proto.Request.Ask.Hero: Proto.Cancelable
+---@field reason string # 这次为什么问
+---@field heroes? string[] # 候选武将全名（`包名.定义名`；不给 = 不做限制）
+---@field min integer # 最少选几个
+---@field max integer # 最多选几个
+
+---@class Proto.Result.Ask.Hero
+---@field heroes? string[] # 选中的武将全名（缺 = 取消）
