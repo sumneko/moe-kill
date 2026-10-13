@@ -30,6 +30,7 @@
 ---@field min? integer # 至少要给几张（省略 = 1）
 ---@field max? integer # 至多给几张（省略 = min）
 ---@field cancelable? boolean # 允不允许主动取消（省略 = 允许：玩家可以不选 —— 没答复就是空答复；写 `false` 就是不给取消入口，没答复算拒收）
+---@field timeLimit? number # 这次询问的时限（秒；不给就是协议层的默认值）
 
 --- 恒一张的牌条件（使用 / 打出族用）：与 `AskCard.Condition` 同形，只是没有 `min` / `max`
 ---@class AskCard.OneCardCondition
@@ -40,6 +41,7 @@
 ---@field zone? string|Zone|(string|Zone)[] # 牌在哪个区里（名字按「被问者 → 局上」解析；别人的区要传区对象）
 ---@field card? Card|Card[] # 牌必须在这批里（可以不属于任何牌区）
 ---@field cancelable? boolean # 允不允许主动取消（省略 = 允许：玩家可以不选 —— 没答复就是空答复）
+---@field timeLimit? number # 这次询问的时限（秒；不给就是协议层的默认值）
 
 --- 询问身上存的是归一化之后的形状：字段名带复数 —— `names` / `cards` 是列表、`zones` 还解析成了区对象，另有 `min` / `max` 一定给出（订阅者与 `collectOptions` 直接读）
 ---@class AskCard.NormalizedCondition
@@ -52,6 +54,7 @@
 ---@field min integer
 ---@field max integer
 ---@field cancelable boolean # 允不允许主动取消（归一化时补默认：省略 = true）
+---@field timeLimit? number # 这次询问的时限（秒；不给就是协议层的默认值）
 
 --- 这次询问的额外交代（发起方给）
 ---@class AskCard.ResponseOptions
@@ -73,6 +76,7 @@
 ---@field card? Card # 答复给出的第一张牌（没答就是空；= `.cards[1]`）
 ---@field cards Card[] # 答复给出的牌（没答就是空表）
 ---@field cancelable boolean # 这次允许主动取消吗（= 条件的 `cancelable`，省略就是允许）
+---@field timeLimit? number # 这次询问的时限（秒；= 条件的 `timeLimit`，没写就是空）
 local M = Class 'AskCard'
 
 Extends('AskCard', 'Effect')
@@ -375,6 +379,11 @@ M.__getter.cancelable = function (self)
     return self.condition.cancelable
 end
 
+--- 这次询问的时限（秒；没写就是空 —— 协议层用默认值）
+---@return number?
+M.__getter.timeLimit = function (self)
+    return self.condition.timeLimit
+end
 --- 这次允许「一个都不给」吗（`min` 为 0 ⇒ 取消也是合法答复、算成立）
 ---@return boolean
 function M:allowNone()

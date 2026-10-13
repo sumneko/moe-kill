@@ -34,6 +34,11 @@
 ---@field code -2
 ---@field message 'canceled'
 
+--- 这次请求等超时了（服务端比时限多等 1 秒，客户端还没回）
+---@class Proto.Error.TIMEOUT
+---@field code -3
+---@field message 'timeout'
+
 --- 这条请求现在做不了（处理器返回它 —— 失败的原因写在 `message` 里：还没开局 / 这条连接还没入座 / 这块面板现在没开着询问 …）
 ---@class Proto.Error.INVALID_REQUEST
 ---@field code -32600
@@ -47,6 +52,10 @@
 --- 可取消请求的基类
 ---@class Proto.Cancelable
 ---@field cancelToken? integer
+
+--- 有时限的请求的基类（不给 `timeLimit` 就是不限时）
+---@class Proto.Timelimit
+---@field timeLimit? number # 秒（服务端多等 1 秒才判超时）
 
 --- 取消一个请求。取消后那个请求应当返回： error: Proto.Error.REQUEST_CANCELED
 ---@class Proto.Notify.Cancel
@@ -171,7 +180,7 @@
 ---@field id integer # 卡牌ID
 
 --- 要求客户端选择卡牌和玩家（可能是多选）
----@class Proto.Request.Ask.Select: Proto.Cancelable
+---@class Proto.Request.Ask.Select: Proto.Cancelable, Proto.Timelimit
 ---@field reason      string
 ---@field cancelable? boolean # 是否可以主动取消
 ---@field player?     Proto.Plan.Player
@@ -181,7 +190,7 @@
 ---@field player? integer[] # 被选中的玩家ID列表
 ---@field card?   integer[] # 被选中的卡牌ID列表
 
----@class Proto.Request.Ask.Choice: Proto.Cancelable
+---@class Proto.Request.Ask.Choice: Proto.Cancelable, Proto.Timelimit
 ---@field reason string # 这次确认的原因
 ---@field options string[] # 可选项列表
 ---@field cancelable? boolean # 是否可以主动取消
@@ -196,7 +205,7 @@
 ---@field card? Proto.Plan.Card # 作为素材的卡牌
 ---@field target? Proto.Plan.Player # 作为目标的玩家
 
----@class Proto.Request.Ask.Use: Proto.Cancelable
+---@class Proto.Request.Ask.Use: Proto.Cancelable, Proto.Timelimit
 ---@field reason string # 这次使用的原因
 ---@field cancelable? boolean # 是否可以主动取消
 ---@field card   Proto.CardWithPlan[] # 被使用的卡牌列表
@@ -214,7 +223,7 @@
 ---@field cards? Proto.Plan.Card
 ---@field targets? Proto.Plan.Player
 
----@class Proto.Request.Ask.UseSkill: Proto.Cancelable
+---@class Proto.Request.Ask.UseSkill: Proto.Cancelable, Proto.Timelimit
 ---@field reason string
 ---@field cancelable? boolean # 恒 true：内核里「不表态 = 取消」
 ---@field skills Proto.SkillPlan[]
@@ -225,7 +234,7 @@
 ---@field targets? integer[] # 这次发动指定的目标
 
 --- 要在若干武将里挑：候选是一份武将全名（`包名.定义名`；不给 = 不做限制）
----@class Proto.Request.Ask.Hero: Proto.Cancelable
+---@class Proto.Request.Ask.Hero: Proto.Cancelable, Proto.Timelimit
 ---@field reason string # 这次为什么问
 ---@field heroes? string[] # 候选武将全名（`包名.定义名`；不给 = 不做限制）
 ---@field min integer # 最少选几个
@@ -281,7 +290,7 @@
 ---@field id integer # 拆掉的面板ID
 
 --- 要他在某块面板上操作（面板的形状与能怎么操作早在 `Panel.Create` / `Update` 里给过）
----@class Proto.Request.Ask.Panel: Proto.Cancelable
+---@class Proto.Request.Ask.Panel: Proto.Cancelable, Proto.Timelimit
 ---@field reason string # 这次为什么问
 ---@field cancelable? boolean # 是否可以主动取消
 ---@field id integer # 在哪块面板上操作

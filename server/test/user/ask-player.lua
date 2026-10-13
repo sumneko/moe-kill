@@ -36,6 +36,7 @@ lt.test('询问：要角色时问客户端，回包的 id 转回 Player', functi
 
     local params = assert(sent, '没问过客户端')
     lt.assertEquals('缘由原样带过去', '突袭', params.reason)
+    lt.assertEquals('也带上了时限', 10, params.timeLimit)
     local condition = assert(params.player, '该带上角色条件')
     lt.assertEquals('候选就一个', 1, #condition.ids)
     lt.assertEquals('候选是他', you.id, condition.ids[1])

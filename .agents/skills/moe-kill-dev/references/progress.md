@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1244 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1249 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -406,6 +406,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **回合 / 阶段 / 结局下行 + 结局公开身份（2026-10-13，用户定「做丙，先把正常流程跑通」）**：① **协议**：`Proto.SnapShot` 加 `turnPlayer?` / `phase?`（重连 / 中途进来立刻知道谁在动），新增五条通知 `Turn.Begin` / `Turn.End`（`{ player }`）、`Phase.Begin` / `Phase.End`（`{ player, name }`）、`Game.Over`（`{ side, reason }`，注释里写明**收到即终局**）。② **新增 `server/user/flow-sync.lua`**（`moe.flowSync` / `game.flowSync`，本文件注入的 `package` getter、建账即订事件）：订 `'回合-开始'` / `'回合-结束'` / `'阶段-开始'` / `'阶段-结束'` / `'游戏-结束'` 五个**局级**事件，**当场发给所有入座的人** —— 这几条是「时刻」，攒批会把两次切换压成一条（与 `player-sync` 那类「状态变了攒一笔」不同，同理见 `card-sync` 的 `Card.Move`）；**只订局级那份**（`enterPhase` 每款时机都发局 / 玩家两份）、`'阶段-生效'` 不下发（与「开始」同一时刻）；`User:attach` 一并带起（第五本账）。③ **`Custom:setVisible` 现在报脏**（`markDirty('custom')`）—— 可见性变了就是「这份数据变了」，否则把某个键改公开 / 改私密后线下不会重发。④ **结局公开身份**（内容侧 `package/身份场/身份.lua`）：订 `'游戏-结束'` 把所有人的 `identity` 翻成公开（新增 `Player:revealIdentity`）—— 结算画面要列「谁是什么身份」，靠 ③ 自动走 `Player.UpdateCustom` 下去，内核一行不改。⑤ 用例 +3（**新 `test/user/flow-sync` 2 条**：手工事件五条按序到、只发入座的人 / **真跑一局** —— 四人房坐满 + 所有询问一律「不答」，真流程跑出回合与阶段序列（只看一个前端：回合成对、阶段名合法）、`Game.Over` 收尾；`test/user/snapshot` 补「快照带上回合与阶段」；`test/rule/identity` 补「结局时身份公开」）⇒ **验收基线 1241 → 1244**。
 
+- **请求时限（`Proto.Timelimit`）+ 内容侧可覆盖（2026-10-13，形状是用户给的）**：① **协议**：`Proto.Timelimit { timeLimit? number }`（**秒**；不给 = 不限时），六个 `Proto.Request.Ask.*` 从 `: Proto.Cancelable` 改成 `: Proto.Cancelable, Proto.Timelimit`（客户端也看得到这个数，UI 能倒计时）；新增具名错误 `Proto.Error.TIMEOUT`（`-3` / `'timeout'`，与 `CANCELED` -2 / `REQUEST_CANCELED` -1 同一族，就地拼）。② **`ClientUser:request`**：`params.timeLimit` 有值就 `moe.timer.wait(timeLimit + 1, …)`（**多给 1 秒宽松**：一来一回的路程），到点先 `self:cancel(token)`（有号才发）、再 `request:cancel`（`{ code = -3, message = 'timeout' }`）收尾；计时器 **`request:bindGC`** 挂着，请求一有结果就跟着拆。⚠️ **踩到一个内核级的坑（写进 architecture §13）**：收尾必须用 **`Task:cancel` 不能 `reject`** —— `reject` 只记结果，**叫醒等待者是在 `Delete` 里做的**（`resolveAwaitings`），而这次等它的那一路（询问的执行体）还活着 ⇒ 用 `reject` 会永远挂住（宿主取消那条能用 `reject`，只是因为等它的人跟着宿主一起被收掉了）。③ **内容侧通道**（用户定「丙」）：`AskCard.Condition` / `AskPlayer.Condition` / `AskHero.Condition` / `Panel.Options` 各加一个 `timeLimit?`（照 `cancelable` 的位置），各族 `ask.timeLimit` 读得到；`ClientUser` 各 `askXxx` 发 `ask.timeLimit or DEFAULT_TIME_LIMIT`（**默认 10 秒**，先写在 `ClientUser` 里 —— 要改就在条件 / 选项上写；`AskChoice` / `AskUseSkill` 没有条件表，暂时只有默认值）。④ **顺带修一个协议边界的老 bug**：`settleCall` 收到的 `result = null`（对方 handler 没返回东西编出来就是这个）现在归一成 `nil` —— 从前它是个**真值**，「回包有没有」那些 `if not result` 挡不住，接着索引字段就报 `attempt to index a userdata value`。⑤ 用例 +5（新 `test/user/time-limit`：到点按超时收尾 + 顺带叫停客户端 / 按时答上不算超时（计时器跟着请求拆）/ 询问自带默认 10 秒且内容侧能改 / **超时之后客户端才回包 ⇒ 丢掉、后面的照常**（`settleCall` 找得到那条 pending、`resolve`/`reject` 是 no-op、`Delete` 幂等）/ 牌条件上的时限透得过去），另在 `ask-panel` / `ask-player` 两条老用例里钉住「默认 10 秒」）⇒ **验收基线 1244 → 1249**。
+
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
 | 候选 | 现状 / 前置 |
@@ -414,7 +416,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 | **剩余普通锦囊** | **已全做完**：10 张都在（含【无懈可击】，`add-nullification`，2026-09-24） |
 | **装备与距离修正** | **已做**：武器 + 坐骑 + 距离修正 + 【借刀杀人】（`add-equipment`，2026-09-24）；**装备技能已做十张、全部完成**（方天画戟 / 仁王盾 / 诸葛连弩 / 青釭剑 / 麒麟弓 / 雌雄双股剑 / 青龙偃月刀 / 贯石斧 / 八卦阵 / **丈八蛇矛**（2026-09-30）；使用与打出两侧都有）；**只剩**装备区的**协议层表达**（明牌 / 前端展示） |
 | **武将系统** | **武将定义 + 装配 + 技能已做**（2026-09-30 起）：`HeroDef` / `Player:setHero` / `SkillDef` / `'被动'` 钩子 / `refreshSkills` 自动挂技能（主公技只给主公）；**〔奸雄】【护驾】【激将】【仁德】【咆哮】【武圣】【龙胆】【奇袭】【克己】【鬼才】【反馈】【苦肉】【洛神】【倾国】【刚烈】【青囊】【急救】【马术】【铁骑】【集智】【奇才】【制衡】【救援】【裸衣】【天妒】【遗计】【突袭】【离间】【闭月】【枭姬】【结姻】【英姿】【反间】【谦逊】【连营】【流离】【国色】已能跑** —— **标准包 25 将全部落地**（**曹操 / 刘备 / 张飞 / 关羽 / 赵云 / 甘宁 / 吕蒙 / 司马懿 / 黄盖 / 甄姬 / 夏侯惇 / 华佗 / 马超 / 黄月英 / 孙权 / 许褚 / 郭嘉 / 张辽 / 貂蝉 / 孙尚香 / 周瑜 / 陆逊 / 大乔 / 诸葛亮 / 吕布**；2026-10-08 / 09）；**已落地**：选将流程（2026-10-09，`add-hero-select`）、阵亡清算（2026-10-09，`add-death-clearance`）；**剩下**：牌表数据与武将技能**文本校对**（文本已入库：`.agents/skills/sanguosha-rules/references/武将牌/`）—— **各将成本清单见本节末「标准包武将：余下各将的实现成本」** |
-| **主动技的发动入口** | **已落地（2026-10-08，`ask-use-skill`）**：`askUseSkill` / `startAskUseSkill` + `Skill:use()` / `hasHandler('使用')` + 出牌阶段两路并行（用牌 / 用技能）、`game:effectRace` —— 见 §1；**【仁德】第一批用上**（2026-10-08）。**还没做**：倒计时 / 「结束阶段」那一路（要 `countDown`，它要定「超时算谁赢」）；**「候选不筛能不能发动」已于同日重构修掉**（前置凑不齐不进选项）——**技能前置声明**（`: cards` / `: targets`）见 §1 末条。 |
+| **主动技的发动入口** | **已落地（2026-10-08，`ask-use-skill`）**：`askUseSkill` / `startAskUseSkill` + `Skill:use()` / `hasHandler('使用')` + 出牌阶段两路并行（用牌 / 用技能）、`game:effectRace` —— 见 §1；**【仁德】第一批用上**（2026-10-08）。**还没做**：**「结束阶段」那一路**（要 `countDown`，它要定「超时算谁赢」）—— ⚠️ **请求级时限已做**（2026-10-13，`Proto.Timelimit`：每个询问默认 10 秒，见 §1 新条），还差的是**回合级**的那本账（`player:countDown(30)` + 成功行动 `reset`，见 §3）；**「候选不筛能不能发动」已于同日重构修掉**（前置凑不齐不进选项）——**技能前置声明**（`: cards` / `: targets`）见 §1 末条。 |
 | **时钟 / 虚拟时间** | **已落地（2026-10-01）** —— 做法不是给事件循环加虚拟时间，而是 **把 timer 与真实时间脱钩**（`update(targetMS)`，时钟由调用者推）+ 测试侧 `test.advance` ⇒ **时间冻结**、不再真等。见 §1 最后一条。 |
 | **会话 / 协议** | 前端接线 —— 按用户节奏放最后；届时要写 JSON-RPC 规格（不设 `skip_specs`） |
 | **询问家族** | `timeout` + `askSkill`，timeout 与答复做 race；**`Ask` 已无内容侧调用点**（弃牌阶段 2026-10-08 改用 `askCard`），去留待定 |
@@ -478,7 +480,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - ~~**`'对卡牌生效'` 的声明形状**~~ —— **已实施（2026-09-24）**：改成 `'获取卡牌目标'`（载荷 `CardDef.CardTargetPlan`：`targets` = 发起方要对的那批牌；**返回你认下的那批** `Card[]`，内核取交集、发起方那张不在里面就不能用），`'对卡牌生效'` 删除、`CardEffectToCard` 不再跑内容钩子（只作身份与处理区归属者）。两个钩子的载荷同形 —— 参数都叫 `plan`、字段都叫 `targets`（角色支 `CardDef.TargetPlan` 是 `Player[]`、牌支 `CardDef.CardTargetPlan` 是 `Card[]`）。
 - ~~**`askUse*` 成功后自动接上 `useCard*`**~~ —— **已实施（2026-09-24）**：两个 `askUse*` 入口在询问结完后**直接把它用出去**（`AskUseCard:use()` / `AskUseCardToCard:use()`，幂等、只发一次），那次使用记在询问上（`ask.useCard` / `ask.useCardToCard`，没答复 ⇒ 空、不发起使用）。四个调用点改成读这个字段（出牌阶段 / 借刀杀人 / 濒死求桃 / 无懈窗口）。「打出的牌」那一类不受影响（`askPlayCard` 上是没有这个方法的）。
 - **询问家族**：将来加 `timeout` 与 `askSkill`，**timeout 与答复做 race**。`Ask`（通用决策询问，答复是 `any`）2026-10-08 起在内容侧已经没有调用点（弃牌阶段改用 `askCard`）—— **2026-10-13 已整个删掉**（见 §1 对应条目）。
-- **回合时限**：真游戏靠它兜住"玩家不答"与"误选"，还没实现。用户给的形状：
+- **回合时限**：真游戏靠它兜住"玩家不答"与"误选"，还没实现。**已落地一半（2026-10-13）**：**请求级**见 §1 新条（`Proto.Timelimit`，每个询问默认 10 秒）—— 玩家不答就到点收掉、按「取消」继续；**还差的**是**回合级**那本账（下面这个 `countDown`：一回合里多次询问共享一个窗口、成功行动就 `reset`）—— 它要定「超时算谁赢」。用户给的形状：
 
   ```lua
   local countDown <close> = player:countDown(30)

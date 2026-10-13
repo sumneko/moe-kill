@@ -3,12 +3,14 @@
 ---@field player? Player|Player[]|true|fun(player: Player): boolean # 候选：一名 / 一批 / `true` = 不限（= 存活角色）/ 谓词（在存活角色里筛）
 ---@field min? integer # 至少要选几个（省略 = 1）
 ---@field max? integer # 至多选几个（省略 = min）
+---@field timeLimit? number # 这次询问的时限（秒；不给就是协议层的默认值）
 
 --- 归一化之后的形状：候选解算成名单（恒给出），`min` / `max` 一定给出
 ---@class AskPlayer.NormalizedCondition
 ---@field players Player[] # 候选名单（恒给出：不限 / 省略 ⇒ 存活角色；空表 = 一个都不行）
 ---@field min integer
 ---@field max integer
+---@field timeLimit? number # 这次询问的时限（秒；不给就是协议层的默认值）
 
 --- 把条件归一化一次：`player` 的四种写法解算成候选名单（谓词在**存活角色**里筛，不限 / 省略就是它们全体）、`min` / `max` 补默认
 ---@param game Game
@@ -34,9 +36,10 @@ local function normalizeCondition(game, condition)
     end
     ---@type AskPlayer.NormalizedCondition
     return {
-        min     = min,
-        max     = condition?.max or min,
-        players = players,
+        min       = min,
+        max       = condition?.max or min,
+        players   = players,
+        timeLimit = condition?.timeLimit,
     }
 end
 
@@ -54,6 +57,7 @@ end
 ---@field options? Player[] # 候选名单（恒给出；交给应答方之前摆在询问上）
 ---@field player? Player # 答复给出的第一个角色（没答就是空）
 ---@field players Player[] # 答复给出的角色（恒列表，没答就是空表）
+---@field timeLimit? number # 这次询问的时限（秒；= 条件的 `timeLimit`，没写就是空）
 local M = Class 'AskPlayer'
 
 Extends('AskPlayer', 'Effect')
@@ -99,6 +103,13 @@ end
 ---@return Player?
 M.__getter.player = function (self)
     return self.players[1]
+end
+
+--- 这次询问的时限（秒；没写就是空 —— 协议层用默认值）
+---@param self AskPlayer
+---@return number?
+M.__getter.timeLimit = function (self)
+    return self.condition.timeLimit
 end
 
 --- 这次允许「一个都不选」吗（`min` 为 0 ⇒ 取消也是合法答复、算成立）

@@ -10,6 +10,14 @@ Extends('ClientUser', 'User')
 ---@type CardSync.View?
 M.cardView = nil
 
+--- 询问没写 `timeLimit` 时用这个（秒）—— 内容侧可在条件 / 选项上写自己的
+---@type number
+local DEFAULT_TIME_LIMIT = 10
+
+--- 判超时前多给的时间（秒）：一来一回的路程
+---@type number
+local TIME_LIMIT_SLACK = 1
+
 ---@param self ClientUser
 ---@return CardSync.View? # 他看得见的那份牌
 ---@return true # 将结果缓存下来
@@ -24,24 +32,40 @@ function M:notify(method, params)
     self.client:notify(method, params)
 end
 
---- 发一个请求：给了 `host` 就带上取消号（这次请求的寿命跟着它走；不给就是不能取消）
+--- 发一个请求：给了 `host` 就带上取消号（这次请求的寿命跟着它走；不给就是不能取消）；
+--- `params.timeLimit` 给了就同时开个计时器（多给 `TIME_LIMIT_SLACK` 秒宽松），到点还没回就按超时收尾
 ---@param method string
 ---@param params table
 ---@param host? GCHost # 这次请求挂在谁身上（它被收掉时叫停这次请求）
 ---@return Task
 function M:request(method, params, host)
-    if not host then
-        return self.client:request(method, params)
+    if host then
+        params.cancelToken = params.cancelToken or self.game:nextId()
     end
-    params.cancelToken = params.cancelToken or self.game:nextId()
     local request = self.client:request(method, params)
-    host:bindGC(function ()
-        if request.resolved then
-            return
-        end
-        self:cancel(params.cancelToken)
-        request:reject { code = -1, message = 'request canceled' }
-    end)
+    if host then
+        host:bindGC(function ()
+            if request.resolved then
+                return
+            end
+            self:cancel(params.cancelToken)
+            request:reject { code = -1, message = 'request canceled' }
+        end)
+    end
+    local timeLimit = params.timeLimit
+    if timeLimit then
+        -- 计时器挂在请求上：请求一有结果（回包到了 / 被叫停）它跟着一起拆
+        -- 收尾用 `cancel`（`reject` 只记结果、不叫醒等它的人）
+        request:bindGC(moe.timer.wait(timeLimit + TIME_LIMIT_SLACK, function ()
+            if request.resolved then
+                return
+            end
+            if params.cancelToken then
+                self:cancel(params.cancelToken)
+            end
+            request:cancel { code = -3, message = 'timeout' }
+        end))
+    end
     return request
 end
 
@@ -252,6 +276,7 @@ function M:pickCards(ask)
         reason     = ask.reason,
         cancelable = ask.condition.cancelable,
         card       = self:cardPlan(ask),
+        timeLimit  = ask.timeLimit or DEFAULT_TIME_LIMIT,
     })
     if not parsed then
         return nil
@@ -268,6 +293,7 @@ function M:askChoice(ask)
         reason     = ask.reason,
         options    = ask.options,
         cancelable = true,
+        timeLimit  = DEFAULT_TIME_LIMIT,
     })
 end
 
@@ -277,8 +303,9 @@ end
 ---@return Player[]?
 function M:askPlayer(ask)
     local parsed = self:select(ask, {
-        reason = ask.reason,
-        player = self:playerPlan(ask.options, ask.condition.min, ask.condition.max),
+        reason    = ask.reason,
+        player    = self:playerPlan(ask.options, ask.condition.min, ask.condition.max),
+        timeLimit = ask.timeLimit or DEFAULT_TIME_LIMIT,
     })
     return parsed?.players
 end
@@ -302,6 +329,7 @@ function M:askCardWithTarget(ask)
         cancelable = ask.condition.cancelable,
         card       = self:cardPlan(ask),
         player     = self:playerPlan(targetCond.players, targetCond.min, targetCond.max),
+        timeLimit  = ask.timeLimit or DEFAULT_TIME_LIMIT,
     })
     if not parsed then
         return nil
@@ -350,6 +378,7 @@ function M:askUseSkill(ask)
         reason     = ask.reason,
         cancelable = true,
         skills     = skills,
+        timeLimit  = DEFAULT_TIME_LIMIT,
     }
     local result = self:request('Ask.UseSkill', params, ask):await()
     if not result then
@@ -405,10 +434,11 @@ function M:askHero(ask)
     end
 
     local result = self:request('Ask.Hero', {
-        reason = ask.reason,
-        heroes = fullNames,
-        min    = min,
-        max    = condition?.max or min,
+        reason    = ask.reason,
+        heroes    = fullNames,
+        min       = min,
+        max       = condition?.max or min,
+        timeLimit = ask.timeLimit or DEFAULT_TIME_LIMIT,
     }, ask):await()
 
     if not result or not result.heroes then
@@ -428,6 +458,7 @@ function M:askPanel(ask)
         reason     = ask.reason,
         cancelable = ask.cancelable,
         id         = ask.panel.id,
+        timeLimit  = ask.timeLimit or DEFAULT_TIME_LIMIT,
     }, ask):await()
     close()
 
@@ -508,6 +539,7 @@ function M:askUseCard(ask)
         cancelable = ask.condition.cancelable,
         card       = cards,
         viewAs     = viewAsList,
+        timeLimit  = ask.timeLimit or DEFAULT_TIME_LIMIT,
     })
     if not parsed then
         return nil
@@ -522,7 +554,8 @@ function M:askUseCard(ask)
     return { card = parsed.usedCard, targets = parsed.players }
 end
 
---- 叫停一次请求（客户端收到后不再回话，只按「请求被取消」回个包）
+--- 叫停一次请求：只发一条 `Cancel` 通知（请求本身照旧等回包 —— 有 id 的请求必须回包，
+--- 客户端应当以 `Proto.Error.REQUEST_CANCELED` 收尾）；本地的等待也以同一个错误结束
 ---@param cancelToken integer
 function M:cancel(cancelToken)
     self.client:notify('Cancel', { cancelToken = cancelToken })

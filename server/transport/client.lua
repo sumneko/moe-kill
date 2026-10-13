@@ -238,7 +238,13 @@ function M:settleCall(message)
         task:reject(message.error)
     else
         ---@cast message JSONRPC.Result
-        task:resolve(message.result)
+        -- 线上的 `null` 就是「没有结果」（handler 没返回东西时编出来就是这个）
+        ---@type any
+        local result = message.result
+        if result == moe.json.null then
+            result = nil
+        end
+        task:resolve(result)
     end
     Delete(task)
 end

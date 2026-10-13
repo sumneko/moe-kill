@@ -32,6 +32,7 @@
 ---@field card? Card # 选中的那张牌（没选就是空；`= .result.card`）
 ---@field cards Card[] # 选中的牌（没选就是空表；`= .result.cards`）
 ---@field cancelable boolean # 这次允许主动取消吗（= 选项的 `cancelable`）
+---@field timeLimit? number # 这次询问的时限（秒；= 选项的 `timeLimit`，没写就是空）
 ---@field private selected? Card[] # 当前选中的牌（最后一次挑选覆盖前面的）
 local M = Class 'AskPanel'
 
@@ -80,6 +81,12 @@ end
 ---@return boolean
 M.__getter.cancelable = function (self)
     return self.panel.options.cancelable ~= false
+end
+
+--- 这次询问的时限（秒；没写就是空 —— 协议层用默认值）
+---@return number?
+M.__getter.timeLimit = function (self)
+    return self.panel.options.timeLimit
 end
 
 --- 这块面板允不允许移动牌

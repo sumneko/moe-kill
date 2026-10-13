@@ -43,6 +43,7 @@ lt.test('询问：只报「可以操作哪块面板」，回包给选中', funct
     lt.assertEquals('缘由原样带过去', '观星', params.reason)
     lt.assertEquals('说的是面板号', panel.id, params.id)
     lt.assertEquals('说了可以取消', true, params.cancelable)
+    lt.assertEquals('也带上了时限', 10, params.timeLimit)
     lt.assertEquals('这次成了', true, ask.success)
     lt.assertEquals('选中的是它', second, ask.card)
 end)

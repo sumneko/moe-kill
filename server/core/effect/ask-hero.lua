@@ -3,12 +3,14 @@
 ---@field hero? HeroDef|HeroDef[] # 候选：一名 / 一批（不给 = 不做限制）
 ---@field min? integer # 至少要选几个（省略 = 1）
 ---@field max? integer # 至多选几个（省略 = min）
+---@field timeLimit? number # 这次询问的时限（秒；不给就是协议层的默认值）
 
 --- 归一化之后的形状：候选归一成名单（不填 = 不做限制），`min` / `max` 一定给出
 ---@class AskHero.NormalizedCondition
 ---@field heroes? HeroDef[] # 候选名单（不填 = 不做限制；空表 = 一个都不行）
 ---@field min integer
 ---@field max integer
+---@field timeLimit? number # 这次询问的时限（秒；不给就是协议层的默认值）
 
 --- 把条件归一化一次（`hero` 归一成名单、`min` / `max` 补默认）
 ---@param condition AskHero.Condition?
@@ -20,8 +22,9 @@ local function normalizeCondition(condition)
     local min = condition.min or 1
     ---@type AskHero.NormalizedCondition
     local normalized = {
-        min = min,
-        max = condition.max or min,
+        min       = min,
+        max       = condition.max or min,
+        timeLimit = condition.timeLimit,
     }
     if condition.hero ~= nil then
         normalized.heroes = moe.util.toList(condition.hero)
@@ -43,6 +46,7 @@ end
 ---@field options? HeroDef[] # 候选名单（没给条件时为空 = 不做限制）
 ---@field hero? HeroDef # 答复给出的第一个武将（没答就是空）
 ---@field heroes HeroDef[] # 答复给出的武将（恒列表，没答就是空表）
+---@field timeLimit? number # 这次询问的时限（秒；= 条件的 `timeLimit`，没写就是空）
 local M = Class 'AskHero'
 
 Extends('AskHero', 'Effect')
@@ -90,6 +94,13 @@ end
 ---@return HeroDef?
 M.__getter.hero = function (self)
     return self.heroes[1]
+end
+
+--- 这次询问的时限（秒；没写就是空 —— 协议层用默认值）
+---@param self AskHero
+---@return number?
+M.__getter.timeLimit = function (self)
+    return self.condition?.timeLimit
 end
 
 --- 这次允许「一个都不选」吗（`min` 为 0 ⇒ 取消也是合法答复、算成立）

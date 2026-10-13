@@ -28,6 +28,7 @@ Extends('Panel', 'GCHost')
 ---@field max? integer # 确定时至多选中几张（省略 = `min`）
 ---@field cancelable? boolean # 允不允许主动取消（省略 = 允许；与 ask 系列同一套字段）
 ---@field moveable? boolean # 允不允许移动牌（省略 = 不允许：只挑不摆的面板不用开）
+---@field timeLimit? number # 问这块面板时的时限（秒；不给就是协议层的默认值）
 
 ---@param game Game
 ---@param name string
