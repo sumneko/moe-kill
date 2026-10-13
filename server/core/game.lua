@@ -1117,23 +1117,6 @@ function M:askPlayer(to, reason, condition)
     return ask
 end
 
---- 要一个决策（问什么、答什么都由发起方解释）
----@async
----@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
----@param question any # 问什么（内容由发起方定，应答方自己解释）
----@return Ask # 这次询问（已经结完：答复读 `.reply`，失败读 `.err`）
-function M:ask(to, reason, question)
-    local ask = moe.ask.create {
-        game     = self,
-        to       = to,
-        reason   = reason,
-        question = question,
-    }
-    ask:apply():await()
-    return ask
-end
-
 --- 要他在若干选项里挑一个（选项由发起方给，答复必须是其中之一）
 ---@async
 ---@param to Player # 被问者

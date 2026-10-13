@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1232 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1225 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -398,7 +398,9 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **`Card.Create` 拆成「明牌给对象 / 暗牌按区给号」（2026-10-11，proto 由用户改「区分了一下正面朝上和背面朝上」）**：`Proto.Notify.Card.Create` 现在是 `{ show? = { zone, cards: Proto.Card[] }[], hide? = { zone, cards: integer[] }[] }` —— **两边都按区域分组**：正面朝上的给完整对象，背面朝上的只给号。服务端实现在 `V:updateCards` 收尾：把这一批 `creates` 按 `pcard.face` 分流，**两边各自**用 `zone` 归组（**按出现顺序**输出组、保证确定性；`shows` / `hides` 存 entry 引用，`showList` / `hideList` 保持顺序），空的那半不带字段。**量到**：开局那条（107 张暗牌）**3006 → 360 字节（-88%）**、单次编码 **0.190 → 0.035 ms**（最早那版是 3755 / 0.250）⇒ 8 份从 30 KB 降到约 2.9 KB。用例里与 `Card.Create` 有关的断言跟着改了两轮（先 `back` 后 `show`），测试里加了 `shown(data)` 小助手取「第一个区的那批正面牌」。**验收基线不变（1229）**。
 
-- **接上武将询问：`ClientUser:askHero`（2026-10-13，proto 照 `askPlayer` 的形状定）**：① **协议**：新增 `Proto.Request.Ask.Hero : Proto.Cancelable`（`reason` / `heroes?: string[]` **候选武将全名**（`包名.定义名`）、**缺省 = 不做限制** / `min` / `max`）与 `Proto.Result.Ask.Hero`（`heroes?: string[]`）。② **`ClientUser:askHero`**：候选从 `ask.options` 逐个取 **`HeroDef.fullName`**（名单缺省就不发 `heroes` 这个字段），回包的全名经 **`heroList`** 转回 `HeroDef[]`（走 `game:getHero(fullName)`；**名字认不到就给空** ⇒ 返回空 ⇒ 内核走「取消」—— 名字是客户端给的自由串，不像号那样「是我们自己发出去的」，故**不** `assert`）；`min` / `max` 取 `ask.condition?.min or 1` / `condition?.max or min`（`AskHero.condition` 可空 —— 与 `AskPlayer` 那份「归一化后恒给出」不同）。③ **用全名当武将的协议标识**（用户 2026-10-13 强调）：武将没有协议号，`HeroDef.fullName`（`包名.定义名`）是唯一的，裸名则可能跨包撞名 —— `game:getHero` 本来就认这个写法。④ 用例 +3（`test/user/ask-hero`：候选与答复 / 不给条件就不列候选 / 名字不认不算成立）⇒ **验收基线 1229 → 1232**。⑤ **剩两个没接**：`ask`（内核零语义、去留待定）/ `askPanel`。
+- **接上武将询问：`ClientUser:askHero`（2026-10-13，proto 照 `askPlayer` 的形状定）**：① **协议**：新增 `Proto.Request.Ask.Hero : Proto.Cancelable`（`reason` / `heroes?: string[]` **候选武将全名**（`包名.定义名`）、**缺省 = 不做限制** / `min` / `max`）与 `Proto.Result.Ask.Hero`（`heroes?: string[]`）。② **`ClientUser:askHero`**：候选从 `ask.options` 逐个取 **`HeroDef.fullName`**（名单缺省就不发 `heroes` 这个字段），回包的全名经 **`heroList`** 转回 `HeroDef[]`（走 `game:getHero(fullName)`；**名字认不到就给空** ⇒ 返回空 ⇒ 内核走「取消」—— 名字是客户端给的自由串，不像号那样「是我们自己发出去的」，故**不** `assert`）；`min` / `max` 取 `ask.condition?.min or 1` / `condition?.max or min`（`AskHero.condition` 可空 —— 与 `AskPlayer` 那份「归一化后恒给出」不同）。③ **用全名当武将的协议标识**（用户 2026-10-13 强调）：武将没有协议号，`HeroDef.fullName`（`包名.定义名`）是唯一的，裸名则可能跨包撞名 —— `game:getHero` 本来就认这个写法。④ 用例 +3（`test/user/ask-hero`：候选与答复 / 不给条件就不列候选 / 名字不认不算成立）⇒ **验收基线 1229 → 1232**。⑤ **剩一个没接**：`askPanel`。
+
+- **删掉通用决策询问 `Ask`（2026-10-13，用户定「不是基类…那整个删掉吧」）**：`Ask` 不是任何类的基类（`AskChoice` / `AskPlayer` / `AskHero` / `AskUseSkill` / `AskPanel` / `AskCard` 全是直接 `Extends(…, 'Effect')`），内容侧自 2026-10-08 起就没有调用点、答复是 `any` 无人解释 ⇒ 整块拿掉。① 删 `server/core/effect/ask.lua`（含 `moe.ask` 门面）与 `core/effect/init.lua` 的装载行；② 删入口 `game:ask` 与 `User:ask` 那个接口方法；③ `'决策-询问'` / `'决策-答复'` 的载荷类型收成 `AskPlayer|AskChoice`（`env-meta`）；④ 用例：删 `test/core/effect/ask.lua` 整个套件（连同 `test.lua` 的注册行），`test/core/user.lua` 里那 4 条「通用询问的 User 分派」改用 `askChoice` 家族（`TestUser:ask` → `askChoice`、`userWith(42)` → `userWith('乙')`、读 `.choice`），`rule/flow` 与 `rule/game-over` 里两处「挂在询问上」的探针从 `game:ask` 换成 `game:askChoice(player, '测试', { '继续' })`（读 `.choice`）—— 覆盖（User 优先 / 回落全局 / 无 User）一条不丢；⑤ 文档：`architecture.md` 删 `game:ask` 那一行、去掉「`Ask` 是例外」那段、方法数 11 → 10、「剩两个 → 剩一个」，`SKILL.md` 效果族清单去掉 `ask.lua`。⑥ **`openspec/specs/core-decision`（冻结）** 描述的正是这个被删的能力 —— 冻结期不回改，等回顾性对齐时处理。⇒ **验收基线 1232 → 1225**（删 7 条）。
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
@@ -471,7 +473,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 - **包可以给内核类加方法（用户 2026-09-28 解锁，已记成变更 `allow-package-class-edit`，暂不实施）**：加载环境注入内核**同一个** `Class`（`moe-kill.lua` 里 `Class = class.declare`），包按内核写法 `local M = Class 'Player'` + `function M:distance(to)`；**只开 `Class` 这一个口子**（`New` / `Delete` / `Extends` / `Type` / `Presize` 都不给）；**没有生命周期管理**（加载一次不卸载 ⇒ 不记账、不回撤）；护栏降级为文档提醒（别用 `__` 前缀、别与 `__getter` / `__setter` 同名、注意实例字段会遮蔽类方法）；类型面基本不用手写注解（写法与内核同形：`---@class Player` 就够、**不用** `: Class.Base`，除非要用 `__getter`；派生字段要用 `---@type` 声明；函数写了 doc 就要把 `@return` 写全 —— 三条都实测过）。首个应用 = `@基础/距离.lua` 的**裸全局 `distance` 去掉**，改成 `Player:distance`（`杀` / `借刀杀人` / `顺手牵羊` 三个调用点跟着改）。
 - ~~**`'对卡牌生效'` 的声明形状**~~ —— **已实施（2026-09-24）**：改成 `'获取卡牌目标'`（载荷 `CardDef.CardTargetPlan`：`targets` = 发起方要对的那批牌；**返回你认下的那批** `Card[]`，内核取交集、发起方那张不在里面就不能用），`'对卡牌生效'` 删除、`CardEffectToCard` 不再跑内容钩子（只作身份与处理区归属者）。两个钩子的载荷同形 —— 参数都叫 `plan`、字段都叫 `targets`（角色支 `CardDef.TargetPlan` 是 `Player[]`、牌支 `CardDef.CardTargetPlan` 是 `Card[]`）。
 - ~~**`askUse*` 成功后自动接上 `useCard*`**~~ —— **已实施（2026-09-24）**：两个 `askUse*` 入口在询问结完后**直接把它用出去**（`AskUseCard:use()` / `AskUseCardToCard:use()`，幂等、只发一次），那次使用记在询问上（`ask.useCard` / `ask.useCardToCard`，没答复 ⇒ 空、不发起使用）。四个调用点改成读这个字段（出牌阶段 / 借刀杀人 / 濒死求桃 / 无懈窗口）。「打出的牌」那一类不受影响（`askPlayCard` 上是没有这个方法的）。
-- **询问家族**：将来加 `timeout` 与 `askSkill`，**timeout 与答复做 race**。`Ask`（通用决策询问，答复是 `any`）2026-10-08 起**在内容侧已经没有调用点**了（弃牌阶段改用 `askCard`），用户认为它"意义不明" —— 等那批到位再谈去留（**不要擅自删**）。
+- **询问家族**：将来加 `timeout` 与 `askSkill`，**timeout 与答复做 race**。`Ask`（通用决策询问，答复是 `any`）2026-10-08 起在内容侧已经没有调用点（弃牌阶段改用 `askCard`）—— **2026-10-13 已整个删掉**（见 §1 对应条目）。
 - **回合时限**：真游戏靠它兜住"玩家不答"与"误选"，还没实现。用户给的形状：
 
   ```lua

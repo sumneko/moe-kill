@@ -55,8 +55,8 @@ game:registerFlow(function ()
     local player = game.desk:getPlayer(1)
     local count  = 0
     while count < 20 do
-        local ask = game:ask(player, '测试', {})
-        if ask.reply == nil then
+        local ask = game:askChoice(player, '测试', { '继续' })
+        if ask.choice == nil then
             return
         end
         count = count + 1

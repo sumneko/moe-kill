@@ -193,10 +193,10 @@ rule = nil
 ---@field fire fun(self: Game, name: '阶段-生效', phase: Phase): any
 ---@field on fun(self: Game, name: '阶段-结束', callback: fun(phase: Phase): any): function
 ---@field fire fun(self: Game, name: '阶段-结束', phase: Phase): any
----@field on fun(self: Game, name: '决策-询问', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
----@field fire fun(self: Game, name: '决策-询问', ask: Ask|AskPlayer|AskChoice): any # 返回值就是答复（`Ask` / `AskChoice` 是任意值、`AskPlayer` 是一名或几名角色；没人表态给空）
----@field on fun(self: Game, name: '决策-答复', callback: fun(ask: Ask|AskPlayer|AskChoice): any): function
----@field fire fun(self: Game, name: '决策-答复', ask: Ask|AskPlayer|AskChoice): any
+---@field on fun(self: Game, name: '决策-询问', callback: fun(ask: AskPlayer|AskChoice): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '决策-询问', ask: AskPlayer|AskChoice): any # 返回值就是答复（`AskChoice` 是一个选项字符串、`AskPlayer` 是一名或几名角色；没人表态给空）
+---@field on fun(self: Game, name: '决策-答复', callback: fun(ask: AskPlayer|AskChoice): any): function
+---@field fire fun(self: Game, name: '决策-答复', ask: AskPlayer|AskChoice): any
 ---@field on fun(self: Game, name: '面板-询问', callback: fun(askPanel: AskPanel): any): function # 问应答方要一次回复（**开着**的询问：应答方回变化值，直到它点「确定」）；**第一个给出回复的胜出（后面的订阅者不再调）**；返回空 = 不表态
 ---@field fire fun(self: Game, name: '面板-询问', askPanel: AskPanel): any # 返回值就是一次回复（`AskPanel.Change`；没人表态给空）
 ---@field on fun(self: Game, name: '面板-答复', callback: fun(askPanel: AskPanel): any): function # 收到了一次回复（变化已经验证并生效；面板的当前形状照它读）

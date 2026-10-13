@@ -15,9 +15,9 @@ local function userWith(answer)
     return user
 end
 
----@param ask Ask
----@return any
-function TestUser:ask(ask)
+---@param ask AskChoice
+---@return string?
+function TestUser:askChoice(ask)
     return self.answer
 end
 
@@ -93,15 +93,15 @@ end)
 lt.test('询问：优先问本人的 User（表态了就不再问全局）', function ()
     local game, players = newGame(1)
     local player = assert(players[1])
-    player:setUser(userWith(42))
+    player:setUser(userWith('乙'))
 
     local asked = 0
     game:on('决策-询问', function ()
         asked = asked + 1
     end)
 
-    local ask = game:ask(player, '测试', '随便')
-    lt.assertEquals('拿到 User 给的答复', 42, ask.reply)
+    local ask = game:askChoice(player, '测试', { '甲', '乙' })
+    lt.assertEquals('拿到 User 给的答复', '乙', ask.choice)
     lt.assertEquals('全局没被问', 0, asked)
 end)
 
@@ -113,23 +113,23 @@ lt.test('询问：User 不表态 ⇒ 回落全局时机', function ()
     player:setUser(New 'TestUser' ())
 
     game:on('决策-询问', function ()
-        return 7
+        return '乙'
     end)
 
-    lt.assertEquals('全局给了答复', 7, game:ask(player, '测试', '随便').reply)
+    lt.assertEquals('全局给了答复', '乙', game:askChoice(player, '测试', { '甲', '乙' }).choice)
 end)
 
 ---@async
 lt.test('询问：User 与全局都表态 ⇒ 按 User 的', function ()
     local game, players = newGame(1)
     local player = assert(players[1])
-    player:setUser(userWith(42))
+    player:setUser(userWith('甲'))
 
     game:on('决策-询问', function ()
-        return 7
+        return '乙'
     end)
 
-    lt.assertEquals('User 先说话', 42, game:ask(player, '测试', '随便').reply)
+    lt.assertEquals('User 先说话', '甲', game:askChoice(player, '测试', { '甲', '乙' }).choice)
 end)
 
 ---@async
@@ -138,10 +138,10 @@ lt.test('询问：没有 User 时照旧问全局', function ()
     local player = assert(players[1])
 
     game:on('决策-询问', function ()
-        return 7
+        return '乙'
     end)
 
-    lt.assertEquals('全局照旧', 7, game:ask(player, '测试', '随便').reply)
+    lt.assertEquals('全局照旧', '乙', game:askChoice(player, '测试', { '甲', '乙' }).choice)
 end)
 
 ---@async

@@ -25,12 +25,6 @@ end
 function M:notify(method, params)
 end
 
---- 要一个决策
----@param ask Ask
----@return any
-function M:ask(ask)
-end
-
 --- 要一个选项
 ---@param ask AskChoice
 ---@return string?
