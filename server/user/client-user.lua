@@ -368,6 +368,28 @@ function M:askHero(ask)
     return self:heroList(result.heroes)
 end
 
+--- 要他在一块面板上操作（协议：`Ask.Panel`；面板自身的形状早在 `Panel.Create` / `Update` 里给过、挪牌是另一条请求 `Panel.Move`）
+---@async
+---@param ask AskPanel
+---@return AskPanel.Change?
+function M:askPanel(ask)
+    -- 挂着这次请求的这段时间里，客户端可以带面板号发 `Panel.Move`
+    local close = moe.panelSync.open(ask)
+    local result = self:request('Ask.Panel', {
+        reason     = ask.reason,
+        cancelable = ask.cancelable,
+        id         = ask.panel.id,
+    }, ask):await()
+    close()
+
+    if not result then
+        return nil
+    end
+    -- 答复到手就是「操作完了」：内核那个多轮循环留给 AI / 全局路径用
+    ---@type AskPanel.Change
+    return { done = true, card = self:cardList(result.card or {}) }
+end
+
 --- 一份「视为」声明的协议形状（来源二选一：技能给名字、手上的牌给号；素材条件按它能收的区与张数发）
 ---@param viewAs ViewAs
 ---@param plan Game.UsableTargets

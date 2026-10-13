@@ -5,11 +5,11 @@
 ---@field card? Card|Card[] # 挑选型变化：改选这些（覆盖上一次的选择；空表 = 清空选择）
 ---@field done? boolean # 点确定了：这次询问到此为止
 
---- 一条移动型变化：把这串牌按这个顺序放到第 `row` 行（插到该行末尾）
---- 行内重排也能用它表达：把该行整体重放一遍
+--- 一条移动型变化：把一张牌挪到第 `row` 行第 `col` 个位置（一次一张）
 ---@class AskPanel.Move
----@field cards Card|Card[] # 要挪的牌（按给定顺序）
+---@field card Card # 要挪的牌
 ---@field row integer # 放到第几行（1 起）
+---@field col integer # 放到这一行的第几个位置（1 起）
 
 --- 定下的形状
 ---@class AskPanel.Result
@@ -103,52 +103,44 @@ end
 ---@param card Card
 ---@return string? # 合法就是空
 function M:checkPick(card)
-    local cell = self.panel:findCell(card)
-    if not cell then
+    if not self.panel:contains(card) then
         return '这块面板上没有这张牌'
     end
-    if cell.disabled then
+    if self.panel:isDisabled(card) then
         return '这张牌已经被禁用了'
     end
     return nil
 end
 
---- 这步移动合法吗（每张都要在面板上、没被禁用；行要存在）
+--- 这步移动合法吗（牌要在面板上、没被禁用；行与列都要存在）
 ---@param move AskPanel.Move
 ---@return string? # 合法就是空
 function M:checkMove(move)
-    local cards = moe.util.toList(move.cards)
-    if #cards == 0 then
-        return '这一步里没有牌'
+    local problem = self:checkPick(move.card)
+    if problem then
+        return problem
     end
-    if not self.panel.rows[move.row] then
+    local row = self.panel.rows[move.row]
+    if not row then
         return '这块面板上没有第 {} 行' % { move.row }
     end
-    ---@type table<Card, true>
-    local seen = {}
-    for _, card in ipairs(cards) do
-        local problem = self:checkPick(card)
-        if problem then
-            return problem
+    local limit = #row.cards + 1
+    for _, one in ipairs(row.cards) do
+        if one == move.card then
+            limit = limit - 1
+            break
         end
-        if seen[card] then
-            return '这一步里的牌重复了'
-        end
-        seen[card] = true
+    end
+    if move.col < 1 or move.col > limit then
+        return '这一行上没有第 {} 个位置' % { move.col }
     end
     return nil
 end
 
---- 把这一步生效：这些牌按给定顺序挪到目标行末尾
+--- 把这一步生效：把这张牌插到目标行的那一格
 ---@param move AskPanel.Move
 function M:doMove(move)
-    local row = self.panel.rows[move.row]
-    for _, card in ipairs(moe.util.toList(move.cards)) do
-        local cell = self.panel:takeOut(card)
-        if cell then
-            self.panel:appendCell(row, cell)
-        end
-    end
+    self.panel:moveTo(move.card, move.row, move.col)
 end
 
 --- 应用一次回复里的变化：[先全验、再全应用] —— 有一条不合法就整条回复作废，面板保持原样
@@ -205,19 +197,9 @@ end
 
 --- 定下结果
 function M:resolveResult()
-    ---@type Card[][]
-    local rows = {}
-    for _, row in ipairs(self.panel.rows) do
-        ---@type Card[]
-        local cards = {}
-        for _, cell in ipairs(row.cells) do
-            cards[#cards + 1] = cell.card
-        end
-        rows[#rows + 1] = cards
-    end
     local selected = self.selected or {}
     self.task:resolve {
-        rows  = rows,
+        rows  = self.panel.cardsByRow,
         card  = selected[1],
         cards = selected,
     }

@@ -183,6 +183,8 @@ rule = nil
 ---@field fire fun(self: Game, name: '玩家-数据变化', player: Player, kind: Player.DirtyKind): any
 ---@field on fun(self: Game, name: '技能-数据变化', callback: fun(skill: Skill, kind: Skill.DirtyKind): any): function # 某个技能的形态变了（挂上 / 摘掉 / 停用启用 / 切自动开关）
 ---@field fire fun(self: Game, name: '技能-数据变化', skill: Skill, kind: Skill.DirtyKind): any
+---@field on fun(self: Game, name: '面板-变化', callback: fun(panel: Panel, kind: Panel.DirtyKind): any): function # 某块面板的形状变了（创建 / 挪牌 / 禁用 / 加标记 / 移除）
+---@field fire fun(self: Game, name: '面板-变化', panel: Panel, kind: Panel.DirtyKind): any
 ---@field on fun(self: Game, name: '回合-开始', callback: fun(turn: Game.Event.Turn): any): function
 ---@field fire fun(self: Game, name: '回合-开始', turn: Game.Event.Turn): any
 ---@field on fun(self: Game, name: '回合-结束', callback: fun(turn: Game.Event.Turn): any): function

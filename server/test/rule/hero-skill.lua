@@ -3709,9 +3709,9 @@ lt.test('观星：把牌摆到「牌堆底」那一行（面板上摆完点确�
         replies = replies + 1
         if replies == 1 then
             lt.assertEquals('摊了两行', 2, #askPanel.panel.rows)
-            lt.assertEquals('观看的牌都摆在第一行（牌堆顶）', 3, #askPanel.panel.rows[1].cells)
+            lt.assertEquals('观看的牌都摆在第一行（牌堆顶）', 3, #askPanel.panel.rows[1].cards)
             -- 把顶上第一张挪到「牌堆底」那一行
-            return { moves = { { cards = top[1], row = 2 } } }
+            return { moves = { { card = top[1], row = 2, col = 1 } } }
         end
         return { done = true }
     end)
@@ -3748,10 +3748,10 @@ lt.test('观星：答复中途被拒收 ⇒ 已经摆好的照摆（不回到原
         replies = replies + 1
         if replies == 1 then
             -- 先把一张摆到「牌堆底」那一行
-            return { moves = { { cards = top[1], row = 2 } } }
+            return { moves = { { card = top[1], row = 2, col = 1 } } }
         end
         -- 再给一条不合法的（行号不存在）⇒ 这次询问被拒收
-        return { moves = { { cards = top[2], row = 9 } } }
+        return { moves = { { card = top[2], row = 9, col = 1 } } }
     end)
 
     local _ <close> = run.game:enterPhase(zhuge, '准备')

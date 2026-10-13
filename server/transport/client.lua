@@ -1,5 +1,6 @@
 --- 收到某条连接上的调用时跑哪个处理器：**全局一张表**（与具体连接无关 —— 重连不用重注册）
----@alias Client.Handler async fun(client: Client, params: table): any
+--- 做不了的事就给第二个返回值（`Proto.Error`）：编成错误回应发回去（结果那一位置空）—— 处理器不抛错
+---@alias Client.Handler async fun(client: Client, params: table): any, Proto.Error?
 
 ---@type integer # 长度头占几个字节
 local HEADER_SIZE = 4
@@ -189,9 +190,14 @@ function M:dispatchCall(message)
     local params  = message.params or {}
     ---@async
     moe.await.call(function ()
-        local ok, result = xpcall(handler, log.error, client, params)
+        local ok, result, err = xpcall(handler, log.error, client, params)
         if not ok then
             self:send(moe.jsonrpc.encodeError(id, moe.jsonrpc.INTERNAL_ERROR, '处理这个方法时出错'))
+            return
+        end
+        if err then
+            ---@cast err Proto.Error
+            self:send(moe.jsonrpc.encodeError(id, err.code, err.message, err.data))
             return
         end
         self:send(moe.jsonrpc.encodeResult(id, result))

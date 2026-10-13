@@ -32,9 +32,9 @@ lt.test('面板：行按顺序摆好（行号从 1 起）', function ()
 
     lt.assertEquals('两行', 2, #panel.rows)
     lt.assertEquals('行标题', '上', panel.rows[1].title)
-    lt.assertEquals('第一行第一格', first, panel.rows[1].cells[1].card)
-    lt.assertEquals('第一行第二格', second, panel.rows[1].cells[2].card)
-    lt.assertEquals('第二行第一格', third, panel.rows[2].cells[1].card)
+    lt.assertEquals('第一行第一张', first, panel.rows[1].cards[1])
+    lt.assertEquals('第一行第二张', second, panel.rows[1].cards[2])
+    lt.assertEquals('第二行第一张', third, panel.rows[2].cards[1])
     lt.assertEquals('面板上的牌按行序', 3, #panel:cards())
     lt.assertEquals('第二张还在', second, panel:cards()[2])
     lt.assertEquals('含有这一张', true, panel:contains(second))
@@ -51,7 +51,7 @@ lt.test('面板：禁用只是标记（牌仍留在行里），标记照读', fu
     lt.assertEquals('被禁用了', true, panel:isDisabled(second))
     lt.assertEquals('没被禁用', false, panel:isDisabled(first))
     lt.assertEquals('牌没被挪走', 2, #panel:cards())
-    lt.assertEquals('还在原处', second, panel.rows[1].cells[2].card)
+    lt.assertEquals('还在原处', second, panel.rows[1].cards[2])
     lt.assertEquals('不在面板上的禁不了', false, panel:disableCard(outside))
 
     panel:addMark(second, '${hero:张三}')
@@ -60,7 +60,7 @@ lt.test('面板：禁用只是标记（牌仍留在行里），标记照读', fu
     lt.assertEquals('不在面板上的标记不了', 0, #panel:marks(outside))
 end)
 
-lt.test('面板：摘一格再放到行尾（搬动就靠这两个）', function ()
+lt.test('面板：把一张牌挪到某行某列（搬动就靠它）', function ()
     local game = newGame()
     local first  = newCard(game, '甲')
     local second = newCard(game, '乙')
@@ -69,15 +69,25 @@ lt.test('面板：摘一格再放到行尾（搬动就靠这两个）', function
         :row { first, second }
         :row { third }
 
-    local cell = panel:takeOut(first)
-    lt.assertEquals('摘下来了', false, panel:contains(first))
-    lt.assertEquals('第一行剩一张', 1, #panel.rows[1].cells)
-
-    panel:appendCell(panel.rows[2], assert(cell))
-    lt.assertEquals('第二行接上了', 2, #panel.rows[2].cells)
-    lt.assertEquals('接在该行末尾', first, panel.rows[2].cells[2].card)
+    lt.assertEquals('挪成了', true, panel:moveTo(first, 2, 1))
+    lt.assertEquals('第一行剩一张', 1, #panel.rows[1].cards)
+    lt.assertEquals('第二行两张', 2, #panel.rows[2].cards)
+    lt.assertEquals('插在第一位', first, panel.rows[2].cards[1])
     lt.assertEquals('牌没多没少', 3, #panel:cards())
-    lt.assertEquals('按行序读出来是新形状', first, panel:cards()[3])
+    lt.assertEquals('按行序读出来是新形状', first, panel:cards()[2])
+end)
+
+lt.test('面板：挪不动的情况（列越界 / 被禁用 / 不在面板上）', function ()
+    local game = newGame()
+    local first   = newCard(game, '甲')
+    local outside = newCard(game, '乙')
+    local panel = moe.panel.create(game, '测试', true, { moveable = true }):row { first }
+
+    lt.assertEquals('列越界挪不动', false, panel:moveTo(first, 1, 3))
+    lt.assertEquals('不在面板上的挪不动', false, panel:moveTo(outside, 1, 1))
+    panel:disableCard(first)
+    lt.assertEquals('被禁用的挪不动', false, panel:moveTo(first, 1, 1))
+    lt.assertEquals('牌还在原地', first, panel.rows[1].cards[1])
 end)
 
 lt.test('面板：牌面按可见性遮（布局本身人人可见）', function ()

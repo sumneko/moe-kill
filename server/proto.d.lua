@@ -34,6 +34,16 @@
 ---@field code -2
 ---@field message 'canceled'
 
+--- 这条请求现在做不了（处理器返回它 —— 失败的原因写在 `message` 里：还没开局 / 这条连接还没入座 / 这块面板现在没开着询问 …）
+---@class Proto.Error.INVALID_REQUEST
+---@field code -32600
+---@field message string
+
+--- 请求里带了认不出的号（牌号 / 面板号 …）
+---@class Proto.Error.INVALID_PARAMS
+---@field code -32602
+---@field message string
+
 --- 可取消请求的基类
 ---@class Proto.Cancelable
 ---@field cancelToken? integer
@@ -198,3 +208,68 @@
 
 ---@class Proto.Result.Ask.Hero
 ---@field heroes? string[] # 选中的武将全名（缺 = 取消）
+
+--- 面板上的一行（行内有序）
+---@class Proto.PanelRow
+---@field title? string # 给客户端排版用的行标题
+---@field cards integer[] # 这一行的卡牌ID（按顺序）
+
+--- 一位牌挂着的一条展示用标记
+---@class Proto.PanelMark
+---@field card integer # 卡牌ID
+---@field mark string # 挂着的那条标记（一张牌挂多条就发多份）
+
+--- 一块面板（创建与更新都发整块；属性按卡牌ID索引）
+---@class Proto.Panel
+---@field id integer # 面板ID（客户端靠它指认这块面板）
+---@field name string # 面板名（内容侧定）
+---@field moveable boolean # 允不允许移动牌
+---@field min integer # 确定时至少要选中几张
+---@field max integer # 确定时至多选中几张
+---@field rows Proto.PanelRow[]
+---@field disabled integer[] # 被禁用的卡牌ID
+---@field marks Proto.PanelMark[] # 挂标记的那些牌（没标记的不列）
+
+--- 一块面板出现了（发给所有人；此后它只是展示，不能操作）
+---@class Proto.Notify.Panel.Create
+---@field panel Proto.Panel
+
+--- 一行变了的完整新状态
+---@class Proto.PanelRowUpdate
+---@field row integer # 第几行（1 起）
+---@field cards integer[] # 这一行的完整新形状
+
+--- 一块面板的增量变化（只发这次动到的部分）
+---@class Proto.PanelUpdate
+---@field id integer # 哪块面板
+---@field rows? Proto.PanelRowUpdate[] # 变了的行（完整新状态）
+---@field disabled? integer[] # 新被禁用的卡牌ID
+---@field enabled? integer[] # 被恢复的卡牌ID
+---@field addMark? Proto.PanelMark[] # 新挂上的标记
+---@field removeMark? Proto.PanelMark[] # 被摘掉的标记
+
+--- 面板变了（增量）
+---@class Proto.Notify.Panel.Update
+---@field panel Proto.PanelUpdate
+
+---@class Proto.Notify.Panel.Remove
+---@field id integer # 拆掉的面板ID
+
+--- 要他在某块面板上操作（面板的形状与能怎么操作早在 `Panel.Create` / `Update` 里给过）
+---@class Proto.Request.Ask.Panel: Proto.Cancelable
+---@field reason string # 这次为什么问
+---@field cancelable? boolean # 是否可以主动取消
+---@field id integer # 在哪块面板上操作
+
+---@class Proto.Result.Ask.Panel
+---@field card? integer[] # 选中的卡牌ID（缺 = 没选）
+
+--- 客户端要把一张牌挪到某行的某个位置（一次一张；实际形状由随后的 `Panel.Update` 广播）
+---@class Proto.Request.Panel.Move
+---@field id integer # 面板ID
+---@field card integer # 要挪的卡牌ID
+---@field row integer # 放到第几行（1 起）
+---@field col integer # 放到这一行的第几个位置（1 起）
+
+---@class Proto.Result.Panel.Move
+---@field success boolean # 挪成了没有

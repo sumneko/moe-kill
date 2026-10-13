@@ -42,7 +42,7 @@ lt.test('面板询问：开着收变化，到点确定为止', function ()
         :row({ first, second }, '上')
         :row({}, '下')
     answerWith(game, {
-        { moves = { { cards = first, row = 2 } } },
+        { moves = { { card = first, row = 2, col = 1 } } },
         { done = true },
     })
 
@@ -54,7 +54,7 @@ lt.test('面板询问：开着收变化，到点确定为止', function ()
     lt.assertEquals('剩下的是第二张', second, ask.rows[1][1])
     lt.assertEquals('挪到了第二行', first, ask.rows[2][1])
     lt.assertEquals('没选牌', nil, ask.card)
-    lt.assertEquals('面板照结果变形', first, panel.rows[2].cells[1].card)
+    lt.assertEquals('面板照结果变形', first, panel.rows[2].cards[1])
 end)
 
 lt.test('面板询问：挑选型（min = 1 得选一张）', function ()
@@ -138,12 +138,12 @@ lt.test('面板询问：不许移动的面板收到移动 ⇒ 拒收（面板保
     local first  = newCard(game, '甲')
     local second = newCard(game, '乙')
     local panel = moe.panel.create(game, '五谷', true):row { first, second }
-    answerWith(game, { { moves = { { cards = second, row = 1 } } } })
+    answerWith(game, { { moves = { { card = second, row = 1, col = 1 } } } })
 
     local ask = game:askPanel(player, '五谷', panel)
 
     lt.assertEquals('原因', '这块面板不能移动牌', ask.err)
-    lt.assertEquals('面板没动', first, panel.rows[1].cells[1].card)
+    lt.assertEquals('面板没动', first, panel.rows[1].cards[1])
 end)
 
 lt.test('面板询问：挪不在面板上的牌 ⇒ 拒收', function ()
@@ -151,7 +151,7 @@ lt.test('面板询问：挪不在面板上的牌 ⇒ 拒收', function ()
     local first   = newCard(game, '甲')
     local outside = newCard(game, '乙')
     local panel = moe.panel.create(game, '测试', true, { moveable = true }):row { first }
-    answerWith(game, { { moves = { { cards = outside, row = 1 } } } })
+    answerWith(game, { { moves = { { card = outside, row = 1, col = 1 } } } })
 
     local ask = game:askPanel(player, '测试', panel)
 
@@ -164,7 +164,7 @@ lt.test('面板询问：挪被禁用的牌 ⇒ 拒收', function ()
     local second = newCard(game, '乙')
     local panel = moe.panel.create(game, '测试', true, { moveable = true }):row { first, second }
     panel:disableCard(second)
-    answerWith(game, { { moves = { { cards = second, row = 1 } } } })
+    answerWith(game, { { moves = { { card = second, row = 1, col = 1 } } } })
 
     local ask = game:askPanel(player, '测试', panel)
 
@@ -175,11 +175,22 @@ lt.test('面板询问：行号不存在 ⇒ 拒收', function ()
     local game, player = newGame()
     local first = newCard(game, '甲')
     local panel = moe.panel.create(game, '测试', true, { moveable = true }):row { first }
-    answerWith(game, { { moves = { { cards = first, row = 2 } } } })
+    answerWith(game, { { moves = { { card = first, row = 2, col = 1 } } } })
 
     local ask = game:askPanel(player, '测试', panel)
 
     lt.assertEquals('原因', '这块面板上没有第 2 行', ask.err)
+end)
+
+lt.test('面板询问：列号不存在 ⇒ 拒收', function ()
+    local game, player = newGame()
+    local first = newCard(game, '甲')
+    local panel = moe.panel.create(game, '测试', true, { moveable = true }):row { first }
+    answerWith(game, { { moves = { { card = first, row = 1, col = 3 } } } })
+
+    local ask = game:askPanel(player, '测试', panel)
+
+    lt.assertEquals('原因', '这一行上没有第 3 个位置', ask.err)
 end)
 
 lt.test('面板询问：一条回复里有一条不合法 ⇒ 整条作废（合法的也不生效）', function ()
@@ -192,8 +203,8 @@ lt.test('面板询问：一条回复里有一条不合法 ⇒ 整条作废（合
     answerWith(game, {
         {
             moves = {
-                { cards = first, row = 2 },
-                { cards = second, row = 9 },
+                { card = first, row = 2, col = 1 },
+                { card = second, row = 9, col = 1 },
             },
         },
     })
@@ -201,6 +212,6 @@ lt.test('面板询问：一条回复里有一条不合法 ⇒ 整条作废（合
     local ask = game:askPanel(player, '测试', panel)
 
     lt.assertEquals('原因', '这块面板上没有第 9 行', ask.err)
-    lt.assertEquals('第一条也没生效', first, panel.rows[1].cells[1].card)
-    lt.assertEquals('第二行还是原来那张', second, panel.rows[2].cells[1].card)
+    lt.assertEquals('第一条也没生效', first, panel.rows[1].cards[1])
+    lt.assertEquals('第二行还是原来那张', second, panel.rows[2].cards[1])
 end)
