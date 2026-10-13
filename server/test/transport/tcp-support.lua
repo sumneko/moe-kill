@@ -45,15 +45,14 @@ function M.connectPair()
     return assert(fd), dialer
 end
 
---- 发一条带长度头的消息（发不完就接着发 —— `send` 可能只发一部分）
+--- 发一串字节（发不完就接着发 —— `send` 可能只发一部分）
 ---@async
 ---@param fd bee.socket.fd
 ---@param text string
-function M.sendFrame(fd, text)
-    local frame = string.pack('>I4', #text) .. text
-    local sent  = 0
-    while sent < #frame do
-        local count = M.spin(function () return fd:send(frame:sub(sent + 1)) end)
+function M.sendText(fd, text)
+    local sent = 0
+    while sent < #text do
+        local count = M.spin(function () return fd:send(text:sub(sent + 1)) end)
         if count == 0 then
             moe.await.sleep(0)
         elseif count == nil then
@@ -62,6 +61,31 @@ function M.sendFrame(fd, text)
             sent = sent + count
         end
     end
+end
+
+--- 发一条带长度头的消息
+---@async
+---@param fd bee.socket.fd
+---@param text string
+function M.sendFrame(fd, text)
+    M.sendText(fd, string.pack('>I4', #text) .. text)
+end
+
+--- 一直读到某个标记为止（标记本身也在返回值里）
+---@async
+---@param fd bee.socket.fd
+---@param marker string
+---@return string
+function M.readUntil(fd, marker)
+    local got = ''
+    while not got:find(marker, 1, true) do
+        local byte = M.recvExact(fd, 1)
+        if not byte then
+            error('还没读到 {} 连接就断了' % { marker })
+        end
+        got = got .. byte
+    end
+    return got
 end
 
 --- 收满 `n` 个字节（凑不够就等）

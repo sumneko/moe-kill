@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1261 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1279 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -418,6 +418,9 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 - **C 模块 `bee.digest`（2026-10-13，用户定：「sha1 / base64 用 C 写、导接口给 Lua」）**：`make/modules.cpp`（`make.lua` 早就把它列进 `sources`，是给本工程 C 模块留的位置）里加了 `bee.digest` —— `sha1(文本) -> 20 字节` / `base64(文本) -> 文本`，**给 WebSocket 握手用**。SHA1 用 `3rd/digest/` 里 **Steve Reid 的公有领域实现**（原本拟用 mbedTLS 那份，读下来发现它 `#include "common.h"` / `mbedtls/sha1.h` / `platform_util.h` / `platform.h`、要拖一串私有头与平台层，**不是单文件** ⇒ 换成公有领域那份：两个文件、零依赖、零许可义务）；本工程给它补了 `BYTE_ORDER` 的探测（MSVC 上没有这个宏；都没有时 `#if 0 == 0` 落小端那支，MSVC 只跑小端）。base64 自己写（三十行）。构建：`make.lua` 的 `includes` 加 `3rd/digest`、`sources` 加 `3rd/digest/sha1.c`；`luamake -notest` 一遍过。用例 +3（`test/digest.lua`：FIPS 180-1 的测试向量 / RFC 4648 的例子 / **RFC 6455 的握手例子** —— 最后一条把「sha1 + base64 + 固定 GUID」整条链钉住）。**验收基线 1258 → 1261**。
 
+- **WebSocket 入口（2026-10-13，用户定：「一个口，先做后端」）**：① **一个口收两种协议** —— `moe.link.accept(fd)`（新 `server/transport/accept.lua`）先读 4 个字节：是 `GET ` 就当 HTTP 请求去走 WebSocket 握手，否则 `unread` 回去当裸帧通道（裸帧开头是 4 字节大端长度头，撞不出 `GET `）。`moe.server` 的 accept 因此改在协程里接（`moe.await.call`）—— **认协议要读数据**。② **协议层 `server/transport/websocket.lua`（纯函数与纯类，不碰 socket）**：`acceptKey`（`base64(sha1(key .. GUID))`，用刚做好的 `bee.digest`）/ `acceptText`（101）/ `refuseText` / `parseRequest` / `encodeFrame(opcode, payload, mask?)` + 解帧器 `Websocket.Decoder`（喂字节、一帧一帧取）。握手校验只三件：得是 `GET`（不然 400）、得带 `Sec-WebSocket-Key`（不然 400）、`Sec-WebSocket-Version` 得是 `13`（不然 426 并带上 `Sec-WebSocket-Version: 13`）；请求头超 8KB 回 400。③ **`server/transport/ws-link.lua`**：`WsLink` **组合**一条内层通道（`moe.link.websocket(link)` 先握手再包）⇒ 上面的 `Client` / JSON-RPC / 各同步模块**一行都没改**。帧的口径：**发的不掩、收的要掩**（没掩码 ⇒ 1002）；**文本帧不收**（⇒ 1003 —— 这条通道是字节流，而 JS 客户端 `send(字符串)` 发的正是文本帧，它的载荷会被 UTF-8 编码**改写**（长度头里就有 0x80 这类字节）⇒ 与其静默收下坏字节，不如当场报错，**前端必须发二进制帧**）；**分片不记账**（续帧的载荷接着攒）；控制帧只在 `read` 里处理（ping ⇒ pong、pong 忽略、close ⇒ 回关闭帧再断开）。④ **`TcpLink` 补两件**：`unread(文本)`（嗅探认错了放回缓冲）与 `drain()`（**关闭前尽力把排着的发出去** —— 不然 WebSocket 的关闭帧会被 `close` 丢掉）。⑤ 用例 +18（`test/transport/websocket` 5 条：accept 值对 RFC 的例子 / 解握手请求 / **编的帧跟 RFC 6455 §5.7 的字节一模一样**（含 126 / 127 两种长度形式）/ 解帧（一个一个字节喂也解得开）/ 不合法帧给原因（没掩码 / 扩展位 / 控制帧分片 / 控制帧太长）；`test/transport/ws-link` 12 条：握手 / 写过去 / 掩码帧当字节流读 / 大载荷两头一起走 / 分片接着攒 / ping 回 pong / 关闭帧 / 没掩码 ⇒ 1002 / 文本帧 ⇒ 1003 / **嗅探两条分支**（裸帧给 TcpLink、HTTP 走 WebSocket）/ 版本不是 13 ⇒ 426；`test/server` +1：**网页那条路**（真服务器的 WebSocket 握手 + 掩码帧，业务层照旧回「座位已经坐满」）。**测试侧不借生产代码**：`test/transport/ws-client.lua` 自己写握手与帧的收发（两边互为对照）。**验收基线 1261 → 1279**。
+- **`accept` 在 Windows 上分不出「收完了」与「出错」（2026-10-13，已修）**：`bee.net.socket` 只在 BSD 上区分「还等着」（`status::wait` ⇒ 给 `false`），Windows 上 backlog 空时给的是 `nil, err`（`WSAEWOULDBLOCK`）——于是「收干」那一圈每轮都会多报一条 `收连接失败：…`。现在 `acceptOne` 记一笔「这一轮收过没有」：**收过东西之后再收不到就当收完了不吭声，一上来就收不到才 warn**（持续出真错的话下一轮会重新命中）。
+
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
 | 候选 | 现状 / 前置 |
@@ -428,7 +431,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 | **武将系统** | **武将定义 + 装配 + 技能已做**（2026-09-30 起）：`HeroDef` / `Player:setHero` / `SkillDef` / `'被动'` 钩子 / `refreshSkills` 自动挂技能（主公技只给主公）；**〔奸雄】【护驾】【激将】【仁德】【咆哮】【武圣】【龙胆】【奇袭】【克己】【鬼才】【反馈】【苦肉】【洛神】【倾国】【刚烈】【青囊】【急救】【马术】【铁骑】【集智】【奇才】【制衡】【救援】【裸衣】【天妒】【遗计】【突袭】【离间】【闭月】【枭姬】【结姻】【英姿】【反间】【谦逊】【连营】【流离】【国色】已能跑** —— **标准包 25 将全部落地**（**曹操 / 刘备 / 张飞 / 关羽 / 赵云 / 甘宁 / 吕蒙 / 司马懿 / 黄盖 / 甄姬 / 夏侯惇 / 华佗 / 马超 / 黄月英 / 孙权 / 许褚 / 郭嘉 / 张辽 / 貂蝉 / 孙尚香 / 周瑜 / 陆逊 / 大乔 / 诸葛亮 / 吕布**；2026-10-08 / 09）；**已落地**：选将流程（2026-10-09，`add-hero-select`）、阵亡清算（2026-10-09，`add-death-clearance`）；**剩下**：牌表数据与武将技能**文本校对**（文本已入库：`.agents/skills/sanguosha-rules/references/武将牌/`）—— **各将成本清单见本节末「标准包武将：余下各将的实现成本」** |
 | **主动技的发动入口** | **已落地（2026-10-08，`ask-use-skill`）**：`askUseSkill` / `startAskUseSkill` + `Skill:use()` / `hasHandler('使用')` + 出牌阶段两路并行（用牌 / 用技能）、`game:effectRace` —— 见 §1；**【仁德】第一批用上**（2026-10-08）。**还没做**：**「结束阶段」那一路**（要 `countDown`，它要定「超时算谁赢」）—— ⚠️ **请求级时限已做**（2026-10-13，`Proto.Timelimit`：每个询问默认 10 秒，见 §1 新条），还差的是**回合级**的那本账（`player:countDown(30)` + 成功行动 `reset`，见 §3）；**「候选不筛能不能发动」已于同日重构修掉**（前置凑不齐不进选项）——**技能前置声明**（`: cards` / `: targets`）见 §1 末条。 |
 | **时钟 / 虚拟时间** | **已落地（2026-10-01）** —— 做法不是给事件循环加虚拟时间，而是 **把 timer 与真实时间脱钩**（`update(targetMS)`，时钟由调用者推）+ 测试侧 `test.advance` ⇒ **时间冻结**、不再真等。见 §1 最后一条。 |
-| **会话 / 协议** | 前端接线 —— **2026-10-13 已起步**（单局服务器 + 真 TCP Link，见 §1 新条）；剩下：等开局广播 / 快照补 skill+panel / 前端工程与协议类型（`proto.d.lua` → `.d.ts`）；届时要写 JSON-RPC 规格（不设 `skip_specs`） |
+| **会话 / 协议** | 前端接线 —— **2026-10-13 已起步**（单局服务器 + 真 TCP Link + **WebSocket 入口**，见 §1 新条）；剩下：前端工程（Vite + TypeScript，`client/`）与协议类型（`proto.d.lua` → `.d.ts`）；届时要写 JSON-RPC 规格（不设 `skip_specs`） |
 | **询问家族** | `timeout` + `askSkill`，timeout 与答复做 race；**`Ask` 已无内容侧调用点**（弃牌阶段 2026-10-08 改用 `askCard`），去留待定 |
 | **效果分「主要 / 次要」**（处理区归属那一半已做） | 内核小重构（用户 2026-09-23 提）：已由 `inherit-temp-zone`（2026-09-24）落地的部分 = 「只有开结算的效果才有处理区」（用**重写**表达、无标记字段）+「收尾只发给区的归属者」（**2026-09-29 已去掉该闸门** —— 改成每次结完都发，见 §1）；**只剩**：严格模式（次要效果调 `getTempZone()` 报错）、「回溯查找只找最近的主要效果」的通用读法、记牌器要不要只记主要效果 —— 见 §3 |
 

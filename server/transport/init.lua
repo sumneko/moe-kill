@@ -2,5 +2,8 @@
 require 'transport.jsonrpc'
 require 'transport.link'
 require 'transport.tcp-link'
+require 'transport.websocket'
+require 'transport.ws-link'
+require 'transport.accept'
 require 'transport.client'
 require 'transport.clients'

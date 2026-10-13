@@ -110,6 +110,12 @@ function TcpLink:read(n)
     end
 end
 
+--- 把刚读出来的字节退回去（它们会出现在下一次读取的最前面）
+---@param text string
+function TcpLink:unread(text)
+    self.buffer = text .. self.buffer
+end
+
 --- 发一条消息（收下就返回；真正发出去由内部的写协程按顺序做 —— 同时写会把帧撕开）
 ---@param text string
 ---@return boolean
@@ -153,6 +159,23 @@ function TcpLink:flush()
     end
 end
 
+---@private
+--- 关闭前把排着的消息尽力送出去（送不动就算了 —— 这会儿不能等）
+function TcpLink:drain()
+    while #self.queue > 0 do
+        local text  = self.queue[1]
+        local count = self.fd:send(text)
+        if not count or count == 0 then
+            return
+        end
+        if count >= #text then
+            table.remove(self.queue, 1)
+        else
+            self.queue[1] = text:sub(count + 1)
+        end
+    end
+end
+
 --- 关掉这条链接（还挂着的读写都会收到「链接已关闭」）
 ---@param reason? string
 function TcpLink:close(reason)
@@ -163,6 +186,7 @@ function TcpLink:close(reason)
     self.reason  = reason or '链接已关闭'
     self.waiting = 0
     self:applyWatch()
+    self:drain()
     self.fd:shutdown()
     self.fd:close()
     local resume = self.readResume

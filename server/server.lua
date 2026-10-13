@@ -31,19 +31,30 @@ moe.server._watch = nil
 --- 收下新来的连接，接成客户端
 ---@private
 local function acceptOne()
+    local got = false
     while true do
         local fd, err = moe.server._listener:accept()
-        if fd == false then
-            return
-        end
         if not fd then
-            log.warn('收连接失败：{}' % { tostring(err) })
+            -- 收过东西之后再收不到，就是这一轮收完了；一上来就收不到才值得记一笔
+            --（Windows 上 backlog 空时给的是「错误」—— bee 只在 BSD 上区分「还等着」）
+            if not got and err then
+                log.warn('收连接失败：{}' % { tostring(err) })
+            end
             return
         end
+        got = true
         ---@cast fd bee.socket.fd
-        local client = moe.client.create(moe.link.tcp(fd))
-        client:start()
-        moe.server._clients:add(client)
+        -- 认协议要读数据，所以「接成什么」得等一小会儿
+        moe.await.call(function ()
+            local link, linkErr = moe.link.accept(fd)
+            if not link then
+                log.warn('这条连接没接成：{}' % { tostring(linkErr) })
+                return
+            end
+            local client = moe.client.create(link)
+            client:start()
+            moe.server._clients:add(client)
+        end)
     end
 end
 

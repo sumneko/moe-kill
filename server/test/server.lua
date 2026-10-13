@@ -1,5 +1,6 @@
 local lt      = require 'test.ltest'
 local support = require 'test.transport.tcp-support'
+local ws      = require 'test.transport.ws-client'
 local socket  = require 'bee.socket'
 
 ---@async
@@ -54,5 +55,19 @@ lt.test('服务器：真连接坐满就开局，再来的要不到位置', funct
     support.sendFrame(extra, assert(moe.jsonrpc.encodeCall(200, 'Game.Join', { name = '多的' })))
     local err = assert(support.readResult(extra, 200).error)
     lt.assertEquals('说清是这条请求做不了', moe.jsonrpc.INVALID_REQUEST, err.code)
+    lt.assertEquals('原因是坐满了', '座位已经坐满', err.message)
+end)
+
+lt.test('服务器：网页那条路（WebSocket 握手 + 掩码帧）一样接得进来', function ()
+    -- 上面两条已经坐满了，这条要的是「协议层通得了、业务层照旧回错」
+    local dialer = dialServer()
+    local _ <close> = moe.util.defer(function () dialer:close() end)
+
+    ws.handshake(dialer)
+    ws.sendMessage(dialer, assert(moe.jsonrpc.encodeCall(300, 'Game.Join', { name = '网页' })))
+
+    local message = assert(moe.jsonrpc.decode(assert(ws.readMessage(dialer))))
+    local err = assert(message.error)
+    lt.assertEquals('业务层的错误照旧', moe.jsonrpc.INVALID_REQUEST, err.code)
     lt.assertEquals('原因是坐满了', '座位已经坐满', err.message)
 end)
