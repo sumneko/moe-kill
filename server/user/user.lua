@@ -19,6 +19,7 @@ function M:attach()
     moe.playerSync.attach(self)
     moe.skillSync.attach(self)
     moe.panelSync.attach(self)
+    moe.flowSync.attach(self)
 end
 
 ---@param method string

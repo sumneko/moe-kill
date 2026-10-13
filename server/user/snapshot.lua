@@ -35,8 +35,10 @@ function moe.snapshot.build(game, user)
         players[#players + 1] = toPlayer(player, assert(user.player))
     end
     return {
-        players = players,
-        cards   = assert(user.cardView).snapshot,
+        players    = players,
+        cards      = assert(user.cardView).snapshot,
+        turnPlayer = game.turnPlayer?.id,
+        phase      = game.phase?.name,
     }
 end
 

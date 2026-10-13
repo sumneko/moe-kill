@@ -570,7 +570,7 @@ Card '杀'
 
 ## 13. 座位控制者（User）与询问的分派
 
-- **`User` 是「谁在控制这个座位」**：真实玩家（`ClientUser`，将来走协议）、电脑（将来的 `AIUser`）、测试夹具都是它的子类。落点 `server/user/` —— `init.lua` **只做装载**（`user.user` 先；`user.card-sync` / `user.client-user` 随后），`user.lua` 是基类、`client-user.lua` 是真实玩家、`card-sync.lua` 是卡牌下行（见 §16）；走 `require`（**不参与热重载**，与 `server/session/` 同一层）；**没有工厂 ⇒ 不挂门面**，类按 `Class` 名全局可用。**构造签名写在基类**：`User:__init(game, client?)` —— **子类不写 `__init`**（构造沿继承链调父类的、参数是同一份）⇒ 真实玩家是 `New 'ClientUser' (局, 连接)`。
+- **`User` 是「谁在控制这个座位」**：真实玩家（`ClientUser`，将来走协议）、电脑（将来的 `AIUser`）、测试夹具都是它的子类。落点 `server/user/` —— `init.lua` **只做装载**（`user.user` 先；`user.card-sync` / `user.player-sync` / `user.skill-sync` / `user.panel-sync` / `user.flow-sync` / `user.client-user` 随后）、`user.lua` 是基类、`client-user.lua` 是真实玩家、`card-sync.lua` 是卡牌下行（见 §16）、`flow-sync.lua` 是回合 / 阶段 / 结局下行（见 §19）；走 `require`（**不参与热重载**，与 `server/session/` 同一层）；**没有工厂 ⇒ 不挂门面**，类按 `Class` 名全局可用。**构造签名写在基类**：`User:__init(game, client?)` —— **子类不写 `__init`**（构造沿继承链调父类的、参数是同一份）⇒ 真实玩家是 `New 'ClientUser' (局, 连接)`。
 - **绑定在玩家身上**：`player.user`（**可空** —— 没有就是没人应答、直接走全局时机）+ `player:setUser(user?)`（绑定 / **中途更换** / 解绑都走它；不发事件；同一处**反向记上** `user.player`、换人 / 解绑把旧的清掉 —— 卡牌视图按身份判可见性、懒建时要用，2026-10-10 加）。内核只依赖**类型**（`Player.user` 上的注解），不 `require` 实现。
 - **每类询问一个方法**（10 个，名字与询问类同名）：`askChoice` / `askPlayer` / `askCard` / `askCardWithTarget` / `askUseCard` / `askUseCardToCard` / `askPlayCard` / `askUseSkill` / `askHero` / `askPanel`；参数是那次询问的实例，返回值就是**与内核同一形状的答复**，**返回空 = 不表态**（回落全局时机；最终按既有口径判「取消 / 必须给出答复」）。基类那 10 个方法都是空的 ⇒「没有 User」「User 不关心这一类」「User 认为该问全局」三者同一个结果。
 - **第一个落地的是 `ClientUser:askPlayer`**（2026-10-10）：它对客户端的职责就两件 —— **组装参数**（候选 → `playerId` 列表、`reason` / `min` / `max`）与**把回包的 Proto 转回内核对象**（`playerId` → `Player`，走 **`game:getPlayerById(id)`** —— 内核侧的「号 → 角色」查询，2026-10-10 加：扫一遍座位（最多 8 个）、认不到给空、报不报错由调用方定）；**校验仍在内核**（`AskPlayer:checkAnswer`），协议层不抢先挡。线上形状：服务端发一个**可取消的请求** `Ask.Player`（`Proto.Request.Ask.Select : Proto.Cancelable`，角色那半是 `Proto.Plan.Player`、牌那半是 `Proto.Plan.Card`）⇒ 客户端回 `Proto.Result.Ask.Select`（`player?: integer[]` / `card?: integer[]`）；**`askCard` 与 `askCardWithTarget` 也走这一条**（两半同时摆上、答复两半同时回）。**二选一确认另开一族 `Ask.Choice`**（`Proto.Request.Ask.Choice : Proto.Cancelable`：`reason` / `options: string[]` / `cancelable?` ⇒ 回 `Proto.Result.Ask.Choice.choice`（**索引**，服务端换回字符串；越界等乱答自然得 nil ⇒ 内核当「没答」）；`cancelable` 恒 `true` —— 内核 `AskChoice` 总是「不答 = 取消」）—— `ClientUser:askChoice` 接它，于是【八卦阵】的 `Card:confirm()` 与【护驾】【激将】的 `Skill:confirm()` 自动能问到真实玩家（它们的 `reason` 就是技能名 / 装备牌名）；**`askPlayCard` 也走 `Ask.Select`**（只用 `card` 半，`min` / `max` 都是 1；「打出」的语义仍由内核 `AskPlayCard` 承担）；**候选直接读 `ask.options`**（内核恒给出：不限 = 存活角色全体 ⇒ User 层不用自己翻译）、答复是**空列表** = 「一个都不选」（`min = 0` 时合法）。**失败一律当「答不出来」**（2026-10-10 用户定：客户端取消 / 服务端取消 / 客户端报错 / 超时，业务层都不必分辨）⇒ `askPlayer` **只有返回值这一个出口**（拿不到就空、不回失败原因）；返回空 ⇒ 内核照原样走「回落全局时机」那条路。
@@ -583,7 +583,8 @@ Card '杀'
   ```
 - **`AskCard` 一族共用一个取值处**（`AskCard:collectAnswer`）⇒ 具体方法名交给子类给：基类 `AskCard:askUser(user)` 转发 `user:askCard(self)`，四个子类各覆写一行（`askUseCard` / `askUseCardToCard` / `askPlayCard` / `askCardWithTarget`）。
 - **全局时机没有被取代**：它是**兜底与调试**通道 —— 现有 300 余处用例的应答脚本照旧工作（`Player` 上没有 User 就直接走它）。
-- **`ClientUser` 里按协议形状抽了 3 个公共方法**（2026-10-10 用户定：`choice` / `select` / `use`，对应 `Ask.Choice` / `Ask.Select` / `Ask.Use`）：**发请求 + 解析回包**都收在这三个里 —— `select(ask, params)` 的 `params` 里**传了哪些组件就带上哪些**（`player` / `card`），回包**有哪几个字段就解析几个**（`player` → `players`、`card` → `cards`；认不到的号一律当故障 `assert`）；`use(ask, params)` 同理，多解析 `usedCard` / `usedViewAs`（原样透出**下标**）/ `targets` → `players` / `cards`（视为那次的素材）。各 `askXxx` 于是只剩两件事：**把内核对象序列化成组件**（`playerIds` / `playerPlan` / `cardPlan` / `viewAsParams`）与**从解析结果里取自己要的那几项**（`askPlayer` 取 `.players`；`askCard` / `askPlayCard` / `askUseCardToCard` 共用 `pickCards` 取 `.cards` 并包成 `AskCard.Answer`）。**唯一用 `Ask.Use` 的是 `askUseCard`**：实体候选带 `plan.legal` 的号与张数区间，视为候选额外带 `name` / `sourceCard|sourceSkill` / 素材条件 `card` —— **来源是牌还是技能看视图账里有没有号**（卡牌一定有、技能没有），不依赖类型系统。
+- **「协议号 ⇄ 对象」收在四个助手里**（2026-10-10；2026-10-13 改）：`playerIds` / `cardIds` 出去（`Card[]` / `Player[]` → 号），`playerList` / `cardList` 回来（号 → `Card[]` / `Player[]`，**认不到就给空** —— 与 `heroList` 同形：客户端发来的号当「没答上」，不抛）、另有 `heroList`（武将**名** → `HeroDef[]`，认不到给空 —— 名字是自由串）；`select` / `use` / `cardPlan` / `viewAsParams` / `askUseSkill` / `askHero` / `askPanel` 都调它们（`askPanel` 只发面板号 —— 面板的形状由 `panel-sync` 按各人视图拼），各自不再手写遍历。**回包里只要有一个号认不出来，整个答复就作废**（`select` / `use` / `use` 的 `usedCard` 直接返回空 ⇒ 内核走「取消」）。
+- **`ClientUser` 里按协议形状抽了 3 个公共方法**（2026-10-10 用户定：`choice` / `select` / `use`，对应 `Ask.Choice` / `Ask.Select` / `Ask.Use`）：**发请求 + 解析回包**都收在这三个里 —— `select(ask, params)` 的 `params` 里**传了哪些组件就带上哪些**（`player` / `card`），回包**有哪几个字段就解析几个**（`player` → `players`、`card` → `cards`）；`use(ask, params)` 同理，多解析 `usedCard` / `usedViewAs`（原样透出**下标**）/ `targets` → `players` / `cards`（视为那次的素材）。各 `askXxx` 于是只剩两件事：**把内核对象序列化成组件**（`playerIds` / `playerPlan` / `cardPlan` / `viewAsParams`）与**从解析结果里取自己要的那几项**（`askPlayer` 取 `.players`；`askCard` / `askPlayCard` / `askUseCardToCard` 共用 `pickCards` 取 `.cards` 并包成 `AskCard.Answer`）。**唯一用 `Ask.Use` 的是 `askUseCard`**：实体候选带 `plan.legal` 的号与张数区间，视为候选额外带 `name` / `sourceCard|sourceSkill` / 素材条件 `card` —— **来源是牌还是技能看视图账里有没有号**（卡牌一定有、技能没有），不依赖类型系统。
 - **`askUseSkill` 走自己的那一条 `Ask.UseSkill`**（2026-10-10）：候选技能各带「这次能挑的牌 / 目标」两个计划（`Proto.SkillPlan`），答复给 `usedSkill`（技能号）+ `cards` + `targets`；**技能号认不到就当没答**（落进内核「取消」那一路）。形状与 `Ask.Use` 同构，只是「选项」从牌换成技能。
 - **`askHero` 走自己的那一条 `Ask.Hero`**（2026-10-13）：候选是一份**武将全名**（`包名.定义名`，如 `标准.刘备` —— 武将没有协议号、裸名又可能跨包撞名，所以用 `HeroDef.fullName`；`ask.options` 逐个取 `fullName`，名单缺省 = 不做限制 ⇒ 不发 `heroes` 这个字段），答复给 `heroes`（全名列表）；**名字认不到就当没答**（落进内核「取消」那一路）—— 名字是客户端给的自由串，不像号那样「是我们自己发出去的」，所以 `heroList` 认不到给空、**不 `assert`**（查回走 `game:getHero(fullName)`，它本来就认 `包名.裸名`）。
 - **`askPanel` 是「面板 + 询问」两半**（2026-10-13 重做，形状是用户给的）：**面板是一等对象** —— `Panel` 有自己的协议号（`id`），创建出来就广播给所有人（`Panel.Create` **发整块**、`Panel.Update` **发增量**：变化的行（完整新状态）/ 新增禁用的 / 被恢复的卡牌 / 增删的标记、`Panel.Remove`），各人按自己的牌视图发号；此后**只能看不能操作**。`askPanel` 只是把某块面板「**开着**」（`Ask.Panel` 只带 `reason` / `cancelable` / `id` —— 能怎么操作从面板属性读，早就在广播里给过）；**挪牌是另一条请求** `Panel.Move`（`{ id, card, row, col }`，**一次一张**）—— 服务端查「这块面板正开着、且问的是你」，走内核 `AskPanel:applyChange` 校验并应用，**回包只给 `{ success }`**，实际形状由随后的 `Panel.Update` 广播。答复是 `{ card? }`（**答复 = 操作完了** —— 协议上不再有 `done`，内核那条「开着收变化」的多轮循环留给 AI / 全局路径）；**请求挂着期间**这块面板才算「开着」（`await` 回来就关），所以答复之后晚到的挪牌会被拒。
@@ -654,11 +655,11 @@ Card '杀'
 
 - **房间层 `server/session/room.lua`**（2026-10-10 用户定）：
   - `moe.room.open { seats, packages, sources?, seed? }` —— 建局 + 装配（`moe.game.create` 已含装配）+ `moe.snapshot.attach(game)`，**先不开局**（等人齐）；
-  - `moe.room.join(client, { name? })` —— 找个空座（用 `desk:getPlayer(i)` 探）：建玩家 + `desk:sit` + `player:setUser(New 'ClientUser' (game, client))` + `user:attach()`（§13）；**坐满就自动开局**；返回 `Proto.SnapShot`；
+  - `moe.room.join(client, { name? })` —— 找个空座（用 `desk:getPlayer(i)` 探）：建玩家 + `desk:sit` + `player:setUser(New 'ClientUser' (game, client))` + `user:attach()`（§13）；**坐满就自动开局**；返回 `(Proto.SnapShot, Proto.Error?)` —— 还没开局 / 座位坐满都把原因回给客户端（`INVALID_REQUEST`）；
   - `moe.room.start(prepare?)` —— 人齐（或自己调）时开局：fire `'游戏-准备'`（载荷 `config = prepare`，不给就是默认：随机身份 + 洗座次）+ `'游戏-开始'` + `game:runFlow()`。
 - **协议方法 `Game.Join`**（请求，参数 `{ name? }`）⇒ result = `Proto.SnapShot`。注册是**懒的**（`moe.room.open` 第一次调时往 `moe.client` 注册 —— 那时 transport 已加载，不用挑加载顺序）。
-- **`Game.SnapShot`**（请求，无参）⇒ result 同样是一份 `Proto.SnapShot`（重连 / 纠错要的时候再要一份）—— **状态快照走 request 的 result**（§3 第 3 条），不走通知那条路。落点 `server/user/snapshot.lua`：`moe.snapshot.attach(game)` 记下当前局（一个 VM 一局），`moe.snapshot.build(game, user)` 是唯一的拼装处（`join` 与这条请求共用）；拼装时 custom 按收件人视角裁、`cards` 就是 `user.cardView.snapshot`（§16）。
-- **连接 → 人**：从连接反查座位上的 user（座位不多，直接找）；**还没入座的连接**报错 —— 原因只进日志，线上回统一的「处理这个方法时出错」（`INTERNAL_ERROR`），不把内部细节发给客户端。
+- **`Game.SnapShot`**（请求，无参）⇒ result 同样是一份 `Proto.SnapShot`（重连 / 纠错要的时候再要一份）—— **状态快照走 request 的 result**（§3 第 3 条），不走通知那条路。落点 `server/user/snapshot.lua`：`moe.snapshot.attach(game)` 记下当前局（一个 VM 一局），`moe.snapshot.build(game, user)` 是唯一的拼装处（`join` 与这条请求共用）；拼装时 custom 按收件人视角裁、`cards` 就是 `user.cardView.snapshot`（§16）、**`turnPlayer` / `phase` 读当前回合与阶段**（2026-10-13 加：重连 / 中途进来能立刻显示「谁在动」，不必等下一次切换）。
+- **连接 → 人收在 `moe.snapshot.requireUser(client)`**（2026-10-13）：「还没开局 / 这条连接还没入座」这两个判断与它们的错误包只写一画（三个处理器共用），返回 `用户 + 座位 + 错误`；拿不到就 `return nil, err` 原样回给客户端（见 §14 的处理器契约）。
 
 ## 15. 玩家的自定义数据与增量下发（`player.custom` + `Player.Update`）
 
@@ -667,7 +668,7 @@ Card '杀'
 - **容器 `player.custom`**（`server/core/custom.lua`，`Custom` 类；建玩家时就建好）：
   - `custom.proxy` —— 内容侧**读写**的那张表（`player.custom.proxy.heroName = '刘备'`）；**写走元表**：进 `raw` → 调 `hook(key, value)`（可选）→ `player:markDirty('custom')`。
   - `custom.raw` —— 真实数据（内核遍历用）；`visibles` —— 逐键可见性（私有）。
-  - `custom:setVisible(key, options)` / `isVisible(key, viewer)` / `allVisibles(viewer)`；`options` 就是通用的 `Visibility`（`true` / `false` / 一名角色 / 角色表 / 谓词，见 `moe.visibility`）。
+  - `custom:setVisible(key, options)` / `isVisible(key, viewer)` / `allVisibles(viewer)`；`options` 就是通用的 `Visibility`（`true` / `false` / 一名角色 / 角色表 / 谓词，见 `moe.visibility`）。**可见性变了就是「这份数据变了」**（2026-10-13）：`setVisible` 自己调 `player:markDirty('custom')` —— 否则把某个键改公开 / 改私密后线下不会重发（结局公开身份就靠这一条）。
   - **默认只有自己看得见**（fail-closed）：没设过可见性的键，别人一律看不见；自己没有值也照样「看得见自己那份」（读出来是空）。
 - **内容的落点**：身份写在 `package/身份场/身份.lua`（`setIdentity` 写 `proxy.identity`，主公 `setVisible('identity', true)`）；武将牌面写在 `package/@基础/武将.lua`（`heroName` / `heroSex` 公开）。**协议类型由内容包自己补** —— 各包在自己的 `meta.lua` 里给 `---@class Proto.Custom` 加字段（class 声明是合并语义）。
 - **`player.identity` 是只读的便捷读法**（`M.__getter.identity`，真相在容器里）—— 读的地方保持「像字段」（`code-style.md` §11 的口径），写入只有 `setIdentity` 一处。
@@ -686,5 +687,16 @@ Card '杀'
 - **user 侧自己收、自己攒、自己发**（`server/user/skill-sync.lua`，与 card-sync / player-sync 同形）：`Game.SkillSync` 懒建在 `game.skillSync`（本文件注入的 `package` getter，**建账即订事件**）、脏标记 `dirty[skill] = kind`、一笔调度只发一次。
 - **技能总是可见 ⇒ 全广播、不裁字段**（用户 2026-10-10 定）：每个有 `user` 的座位都收到同样的通知 —— 更新走 `Skill.Update`（`Proto.Notify.skill.Update`，**一个技能一条**）、摘掉走 `Skill.Remove`（只带 `id`）。将来若要「暗将」，再加按视角裁。
 - **上行只有一条 `Skill.ChangeAuto`**：`moe.client.register('Skill.ChangeAuto', …)`（照 `Game.SnapShot` 的写法）—— 从连接找座位（`moe.snapshot.userOf`，为复用把它从局部函数改成 `moe.snapshot` 的公开方法）、从座位按 id 找技能（不是他的技能 ⇒ 报错），`Skill:setAuto` 之后回 `{ auto }`，改动同时广播给所有人。
-- **`User:attach()` 现在带起三本账**：`cardSync` / `playerSync` / `skillSync`。
+- **`User:attach()` 现在带起五本账**：`cardSync` / `playerSync` / `skillSync` / `panelSync` / `flowSync`。
 - **给 `Skill` 挂 getter 要带上 `Class.Base`**：`---@class GCHost`（`server/tools/gc.lua`）**没有**声明 `: Class.Base`，所以 `---@class Skill : GCHost` 拿不到 `Class.Base` 上的 `__getter` —— 类声明要写成 **`: GCHost, Class.Base`**，否则「给类挂 getter」报「未定义的属性/字段 `__getter`」。
+
+## 19. 流程下行：回合 / 阶段 / 结局（`server/user/flow-sync.lua`）
+
+**要解决的问题**：前端得知道「现在轮到谁、在哪个阶段、这局怎么完的」—— 这三样内核都有（`game.turnPlayer` / `game.phase` / `game:getResult()`），但此前一条也没下发。
+
+- **订五个局级事件、发给所有入座的人**（2026-10-13）：`'回合-开始'` → `Turn.Begin { player }`、`'回合-结束'` → `Turn.End { player }`、`'阶段-开始'` → `Phase.Begin { player, name }`、`'阶段-结束'` → `Phase.End { player, name }`、`'游戏-结束'` → `Game.Over { side, reason }`（`side` / `reason` 与 `Game.Result` 同形）。
+- **当场发、不攒批**（与 `player-sync` / `skill-sync` 的「脏了攒一笔」不同）：这几条是**时刻**，攒批会把两次切换压成一条、前端播不出节奏（同理见 `card-sync` 的 `Card.Move`）。`Game.FlowSync` 只是「挂在局上的订摊人」，没有脏账 —— 但账本仍然懒建在 `game.flowSync` 上（本文件注入的 `package` getter，**建账即订事件**，与其它 sync 同形）。
+- **只订局级那份**：`enterPhase` 先 `game:fire('阶段-开始')` 再 `player:fire('阶段-开始')`（每个时机都有局 / 玩家两份）—— 订 `game:on` 就只收一次；`'阶段-生效'`（这阶段的业务开跑）**不下发**，它与「开始」是同一个时刻。
+- **`Game.Over` 就是终局**（写进 proto 注释与用例）：结局常发生在回合中间（阵亡 → 奖惩 → 胜负判定里 `endGame`）⇒ `endGame` 把流程任务就地收掉，那个回合的 `Turn.End` **不会再来**；所以口径是「收到 `Game.Over` 即终局」，前端不靠回合配对来判断。
+- **结局时公开身份**（内容侧，`package/身份场/身份.lua`）：订 `'游戏-结束'` 把所有人的 `identity` 改成公开（`Player:revealIdentity`）—— 结算画面要列「谁是什么身份」；它能靠 `Custom:setVisible` 报脏（§15）自动走 `Player.UpdateCustom` 发下去，内核一行不改。
+- **用例**：`server/test/user/flow-sync.lua` —— ① 手工事件：五条按序到、发的就是入座的那几位（没入座的连接收不到）；② **真跑一局**：四人房坐满 + 所有询问一律「不答」，真流程跑出来的回合 / 阶段序列（只看一个前端：回合成对、阶段名合法），最后 `Game.Over` 收尾。

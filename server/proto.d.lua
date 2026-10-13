@@ -67,6 +67,8 @@
 ---@class Proto.SnapShot
 ---@field players Proto.Player[] # 玩家列表
 ---@field cards Proto.Card[] # 局上所有的卡牌列表
+---@field turnPlayer? integer # 当前回合角色（没人在回合就是空）
+---@field phase? string # 当前阶段名（不在阶段里就是空）
 
 ---@class Proto.Player.Custom
 ---@field id integer # 玩家ID
@@ -131,6 +133,29 @@
 
 ---@class Proto.Result.Skill.ChangeAuto
 ---@field auto? boolean # 新的自动状态
+
+--- 轮到他开始回合了
+---@class Proto.Notify.Turn.Begin
+---@field player integer # 哪个角色
+
+--- 他的回合结束了
+---@class Proto.Notify.Turn.End
+---@field player integer # 哪个角色
+
+--- 进了一个阶段
+---@class Proto.Notify.Phase.Begin
+---@field player integer # 谁的阶段
+---@field name string # 阶段名（准备 / 判定 / 摸牌 / 出牌 / 弃牌 / 结束）
+
+--- 这个阶段结束了
+---@class Proto.Notify.Phase.End
+---@field player integer # 谁的阶段
+---@field name string # 阶段名
+
+--- 这一局结束了（**收到它就是终局**：此后不会再来回合 / 阶段）
+---@class Proto.Notify.Game.Over
+---@field side string # 胜方阵营：主公方 / 反贼 / 内奸 / 平局
+---@field reason string # 胜负依据（中文短句，前端可直接显示）
 
 ---@class Proto.Plan.Player
 ---@field ids integer[] # 候选玩家ID列表

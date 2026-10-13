@@ -52,6 +52,9 @@ lt.test('快照：要一份整局快照（牌 + 玩家）', function ()
     -- 让下一笔调度把增量发完，账里才有那张牌
     moe.await.sleep(0)
 
+    game.turnPlayer = me
+    local phase <close> = game:enterPhase(me, '出牌')
+
     local result, err = assert(fronts[1]):awaitRequest('Game.SnapShot', {})
     lt.assertEquals('没出错', nil, err)
     assert(result, '没拿到快照')
@@ -65,6 +68,8 @@ lt.test('快照：要一份整局快照（牌 + 玩家）', function ()
     lt.assertEquals('牌也带上了', 1, #result.cards)
     lt.assertEquals('牌面在', '闪', assert(result.cards[1].face).name)
     lt.assertEquals('区域是弃牌堆', '弃牌#0', result.cards[1].zone)
+    lt.assertEquals('带上当前回合角色', me.id, result.turnPlayer)
+    lt.assertEquals('带上当前阶段', '出牌', result.phase)
 end)
 
 ---@async

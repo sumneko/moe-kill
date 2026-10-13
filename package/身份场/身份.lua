@@ -26,3 +26,15 @@ end
 function M:isIdentityVisibleTo(viewer)
     return self.custom:isVisible('identity', viewer)
 end
+
+--- 把身份牌翻给所有人看（结算画面用）
+function M:revealIdentity()
+    self.custom:setVisible('identity', true)
+end
+
+-- 结局：所有人的身份牌都翻开来（胜负定了就没必要再藏着）
+game:on('游戏-结束', function ()
+    for _, player in ipairs(game.desk.players) do
+        player:revealIdentity()
+    end
+end)

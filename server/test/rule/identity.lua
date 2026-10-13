@@ -128,3 +128,17 @@ lt.test('身份场：首回合从主公开始', function ()
 
     lt.assertEquals('最后一个座位之后回到主公', run.players[1], run.desk:getNext(run.players[8]))
 end)
+
+lt.test('身份场：结局时所有人的身份都公开（结算画面用）', function ()
+    local run = support.start { packages = { '身份场', '标准' }, count = 4 }
+    local lord = run.players[1]
+
+    lt.assertEquals('开打时别人的身份看不见', false, run.players[2]:isIdentityVisibleTo(lord))
+    lt.assertEquals('主公本来就正面朝上', true, lord:isIdentityVisibleTo(run.players[2]))
+
+    run.game:endGame { side = '平局', reason = '用例收摊' }
+
+    for i = 2, 4 do
+        lt.assertEquals('第 {} 个的身份也亮出来了' % { i }, true, run.players[i]:isIdentityVisibleTo(lord))
+    end
+end)

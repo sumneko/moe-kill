@@ -24,11 +24,12 @@ function M:__init(owner)
     })
 end
 
---- 定下某个键给谁看（不设过 = 只有自己看得见）
+--- 定下某个键给谁看（不设过 = 只有他自己看得见）；可见性变了就是「这份数据变了」⇒ 照常报给下行
 ---@param key string
 ---@param options Visibility
 function M:setVisible(key, options)
     self.visibles[key] = moe.visibility.normalize(options)
+    self.owner:markDirty('custom')
 end
 
 --- 这个键对某人可见吗（自己的数据永远看得见）
