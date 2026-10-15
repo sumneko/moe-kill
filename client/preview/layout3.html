@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>moe-kill 牌桌布局（静态骨架 v3）</title>
+<style>
+    :root {
+        --w: 1280px;
+        --h: 720px;
+        --card-w: 72px;
+        --card-h: 100px;
+        --title-h: 22px;
+        --hand-step: 26px;
+        --big-w: 120px;
+        --big-h: 168px;
+        --big-title-h: 30px;
+        --portrait-w: 100px;
+        --portrait-h: 150px;
+        --line: #3a4152;
+        --ink: #e6e9f0;
+        --muted: #98a0b3;
+        --panel: #1b2030;
+        --wei: #4a7bc8;
+        --shu: #c8503f;
+        --wu: #4aa06a;
+        --qun: #c8a03f;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #0d1018; overflow: hidden; }
+    body { font: 14px/1.4 "Microsoft YaHei", system-ui, sans-serif; color: var(--ink); }
+
+    #viewport { position: absolute; inset: 0; }
+    #stage {
+        position: absolute; left: 0; top: 0;
+        width: var(--w); height: var(--h);
+        transform-origin: 0 0;
+        background: radial-gradient(120% 90% at 50% 40%, #1b2334 0%, #0f131d 72%);
+    }
+
+    /* 牌：标题横排在上方，下面留给图画 */
+    .card {
+        position: relative; width: var(--card-w); height: var(--card-h);
+        border: 1px solid #4b5568; border-radius: 6px; overflow: hidden;
+        background: #f4f1e8; color: #1a1d24; flex: 0 0 auto;
+    }
+    .card .title {
+        height: var(--title-h); display: flex; align-items: center; justify-content: flex-start; gap: 2px;
+        padding: 0 3px; white-space: nowrap;
+        font-size: 10px; font-weight: 700; background: #e9e4d6; border-bottom: 1px solid #c9c2ae;
+    }
+    .card .art { position: absolute; left: 0; right: 0; top: var(--title-h); bottom: 0;
+        background: repeating-linear-gradient(135deg, #ddd7c7 0 6px, #d3ccb9 6px 12px); }
+    .card[data-red] .title { color: #b8352b; }
+    .card.back { background: repeating-linear-gradient(45deg, #2b3f6b 0 6px, #23345a 6px 12px); border-color: #3d5580; }
+    .card.back .title { background: #253a63; border-bottom-color: #3d5580; color: #b9c8e6; }
+    .card.back .art { background: repeating-linear-gradient(45deg, #2b3f6b 0 6px, #23345a 6px 12px); }
+
+    .card.big { width: var(--big-w); height: var(--big-h); }
+    .card.big .title { height: var(--big-title-h); font-size: 15px; gap: 5px; }
+    .card.big .art { top: var(--big-title-h); background: repeating-linear-gradient(135deg, #e2dcc9 0 8px, #d7d0bb 8px 16px); }
+    .card.glow { box-shadow: 0 0 0 3px #ffd47999, 0 0 26px #ffd47955; border-color: #ffd479; }
+
+    #topbar { position: absolute; left: 0; top: 0; width: 100%; height: 40px;
+        display: flex; align-items: center; gap: 10px; padding: 0 12px;
+        border-bottom: 1px solid var(--line); background: #151a26cc; }
+    #topbar .spacer { flex: 1; }
+    .tag { padding: 2px 8px; border-radius: 4px; background: #2a3247; color: var(--muted); font-size: 12px; }
+    .tag.ok { background: #1f4432; color: #8fe0b0; }
+    .tag.over { background: #4a2226; color: #ffb3b8; }
+    button { font: inherit; color: var(--ink); background: #2a3247; border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+    button:hover { background: #333d55; }
+
+    #corner { position: absolute; left: 14px; top: 52px; display: flex; gap: 10px; }
+    .pile { display: flex; align-items: center; gap: 6px; background: #151b28cc; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+    .pile .stack { width: 26px; height: 36px; border-radius: 4px; border: 1px solid #3d5580;
+        background: repeating-linear-gradient(45deg, #2b3f6b 0 5px, #23345a 5px 10px); }
+    .pile .num { font-size: 22px; font-weight: 700; line-height: 1; }
+    .pile .cap { font-size: 11px; color: var(--muted); }
+
+    #center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 520px; text-align: center; }
+    #skillTip { font-size: 14px; color: #ffd479; min-height: 20px; }
+    #playedWrap { display: flex; justify-content: center; margin: 10px 0 8px; }
+    #playedTo { font-size: 13px; color: #cfd6e6; }
+
+    /* 座位：立绘框只放立绘，其余全部超框 */
+    .seat { position: absolute; width: var(--portrait-w); }
+    .portrait { position: relative; width: var(--portrait-w); height: var(--portrait-h);
+        border: 3px solid var(--qun); border-radius: 8px; background: #1a2032; }
+    /* 立绘图层：只有它被阵亡灰化，身份/势力/判定/血量不受影响 */
+    .portrait .art { position: absolute; inset: 0; border-radius: inherit;
+        background: linear-gradient(160deg, #35405e 0%, #1a2032 100%); }
+    .seat.wei .portrait, .portrait.wei { border-color: var(--wei); }
+    .seat.shu .portrait, .portrait.shu { border-color: var(--shu); }
+    .seat.wu  .portrait, .portrait.wu  { border-color: var(--wu); }
+    /* 名字：立绘上方居中（武将名 + 玩家名） */
+    .seat .head { width: var(--portrait-w); margin-bottom: 5px; display: flex; align-items: baseline; justify-content: center; gap: 5px; }
+    .head .hero { font-size: 13px; font-weight: 700; color: #eef2fb; text-shadow: 0 1px 3px #000; }
+    .head .pname { font-size: 10px; color: var(--muted); }
+    .portrait .kingdom { position: absolute; left: -8px; top: -8px; font-size: 11px; padding: 1px 6px; border-radius: 3px;
+        background: #0d1018e6; border: 1px solid #6b7390; color: #fff; }
+    .portrait .stamp { position: absolute; left: -8px; bottom: 8px; width: 34px; padding: 3px 0; text-align: center;
+        font-size: 11px; line-height: 1.1; color: #fff; background: #b8352be6; border-radius: 3px; transform: rotate(-8deg); }
+    .portrait .stamp.loyal { background: #2f6fb5e6; }
+    .portrait .stamp.spy   { background: #6b4bb0e6; }
+    .seat.dead .portrait .art { filter: grayscale(1) brightness(.55); }
+    /* 阵亡印章盖在立绘中央，不遮身份牌 */
+    .portrait .fallen { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-12deg);
+        padding: 3px 8px; font-size: 15px; font-weight: 700; letter-spacing: 3px; white-space: nowrap;
+        color: #ff8b7a; border: 2px solid #ff8b7a99; border-radius: 4px; background: #2a0f0fb3; }
+    /* 血量：竖排在立绘右下角，超框 */
+    .portrait .pips { position: absolute; right: -9px; bottom: -6px; display: flex; flex-direction: column-reverse; gap: 3px; }
+    .pip { width: 17px; height: 8px; border-radius: 2px; background: #000000b3; border: 1px solid #ffffff33; }
+    .pip.on { background: #ff8b7a; border-color: #ffd0c8; }
+    .seat.active .portrait { box-shadow: 0 0 0 3px #ffd47999, 0 0 22px #ffd47955; }
+
+    /* 装备：立绘下方竖排，每件一条长条标题（类型 名字 花色点数） */
+    .seat .equips { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+    /* 装备：一条一件，图标/名字/花色/点数四列对齐 */
+    .equip { display: grid; grid-template-columns: 18px 1fr 13px 16px; align-items: center; gap: 2px;
+        min-width: var(--portrait-w); height: 14px; padding: 0 5px; border-radius: 3px;
+        background: #e9e4d6; border: 1px solid #c9c2ae; color: #1a1d24; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    .equip .slot { font-size: 10px; font-weight: 400; text-align: center; }
+    .equip .name { text-align: left; }
+    .equip .suit { text-align: center; }
+    .equip .point { text-align: right; }
+    .equip[data-red] { color: #b8352b; }
+    .equip.none { display: block; text-align: center; background: transparent; border: 1px dashed #45506b; color: #5f6884; font-weight: 400; }
+    /* 判定牌：菱形小框（只写牌名首字）贴立绘左上角竖排 */
+    .judge-col { position: absolute; left: -14px; top: 24px; display: flex; flex-direction: column; }
+    .judge { width: 18px; height: 18px; margin: 5px 0; transform: rotate(45deg); border-radius: 3px;
+        background: #dde4f6; border: 2px solid #6f7da6; box-shadow: 0 1px 3px #0006;
+        display: flex; align-items: center; justify-content: center; }
+    .judge span { transform: rotate(-45deg); font-size: 11px; font-weight: 700; color: #2f3a58; }
+    .seat .side { position: absolute; left: calc(var(--portrait-w) - 6px); top: 0; display: flex; flex-direction: column; gap: 4px; }
+    .seat .ico { width: 20px; height: 20px; border-radius: 50%; background: #24304a; border: 1px solid #46557a;
+        display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b9c6e2; }
+
+    /* 自己的区域 */
+    #me { position: absolute; left: 145px; bottom: 10px; display: flex; align-items: flex-end; gap: 14px; }
+    #meLeft { width: 130px; }
+    #mePortrait { position: relative; width: 130px; height: 176px; margin: 0 auto; border-radius: 10px; }
+    #meHead { width: 130px; margin: 0 auto 6px; display: flex; align-items: baseline; justify-content: center; gap: 6px; }
+    #meHead .hero { font-size: 15px; font-weight: 700; color: #eef2fb; text-shadow: 0 1px 4px #000; }
+    #meHead .pname { font-size: 11px; color: var(--muted); }
+    #mePortrait .pips { position: absolute; right: -10px; bottom: -8px; display: flex; flex-direction: column-reverse; gap: 4px; }
+    #mePortrait .pips .pip { width: 22px; height: 10px; }
+    #mePortrait .judge { width: 22px; height: 22px; margin: 7px 0; }
+    #mePortrait .judge span { font-size: 13px; }
+    #meEquips { margin-top: 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    #meEquips .equip { min-width: 130px; height: 16px; font-size: 10px; }
+
+    #meRight { position: relative; flex: 0 0 auto; display: flex; align-items: flex-end; }
+    #meHand { display: flex; flex-direction: column; }
+    #meHand .row { display: flex; gap: 0; align-items: flex-end; }
+    /* 行间重叠：被压住的那行只露出上方标题带 */
+    #meHand .row + .row { margin-top: calc(var(--hand-step) - var(--card-h)); }
+    /* 技能：小按钮竖排，钉在整个画布的右下角 */
+    #meSkills { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+    #meSkills button { width: var(--card-w); height: 26px; font-size: 12px; border-radius: 4px;
+        background: linear-gradient(#2d3552, #1e2739); border: 1px solid #4a5a80; box-shadow: 0 2px 6px #0007; }
+    #meSkills button:hover { background: linear-gradient(#38436a, #26314a); }
+    #meSkills button[disabled] { opacity: .35; cursor: default; }
+
+    #drawer { position: absolute; right: 0; top: 40px; bottom: 0; width: 300px; z-index: 10;
+        background: #0f1420f2; border-left: 1px solid var(--line); padding: 10px; overflow: auto; }
+    #drawer.hidden { display: none; }
+    #drawer h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+    #drawer .line { font-size: 12px; color: #b9c2d6; border-bottom: 1px dashed #232c3f; padding: 3px 0; }
+</style>
+</head>
+<body>
+<div id="viewport">
+    <div id="stage">
+        <div id="topbar">
+            <span class="tag ok">已连接 ws://localhost:31415</span>
+            <button>重新同步</button>
+            <span class="spacer"></span>
+            <span class="tag over">终局：反贼 —— 主公阵亡</span>
+            <button>再来一局</button>
+            <button id="seatsBtn">切 8 人局</button>
+            <button id="drawerBtn">调试抽屉</button>
+        </div>
+
+        <div id="corner">
+            <div class="pile"><div class="stack"></div><div><div class="num">98</div><div class="cap">抽牌堆</div></div></div>
+            <div class="pile"><div class="stack" style="background:#3a3f52;border-color:#5a6180"></div><div><div class="num">34</div><div class="cap">弃牌堆</div></div></div>
+            <div class="pile"><div><div class="num">3</div><div class="cap">第几轮</div></div></div>
+        </div>
+
+        <div id="center">
+            <div id="skillTip">崔芷 发动了技能「绝殉」</div>
+            <div id="playedWrap"></div>
+            <div id="playedTo">崔芷 → 柏灵筠</div>
+        </div>
+
+        <div id="seats"></div>
+
+        <div id="me">
+            <div id="meLeft">
+                <div id="meHead"><span class="hero">曹操</span><span class="pname">robot2</span></div>
+                <div id="mePortrait" class="portrait wei">
+                    <div class="art"></div>
+                    <div class="kingdom">魏</div>
+                    <div class="judge-col" id="meJudges"></div>
+                    <div class="pips" id="mePips"></div>
+                    <div class="stamp spy">内奸</div>
+                </div>
+                <div id="meEquips"></div>
+            </div>
+            <div id="meRight">
+                <div id="meHand"></div>
+            </div>
+        </div>
+
+        <div id="meSkills">
+            <button>奸雄</button>
+            <button>护驾</button>
+        </div>
+
+        <div id="drawer" class="hidden">
+            <h3>调试抽屉（事件流 / 手写答复 / 机器人）</h3>
+            <div class="line">连上了 ws://localhost:31415</div>
+            <div class="line">轮到他了：robot2（#1）</div>
+            <div class="line">收到询问：出牌</div>
+            <div class="line">机器玩家答复：Ask.Use（出牌） → {"usedCard":180,"targets":[1]}</div>
+            <div class="line">挪牌：#0 → 弃牌#0</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const stage = document.getElementById('stage');
+    function fit() {
+        const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+        stage.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', fit);
+    fit();
+
+    const SUITS = ['♠', '♥', '♣', '♦'];
+    const RED = ['♥', '♦'];
+    const NAMES = ['杀', '闪', '桃', '过河拆桥', '顺手牵羊', '无中生有', '决斗', '南蛮入侵', '万箭齐发', '桃园结义', '五谷丰登', '借刀杀人', '无懈可击', '乐不思蜀', '闪电', '赤兔'];
+
+    // 牌：标题（花色点数 名字）横排在上方，下面留给图画
+    function cardHtml(name, suit, point, extra) {
+        return `<div class="card${extra ? ' ' + extra : ''}"${RED.includes(suit) ? ' data-red' : ''}>
+            <div class="title"><span>${suit}${point}</span><span>${name}</span></div>
+            <div class="art"></div>
+        </div>`;
+    }
+
+    function pipsHtml(hp, max) {
+        return '<div class="pip on"></div>'.repeat(Math.max(hp, 0)) + '<div class="pip"></div>'.repeat(Math.max(max - hp, 0));
+    }
+
+    document.getElementById('playedWrap').innerHTML = cardHtml('顺手牵羊', '♦', 3, 'big glow');
+
+    // 手牌：每行 12 张；超出的往下叠（被压住的那行只露出标题带）
+    const PER_ROW = 12;
+    function renderHand(count) {
+        const hand = document.getElementById('meHand');
+        const rows = [];
+        for (let i = 0; i < count; i += PER_ROW) {
+            rows.push(Math.min(PER_ROW, count - i));
+        }
+        hand.innerHTML = rows.map((n, r) => `<div class="row">${
+            Array.from({ length: n }, (_, i) => {
+                const k = (r * PER_ROW + i) % NAMES.length;
+                return cardHtml(NAMES[k], SUITS[k % 4], ((k + 1) % 13) + 1);
+            }).join('')
+        }</div>`).join('');
+    }
+    renderHand(14);
+
+    document.getElementById('mePips').innerHTML = pipsHtml(4, 4);
+
+    // 装备：每件一条，类型用 emoji、名字/花色/点数分列对齐
+    const EQ = (slot, name, suit, point) => ({ slot, name, suit, point });
+    const EQUIP_ICON = { '武器': '⚔️', '防具': '🛡️', '进攻马': '🐎', '防御马': '🐴' };
+    // 满配：4 件装备
+    const FULL_EQUIPS = [
+        EQ('武器', '方天画戟', '♦', 5),
+        EQ('防具', '仁王盾', '♣', 2),
+        EQ('进攻马', '赤兔', '♥', 5),
+        EQ('防御马', '大宛', '♠', 13),
+    ];
+    // 满配：3 张判定牌
+    const FULL_JUDGES = [
+        { name: '乐不思蜀', suit: '♥', point: 6 },
+        { name: '闪电', suit: '♠', point: 1 },
+        { name: '兵粮寸断', suit: '♣', point: 4 },
+    ];
+    function equipHtml(equips) {
+        if (!equips || equips.length === 0) return '<div class="equip none">无装备</div>';
+        return equips.map((e) => {
+            const red = RED.includes(e.suit) ? ' data-red' : '';
+            return `<div class="equip"${red}><span class="slot">${EQUIP_ICON[e.slot] ?? ''}</span>`
+                + `<span class="name">${e.name}</span><span class="suit">${e.suit}</span><span class="point">${e.point}</span></div>`;
+        }).join('');
+    }
+    // 判定牌：菱形里只写首字，悬停看全名
+    function judgeItems(judges) {
+        return (judges ?? []).map((j) =>
+            `<div class="judge" title="${j.name} ${j.suit}${j.point}"><span>${j.name[0]}</span></div>`).join('');
+    }
+    document.getElementById('meEquips').innerHTML = equipHtml(FULL_EQUIPS);
+    document.getElementById('meJudges').innerHTML = judgeItems(FULL_JUDGES);
+
+    function seatEl(opt) {
+        const stampCls = opt.identity === '主公' ? 'loyal' : opt.identity === '内奸' ? 'spy' : '';
+        return `<div class="seat ${opt.kingdom ?? ''} ${opt.active ? 'active' : ''} ${opt.dead ? 'dead' : ''}"
+                     style="left:${opt.left}px;top:${opt.top}px">
+            <div class="head"><span class="hero">${opt.hero}</span><span class="pname">${opt.name ?? ''}</span></div>
+            <div class="portrait">
+                <div class="art"></div>
+                <div class="kingdom">${opt.kingdomLabel}</div>
+                <div class="judge-col">${judgeItems(opt.judges)}</div>
+                <div class="pips">${pipsHtml(opt.hp, opt.max)}</div>
+                ${opt.identity ? `<div class="stamp ${stampCls}">${opt.identity}</div>` : ''}
+                ${opt.dead ? '<div class="fallen">阵亡</div>' : ''}
+                <div class="side">${(opt.marks ?? []).map((m) => `<div class="ico">${m}</div>`).join('')}</div>
+            </div>
+            <div class="equips">${equipHtml(opt.equips ?? [])}</div>
+        </div>`;
+    }
+
+    const FOUR = [
+        { hero: '柏灵筠', name: 'robot1', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, marks: ['技'],
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 590, top: 48 },
+        { hero: '袁术', name: 'robot3', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, dead: true, identity: '反贼',
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 14, top: 130 },
+        { hero: '界刘备', name: 'robot4', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, identity: '主公', marks: ['技', '技'],
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 1160, top: 130 },
+    ];
+
+    const EIGHT = [
+        { hero: '柏灵筠', name: 'robot1', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, marks: ['技'],
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 340, top: 48 },
+        { hero: '孟获', name: 'robot5', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, dead: true, identity: '内奸',
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 590, top: 48 },
+        { hero: '周瑜', name: 'robot6', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3,
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 840, top: 48 },
+        { hero: '袁术', name: 'robot3', kingdom: 'qun', kingdomLabel: '群', hp: 1, max: 4, identity: '反贼',
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 94, top: 110 },
+        { hero: '华佗', name: 'robot7', kingdom: 'qun', kingdomLabel: '群', hp: 3, max: 3,
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 14, top: 380 },
+        { hero: '界刘备', name: 'robot4', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, identity: '主公', marks: ['技'],
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 1080, top: 110 },
+        { hero: '陆逊', name: 'robot8', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3,
+          equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 1160, top: 380 },
+    ];
+
+    let eight = false;
+    function renderSeats() {
+        document.getElementById('seats').innerHTML = (eight ? EIGHT : FOUR).map(seatEl).join('');
+    }
+    renderSeats();
+
+    document.getElementById('seatsBtn').onclick = () => {
+        eight = !eight;
+        document.getElementById('seatsBtn').textContent = eight ? '切 4 人局' : '切 8 人局';
+        renderSeats();
+    };
+    document.getElementById('drawerBtn').onclick = () => {
+        document.getElementById('drawer').classList.toggle('hidden');
+    };
+</script>
+</body>
+</html>

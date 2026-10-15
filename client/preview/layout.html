@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>moe-kill 牌桌布局（静态骨架）</title>
+<style>
+    :root {
+        --w: 1280px;
+        --h: 720px;
+        --card-w: 72px;
+        --card-h: 100px;
+        --big-w: 92px;
+        --big-h: 128px;
+        --hand-row-step: 72px;
+        --line: #3a4152;
+        --ink: #e6e9f0;
+        --muted: #98a0b3;
+        --panel: #1b2030;
+        --seat: #232a3c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #0d1018; overflow: hidden; }
+    body { font: 14px/1.4 "Microsoft YaHei", system-ui, sans-serif; color: var(--ink); }
+
+    #viewport { position: absolute; inset: 0; }
+    #stage {
+        position: absolute; left: 0; top: 0;
+        width: var(--w); height: var(--h);
+        transform-origin: 0 0;
+        background: radial-gradient(120% 90% at 50% 45%, #1c2437 0%, #10141f 70%);
+    }
+
+    .card {
+        width: var(--card-w); height: var(--card-h);
+        border: 1px solid #4b5568;
+        border-radius: 6px;
+        background: #f4f1e8; color: #1a1d24;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-weight: 700; flex: 0 0 auto;
+    }
+    .card.big { width: var(--big-w); height: var(--big-h); }
+    .card .suit { font-size: 16px; line-height: 1; }
+    .card .name { font-size: 15px; margin-top: 2px; }
+    .card .point { font-size: 13px; color: #5a6070; }
+    .card.back {
+        background: repeating-linear-gradient(45deg, #2b3f6b 0 6px, #23345a 6px 12px);
+        border-color: #3d5580;
+    }
+
+    /* 顶栏 */
+    #topbar {
+        position: absolute; left: 0; top: 0; width: 100%; height: 40px;
+        display: flex; align-items: center; gap: 10px; padding: 0 12px;
+        border-bottom: 1px solid var(--line); background: #151a26cc;
+    }
+    #topbar .spacer { flex: 1; }
+    .tag { padding: 2px 8px; border-radius: 4px; background: #2a3247; color: var(--muted); font-size: 12px; }
+    .tag.ok { background: #1f4432; color: #8fe0b0; }
+    .tag.over { background: #4a2226; color: #ffb3b8; }
+    button { font: inherit; color: var(--ink); background: #2a3247; border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+    button:hover { background: #333d55; }
+
+    /* 中央 */
+    #deck  { position: absolute; left: 300px; top: 130px; text-align: center; }
+    #discard { position: absolute; right: 300px; top: 130px; text-align: center; }
+    #tableArea { position: absolute; left: 50%; top: 290px; transform: translateX(-50%); display: flex; gap: 8px; }
+    .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+    /* 自己的区域 */
+    #me {
+        position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+        width: 1200px; display: flex; align-items: flex-end; gap: 14px;
+    }
+    #meInfo { width: 190px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+    #meName { font-weight: 700; margin-bottom: 4px; }
+    #meName .title { color: #ffd479; font-weight: 400; font-size: 12px; margin-left: 6px; }
+    .hp { color: #ff9d9d; }
+    .skills { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .skills button { padding: 2px 8px; font-size: 12px; }
+    .skills button[disabled] { opacity: .35; cursor: default; }
+
+    #meRight { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    #meSlots { display: flex; gap: 10px; margin-bottom: 8px; }
+    .slot { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
+    .slot .mini { width: 40px; height: 56px; border: 1px dashed #46506a; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #6c7691; padding: 2px; text-align: center; }
+
+    #meHand { display: flex; flex-direction: column-reverse; align-items: center; }
+    #meHand .row { display: flex; justify-content: center; }
+    #meHand .row + .row { margin-bottom: calc(var(--hand-row-step) - var(--card-h)); }
+    #meHand .card + .card { margin-left: -8px; }
+
+    /* 对手 */
+    .seat { position: absolute; width: 240px; background: var(--seat); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+    .seat .head { display: flex; align-items: baseline; gap: 6px; }
+    .seat .head .who { font-weight: 700; }
+    .seat .head .title { font-size: 12px; color: #ffd479; }
+    .seat .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .seat .equips, .seat .judge { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+    .seat .mini { width: 38px; height: 54px; border: 1px solid #46506a; border-radius: 4px; background: #f4f1e8; color: #1a1d24; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+    .seat .hand { position: absolute; }
+    .seat.active { border-color: #ffd479; box-shadow: 0 0 0 2px #ffd47940; }
+
+    /* 调试抽屉 */
+    #drawer {
+        position: absolute; right: 0; top: 40px; bottom: 0; width: 300px; z-index: 10;
+        background: #0f1420f2; border-left: 1px solid var(--line); padding: 10px; overflow: auto;
+    }
+    #drawer.hidden { display: none; }
+    #drawer h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+    #drawer .line { font-size: 12px; color: #b9c2d6; border-bottom: 1px dashed #232c3f; padding: 3px 0; }
+</style>
+</head>
+<body>
+<div id="viewport">
+    <div id="stage">
+        <div id="topbar">
+            <span class="tag ok">已连接 ws://localhost:31415</span>
+            <button>重新同步</button>
+            <span class="spacer"></span>
+            <span class="tag over">终局：反贼 —— 主公阵亡</span>
+            <button>再来一局</button>
+            <button id="seatsBtn">切 8 人局</button>
+            <button id="drawerBtn">调试抽屉</button>        </div>
+
+        <div id="deck">
+            <div class="label">抽牌堆 57</div>
+            <div class="card big back"></div>
+        </div>
+
+        <div id="tableArea">
+            <div class="label" style="position:absolute;left:50%;top:-20px;transform:translateX(-50%)">处理区</div>
+            <div class="card big"><span class="suit">♠</span><span class="name">杀</span><span class="point">7</span></div>
+            <div class="card big"><span class="suit">♥</span><span class="name">闪</span><span class="point">2</span></div>
+        </div>
+
+        <div id="discard">
+            <div class="label">弃牌堆 34</div>
+            <div class="card big"><span class="suit">♣</span><span class="name">顺手牵羊</span><span class="point">3</span></div>
+        </div>
+
+        <div id="me">
+            <div id="meInfo">
+                <div id="meName">robot2 · 曹操 <span class="title">内奸</span></div>
+                <div class="sub">体力 <span class="hp">4 / 4</span></div>
+                <div class="skills">
+                    <button>奸雄</button>
+                    <button>护驾</button>
+                </div>
+            </div>
+            <div id="meRight">
+                <div id="meSlots">
+                    <div class="slot">武器 <div class="mini">方天画戟</div></div>
+                    <div class="slot">防具 <div class="mini">仁王盾</div></div>
+                    <div class="slot">进攻马 <div class="mini">赤兔</div></div>
+                    <div class="slot">防御马 <div class="mini">紫骍</div></div>
+                    <div class="slot">判定 <div class="mini">乐不思蜀</div></div>
+                </div>
+                <div id="meHand"></div>
+            </div>
+        </div>
+
+        <div id="seats"></div>
+
+        <div id="drawer" class="hidden">
+            <h3>调试抽屉（事件流 / 手写答复 / 机器人）</h3>
+            <div class="line">连上了 ws://localhost:31415</div>
+            <div class="line">轮到他了：robot2（#1）</div>
+            <div class="line">收到询问：出牌</div>
+            <div class="line">机器玩家答复：Ask.Use（出牌） → {"usedCard":180,"targets":[1]}</div>
+            <div class="line">挪牌：#0 → 弃牌#0</div>
+            <div class="line">收到询问：杀</div>
+            <div class="line">机器玩家答复：Ask.Select（杀） → {"card":[]}</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 整体等比缩放：设计基准 1280×720，按窗口取小的那个比例
+    const stage = document.getElementById('stage');
+    function fit() {
+        const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+        stage.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', fit);
+    fit();
+
+    const SUITS = ['♠', '♥', '♣', '♦'];
+    const NAMES = ['杀', '闪', '桃', '过河拆桥', '顺手牵羊', '无中生有', '决斗', '南蛮入侵', '万箭齐发', '桃园结义', '五谷丰登', '借刀杀人', '无懈可击', '乐不思蜀', '闪电', '赤兔'];
+
+    function card(name, suit, point, big) {
+        const el = document.createElement('div');
+        el.className = 'card' + (big ? ' big' : '');
+        el.innerHTML = `<span class="suit">${suit}</span><span class="name">${name}</span><span class="point">${point}</span>`;
+        return el;
+    }
+
+    // 我的手牌：横排；一行摆不下就往上叠行（行间重叠）
+    const PER_ROW = 12;
+    function renderHand(count) {
+        const hand = document.getElementById('meHand');
+        hand.innerHTML = '';
+        const rows = [];
+        for (let i = 0; i < count; i += PER_ROW) {
+            rows.push(count - i >= PER_ROW ? PER_ROW : count - i);
+        }
+        // 从下往上：第一行在最下面，后面的行往上叠
+        for (let r = 0; r < rows.length; r += 1) {
+            const row = document.createElement('div');
+            row.className = 'row';
+            for (let i = 0; i < rows[r]; i += 1) {
+                const n = (r * PER_ROW + i) % NAMES.length;
+                row.appendChild(card(NAMES[n], SUITS[n % 4], ((n + 1) % 13) + 1));
+            }
+            hand.appendChild(row);
+        }
+    }
+    renderHand(14);
+
+    // 座位：4 人 = 上 / 左 / 右；8 人 = 上 3 / 左 2 / 右 2
+    function seatEl(name, hero, title, hp, active) {
+        const el = document.createElement('div');
+        el.className = 'seat' + (active ? ' active' : '');
+        el.innerHTML = `
+            <div class="head"><span class="who">${name}</span><span>${hero}</span><span class="title">${title}</span></div>
+            <div class="sub">体力 <span class="hp">${hp}</span> · 手牌 3</div>
+            <div class="equips">
+                <div class="mini"><span>♠</span><span>八卦阵</span></div>
+                <div class="mini"><span>♥</span><span>赤兔</span></div>
+            </div>
+            <div class="judge"><div class="mini"><span>♠</span><span>闪电</span></div></div>`;
+        return el;
+    }
+
+    function place(el, left, top) {
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        document.getElementById('seats').appendChild(el);
+    }
+
+    function renderSeats(eight) {
+        document.getElementById('seats').innerHTML = '';
+        if (!eight) {
+            place(seatEl('robot1', '刘备', '主公', '4 / 5', true), 520, 60);
+            place(seatEl('robot3', '黄盖', '忠臣', '2 / 4'), 40, 250);
+            place(seatEl('robot4', '诸葛亮', '反贼', '3 / 3'), 1000, 250);
+            return;
+        }
+        ['robot1', 'robot3', 'robot4', 'robot5', 'robot6', 'robot7', 'robot8'].forEach((who, i) => {
+            if (i < 3) {
+                return place(seatEl(who, '武将' + i, i === 0 ? '主公' : '身份', '3 / 4', i === 0), 240 + i * 280, 56);
+            }
+            if (i < 5) {
+                return place(seatEl(who, '武将' + i, '身份', '3 / 4'), 30, 200 + (i - 3) * 190);
+            }
+            return place(seatEl(who, '武将' + i, '身份', '3 / 4'), 1000, 200 + (i - 5) * 190);
+        });
+    }
+    renderSeats(false);
+
+    let eight = false;
+    document.getElementById('seatsBtn').onclick = () => {
+        eight = !eight;
+        document.getElementById('seatsBtn').textContent = eight ? '切 4 人局' : '切 8 人局';
+        renderSeats(eight);
+    };
+    document.getElementById('drawerBtn').onclick = () => {
+        document.getElementById('drawer').classList.toggle('hidden');
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>moe-kill 牌桌布局（静态骨架 v2）</title>
+<style>
+    :root {
+        --w: 1280px;
+        --h: 720px;
+        --card-w: 72px;
+        --card-h: 100px;
+        --big-w: 120px;
+        --big-h: 168px;
+        --hand-row-step: 72px;
+        --line: #3a4152;
+        --ink: #e6e9f0;
+        --muted: #98a0b3;
+        --panel: #1b2030;
+        --wei: #4a7bc8;
+        --shu: #c8503f;
+        --wu: #4aa06a;
+        --qun: #c8a03f;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #0d1018; overflow: hidden; }
+    body { font: 14px/1.4 "Microsoft YaHei", system-ui, sans-serif; color: var(--ink); }
+
+    #viewport { position: absolute; inset: 0; }
+    #stage {
+        position: absolute; left: 0; top: 0;
+        width: var(--w); height: var(--h);
+        transform-origin: 0 0;
+        background: radial-gradient(120% 90% at 50% 40%, #1b2334 0%, #0f131d 72%);
+    }
+
+    .card {
+        width: var(--card-w); height: var(--card-h);
+        border: 1px solid #4b5568; border-radius: 6px;
+        background: #f4f1e8; color: #1a1d24;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-weight: 700; flex: 0 0 auto;
+    }
+    .card.big { width: var(--big-w); height: var(--big-h); }
+    .card .suit { font-size: 16px; line-height: 1; }
+    .card .name { font-size: 15px; margin-top: 2px; }
+    .card .point { font-size: 13px; color: #5a6070; }
+    .card.back {
+        background: repeating-linear-gradient(45deg, #2b3f6b 0 6px, #23345a 6px 12px);
+        border-color: #3d5580;
+    }
+    .card[data-red] .suit, .card[data-red] .point { color: #c0392b; }
+
+    #topbar {
+        position: absolute; left: 0; top: 0; width: 100%; height: 40px;
+        display: flex; align-items: center; gap: 10px; padding: 0 12px;
+        border-bottom: 1px solid var(--line); background: #151a26cc;
+    }
+    #topbar .spacer { flex: 1; }
+    .tag { padding: 2px 8px; border-radius: 4px; background: #2a3247; color: var(--muted); font-size: 12px; }
+    .tag.ok { background: #1f4432; color: #8fe0b0; }
+    .tag.over { background: #4a2226; color: #ffb3b8; }
+    button { font: inherit; color: var(--ink); background: #2a3247; border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+    button:hover { background: #333d55; }
+
+    #corner { position: absolute; left: 14px; top: 52px; display: flex; gap: 10px; align-items: flex-start; }
+    .pile { display: flex; align-items: center; gap: 6px; background: #151b28cc; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+    .pile .stack { width: 26px; height: 36px; border-radius: 4px; border: 1px solid #3d5580;
+        background: repeating-linear-gradient(45deg, #2b3f6b 0 5px, #23345a 5px 10px); }
+    .pile .num { font-size: 22px; font-weight: 700; line-height: 1; }
+    .pile .cap { font-size: 11px; color: var(--muted); }
+
+    #center { position: absolute; left: 50%; top: 268px; transform: translateX(-50%); width: 520px; text-align: center; }
+    #skillTip { font-size: 14px; color: #ffd479; min-height: 20px; }
+    #playedWrap { display: flex; justify-content: center; margin: 10px 0 8px; }
+    #playedWrap .glow { box-shadow: 0 0 0 3px #ffd47999, 0 0 26px #ffd47955; border-color: #ffd479; }
+    #playedTo { font-size: 13px; color: #cfd6e6; }
+
+    .seat { position: absolute; width: 178px; }
+    .seat .card-box { position: relative; width: 118px; height: 158px; border: 3px solid var(--qun); border-radius: 8px;
+        background: linear-gradient(160deg, #2c3550 0%, #1a2032 100%); overflow: hidden; }
+    .seat.wei .card-box { border-color: var(--wei); }
+    .seat.shu .card-box { border-color: var(--shu); }
+    .seat.wu  .card-box { border-color: var(--wu); }
+    .seat .hero { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 13px; color: #cdd6ea; text-align: center; padding: 6px; }
+    .seat .kingdom { position: absolute; left: 4px; top: 4px; font-size: 11px; padding: 1px 5px; border-radius: 3px;
+        background: #0009; color: #fff; }
+    .seat .stamp { position: absolute; right: 4px; top: 34px; width: 34px; padding: 3px 0; text-align: center;
+        font-size: 11px; line-height: 1.1; color: #fff; background: #b8352bdd; border-radius: 3px; transform: rotate(-8deg); }
+    .seat .stamp.loyal { background: #2f6fb5dd; }
+    .seat .stamp.spy   { background: #6b4bb0dd; }
+    .seat.dead .card-box { filter: grayscale(1) brightness(.55); }
+    .seat .pips { position: absolute; left: 6px; bottom: 6px; display: flex; gap: 3px; }
+    .seat .pip { width: 7px; height: 16px; border-radius: 2px; background: #0006; border: 1px solid #ffffff33; }
+    .seat .pip.on { background: #ff8b7a; border-color: #ffd0c8; }
+    .seat .side { position: absolute; left: 124px; top: 0; display: flex; flex-direction: column; gap: 4px; }
+    .seat .ico { width: 22px; height: 22px; border-radius: 50%; background: #24304a; border: 1px solid #46557a;
+        display: flex; align-items: center; justify-content: center; font-size: 11px; color: #b9c6e2; }
+    .seat .equips { display: flex; gap: 4px; margin-top: 6px; }
+    .seat .mini { width: 34px; height: 48px; border: 1px dashed #46506a; border-radius: 4px; background: #f4f1e8;
+        color: #1a1d24; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 700; padding: 2px; text-align: center; }
+    .seat.active .card-box { box-shadow: 0 0 0 3px #ffd47999, 0 0 22px #ffd47955; }
+
+    #me { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: 1200px;
+        display: flex; align-items: flex-end; gap: 14px; }
+    #meLeft { width: 226px; }
+    #meSlots { display: flex; gap: 4px; margin-bottom: 6px; }
+    .slot { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--muted); }
+    .slot .mini { width: 42px; height: 54px; border: 1px dashed #46506a; border-radius: 4px; display: flex;
+        align-items: center; justify-content: center; font-size: 9px; color: #6c7691; padding: 2px; text-align: center; }
+    .slot .mini.has { border-style: solid; border-color: #8b93a8; background: #f4f1e8; color: #1a1d24; font-weight: 700; }
+    #meInfo { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+    #meInfo .who { font-weight: 700; }
+    #meInfo .who .title { color: #ffd479; font-weight: 400; font-size: 12px; margin-left: 6px; }
+    #meInfo .hpRow { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+    #meInfo .hpRow .num { font-size: 12px; color: var(--muted); }
+    .pips.me { display: flex; gap: 3px; }
+    .pips.me .pip { width: 8px; height: 18px; border-radius: 2px; background: #0006; border: 1px solid #ffffff33; }
+    .pips.me .pip.on { background: #ff8b7a; border-color: #ffd0c8; }
+    .skills { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .skills button { padding: 2px 8px; font-size: 12px; }
+    .skills button[disabled] { opacity: .35; cursor: default; }
+
+    #meRight { flex: 1; display: flex; align-items: flex-end; justify-content: center; }
+
+    #meHand { display: flex; flex-direction: column-reverse; align-items: center; }
+    #meHand .row { display: flex; justify-content: center; }
+    #meHand .row + .row { margin-bottom: calc(var(--hand-row-step) - var(--card-h)); }
+    #meHand .card + .card { margin-left: -8px; }
+
+    #drawer { position: absolute; right: 0; top: 40px; bottom: 0; width: 300px; z-index: 10;
+        background: #0f1420f2; border-left: 1px solid var(--line); padding: 10px; overflow: auto; }
+    #drawer.hidden { display: none; }
+    #drawer h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+    #drawer .line { font-size: 12px; color: #b9c2d6; border-bottom: 1px dashed #232c3f; padding: 3px 0; }
+</style>
+</head>
+<body>
+<div id="viewport">
+    <div id="stage">
+        <div id="topbar">
+            <span class="tag ok">已连接 ws://localhost:31415</span>
+            <button>重新同步</button>
+            <span class="spacer"></span>
+            <span class="tag over">终局：反贼 —— 主公阵亡</span>
+            <button>再来一局</button>
+            <button id="seatsBtn">切 8 人局</button>
+            <button id="drawerBtn">调试抽屉</button>
+        </div>
+
+        <div id="corner">
+            <div class="pile">
+                <div class="stack"></div>
+                <div><div class="num">98</div><div class="cap">抽牌堆</div></div>
+            </div>
+            <div class="pile">
+                <div class="stack" style="background:#3a3f52;border-color:#5a6180"></div>
+                <div><div class="num">34</div><div class="cap">弃牌堆</div></div>
+            </div>
+            <div class="pile">
+                <div><div class="num">3</div><div class="cap">第几轮</div></div>
+            </div>
+        </div>
+
+        <div id="center">
+            <div id="skillTip">崔芷 发动了技能「绝殉」</div>
+            <div id="playedWrap"></div>
+            <div id="playedTo">崔芷 → 柏灵筠</div>
+        </div>
+
+        <div id="seats"></div>
+
+        <div id="me">
+            <div id="meLeft">
+                <div id="meSlots"></div>
+                <div id="meInfo">
+                    <div class="who">robot2 · 曹操 <span class="title">内奸</span></div>
+                    <div class="hpRow">
+                        <div class="pips me" id="mePips"></div>
+                        <span class="num">4 / 4</span>
+                    </div>
+                    <div class="skills">
+                        <button>奸雄</button>
+                        <button>护驾</button>
+                    </div>
+                </div>
+            </div>
+            <div id="meRight">
+                <div id="meHand"></div>
+            </div>
+        </div>
+
+        <div id="drawer" class="hidden">
+            <h3>调试抽屉（事件流 / 手写答复 / 机器人）</h3>
+            <div class="line">连上了 ws://localhost:31415</div>
+            <div class="line">轮到他了：robot2（#1）</div>
+            <div class="line">收到询问：出牌</div>
+            <div class="line">机器玩家答复：Ask.Use（出牌） → {"usedCard":180,"targets":[1]}</div>
+            <div class="line">挪牌：#0 → 弃牌#0</div>
+            <div class="line">收到询问：杀</div>
+            <div class="line">机器玩家答复：Ask.Select（杀） → {"card":[]}</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const stage = document.getElementById('stage');
+    function fit() {
+        const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+        stage.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', fit);
+    fit();
+
+    const SUITS = ['♠', '♥', '♣', '♦'];
+    const RED = ['♥', '♦'];
+    const NAMES = ['杀', '闪', '桃', '过河拆桥', '顺手牵羊', '无中生有', '决斗', '南蛮入侵', '万箭齐发', '桃园结义', '五谷丰登', '借刀杀人', '无懈可击', '乐不思蜀', '闪电', '赤兔'];
+
+    function makeCard(name, suit, point, big) {
+        const el = document.createElement('div');
+        el.className = 'card' + (big ? ' big' : '');
+        if (RED.includes(suit)) {
+            el.dataset.red = '1';
+        }
+        el.innerHTML = `<span class="suit">${suit}</span><span class="name">${name}</span><span class="point">${point}</span>`;
+        return el;
+    }
+
+    function pipsHtml(hp, max) {
+        const on = '<div class="pip on"></div>'.repeat(Math.max(hp, 0));
+        const off = '<div class="pip"></div>'.repeat(Math.max(max - hp, 0));
+        return on + off;
+    }
+
+    const played = makeCard('顺手牵羊', '♦', 3, true);
+    played.classList.add('glow');
+    document.getElementById('playedWrap').appendChild(played);
+
+    const PER_ROW = 12;
+    function renderHand(count) {
+        const hand = document.getElementById('meHand');
+        hand.innerHTML = '';
+        const rows = [];
+        for (let i = 0; i < count; i += PER_ROW) {
+            rows.push(Math.min(PER_ROW, count - i));
+        }
+        for (let r = 0; r < rows.length; r += 1) {
+            const row = document.createElement('div');
+            row.className = 'row';
+            for (let i = 0; i < rows[r]; i += 1) {
+                const n = (r * PER_ROW + i) % NAMES.length;
+                row.appendChild(makeCard(NAMES[n], SUITS[n % 4], ((n + 1) % 13) + 1));
+            }
+            hand.appendChild(row);
+        }
+    }
+    renderHand(14);
+
+    document.getElementById('mePips').innerHTML = pipsHtml(4, 4);
+
+    document.getElementById('meSlots').innerHTML = [['武器', '方天画戟'], ['防具', '仁王盾'], ['进攻马', '赤兔'], ['防御马', null], ['判定', '乐不思蜀']]
+        .map(([label, name]) => `<div class="slot">${label}<div class="mini${name ? ' has' : ''}">${name ?? '空'}</div></div>`)
+        .join('');
+
+    function seatEl(opt) {
+        const stampCls = opt.identity === '主公' ? 'loyal' : opt.identity === '内奸' ? 'spy' : '';
+        const equips = (opt.equips ?? []).map((e) => `<div class="mini">${e}</div>`).join('');
+        const judge = opt.judge ? `<div class="mini">${opt.judge}</div>` : '';
+        return `<div class="seat ${opt.kingdom ?? ''} ${opt.active ? 'active' : ''} ${opt.dead ? 'dead' : ''}"
+                     style="left:${opt.left}px;top:${opt.top}px">
+            <div class="card-box">
+                <div class="hero">${opt.hero}</div>
+                <div class="kingdom">${opt.kingdomLabel}</div>
+                <div class="pips">${pipsHtml(opt.hp, opt.max)}</div>
+                ${opt.identity ? `<div class="stamp ${stampCls}">${opt.dead ? '阵亡' : opt.identity}</div>` : ''}
+            </div>
+            <div class="side">${(opt.marks ?? []).map((m) => `<div class="ico">${m}</div>`).join('')}</div>
+            <div class="equips">${equips}${judge}</div>
+        </div>`;
+    }
+
+    const FOUR = [
+        { hero: '柏灵筠', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, marks: ['技'], equips: ['♠ 贯石斧', '♥ 仁王盾'], left: 560, top: 48 },
+        { hero: '袁术', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, dead: true, identity: '反贼', equips: ['♦ 麒麟弓'], left: 24, top: 240 },
+        { hero: '界刘备', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, identity: '主公', marks: ['技', '技'], judge: '♠ 闪电', left: 1078, top: 240 },
+    ];
+
+    const EIGHT = [
+        { hero: '柏灵筠', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, marks: ['技'], equips: ['♠ 贯石斧'], left: 300, top: 48 },
+        { hero: '孟获', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, dead: true, identity: '内奸', left: 510, top: 48 },
+        { hero: '周瑜', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3, equips: ['♦ 赤兔'], left: 720, top: 48 },
+        { hero: '袁术', kingdom: 'qun', kingdomLabel: '群', hp: 1, max: 4, identity: '反贼', equips: ['♦ 麒麟弓'], left: 24, top: 218 },
+        { hero: '华佗', kingdom: 'qun', kingdomLabel: '群', hp: 3, max: 3, left: 24, top: 428 },
+        { hero: '界刘备', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, identity: '主公', marks: ['技'], judge: '♠ 闪电', left: 1078, top: 218 },
+        { hero: '陆逊', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3, left: 1078, top: 428 },
+    ];
+
+    let eight = false;
+    function renderSeats() {
+        document.getElementById('seats').innerHTML = (eight ? EIGHT : FOUR).map(seatEl).join('');
+    }
+    renderSeats();
+
+    document.getElementById('seatsBtn').onclick = () => {
+        eight = !eight;
+        document.getElementById('seatsBtn').textContent = eight ? '切 4 人局' : '切 8 人局';
+        renderSeats();
+    };
+    document.getElementById('drawerBtn').onclick = () => {
+        document.getElementById('drawer').classList.toggle('hidden');
+    };
+</script>
+</body>
+</html>
