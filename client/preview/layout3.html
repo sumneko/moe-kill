@@ -99,10 +99,14 @@
     .head .pname { font-size: 10px; color: var(--muted); }
     .portrait .kingdom { position: absolute; left: -8px; top: -8px; font-size: 11px; padding: 1px 6px; border-radius: 3px;
         background: #0d1018e6; border: 1px solid #6b7390; color: #fff; }
-    .portrait .stamp { position: absolute; left: -8px; bottom: 8px; width: 34px; padding: 3px 0; text-align: center;
+    .portrait .stamp { position: absolute; right: -8px; top: 8px; width: 34px; padding: 3px 0; text-align: center;
         font-size: 11px; line-height: 1.1; color: #fff; background: #b8352be6; border-radius: 3px; transform: rotate(-8deg); }
     .portrait .stamp.loyal { background: #2f6fb5e6; }
     .portrait .stamp.spy   { background: #6b4bb0e6; }
+    /* 手牌数量：立绘左下角 */
+    .portrait .hand-count { position: absolute; left: -9px; bottom: 8px; min-width: 20px; height: 20px; padding: 0 4px;
+        display: flex; align-items: center; justify-content: center; border-radius: 4px;
+        background: #0d1018e6; border: 1px solid #6b7390; color: #e6e9f0; font-size: 11px; font-weight: 700; }
     .seat.dead .portrait .art { filter: grayscale(1) brightness(.55); }
     /* 阵亡印章盖在立绘中央，不遮身份牌 */
     .portrait .fallen { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-12deg);
@@ -132,7 +136,7 @@
         background: #dde4f6; border: 2px solid #6f7da6; box-shadow: 0 1px 3px #0006;
         display: flex; align-items: center; justify-content: center; }
     .judge span { transform: rotate(-45deg); font-size: 11px; font-weight: 700; color: #2f3a58; }
-    .seat .side { position: absolute; left: calc(var(--portrait-w) - 6px); top: 0; display: flex; flex-direction: column; gap: 4px; }
+    .seat .side { position: absolute; left: calc(var(--portrait-w) - 6px); top: 32px; display: flex; flex-direction: column; gap: 4px; }
     .seat .ico { width: 20px; height: 20px; border-radius: 50%; background: #24304a; border: 1px solid #46557a;
         display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b9c6e2; }
 
@@ -147,6 +151,7 @@
     #mePortrait .pips .pip { width: 22px; height: 10px; }
     #mePortrait .judge { width: 22px; height: 22px; margin: 7px 0; }
     #mePortrait .judge span { font-size: 13px; }
+    #mePortrait .hand-count { left: -11px; bottom: 8px; min-width: 24px; height: 24px; font-size: 13px; }
     #meEquips { margin-top: 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
     #meEquips .equip { min-width: 130px; height: 16px; font-size: 10px; }
 
@@ -205,6 +210,7 @@
                     <div class="judge-col" id="meJudges"></div>
                     <div class="pips" id="mePips"></div>
                     <div class="stamp spy">内奸</div>
+                    <div class="hand-count" id="meHandCount">0</div>
                 </div>
                 <div id="meEquips"></div>
             </div>
@@ -256,15 +262,16 @@
 
     document.getElementById('playedWrap').innerHTML = cardHtml('顺手牵羊', '♦', 3, 'big glow');
 
-    // 手牌：每行 12 张；超出的往下叠（被压住的那行只露出标题带）
+    // 手牌：每行 12 张。行序 = 最新的在上、旧的在下；旧行压住新行 ⇒ 新行只露标题带
     const PER_ROW = 12;
     function renderHand(count) {
         const hand = document.getElementById('meHand');
+        document.getElementById('meHandCount').textContent = String(count);
         const rows = [];
         for (let i = 0; i < count; i += PER_ROW) {
             rows.push(Math.min(PER_ROW, count - i));
         }
-        hand.innerHTML = rows.map((n, r) => `<div class="row">${
+        hand.innerHTML = rows.map((n, r) => ({ n, r })).reverse().map(({ n, r }) => `<div class="row">${
             Array.from({ length: n }, (_, i) => {
                 const k = (r * PER_ROW + i) % NAMES.length;
                 return cardHtml(NAMES[k], SUITS[k % 4], ((k + 1) % 13) + 1);
@@ -319,6 +326,7 @@
                 <div class="pips">${pipsHtml(opt.hp, opt.max)}</div>
                 ${opt.identity ? `<div class="stamp ${stampCls}">${opt.identity}</div>` : ''}
                 ${opt.dead ? '<div class="fallen">阵亡</div>' : ''}
+                <div class="hand-count">${opt.hand ?? 0}</div>
                 <div class="side">${(opt.marks ?? []).map((m) => `<div class="ico">${m}</div>`).join('')}</div>
             </div>
             <div class="equips">${equipHtml(opt.equips ?? [])}</div>
@@ -326,28 +334,28 @@
     }
 
     const FOUR = [
-        { hero: '柏灵筠', name: 'robot1', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, marks: ['技'],
+        { hero: '柏灵筠', name: 'robot1', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, hand: 3, marks: ['技'],
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 590, top: 48 },
-        { hero: '袁术', name: 'robot3', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, dead: true, identity: '反贼',
+        { hero: '袁术', name: 'robot3', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, hand: 0, dead: true, identity: '反贼',
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 14, top: 130 },
-        { hero: '界刘备', name: 'robot4', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, identity: '主公', marks: ['技', '技'],
+        { hero: '界刘备', name: 'robot4', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, hand: 5, identity: '主公', marks: ['技', '技'],
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 1160, top: 130 },
     ];
 
     const EIGHT = [
-        { hero: '柏灵筠', name: 'robot1', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, marks: ['技'],
+        { hero: '柏灵筠', name: 'robot1', kingdom: 'wei', kingdomLabel: '魏', hp: 3, max: 3, hand: 3, marks: ['技'],
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 340, top: 48 },
-        { hero: '孟获', name: 'robot5', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, dead: true, identity: '内奸',
+        { hero: '孟获', name: 'robot5', kingdom: 'qun', kingdomLabel: '群', hp: 0, max: 4, hand: 0, dead: true, identity: '内奸',
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 590, top: 48 },
-        { hero: '周瑜', name: 'robot6', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3,
+        { hero: '周瑜', name: 'robot6', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3, hand: 4,
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 840, top: 48 },
-        { hero: '袁术', name: 'robot3', kingdom: 'qun', kingdomLabel: '群', hp: 1, max: 4, identity: '反贼',
+        { hero: '袁术', name: 'robot3', kingdom: 'qun', kingdomLabel: '群', hp: 1, max: 4, hand: 2, identity: '反贼',
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 94, top: 110 },
-        { hero: '华佗', name: 'robot7', kingdom: 'qun', kingdomLabel: '群', hp: 3, max: 3,
+        { hero: '华佗', name: 'robot7', kingdom: 'qun', kingdomLabel: '群', hp: 3, max: 3, hand: 6,
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 14, top: 380 },
-        { hero: '界刘备', name: 'robot4', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, identity: '主公', marks: ['技'],
+        { hero: '界刘备', name: 'robot4', kingdom: 'shu', kingdomLabel: '蜀', hp: 2, max: 4, hand: 5, identity: '主公', marks: ['技'],
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 1080, top: 110 },
-        { hero: '陆逊', name: 'robot8', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3,
+        { hero: '陆逊', name: 'robot8', kingdom: 'wu', kingdomLabel: '吴', hp: 3, max: 3, hand: 3,
           equips: FULL_EQUIPS, judges: FULL_JUDGES, left: 1160, top: 380 },
     ];
 
