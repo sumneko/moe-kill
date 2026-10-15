@@ -524,7 +524,7 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 ## 3 用户已表态、还没做的方向
 
-**交接状态（2026-10-15）**：**本地领先 `origin/main` 13 笔**（远端停在 `611496b`），**本批「局终后重开一局」尚未提交**；**1304 用例全绿**、问题面板 0、`openspec validate --all --strict` **35/35**（含新变更 `add-game-restart`，**待归档**）。**接下来从 §2 的候选表取**（`add-worker-mode` 原本排第一，用户 2026-10-15 定「**缓一缓**」（核实：复用同一个局不影响测试 —— 测试是每个用例各建各的局，只有十来条用例故意钉重装语义，见 §3 那条））。**本日已做完**：展示用文本、JSON-RPC 规格（已归档成主规格 `jsonrpc-protocol`）、**「探索期冻结」→「分级解冻」的口径变更**（`AGENTS.md` 工作流分级表 + `openspec/config.yaml`）、**动画节拍 `game:animSleep` + `moe.animScale`**、**局终后原班人马重开一局**（`Game.Restart` / `Game.Restarted` + `moe.room.restart`，见 §1 末条）。
+**交接状态（2026-10-15）**：**本地领先 `origin/main` 16 笔**（远端停在 `611496b`，**未推送**）；**1304 用例全绿**、问题面板 0、`openspec validate --all --strict` **34/34**（`add-game-restart` 已归档，`changes/` 下只剩在途的 `add-worker-mode`）。**接下来从 §2 的候选表取**（`add-worker-mode` 原本排第一，用户 2026-10-15 定「**缓一缓**」（核实：复用同一个局不影响测试 —— 测试是每个用例各建各的局，只有十来条用例故意钉重装语义，见 §3 那条））。**本日已做完**：展示用文本、JSON-RPC 规格（已归档成主规格 `jsonrpc-protocol`）、**「探索期冻结」→「分级解冻」的口径变更**（`AGENTS.md` 工作流分级表 + `openspec/config.yaml`）、**动画节拍 `game:animSleep` + `moe.animScale`**、**局终后原班人马重开一局**（`Game.Restart` / `Game.Restarted` + `moe.room.restart`，**已归档**，见 §1 末条）、**客户端布局原型定稿 + 前端选型定为 `preact + JSX`**（见 §1 末条）。
 
 - **custom 接口改造 / 性别迁移（用户 2026-10-15 定，**当天已落地**）**：内容侧改成直接读写 **`player.custom.<key>`**、可见性用 **`player:setCustomVisible(key, options)`**，**真正的容器（`Custom` 实例）不暴露给内容侧**；**性别**改存 **`custom.heroSex`**（`setHero` 写）；**`Player:setTag / getTag / removeTag` 退役** —— 内容侧零调用、功能被 `custom` 全覆盖（`Effect` / `Phase` 那两份照旧）。（下面是同批定的剩下那半）
 
