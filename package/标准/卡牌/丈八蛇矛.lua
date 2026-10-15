@@ -3,6 +3,7 @@
 -- 攻击范围 3
 
 Card '丈八蛇矛'
+    : desc '你可以将两张手牌当【杀】使用或打出。\n攻击范围 3'
     : extends '武器牌'
     : value('攻击范围', 3)
     : viewAs('杀', { condition = { zone = '手牌', min = 2 } })

@@ -2,6 +2,7 @@
 -- 锁定技，黑色的【杀】对你无效。
 
 Card '仁王盾'
+    : desc '锁定技，黑色的【杀】对你无效。'
     : extends '防具牌'
     : event('效果-目标-能否生效', function (card, effect)
         if effect.kind ~= 'cardEffect' then

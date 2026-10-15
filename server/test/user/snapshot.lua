@@ -73,7 +73,8 @@ lt.test('快照：展示用文本按定义收（选没选将、出没出牌都�
     end
     lt.assertEquals('文本是定义级的：没选将也有技能文本', true, (texts['仁德'] or ''):find('至少一张手牌') ~= nil)
     lt.assertEquals('主公技没挂上也有它的文本', true, (texts['激将'] or ''):find('主公技') ~= nil)
-    lt.assertEquals('没声明描述的定义不进表', nil, texts['杀'])
+    lt.assertEquals('牌的文本也在（裸名当 key）', true, (texts['杀'] or ''):find('打出一张【闪】') ~= nil)
+    lt.assertEquals('武将名不进表（表里只有牌与技能）', nil, texts['刘备'])
 end)
 
 ---@async

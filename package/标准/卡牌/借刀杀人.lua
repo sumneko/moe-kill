@@ -23,6 +23,7 @@ local function reachable(player)
 end
 
 Card '借刀杀人'
+    : desc '出牌阶段，对装备区里有武器牌的一名其他角色使用。你指定其攻击范围内的一名其他角色：\n该角色需对其使用一张【杀】，否则将其装备区里的武器牌交给你。'
     : extends '锦囊牌'
     : targets {
         filter = function (player, plan)

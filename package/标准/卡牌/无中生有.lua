@@ -2,6 +2,7 @@
 -- 出牌阶段，对自己使用。摸两张牌。
 
 Card '无中生有'
+    : desc '出牌阶段，对自己使用。摸两张牌。'
     : extends '锦囊牌'
     : targets {
         filter = function (player, plan)
