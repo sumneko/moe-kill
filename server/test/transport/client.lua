@@ -175,3 +175,40 @@ lt.test('客户端：头和正文分两批到也接得上', function ()
     lt.assertEquals('正文到手就解出来了', 7, assert(got).n)
     undo()
 end)
+
+---@async
+lt.test('客户端：发不出去 = 这条连接坏了，就地收摊', function ()
+    local front, back = connect()
+    -- 把「后端 → 前端」这条写弄坏（对端已经关了的样子）
+    back.link.write = function ()
+        return false, '对端关闭了连接'
+    end
+
+    lt.assertEquals('通知发不出去', false, back:notify('测试/通知', { n = 1 }))
+    lt.assertEquals('这条连接就地收摊', true, back.closed)
+    lt.assertEquals('收摊之后发什么都不再往外走', false, back:notify('测试/通知', { n = 2 }))
+
+    front:close('用例收摊')
+    back:close('用例收摊')
+end)
+
+---@async
+lt.test('客户端：发不出去也要先让出一笔调度（别把事件循环饿死）', function ()
+    local front, back = connect()
+    back.link.write = function ()
+        return false, '对端关闭了连接'
+    end
+
+    ---@type string[]
+    local order = {}
+    moe.await.wake(function ()
+        order[#order + 1] = '排在后面的那个'
+    end)
+    local task = back:request('测试/回声', {})
+    local _, err = task:await()
+    lt.assertEquals('这次请求没成', '对端关闭了连接', assert(err).message)
+    lt.assertEquals('让出过一笔：排在后面的先跑了', 1, #order)
+
+    front:close('用例收摊')
+    back:close('用例收摊')
+end)

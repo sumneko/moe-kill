@@ -66,8 +66,14 @@ end
 
 game:registerFlow(function ()
     local player = game.desk:getPlayer(1)
+    local turns  = 0
     while player and #game.desk.alivePlayers > 1 do
         runTurn(player)
+        turns = turns + 1
+        if turns >= rule.maxTurns then
+            game:endGame { side = '平局', reason = '打满了 {} 个回合' % { rule.maxTurns } }
+            return
+        end
         player = game.desk:getNext(player)
     end
 end)

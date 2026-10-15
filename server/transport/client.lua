@@ -123,6 +123,9 @@ function M:notify(method, params)
 end
 
 --- 发一个请求（返回它这次的任务；给了 `callback` 就同时挂上，参数同 `Task:await` 的两个返回值）
+--- 发不出去也**先让出一笔调度**再收尾：询问是决策点，不能因为「答复当场就定了」（连接坏了 / 已收摊）
+--- 就一路不让出 —— 事件循环被饿死时，一桌不作为的局能一路空转吃掉 12 GB（2026-10-15 实测）
+---@async
 ---@param method string
 ---@param params table
 ---@param callback? fun(result?: table, err?: Proto.Error)
@@ -142,6 +145,7 @@ function M:request(method, params, callback)
     self.pendings[id] = task
     local ok, err = self:send(moe.jsonrpc.encodeCall(id, method, params))
     if not ok then
+        moe.await.sleep(0)
         self.pendings[id] = nil
         task:reject {
             code = moe.jsonrpc.INTERNAL_ERROR,
@@ -162,15 +166,19 @@ function M:awaitRequest(method, params)
     return self:request(method, params):await()
 end
 
---- 发一条消息（套上长度头；发不出去只记一条日志 —— 连接坏了由读循环那头收摊）
+--- 发一条消息（套上长度头）；发不出去 = 这条连接已经坏了，就地收摊（之后就一条日志、不再刷）
 ---@private
 ---@param text string
 ---@return boolean
 ---@return string?
 function M:send(text)
+    if self.closed then
+        return false, '连接已关闭'
+    end
     local ok, err = self.link:write(encodeFrame(text))
     if not ok then
-        log.warn('往客户端发消息失败：{}' % { err or '未知原因' })
+        log.warn('往客户端发消息失败，这条连接收摊了：{}' % { err or '未知原因' })
+        self:close(err or '连接已关闭')
     end
     return ok, err
 end

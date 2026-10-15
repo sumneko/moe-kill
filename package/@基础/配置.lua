@@ -5,3 +5,5 @@ rule.defaultHp = 5
 rule.lordHpBonus = 1
 -- 每个回合的摸牌阶段默认摸几张
 rule.defaultDrawCount = 2
+-- 一局最多打多少个回合（一个角色的一个回合算一个）；打满就平局 —— 没有这一手，一桌人不作为（或都跑了）会让回合循环转动到天荒地老
+rule.maxTurns = 100

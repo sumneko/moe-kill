@@ -114,6 +114,29 @@ lt.test('回合：首回合从主公开始，六个阶段依次走完', function
     lt.assertEquals('停掉之后没有第二个回合', 1, state.turns)
 end)
 
+lt.test('回合：打满「回合上限」就平局收场（默认 100）', function ()
+    local state = startTurn {
+        answer = endPhase(),
+        setup  = function (run)
+            lt.assertEquals('默认上限', 100, run.game.rule.maxTurns)
+            -- 用例里调小：验的是「到点就收摊」这套机制，不必真跑 100 个回合
+            run.game.rule.maxTurns = 3
+        end,
+    }
+
+    for _ = 1, 2000 do
+        if state.run.game:getResult() then
+            break
+        end
+        moe.await.sleep(0)
+    end
+
+    local result = assert(state.run.game:getResult(), '打满了回合上限还没收场')
+    lt.assertEquals('平局', '平局', result.side)
+    lt.assertEquals('理由', '打满了 3 个回合', result.reason)
+    lt.assertEquals('正好打满 3 个', 3, state.turns)
+end)
+
 lt.test('回合：阶段清单从共享袋里读，换了就按新的走', function ()
     local marks = {}
     local state = startTurn {

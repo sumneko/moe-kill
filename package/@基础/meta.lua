@@ -7,6 +7,7 @@
 ---@field defaultHp? integer
 ---@field lordHpBonus? integer
 ---@field defaultDrawCount? integer
+---@field maxTurns? integer
 ---@field phases? string[]
 
 --- 性别（由武将写入；没有武将时常常没有 —— 官方：没有性别的角色不能判断别人与其性别是否相同）
