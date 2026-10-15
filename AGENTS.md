@@ -20,7 +20,7 @@
 
 | 路径 | 说明 |
 | ---- | ---- |
-| `openspec/specs/` | 探索期写下的规格快照（**已冻结，不随实现更新**；见「工作流」） |
+| `openspec/specs/` | 主规格（**分级维护**：对外契约类随实现更新并归档合入；其余为探索期快照，见「工作流」） |
 | `openspec/changes/` | 进行中的变更（`proposal` / `design` / `tasks`；探索期不写 specs） |
 | `openspec/changes/archive/` | 已归档变更（保留历史） |
 | `openspec/config.yaml` | OpenSpec 项目配置（语言、工件规则、操作指引） |
@@ -42,19 +42,28 @@
 
 先规划、后实现。遵循"规划边界"：除非用户明确进入实施阶段，否则只创建规划工件，不直接改业务代码。
 
-**探索期的用法：只留决策记录，不写规格**（用户 2026-09-21 定）。理由：此时设计会反复推翻（效果模型三天里换了三轮），而规格（requirements / scenarios）是**最贵、最不抗变**的一层 —— 每次都要人工对账，产出却是对刚写完的代码的复述。**可执行契约由用例承担**（`server/bin/moe-kill.exe --test`）。
+**规格分三级：按「有没有外部消费者」决定要不要写**（用户 2026-09-21 冻结探索期口径、2026-10-15 定「逐步解冻」）。可执行契约由用例承担（`server/bin/moe-kill.exe --test`）。
 
-- 变更工件 = **`proposal.md` + `design.md` + `tasks.md`**；**不写 `specs/`**：建完变更后在它的 `.openspec.yaml` 里加一行 `skip_specs: true`。实测（2026-09-21）：加了它以后 `openspec status` 把 `specs` 记成 `skipped`、`tasks` 照常可写，`openspec validate --strict` 接受零增量（只给一条 INFO）。
-- **`openspec/specs/` 已冻结**：那是探索期留下的历史快照，**不再随实现更新**，也不再当真相源（要读现状看代码 + 用例 + 技能的 `references/`）。等规则口径稳定（武将 / 牌表 / 流程定稿）后再做**一次性回顾性对齐**，而不是每个功能点都追。
-- **只有真要长期稳定的对外契约才写规格**：JSON-RPC 协议、时机 / 事件清单、包与装载器的对外约定 —— 这些有外部消费者、改动昂贵。写这类变更时**不设** `skip_specs`，照常写 `specs/` 增量。
+当初冻结的理由：探索期设计会反复推翻（效果模型三天里换了三轮），而规格（requirements / scenarios）是**最贵、最不抗变**的一层 —— 每次都要人工对账，产出却是对刚写完代码的复述。这条理由对**还在长的内核**依然成立，所以解冻是**逐层**的、不是一次性开关；**唯一硬指标是「有没有外部消费者」**。
+
+| 层 | 例子 | 现在写规格？ | 依据 / 触发条件 |
+| ---- | ---- | ---- | ---- |
+| **对外契约** | JSON-RPC 协议（`jsonrpc-protocol` ✓ 已转活）、时机 / 事件清单、包与装载器的对外约定 | ✅ 写，且**保持活的** | 有外部消费者（前端、将来的 AI 客户端、别人写的包）、改动昂贵 |
+| **内核行为** | `core-effect` / `core-response` / `core-zones` / `core-play` / `core-decision` … | ⏳ 先别写 | 还在长（`Ask*` 家族反复改形、worker 还要动装载器）⇒ 现在写必返工。**触发条件**：某块内核已定型 + 有人要按它对接 |
+| **内容口径** | `base-rules` / `standard-cards` / `turn-flow` / `identity-mode` | ⏳ 最接近解冻 | **触发条件**：① 军争篇做不做定调；② `sanguosha-rules` §10 的「待核对规则集原文」清零；③ 没有在途的内核行为变更 |
+| **探索期留下的旧规格** | 那批历史快照（`core-*` / `base-rules` / `turn-flow` …） | ❌ 不逐点追 | 与现状确有出入（例：`core-response` / `core-decision` 写的「没答上 MUST NOT 当成失败」已与现状相反）⇒ 等上面两层转活后做**一次性回顾性对齐**，而不是每个功能点追一份 |
+
+- 变更工件 = **`proposal.md` + `design.md` + `tasks.md`**；**内核行为 / 内容口径类**变更**不写 `specs/`**：建完变更后在它的 `.openspec.yaml` 里加一行 `skip_specs: true`。实测（2026-09-21）：加了它以后 `openspec status` 把 `specs` 记成 `skipped`、`tasks` 照常可写，`openspec validate --strict` 接受零增量（只给一条 INFO）。
+- **对外契约类变更不设** `skip_specs`，照常写 `specs/` 增量，归档时合进 `openspec/specs/`（范例：`specify-jsonrpc-protocol`）。
+- 要读**现状**看**代码 + 用例 + 技能的 `references/`**，不要拿 `openspec/specs/` 当真相源（除已转活的 `jsonrpc-protocol` 那几份外，其余仍是历史快照）。
 
 | 场景 | 通用调用（技能名，任意客户端） |
 | ---- | ---- |
-| 提出新变更（proposal / design / tasks；探索期无 specs） | `/openspec-propose` |
+| 提出新变更（proposal / design / tasks；内核 / 内容类不写 specs） | `/openspec-propose` |
 | 探索与讨论（无副作用的思考伙伴） | `/openspec-explore` |
 | 按 `tasks.md` 实施变更 | `/openspec-apply-change` |
 | 更新已有变更的工件 | `/openspec-update-change` |
-| （冻结期不用）把 spec 增量同步进 `openspec/specs/` | `/openspec-sync-specs` |
+| 把 spec 增量同步进 `openspec/specs/`（**只对外契约类用**） | `/openspec-sync-specs` |
 | 归档已完成变更 | `/openspec-archive-change` |
 
 - 技能文件位于 `.agents/skills/openspec-*/SKILL.md`，为通用 Agent Skills 格式；客户端可自动激活，不支持斜杠调用时直接提及技能名即可。
@@ -78,7 +87,7 @@
 - 归档前先运行 `openspec validate <name>` 校验；实现完成后勾选 `tasks.md` 全部条目，再执行 `openspec archive <name> --yes`。
 - `.agents/skills/` 下由 OpenSpec 生成的文件不要手动修改；升级 CLI 后运行 `openspec update` 刷新。
 - 重大需求/架构调整先建变更提案，经确认后再写代码。
-- **探索期不写规格**（用户 2026-09-21 定）：变更只做**决策记录**（`proposal` / `design` / `tasks`，并在 `.openspec.yaml` 里设 `skip_specs: true`），`openspec/specs/` **冻结、不维护**；理由与细节见「工作流」，契约以用例为准。
+- **规格口径：分级解冻**（用户 2026-09-21 冻结、2026-10-15 定「逐步解冻」）：对外契约类变更写 `specs/` 增量并归档成主规格（`jsonrpc-protocol` ✓）；内核行为与内容口径类变更设 `skip_specs: true`、不写 specs；`openspec/specs/` 里探索期留下的 27 份历史快照**不逐点维护**，等一次性回顾性对齐。判断标准只有一条：**有没有外部消费者**。详见「工作流」段的分级表。
 
 - **可叠加的操作必须返回撤销函数**：凡“添加/附加”类操作（加属性修正、加标记、订阅事件…）一律返回一个 **disposer 函数**，调用它即精确撤销这次添加；不要只提供“移除”，也不要让调用方自己回滚。
 - **模块不得持模块级可变状态**（热重载要求）：`local` 只放不可变常量与纯函数；必须跨重载存活的状态挂到**跨重载仍是同一份的载体**上 —— 属于某一局的挂局实例（`game` 上的字段，如号源 `game:nextId()`），内核级、跨局的才挂门面表 `moe`（在 `moe-kill.lua` 里建立、不参与重载），后者写成「有则复用」（如 `moe._x = moe._x or 初值`），并用 **`_` 前缀**标明「内核内部状态、不是对外接口」。**不要挂类表**：类表上的字段会被 `Extends` 复制给子类、并在重载时被 `reset` 清掉。重载边界是**加载方式**（`include` 可重载 / `require` 不参与），详见 `moe-kill-dev` 技能的 `references/architecture.md` 第 8 节。
@@ -88,7 +97,7 @@
 - **不要过度防御**（用户 2026-09-19 定）：**正常流程下不会出现的情况不写防御**。调用约定与类型契约已经保证的东西（规则实例的 `rule.room`、自己模块内互相调用的参数、自己创建的对象）直接用 —— 我们相信拿到的是我们自己定义的对象，不去管「万一被人篡改」；只有**运行期真的会缺**的（清单里没有内容包 ⇒ 没牌表、人数不在身份配置表里）与**外部输入**（协议 / 前端数据、别人放的包与文件）才检查。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
 - **注释尽量不写；接口留一行中文说明**（用户 2026-09-19 定）：代码里**不写注释**（说不清就先改名 / 拆函数）；但**入口**（函数 / 方法 / 字段 / 模块门面）保留**一行极短的中文说明**，几个字即可（如「获取标题」），贴在类型注解的 `#` 后。**要保留的注释单独占一行、放在它说明的代码之前，不写行尾注释**（用户 2026-09-23 定）。另一处例外：`package/` 里**卡牌 / 技能**这类内容定义文件，**顶部写它的官方描述**（见 `sanguosha-rules` §9.3）。**存量注释待下次顺手清**。详见 `moe-kill-dev` 的 `references/code-style.md` 第 3 节。
 - Git 提交信息：**AI 助手编写或修改的代码，提交信息开头加 `【AI】` 前缀**（如 `【AI】feat(core): 对象与牌堆骨架`）；人工提交不加。正文用简体中文 + conventional commits。
-- **改动收尾照着清单过一遍**（用户 2026-09-30 定；完整版见 `.agents/skills/moe-kill-dev/SKILL.md` 第 0 节）：① **测试全绿**（`server/bin/moe-kill.exe --test`，报出验收基线数）；② **检查问题面板**（每次收尾都实跑一遍，不凭印象）information 及以上清到 0（hint 级不管、改不动的来问用户；**诊断先验真伪** —— 别直接重启语言服务器，先确认问题真的存在；确实怀疑是缓存才 `lua.startServer`，且**重启后等 5~10 秒**再查看）；③ 有变更就把 `tasks.md` 逐条勾完；④ **文档同步**（`architecture.md` 现状 / `progress.md` §1 与基线 / `sanguosha-rules` 口径）；⑤ **硬约束自查**（键的落点、命名、注释、函数不用 `---@field` 写…）；⑥ 提交信息 `【AI】` + 中文正文；⑦ **停在待确认状态**，等用户说「提交」（**例外：变更归档那一次提交可以自行做**，用户 2026-09-30 定）；⑧ 动了对外契约（时机名 / 协议 / 公开接口）就提醒 `openspec/specs/` 是冻结的。
+- **改动收尾照着清单过一遍**（用户 2026-09-30 定；完整版见 `.agents/skills/moe-kill-dev/SKILL.md` 第 0 节）：① **测试全绿**（`server/bin/moe-kill.exe --test`，报出验收基线数）；② **检查问题面板**（每次收尾都实跑一遍，不凭印象）information 及以上清到 0（hint 级不管、改不动的来问用户；**诊断先验真伪** —— 别直接重启语言服务器，先确认问题真的存在；确实怀疑是缓存才 `lua.startServer`，且**重启后等 5~10 秒**再查看）；③ 有变更就把 `tasks.md` 逐条勾完；④ **文档同步**（`architecture.md` 现状 / `progress.md` §1 与基线 / `sanguosha-rules` 口径）；⑤ **硬约束自查**（键的落点、命名、注释、函数不用 `---@field` 写…）；⑥ 提交信息 `【AI】` + 中文正文；⑦ **停在待确认状态**，等用户说「提交」（**例外：变更归档那一次提交可以自行做**，用户 2026-09-30 定）；⑧ 动了对外契约（时机名 / 协议 / 公开接口）就**同时改对应那份活规格**（`openspec/specs/jsonrpc-protocol` 等）并提醒用户，内核 / 内容类改动照「工作流」段的分级表判断。
 - **平时只改 Lua，跑测试不需要构建**（用户 2026-09-20 定）：`server/bin/moe-kill.exe` 只是个壳，脚本从源码树加载 ⇒ 直接 `server/bin/moe-kill.exe --test` 就行；**只有**动了 C/C++ 或构建/补丁链（`make.lua`、`make/lua-patch/**`、`3rd/bee.lua`）才需要 `luamake -notest`。
 
 ## 环境注意（Windows / PowerShell）

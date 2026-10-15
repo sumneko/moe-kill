@@ -276,7 +276,7 @@ server/bin/moe-kill.exe -e "require 'moe-kill' dofile('server/tmp/bench-rebuild.
 
 openspec list                     # 进行中的变更
 openspec status --change <name>   # 工件完成度
-openspec validate --all           # 校验（探索期规格已冻结：变更走 skip_specs、不写 specs 增量）
+openspec validate --all           # 校验（规格分级：对外契约写增量、内核/内容类走 skip_specs，见 AGENTS.md「工作流」）
 git show origin/4.0.0:<path>      # 读 LuaLS 4.0.0 的任意文件
 ```
 
