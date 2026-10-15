@@ -108,6 +108,56 @@ main {
     font-size: 12px;
 }
 
+/* 武将牌面（写在 custom 里，内容侧公开的） */
+.seat .hero {
+    color: #e8d8a0;
+    font-size: 12px;
+}
+
+/* 技能：自动技能加一条底线，被禁用的灰掉 */
+.seat .skills {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    margin-top: 3px;
+}
+
+.seat .skill {
+    background: #2b4653;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 11px;
+}
+
+.seat .skill.auto {
+    border-bottom: 1px dotted #d8b04a;
+}
+
+.seat .skill.off {
+    opacity: 0.45;
+}
+
+/* 装备四个子区 + 判定区：一栏一行（空栏也摆着，看得出格子） */
+.seat .zones {
+    margin-top: 3px;
+}
+
+.seat .zone {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.seat .zone-name {
+    min-width: 40px;
+    color: #7f978f;
+    font-size: 11px;
+}
+
+.seat .zone .cards {
+    margin-top: 0;
+}
+
 .tag {
     background: #37544a;
     border-radius: 3px;
@@ -221,6 +271,15 @@ main {
     border-radius: 3px;
     padding: 0 3px;
     font-size: 10px;
+}
+
+/* 「转化」标：牌名是叠出来的，右上角提醒一下（悬停看原来是什么） */
+.card .mark.convert {
+    top: 2px;
+    bottom: auto;
+    left: 2px;
+    right: auto;
+    background: #58c0f0;
 }
 
 .ask {

@@ -25,29 +25,57 @@ export interface Selection {
 
 const EMPTY: Selection = { cards: [], players: [], heroes: [], skill: null, option: null };
 
-/** 协议里的区域串是「名字#玩家号」（无主是 #0） */
-const EQUIP_ZONES = ['装备', '武器', '防具', '进攻马', '防御马'];
+/** 装备子区（列装备牌的顺序就是这个顺序） */
+const EQUIP_ZONES = ['武器', '防具', '进攻马', '防御马'];
 
-/** 按区域串取一叠牌（`zoneOf` 给名字与主人号） */
+/** 按区域串取一叠牌（区域串给名字与主人号，主人号 0 = 无主） */
 function zoneCards(agent: Agent, name: string, owner: number): number[] {
     const want = `${name}#${owner}`;
     return [...agent.cards.values()].filter((card) => card.zone === want).map((card) => card.id);
 }
 
-/** 一个座位身上的牌（手牌 / 装备子区 / 判定区）拆开 */
+/** 一个座位身上的牌：手牌 / 装备四子区 / 判定区 */
 function seatCards(agent: Agent, id: number) {
     const mine = [...agent.cards.values()].filter((card) => (card.zone ?? '').endsWith(`#${id}`));
     const of = (names: string[]) => mine.filter((card) => names.includes((card.zone ?? '').split('#')[0] ?? '')).map((card) => card.id);
+    const equip: Record<string, number[]> = {};
+    for (const name of EQUIP_ZONES) {
+        equip[name] = of([name]);
+    }
     return {
         hand: of(['手牌']),
-        equipped: of(EQUIP_ZONES),
+        equip,
         judging: of(['判定']),
     };
 }
 
+/** 一张牌现在的牌面：「转化」(`modifier`) 叠在牌自己那份 (`face`) 上；看不见牌面就没值 */
+function cardFace(agent: Agent, id: number): Proto.CardFace | undefined {
+    const card = agent.cards.get(id);
+    if (!card?.face && !card?.modifier) {
+        return undefined;
+    }
+    return {
+        name: card.modifier?.name ?? card.face?.name,
+        suit: card.modifier?.suit ?? card.face?.suit,
+        point: card.modifier?.point ?? card.face?.point,
+    };
+}
+
+/** 牌面是不是被「转化」改过（同名同花色的那份 modifier —— 比如延时锦囊给实体牌挂的那份 —— 不算） */
+function isConverted(card: Proto.Card | undefined): boolean {
+    const modifier = card?.modifier;
+    if (!modifier) {
+        return false;
+    }
+    return (modifier.name !== undefined && modifier.name !== card.face?.name)
+        || (modifier.suit !== undefined && modifier.suit !== card.face?.suit)
+        || (modifier.point !== undefined && modifier.point !== card.face?.point);
+}
+
 /** 一张牌的写法（看不见牌面就写「背面」） */
 function cardLabel(agent: Agent, id: number): string {
-    const face = agent.cards.get(id)?.face;
+    const face = cardFace(agent, id);
     if (!face) {
         return '背面';
     }
@@ -78,13 +106,16 @@ function CardView(props: {
     onDragStart?: () => void;
     onDrop?: (event: DragEvent) => void;
 }) {
-    const face = props.agent.cards.get(props.id)?.face;
+    const card = props.agent.cards.get(props.id);
+    const face = cardFace(props.agent, props.id);
     const suit = face?.suit ?? '';
     const red = suit === '红桃' || suit === '方块';
+    const converted = isConverted(card);
     return html`<button
         class=${'card' + (props.picked ? ' picked' : '') + (props.off ? ' off' : '') + (face ? '' : ' hidden')}
         disabled=${props.onClick ? undefined : true}
         draggable=${props.draggable ? true : undefined}
+        title=${converted ? `转化自「${card?.face?.name ?? '背面'}」` : undefined}
         onClick=${props.onClick}
         onDragStart=${props.onDragStart}
         onDrop=${props.onDrop}
@@ -92,6 +123,7 @@ function CardView(props: {
         <span class="suit ${red ? 'red' : 'black'}">${SUITS[suit] ?? ''}</span>
         <span class="name">${face?.name ?? '背面'}</span>
         <span class="point">${face?.point ?? ''}</span>
+        ${converted ? html`<span class="mark convert">转</span>` : null}
         ${(props.marks ?? []).map((mark, index) => html`<span class="mark" key=${index}>${renderMark(mark)}</span>`)}
     </button>`;
 }
@@ -112,7 +144,7 @@ function Cards(props: { agent: Agent; ids: number[]; picked?: number[]; onPick?:
     </div>`;
 }
 
-/** 一个座位：名字、身份、体力、手牌张数、装备与判定区的牌 */
+/** 一个座位：名字、武将、身份、体力、技能、装备四子区与判定区的牌 */
 function Seat(props: {
     agent: Agent;
     player: Proto.Player;
@@ -124,6 +156,10 @@ function Seat(props: {
     const { agent, player } = props;
     const zoned = seatCards(agent, player.base.id);
     const identity = player.custom?.['identity'];
+    const hero = player.custom?.['heroName'];
+    const skills = [...agent.skills.values()]
+        .filter((one) => one.player === player.base.id)
+        .sort((left, right) => left.id - right.id);
     const health = player.attributes.find((one) => one.name === '体力')?.value;
     const maxHealth = player.attributes.find((one) => one.name === '体力上限')?.value;
     return html`<div
@@ -132,14 +168,27 @@ function Seat(props: {
     >
         <div class="who">
             <b>${player.base.userName || `座位 ${player.base.seat}`}</b>
+            ${hero ? html`<span class="hero">${String(hero)}</span>` : null}
             ${identity ? html`<span class="tag">${String(identity)}</span>` : null}
             ${props.isMe ? html`<span class="tag">我</span>` : null}
         </div>
         <div class="hp">
             体力 ${health ?? '?'}${maxHealth === undefined ? '' : ` / ${maxHealth}`} · 手牌 ${zoned.hand.length}
         </div>
-        <${Cards} agent=${agent} ids=${zoned.equipped} />
-        <${Cards} agent=${agent} ids=${zoned.judging} />
+        ${skills.length > 0 ? html`<div class="skills">${skills.map((skill) => html`<span
+            key=${skill.id}
+            class=${'skill' + (skill.auto ? ' auto' : '') + (skill.disabled ? ' off' : '')}
+        >${skill.name}</span>`)}</div>` : null}
+        <div class="zones">
+            ${EQUIP_ZONES.map((name) => html`<div class="zone" key=${name}>
+                <span class="zone-name">${name}</span>
+                <${Cards} agent=${agent} ids=${zoned.equip[name] ?? []} />
+            </div>`)}
+            <div class="zone">
+                <span class="zone-name">判定</span>
+                <${Cards} agent=${agent} ids=${zoned.judging} />
+            </div>
+        </div>
     </div>`;
 }
 
