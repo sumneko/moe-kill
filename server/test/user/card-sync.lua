@@ -360,7 +360,31 @@ lt.test('卡牌同步：搬牌当场发移动通知', function ()
 end)
 
 ---@async
-lt.test('卡牌同步：看不见的牌搬动时给号、不给牌面', function ()
+lt.test('卡牌同步：自己摸牌带牌面、别人看不见', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    attach(players)
+    local moves = collect('Card.Move')
+
+    local card = game:createCard('杀')
+    local deck = assert(game:getZone('抽牌'))
+    deck:setVisible(false)
+    deck:accept(card)
+    moe.await.sleep(0)
+    clear(moves)
+
+    game:moveCard(card, me:getZone('手牌'))
+
+    local mine = assert(moves[1]).moves[1]
+    lt.assertEquals('号给了（客户端靠它认账里那张）', true, mine.id ~= nil)
+    lt.assertEquals('摸到自己手里就有牌面（牌面按搬完之后算，不看搬之前那份账）', '杀', assert(mine.face).name)
+    local yours = assert(moves[2]).moves[1]
+    lt.assertEquals('抽牌堆是暗的、我的手牌也只有我看得见，整个移动都不下发', nil, yours.id)
+    lt.assertEquals('自然也没有牌面', nil, yours.face)
+end)
+
+---@async
+lt.test('卡牌同步：搬进明区人人都看得见牌面', function ()
     local game, players = newGame()
     local you = assert(players[2])
     attach(players)
@@ -374,10 +398,10 @@ lt.test('卡牌同步：看不见的牌搬动时给号、不给牌面', function
     game:moveCard(card, '弃牌')
 
     local mine = assert(moves[1]).moves[1]
-    lt.assertEquals('号给了（客户端靠它认账里那张）', true, mine.id ~= nil)
-    lt.assertEquals('牌面不给（本来是背面）', nil, mine.face)
+    lt.assertEquals('号给了', true, mine.id ~= nil)
+    lt.assertEquals('弃牌堆是明区，之前看不见的那张也带上牌面了', '杀', assert(mine.face).name)
     local yours = assert(moves[2]).moves[1]
-    lt.assertEquals('他自己看得见，自带牌面', '杀', assert(yours.face).name)
+    lt.assertEquals('他自己也看得见', '杀', assert(yours.face).name)
 end)
 
 ---@async

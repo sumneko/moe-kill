@@ -211,7 +211,7 @@ function V:moveCards(moves)
             local pcard = self.cardMap[move.card]
             pmoves[#pmoves+1] = {
                 id   = visible and pcard?.id   or nil,
-                face = visible and pcard?.face or nil,
+                face = visible and self:toPCardFace(move.card.ownFace) or nil,
                 from = from,
                 to   = to,
             }

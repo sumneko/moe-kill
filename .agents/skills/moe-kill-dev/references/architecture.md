@@ -645,6 +645,7 @@ Card '杀'
 - **可见性两块，互不相干**（用户 2026-10-09 定，纠正过我一次）：
   - **牌面**（`face` / `modifier` 给不给）= **区级** —— `card:isVisible(player)`（= `zone:isVisibleTo`；牌不在任何区 ⇒ false）；
   - **搬动可见性**（`Zone.Move.visible`）= **只描述「移动过程」**、与牌的持久状态无关 ⇒ 只给 `Card.Move` 读（不给就按「源区可见 or 目标区可见」算）；牌级朝向（`Card:setVisible`）**不做**。
+  - **`Card.Move` 的 `face` 按「搬完之后」算**（2026-10-16 修）：搬牌那一刻 `card` 还在**旧区**，所以不能拿账里那份 `pcard.face`（那是**上一次同步**时算的 =「**搬之前**我知不知道它是什么」）⇒ 现算 `self:toPCardFace(move.card.ownFace)`、由上面那个 `visible` 把门。**摸牌正是这个场景**：源（抽牌堆）对我不可见、目标（我的手牌）可见 ⇒ `visible = true` ⇒ 带上牌面（原先给的是背面）。`id` 那条**不动** —— `visible and pcard?.id` 管的是「客户端认不认得出账里那张」，与面无关。
 - **批量与出口**：`Create` / `Update` / `Remove` 攒到一次调度末尾合并发（`moe.await.wake`，脏牌按 `card.id` 排序 ⇒ 下发顺序可复现），`Move` 例外（当场）。出口是 `User` 上两条（`moveCards` / `updateCards`，基类空实现），`ClientUser` 转发给视图 ⇒ 视图自己决定发哪几种。
 - **快照**：`view.snapshot` 遍历 `cardZones` 拼出 `Proto.Card[]`（按号排），接 `Proto.SnapShot.cards`。**客户端收到即整份重建**（不叠加、也不需要服务端发 Remove）⇒ 开局 / 重连都走它，不再有 `syncAll` 那种「撤旧号 + 灌新份」的通知式重发（2026-10-10 用户定）。
 
