@@ -56,6 +56,7 @@ local function runTurn(player)
         if turn:takePhaseSkip(name) then
             goto continue
         end
+        game:animSleep(0.1)
         local _ <close> = game:enterPhase(player, name)
         ::continue::
     end

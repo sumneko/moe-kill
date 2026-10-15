@@ -273,6 +273,9 @@ server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 # 跑一次性脚本（Lua 风格的 -e）：引号里先 require 'moe-kill' 再 dofile；给了 -e 就不会再进服务模式，跑完即退
 # -e 之后必须显式给 --root（此时 arg[0] 不是 main.lua，ROOT_PATH 会从 exe 路径推出来）
 server/bin/moe-kill.exe -e "require 'moe-kill' dofile('server/tmp/bench-rebuild.lua')" --root "D:\Github\moe-kill\server"
+# ⚠️ `-e` 模式下**没有谁推虚拟时钟**（那条 addHighTask 在 `main.lua` 的**服务分支**里）⇒ 脚本里任何 `moe.await.sleep(正数)` 都会永远挂住（实测）。
+#    要跑等待类探针，脚本自己照抄一条：`addHighTask(function () moe.timer.update(beeTime.monotonic() - startMS) end)`；
+#    输出要 `io.write` + `io.flush()`（重定向到文件时是块缓冲，不 flush 就什么都看不到）。
 
 openspec list                     # 进行中的变更
 openspec status --change <name>   # 工件完成度

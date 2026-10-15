@@ -650,6 +650,17 @@ function M:getUsePhase(user)
     end
 end
 
+--- 给客户端播动画的时间（倍率 0 时等于没调用）
+---@async
+---@param seconds number
+function M:animSleep(seconds)
+    local scale = moe.animScale
+    if scale <= 0 then
+        return
+    end
+    moe.await.sleep(seconds * scale)
+end
+
 --- 声明一张牌（只能写在加载期加载的那个包里）
 ---@param name string
 ---@return CardDef

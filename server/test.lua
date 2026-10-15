@@ -99,6 +99,9 @@ end
 
 local lt = require 'test.ltest'
 
+-- 动画等待一律关掉：内容侧按节拍调 `animSleep`，测试不需要真等
+moe.animScale = 0
+
 moe.task.setErrorHandler(function (err)
     lt.errors[#lt.errors + 1] = err
 end)
@@ -148,6 +151,7 @@ test.require 'test.core.game-over'
 test.require 'test.core.can-use'
 test.require 'test.core.card-def'
 test.require 'test.core.phase'
+test.require 'test.core.anim'
 test.require 'test.core.effect'
 test.require 'test.core.effect.cast'
 test.require 'test.core.effect.damage'
