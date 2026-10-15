@@ -70,6 +70,7 @@ button:disabled { cursor: default; }
 .card.pick:hover { transform: translateY(-6px); }
 .card.picked { transform: translateY(-12px); box-shadow: 0 0 0 2px var(--gold), 0 6px 14px #0008; }
 .card.off { opacity: .45; filter: grayscale(1); }
+.fly-group { display: flex; align-items: flex-end; }
 
 #topbar { position: absolute; left: 0; top: 0; width: 100%; height: 40px;
     display: flex; align-items: center; gap: 10px; padding: 0 12px;
@@ -79,9 +80,10 @@ button:disabled { cursor: default; }
 .tag.ok { background: #1f4432; color: #8fe0b0; }
 .tag.over { background: #4a2226; color: #ffb3b8; }
 
-#corner { position: absolute; left: 14px; top: 52px; display: flex; gap: 10px; }
+#corner { position: absolute; left: 14px; right: 14px; top: 52px; display: flex;
+    justify-content: space-between; pointer-events: none; }
 .pile { display: flex; align-items: center; gap: 6px; background: #151b28cc; border: 1px solid var(--line);
-    border-radius: 8px; padding: 6px 8px; }
+    border-radius: 8px; padding: 6px 8px; pointer-events: auto; }
 .pile .stack { width: 26px; height: 36px; border-radius: 4px; border: 1px solid #3d5580;
     background: repeating-linear-gradient(45deg, #2b3f6b 0 5px, #23345a 5px 10px); }
 .pile .stack.plain { background: #3a3f52; border-color: #5a6180; }
@@ -186,7 +188,8 @@ button:disabled { cursor: default; }
 #meLeft.target .portrait { box-shadow: 0 0 0 3px #ff6b6b, 0 0 26px #ff6b6b88; }
 
 #meRight { position: relative; flex: 0 0 auto; display: flex; align-items: flex-end; }
-#meHand { display: flex; flex-direction: column; }
+#meHand { display: flex; flex-direction: column; width: calc(var(--card-w) * var(--hand-per-row));
+    min-height: var(--card-h); }
 #meHand .row { display: flex; gap: 0; align-items: flex-end; }
 #meHand .row + .row { margin-top: calc(var(--hand-step) - var(--card-h)); }
 

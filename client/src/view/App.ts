@@ -12,11 +12,12 @@ import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
 import { Stage } from './Stage';
 import { EMPTY, candidates, pickCard, pickSkill, toggle, type Selection } from './pick';
+import { flyGhost, measureCards, playMoves, zoneRect } from './anim';
 import { attr, cardFaceOf, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
 
-/** 桌面正中那张牌摆多久（毫秒）—— 到点还没进弃牌堆就自己撤下 */
-const SHOWN_MS = 3600;
+/** 桌面正中那张牌最多摆多久（毫秒）—— 正常靠「它进弃牌堆」那条移动撤下，这里只是兜底 */
+const SHOWN_MS = 10000;
 /** 跳字停留多久（毫秒） */
 const POP_MS = 900;
 
@@ -48,32 +49,6 @@ function stageEl(): HTMLElement | null {
     return document.querySelector<HTMLElement>('#stage');
 }
 
-/** 让一张牌的替身从它现在的位置飞向弃牌堆（替身飞完自己消失） */
-function flyGhost(el: HTMLElement, to: DOMRect): void {
-    const stage = stageEl();
-    if (!stage) {
-        return;
-    }
-    const stageRect = stage.getBoundingClientRect();
-    const scale = Math.max(stageRect.width, 1) / 1280;
-    const from = el.getBoundingClientRect();
-    const ghost = el.cloneNode(true) as HTMLElement;
-    ghost.style.position = 'absolute';
-    ghost.style.left = `${(from.left - stageRect.left) / scale}px`;
-    ghost.style.top = `${(from.top - stageRect.top) / scale}px`;
-    ghost.style.margin = '0';
-    ghost.style.pointerEvents = 'none';
-    ghost.style.zIndex = '30';
-    stage.appendChild(ghost);
-    const dx = (to.left + to.width / 2 - (from.left + from.width / 2)) / scale;
-    const dy = (to.top + to.height / 2 - (from.top + from.height / 2)) / scale;
-    const anim = ghost.animate([
-        { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
-        { transform: `translate(${dx}px, ${dy}px) scale(.4)`, opacity: 0.15 },
-    ], { duration: 420, easing: 'cubic-bezier(.4,0,.6,1)' });
-    anim.addEventListener('finish', () => ghost.remove());
-}
-
 /** 牌桌 */
 export function App(props: { agent: Agent; events: GameEvent[] }) {
     const { agent } = props;
@@ -89,8 +64,10 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         setSelection(EMPTY);
     }, [ask?.id]);
 
-    // 表现事件：跳字，以及桌面正中那张牌打完飞进弃牌堆
+    // 表现事件：跳字 + 卡牌移动（自己出的那张走「中央展示」那条路）
     useEffect(() => {
+        // 同一批里按「从哪到哪」归组：一次移动多张就横排成一组一起飞（洗牌那种超量的由 anim 只飞一张）
+        const groups = new Map<string, Proto.CardMove[]>();
         for (const event of props.events) {
             if (event.kind === 'health') {
                 const key = nextKey.current++;
@@ -98,15 +75,29 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 window.setTimeout(() => setPops((list) => list.filter((one) => one.key !== key)), POP_MS);
                 continue;
             }
-            if (event.kind === 'move' && event.move.to.startsWith('弃牌#')) {
+            if (event.kind !== 'move') {
+                continue;
+            }
+            if (shown && event.move.to.startsWith('弃牌#')) {
                 const el = document.querySelector<HTMLElement>('[data-fly="shown"]');
-                const pile = document.querySelector<HTMLElement>('#corner .discard');
+                const pile = zoneRect(agent, '弃牌#0');
                 if (el && pile) {
-                    flyGhost(el, pile.getBoundingClientRect());
-                    setShown(null);
+                    flyGhost(el.cloneNode(true) as HTMLElement, el.getBoundingClientRect(), pile, 0.4);
                 }
+                setShown(null);
+            }
+            const key = `${event.move.from}→${event.move.to}`;
+            const list = groups.get(key);
+            if (list) {
+                list.push(event.move);
+            } else {
+                groups.set(key, [event.move]);
             }
         }
+        for (const list of groups.values()) {
+            playMoves(agent, list, shown?.ids ?? []);
+        }
+        measureCards();
     }, [props.events]);
 
     // 桌面正中那张牌：从手里飞过来
@@ -124,7 +115,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         el.animate([
             { transform: `translate(${(shown.from.left - to.left) / scale}px, ${(shown.from.top - to.top) / scale}px)` },
             { transform: 'translate(0px, 0px)' },
-        ], { duration: 300, easing: 'cubic-bezier(.35,.7,.35,1)' });
+        ], { duration: 420, easing: 'cubic-bezier(.25, 0, .25, 1)' });
     }, [shown]);
 
     const me = agent.me === null ? null : agent.players.get(agent.me) ?? null;
@@ -198,7 +189,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             </div>
 
             <div id="corner">
-                <div class="pile">
+                <div class="pile deck">
                     <div class="stack"></div>
                     <div><div class="num">${zoneCards(agent, '抽牌', 0).length}</div><div class="cap">抽牌堆</div></div>
                 </div>
