@@ -38,6 +38,7 @@ rule = nil
 ---@field on fun(self: CardDef, event: '使用', handler: fun(useCard: UseCard|UseCardToCard)): CardDef # 使用结算开始时跑一次（逐目标之前；声明了 skipEffect 的牌就到这）
 ---@field on fun(self: CardDef, event: '生效', handler: fun(cardEffect: CardEffect, useCard: UseCard?)): CardDef # 一次生效（使用期逐目标 / 判定阶段每张一次）
 ---@field on fun(self: CardDef, event: '被动', handler: fun(card: Card, zone: Zone, host: GCHost)): CardDef # 被动启用时跑一次：要挂什么就 `host:bindGC(…)`（停用时内核释放容器）
+---@field desc fun(self: CardDef, text: string): CardDef # 声明展示描述（客户端悬浮显示用；不写 = 没有）
 --- **订阅时机**用 `event`（订**这张牌的主人**头上那份）/ `globalEvent`（订局上那份）：只做订阅与生命周期 —— **要不要发动（`card:cast(…)`）由回调自己写**（与 `'被动'` 里手写 `owner:on(…)` 等价）；时机名开放 ⇒ 这里只列内核常用几条、其余走 `fun(card: Card, ...: any)` 兜底，内容侧时机的重载住 `package/@基础/meta.lua`
 ---@field event fun(self: CardDef, name: '卡牌-来源-结算前', handler: fun(card: Card, useCard: UseCard|UseCardToCard): any): CardDef # 主人使用的牌开始结算（订主人那份）
 ---@field event fun(self: CardDef, name: '卡牌-进入区域', handler: fun(card: Card, zone: Zone, visible?: Visibility): any): CardDef # 主人名下的区里有牌进来（牌自己那份由 `on('卡牌-进入区域')` 收；公共区没有主人、不发）
@@ -82,6 +83,7 @@ rule = nil
 ---@class SkillDef
 ---@field on fun(self: SkillDef, event: '被动', handler: fun(skill: Skill, host: GCHost)): SkillDef # 技能挂上时跑一次（要挂什么就 `host:bindGC(…)`；停用时内核释放容器）
 ---@field on fun(self: SkillDef, event: '使用', handler: fun(cast: SkillCast)): SkillDef # 主动发动时跑（`cast` = 这次发动：`cast.source` 技能 / `cast.from` 发动者 / `cast.use` 带的牌与目标）
+---@field desc fun(self: SkillDef, text: string): SkillDef # 声明展示描述（客户端悬浮显示用；不写 = 没有）
 ---@field event fun(self: SkillDef, name: '卡牌-来源-结算前', handler: fun(skill: Skill, useCard: UseCard|UseCardToCard): any): SkillDef # 自己使用的牌开始结算（订自己那份）
 ---@field event fun(self: SkillDef, name: '卡牌-来源-使用选项', handler: fun(skill: Skill, check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): SkillDef # 自己这次使用的选项（**收集式**：回调返回值会被 `fire` 收走；它跑在 `game:collect` 里 ⇒ 别在里面 await）
 ---@field event fun(self: SkillDef, name: '卡牌-进入区域', handler: fun(skill: Skill, card: Card, zone: Zone, visible?: Visibility): any): SkillDef # 主人名下的区里有牌进来（公共区没有主人、不发）

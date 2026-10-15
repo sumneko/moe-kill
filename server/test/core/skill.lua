@@ -52,6 +52,14 @@ lt.test('技能定义：声明与读回', function ()
     lt.assertEquals('来源是声明它的文件', '探针/技能.lua', skill.source)
 end)
 
+lt.test('技能定义：展示描述声明与读，不写就是空', function ()
+    useProbe()
+    local game = newGame("Skill '甲' : desc '试一句。'\nSkill '乙'")
+
+    lt.assertEquals('读得到', '试一句。', assert(game:getSkill('甲')).descText)
+    lt.assertEquals('不写就是空', nil, assert(game:getSkill('乙')).descText)
+end)
+
 lt.test('技能定义：不写自动同意就是关（每次问）', function ()
     useProbe()
     local game   = newGame(PROBE)

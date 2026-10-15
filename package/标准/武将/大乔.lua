@@ -8,6 +8,7 @@ Hero '大乔'
 
 -- 【流离】当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。
 Skill '流离'
+    : desc '当你成为【杀】的目标时，你可以弃置一张牌并选择你攻击范围内为此【杀】合法目标（无距离限制）的一名角色：若如此做，该角色代替你成为此【杀】的目标。'
     : event('卡牌-目标-指定目标后', function (skill, useCard, target)
         local owner = skill.owner
         if target ~= owner or useCard.card.name ~= '杀' then
@@ -47,6 +48,7 @@ Skill '流离'
 
 -- 【国色】你可以将一张方块牌当【乐不思蜀】使用。
 Skill '国色'
+    : desc '你可以将一张方块牌当【乐不思蜀】使用。'
     : viewAs('乐不思蜀', {
         condition = {
             suit = '方块',

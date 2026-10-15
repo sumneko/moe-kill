@@ -87,6 +87,18 @@ Card '乙'
     lt.assertEquals('不声明就是空', nil, assert(game:getCard('乙')):getZone())
 end)
 
+lt.test('定义：展示描述声明与读，不写就是空', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '甲'
+    : desc '一张用来试的牌。'
+Card '乙'
+]])
+
+    lt.assertEquals('读得到', '一张用来试的牌。', assert(game:getCard('甲')).descText)
+    lt.assertEquals('不写就是空', nil, assert(game:getCard('乙')).descText)
+end)
+
 lt.test('定义：extends 抄分类、牌区与限额，基类的钩子跑在前面', function ()
     local guard <close> = useProbe()
     local game, player = newGame([[

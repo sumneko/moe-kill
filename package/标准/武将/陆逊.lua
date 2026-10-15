@@ -8,6 +8,7 @@ Hero '陆逊'
 
 -- 【谦逊】锁定技，你不能被选择为【顺手牵羊】与【乐不思蜀】的目标。
 Skill '谦逊'
+    : desc '锁定技，你不能被选择为【顺手牵羊】与【乐不思蜀】的目标。'
     : tags '锁定技'
     : event('卡牌-目标-能否指定', function (skill, plan)
         local name = plan.card.name
@@ -18,6 +19,7 @@ Skill '谦逊'
 
 -- 【连营】当你失去手牌后，若你没有手牌，你可以摸一张牌。
 Skill '连营'
+    : desc '当你失去手牌后，若你没有手牌，你可以摸一张牌。'
     : auto(true)
     : event('卡牌-离开区域', function (skill, card, zone)
         local owner = skill.owner

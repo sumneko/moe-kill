@@ -87,6 +87,7 @@
 ---@field panels? Proto.Panel[] # 场上现存的每块面板（重连用）
 ---@field turnPlayer? integer # 当前回合角色（没人在回合就是空）
 ---@field phase? string # 当前阶段名（不在阶段里就是空）
+---@field texts Proto.Text[] # 展示用文本（牌与技能各按裸名收一份）
 
 ---@class Proto.Player.Custom
 ---@field id integer # 玩家ID
@@ -151,6 +152,10 @@
 ---@field auto? boolean # 是否是自动技能以及自动技能开关状态
 ---@field tag? string[] # 标签
 ---@field disabled? boolean # 是否被禁用
+
+---@class Proto.Text
+---@field name string # 裸名（牌名 / 技能名）
+---@field text string # 要显示的文本
 
 ---@class Proto.Notify.Skill.Update
 ---@field skill Proto.Skill # 被更新的技能

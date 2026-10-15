@@ -8,6 +8,7 @@ Hero '张飞'
 
 -- 【咆哮】锁定技，出牌阶段，你使用【杀】无次数限制。
 Skill '咆哮'
+    : desc '锁定技，出牌阶段，你使用【杀】无次数限制。'
     : tags '锁定技'
     : on('被动', function (skill, host)
         host:bindGC(skill.owner:addLimit('杀', '出牌', 1000))

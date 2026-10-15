@@ -8,6 +8,7 @@ Hero '甄姬'
 
 -- 【洛神】准备阶段开始时，你可以进行判定：若结果为黑色，判定牌生效后你获得之，然后你可以重复此流程。
 Skill '洛神'
+    : desc '准备阶段开始时，你可以进行判定：若结果为黑色，判定牌生效后你获得之，然后你可以重复此流程。'
     : event('判定-后', function (skill, judge)
         local card = judge.card
         if judge.reason == '洛神' and card and card.color == '黑' then
@@ -35,4 +36,5 @@ Skill '洛神'
 
 -- 【倾国】你可以将一张黑色手牌当【闪】使用或打出。
 Skill '倾国'
+    : desc '你可以将一张黑色手牌当【闪】使用或打出。'
     : viewAs('闪', { condition = { color = '黑', zone = '手牌' } })

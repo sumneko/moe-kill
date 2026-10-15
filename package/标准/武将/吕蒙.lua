@@ -8,6 +8,7 @@ Hero '吕蒙'
 
 -- 【克己】若你未于出牌阶段内使用或打出过【杀】，你可以跳过弃牌阶段。
 Skill '克己'
+    : desc '若你未于出牌阶段内使用或打出【杀】，你可以跳过弃牌阶段。'
     : auto(true)
     : event('阶段-结束', function (skill, phase)
         if phase.name ~= '出牌' then

@@ -8,6 +8,7 @@ Hero '张辽'
 
 -- 【突袭】摸牌阶段，你可以改为获得至多两名其他角色的各一张手牌。
 Skill '突袭'
+    : desc '摸牌阶段，你可以改为获得至多两名其他角色的各一张手牌。'
     : event('阶段-开始', function (skill, phase)
         if phase.name ~= '摸牌' then
             return

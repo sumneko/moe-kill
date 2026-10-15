@@ -96,6 +96,12 @@ function renderMark(mark: string): string {
     return match ? value : mark;
 }
 
+/** 悬浮提示：把有内容的那几行拼起来（一行都没有就是 undefined） */
+function tooltip(lines: (string | undefined)[]): string | undefined {
+    const all = lines.filter((one): one is string => Boolean(one));
+    return all.length > 0 ? all.join('\n') : undefined;
+}
+
 /** 牌面：花色红黑分开上色；`marks` 是挂在它身上的展示标记 */
 function CardView(props: {
     agent: Agent;
@@ -117,7 +123,10 @@ function CardView(props: {
         class=${'card' + (props.picked ? ' picked' : '') + (props.off ? ' off' : '') + (face ? '' : ' hidden')}
         disabled=${props.onClick ? undefined : true}
         draggable=${props.draggable ? true : undefined}
-        title=${converted ? `转化自「${card?.face?.name ?? '背面'}」` : undefined}
+        title=${tooltip([
+            props.agent.text(face?.name ?? ''),
+            converted ? `转化自「${card?.face?.name ?? '背面'}」` : undefined,
+        ])}
         onClick=${props.onClick}
         onDragStart=${props.onDragStart}
         onDrop=${props.onDrop}
@@ -181,9 +190,12 @@ function Seat(props: {
             key=${skill.id}
             class=${'skill' + (skill.auto ? ' auto' : '') + (skill.disabled ? ' off' : '')}
             disabled=${props.isMe ? undefined : true}
-            title=${skill.auto
-                ? `${skill.name}：自动（被动触发时直接同意，点一下改手动）`
-                : `${skill.name}：手动（被动触发时问你，点一下改自动）`}
+            title=${tooltip([
+                agent.text(skill.name),
+                skill.auto
+                    ? '自动（被动触发时直接同意，点一下改手动）'
+                    : '手动（被动触发时问你，点一下改自动）',
+            ])}
             onClick=${(event: Event) => {
                 event.stopPropagation();
                 void agent.changeSkillAuto(skill.id, !skill.auto);

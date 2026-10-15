@@ -8,6 +8,7 @@ Hero '黄盖'
 
 -- 【苦肉】出牌阶段，你可以失去 1 点体力，然后摸两张牌。
 Skill '苦肉'
+    : desc '出牌阶段，你可以失去 1 点体力，然后摸两张牌。'
     : on('使用', function (cast)
         local owner = cast.from
         owner:loseHp(1)

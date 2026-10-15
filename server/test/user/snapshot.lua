@@ -58,6 +58,25 @@ lt.test('快照：技能与面板也一次带上（重连够用）', function ()
 end)
 
 ---@async
+lt.test('快照：展示用文本按定义收（选没选将、出没出牌都不影响）', function ()
+    local game, players, fronts = support.newPackageGame()
+    moe.await.sleep(0)
+
+    local result, err = assert(fronts[1]):awaitRequest('Game.SnapShot', {})
+    lt.assertEquals('没出错', nil, err)
+    assert(result, '没拿到快照')
+
+    ---@type table<string, string>
+    local texts = {}
+    for _, one in ipairs(assert(result.texts)) do
+        texts[one.name] = one.text
+    end
+    lt.assertEquals('文本是定义级的：没选将也有技能文本', true, (texts['仁德'] or ''):find('至少一张手牌') ~= nil)
+    lt.assertEquals('主公技没挂上也有它的文本', true, (texts['激将'] or ''):find('主公技') ~= nil)
+    lt.assertEquals('没声明描述的定义不进表', nil, texts['杀'])
+end)
+
+---@async
 lt.test('快照：要一份整局快照（牌 + 玩家）', function ()
     local game, players, fronts = newGame()
     local me  = assert(players[1])

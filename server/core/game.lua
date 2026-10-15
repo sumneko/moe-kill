@@ -44,6 +44,7 @@
 ---@field cardTargetCondition? CardDef.CardTargetCondition # 对牌目标条件（`cardTargets()` 声明；不声明 = 进不了「对牌使用」那一支）
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 ---@field skipsEffect? boolean # 使用后不进入「生效」（声明过 `skipEffect`）
+---@field descText? string # 展示用的描述文本（客户端悬浮显示；没声明就是空）
 local CardDef = Class 'CardDef'
 
 ---@type integer # 没声明限额时的兜底：事实上的「不限次数」
@@ -97,6 +98,14 @@ end
 ---@return CardDef
 function CardDef:skipEffect()
     self.skipsEffect = true
+    return self
+end
+
+--- 声明这张牌的展示描述（客户端悬浮显示用；不写 = 没有）
+---@param text string
+---@return CardDef
+function CardDef:desc(text)
+    self.descText = text
     return self
 end
 
@@ -817,6 +826,32 @@ function M:getHeroes()
         end
     end
     table.sort(list, function (a, b) return a.fullName < b.fullName end)
+    return list
+end
+
+--- 这一局装了哪些牌定义（**按包的加载顺序**，不按名字排 —— 裸名同名时先装的胜出）
+---@return CardDef[] # 快照
+function M:getCardDefs()
+    ---@type CardDef[]
+    local list = {}
+    for _, package in ipairs(self.packages) do
+        for _, def in pairs(self.cards[package]) do
+            list[#list + 1] = def
+        end
+    end
+    return list
+end
+
+--- 这一局装了哪些技能定义（**按包的加载顺序**，同上）
+---@return SkillDef[] # 快照
+function M:getSkillDefs()
+    ---@type SkillDef[]
+    local list = {}
+    for _, package in ipairs(self.skillPackages) do
+        for _, def in pairs(self.skills[package]) do
+            list[#list + 1] = def
+        end
+    end
     return list
 end
 

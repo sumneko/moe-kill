@@ -8,6 +8,7 @@ Hero '夏侯惇'
 
 -- 【刚烈】当你受到伤害后，你可以进行判定：若结果不为红桃，则伤害来源选择一项：弃置两张手牌，或受到 1 点伤害。
 Skill '刚烈'
+    : desc '当你受到伤害后，你可以进行判定：若结果不为红桃，则伤害来源选择一项：弃置两张手牌，或受到 1 点伤害。'
     : event('伤害-目标-生效后', function (skill, damage)
         local from = damage.from
         if not from then

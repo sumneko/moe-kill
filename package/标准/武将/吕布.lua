@@ -30,6 +30,7 @@ local function requireTwo(skill, useCard, other, name)
 end
 
 Skill '无双'
+    : desc '锁定技，当你使用【杀】指定目标后，其使用【闪】抵消此【杀】的方式改为需连续使用两张【闪】；当你使用【决斗】指定目标后，或当你成为【决斗】的目标后，你令其打出【杀】响应此【决斗】的方式改为需连续打出两张【杀】。'
     : tags '锁定技'
     : event('卡牌-来源-指定目标后', function (skill, useCard, target)
         local name = useCard.card.name

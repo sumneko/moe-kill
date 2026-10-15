@@ -8,6 +8,7 @@ Hero '马超'
 
 -- 【马术】锁定技，你与其他角色的距离 -1。
 Skill '马术'
+    : desc '锁定技，你与其他角色的距离 -1。'
     : tags '锁定技'
     : on('被动', function (skill, host)
         host:bindGC(skill.owner:addAttr('进攻修正', -1))
@@ -15,6 +16,7 @@ Skill '马术'
 
 -- 【铁骑】当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。
 Skill '铁骑'
+    : desc '当你指定【杀】的目标后，你可以进行判定：若结果为红色，该角色不能使用【闪】响应此【杀】。'
     : event('卡牌-来源-指定目标后', function (skill, useCard, target)
         if useCard.card.name ~= '杀' then
             return

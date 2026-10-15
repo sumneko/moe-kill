@@ -58,6 +58,8 @@ export class Agent {
     readonly skills = new Map<number, Proto.Skill>();
     /** 局面上的面板（按号索引） */
     readonly panels = new Map<number, Proto.Panel>();
+    /** 展示用文本（key = 裸名：牌名 / 技能名） */
+    readonly texts = new Map<string, string>();
     /** 最近发生的那些事（给界面看） */
     readonly logs: string[] = [];
     /** 还在等的询问（通常就一个） */
@@ -244,11 +246,17 @@ export class Agent {
         this.rollback.delete(key);
     }
 
+    /** 一个名字的展示文本（服务端下发的；没声明过就是空） */
+    text(name: string): string | undefined {
+        return this.texts.get(name);
+    }
+
     private reset(): void {
         this.players.clear();
         this.cards.clear();
         this.skills.clear();
         this.panels.clear();
+        this.texts.clear();
         this.asks.length = 0;
         this.tokenToAsk.clear();
         this.askRejects.clear();
@@ -264,6 +272,7 @@ export class Agent {
         this.cards.clear();
         this.skills.clear();
         this.panels.clear();
+        this.texts.clear();
         for (const player of snapshot.players) {
             this.players.set(player.base.id, player);
         }
@@ -275,6 +284,9 @@ export class Agent {
         }
         for (const panel of snapshot.panels ?? []) {
             this.panels.set(panel.id, panel);
+        }
+        for (const one of snapshot.texts) {
+            this.texts.set(one.name, one.text);
         }
         this.me = snapshot.me ?? null;
         this.turnPlayer = snapshot.turnPlayer ?? null;

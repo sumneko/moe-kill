@@ -8,6 +8,7 @@ Hero '黄月英'
 
 -- 【集智】当你使用非转化的普通锦囊牌时，你可摸一张牌。
 Skill '集智'
+    : desc '当你使用非转化的普通锦囊牌时，你可摸一张牌。'
     : auto(true)
     : event('卡牌-来源-结算前', function (skill, useCard)
         if useCard.card.virtual then
@@ -23,6 +24,7 @@ Skill '集智'
 
 -- 【奇才】锁定技，你使用锦囊牌无距离限制。
 Skill '奇才'
+    : desc '锁定技，你使用锦囊牌无距离限制。'
     : tags '锁定技'
     : event('卡牌-来源-使用选项', function (skill, check)
         if check.card:isKind('锦囊') then

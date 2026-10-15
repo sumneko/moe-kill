@@ -25,6 +25,34 @@ local function toPlayer(player, viewer)
     }
 end
 
+--- 展示用文本：所有**定义**各按裸名收一份（不看它有没有出现 / 有没有挂上 —— 文本是定义级的东西）
+--- 同名时先装的胜出（与 `game:getCard` 的解析口径一致），输出再按名字排序
+---@param game Game
+---@return Proto.Text[]
+local function collectTexts(game)
+    ---@type table<string, string>
+    local seen = {}
+    for _, def in ipairs(game:getCardDefs()) do
+        if def.descText and not seen[def.name] then
+            seen[def.name] = def.descText
+        end
+    end
+    for _, def in ipairs(game:getSkillDefs()) do
+        if def.descText and not seen[def.name] then
+            seen[def.name] = def.descText
+        end
+    end
+    ---@type Proto.Text[]
+    local texts = {}
+    for name, text in pairs(seen) do
+        texts[#texts + 1] = { name = name, text = text }
+    end
+    table.sort(texts, function (a, b)
+        return a.name < b.name
+    end)
+    return texts
+end
+
 --- 拼一份快照（收件人视角）
 ---@param game Game
 ---@param user ClientUser
@@ -54,6 +82,7 @@ function moe.snapshot.build(game, user)
         panels     = panels,
         turnPlayer = game.turnPlayer?.id,
         phase      = game.phase?.name,
+        texts      = collectTexts(game),
     }
 end
 

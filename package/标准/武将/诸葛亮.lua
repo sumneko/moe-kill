@@ -9,6 +9,7 @@ Hero '诸葛亮'
 -- 【观星】准备阶段开始时，你可以观看牌堆顶的 X 张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X 为存活角色数且至多为 5）
 
 Skill '观星'
+    : desc '准备阶段开始时，你可以观看牌堆顶的 X 张牌，然后将任意数量的牌置于牌堆顶，将其余的牌置于牌堆底。（X 为存活角色数且至多为 5）'
     : event('阶段-开始', function (skill, phase)
         if phase.name ~= '准备' then
             return
@@ -35,6 +36,7 @@ Skill '观星'
 
 -- 【空城】锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。
 Skill '空城'
+    : desc '锁定技，若你没有手牌，你不能被选择为【杀】或【决斗】的目标。'
     : tags '锁定技'
     : event('卡牌-目标-能否指定', function (skill, plan)
         if skill.owner:getZone('手牌'):count() > 0 then

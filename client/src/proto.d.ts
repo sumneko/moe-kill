@@ -861,6 +861,21 @@ export namespace Proto {
          * 当前阶段名（不在阶段里就是空）
          */
         phase?: string;
+        /**
+         * 展示用文本（牌与技能各按裸名收一份）
+         */
+        texts: Proto.Text[];
+    }
+
+    export interface Text {
+        /**
+         * 裸名（牌名 / 技能名）
+         */
+        name: string;
+        /**
+         * 要显示的文本
+         */
+        text: string;
     }
 
     /**

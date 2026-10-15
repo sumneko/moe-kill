@@ -8,6 +8,7 @@ Hero '司马懿'
 
 -- 【鬼才】当一名角色的判定牌生效前，你可以打出一张手牌代替之。
 Skill '鬼才'
+    : desc '当一名角色的判定牌生效前，你可以打出一张手牌代替之。'
     : auto(true)
     : globalEvent('判定-前', function (skill, judge)
         if skill.owner:getZone('手牌'):count() == 0 then
@@ -23,6 +24,7 @@ Skill '鬼才'
 
 -- 【反馈】当你受到伤害后，你可以获得伤害来源的一张牌。
 Skill '反馈'
+    : desc '当你受到伤害后，你可以获得伤害来源的一张牌。'
     : auto(true)
     : event('伤害-目标-生效后', function (skill, damage)
         local from = damage.from

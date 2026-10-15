@@ -8,6 +8,7 @@ Hero '郭嘉'
 
 -- 【天妒】当你的判定牌生效后，你可以获得之。
 Skill '天妒'
+    : desc '当你的判定牌生效后，你可以获得之。'
     : auto(true)
     : event('判定-后', function (skill, judge)
         local card = judge.card
@@ -22,6 +23,7 @@ Skill '天妒'
 
 -- 【遗计】当你受到 1 点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。
 Skill '遗计'
+    : desc '当你受到 1 点伤害后，你可以观看牌堆顶的两张牌并任意分配它们。'
     : auto(true)
     : event('伤害-目标-生效后', function (skill, damage)
         -- 「1 点伤害」是粒度 ⇒ 受 N 点就发动 N 轮
