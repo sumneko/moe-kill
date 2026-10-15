@@ -703,16 +703,19 @@ Card '杀'
 
 **定位**：浏览器是**默认前端实现**，但协议不假定客户端实现（§3）。前端只做两件事：**播放表现**与**采集输入** —— 一条规则判断都不写。
 
+- **把前端跑起来 / 调它**（依赖、起法、DevTools、断点、常见症状）见 `infrastructure.md` §9。
+
 - **技术栈**（2026-10-13 用户定）：**Vite + TypeScript**，配置手写（不用 `npm create vite` 的模板）。选 web 技术的理由：将来发 Steam 也能用 Electron / Tauri 装同一个前端；部署到网页是它本来的形态。
 - **协议类型从声明生成，不手抄**：`server/bin/moe-kill.exe --gen-proto` 把 `server/proto.d.lua` 翻成 **`client/src/proto.d.ts`**（生成器 `server/tools/proto-type.lua`，见 `infrastructure.md` §6）。产物**进 git**（前端 clone 下来就能编译），并由 `server/test/proto-type.lua` 钉住「磁盘上那份 == 现翻出来的那份」—— **声明改了就重跑，忘了跑用例会红**。用法：`import type { Proto } from './proto'`，然后 `Proto.SnapShot` / `Proto.Request.Ask.Select`。
-- **四层，照着后端那条链镜像**（都在 `client/src/`）：
+- **分层，照着后端那条链镜像**（都在 `client/src/`）：
 
   | 文件 | 干什么 | 对着后端的谁 |
   | --- | --- | --- |
   | `link.ts` | `WsLink`：浏览器原生 WebSocket，**当字节流用**（消息边界 ≠ 帧边界，收到的载荷拼起来） | `transport/{tcp-link,ws-link}.lua` |
   | `rpc.ts` | `Rpc`：4 字节长度头 + JSON-RPC；`request` / `notify` / `onRequest`（收服务端请求）/ `onNotify` | `transport/{client,jsonrpc}.lua` |
   | `agent.ts` | `Agent`：局面镜像（玩家 / 卡牌 / 技能 / 面板 / 回合 / 阶段 / 结局）+ 询问队列；订齐所有下行通知与方法 | `server/user/*-sync.lua` |
-  | `main.ts` | 界面：连接 / 加入 / 房间 / 局面 / 询问 / 事件日志（原生 DOM，没上框架） | — |
+  | `main.ts` | 只做接线：造 `Agent`、`agent.onChange = 重画`、渲染 `<Shell/>` | — |
+  | `ui.ts` | 界面：连接 / 加入 / 房间 / 局面 / 询问 / 事件日志（preact + htm，组件都在这一文件） | — |
 
 - **发帧必须是二进制**（与后端那条口径配套，§14）：服务端**不收文本帧**（⇒ 1003）；浏览器 `ws.send(字符串)` 发的正是文本帧、载荷会被 UTF-8 改写 —— 所以一律 `send(ArrayBuffer)`（`rpc.ts` 自己拼长度头 + 正文）。
 - **询问的答复形状照 `Proto.Result.<方法>`**：客户端**不能多带字段**（回包也过 `moe.shape`）。所以 `Ask.Select` 里「没选的半边**不写那个键**」（空数组合法性另说，缺键才是「没选」）。

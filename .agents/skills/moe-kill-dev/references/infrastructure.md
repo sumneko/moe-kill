@@ -110,7 +110,7 @@ lm:executable "moe-kill" {
     bin/                 产物（git 忽略）：moe-kill.exe、main.lua、VC 运行库 dll
     log/  tmp/           运行时产物（git 忽略）
   package/             规则集（与 server/ 平级；由 moe.loader 读文件执行，按包组织）
-  client/              前端（将来；与 server/ 平级）
+  client/              前端（Vite + TypeScript；与 server/ 平级；依赖 / 起法 / 调试见 §9）
   build/                中间产物（luamake 的 $bin/obj 等，git 忽略）
 ```
 
@@ -227,7 +227,7 @@ end
 - 事件是**水平触发**：注册一次、每次可读都会报 ⇒ **不需要** `bee.async` 那套「完成后重新注册」。唯一的例外是自唤醒通道，`onReadable` 里要把它排空。
 - 自唤醒通道名拼 `thread.id`（`'moe-kill:event-loop#' .. thread.id`）：`channel.create` 的名字是**进程级唯一**，同进程第二个 VM 用同名会直接报 duplicate（探针实证）。
 
-## 7. 命令速查
+## 8. 命令速查
 
 ```powershell
 server/bin/moe-kill.exe --test          # 平时（只改 Lua）：直接跑全部测试（退出码 0 = 全通过），不需要构建
@@ -266,6 +266,7 @@ server/bin/moe-kill.exe --single --seats 4 --port 31415   # 起后端（单局�
 Push-Location client; npm install; Pop-Location     # 前端依赖（vite / typescript）
 Push-Location client; npm run dev; Pop-Location     # 前端开发服务器（http://localhost:5173，热更）
 Push-Location client; npm run build; Pop-Location   # 前端构建（tsc 类型检查 + vite build ⇒ client/dist）
+# ↑ 前端的依赖安装 / 起法 / 调试 / 常见症状：见 §9
 server/bin/moe-kill.exe                 # 服务模式（常驻事件循环）
 
 # 跑一次性脚本（Lua 风格的 -e）：引号里先 require 'moe-kill' 再 dofile；给了 -e 就不会再进服务模式，跑完即退
@@ -277,3 +278,70 @@ openspec status --change <name>   # 工件完成度
 openspec validate --all           # 校验（探索期规格已冻结：变更走 skip_specs、不写 specs 增量）
 git show origin/4.0.0:<path>      # 读 LuaLS 4.0.0 的任意文件
 ```
+
+## 9. 前端（`client/`）的环境与调试
+
+前端 = Vite + TypeScript（架构、分层与协议口径见 `architecture.md` §20）。**只改 Lua 的后端开发完全用不到 Node** —— 下面这些只在动 `client/` 或要联调时用。
+
+### 9.1 环境与依赖
+
+- **Node**：Vite 8 的 `engines` 是 **`^20.19.0 || >=22.12.0`**（本机 2026-10-15 实测 v24.14.0 / npm 11.9.0 直接可用）。Node 只给前端与 `openspec` CLI 用（后者要 ≥ 20.19）。
+- **装依赖**：`Push-Location client; npm install; Pop-Location` ⇒ `client/node_modules`（**git 忽略**，换台电脑要重装）。一共四个：`vite` + `typescript`（dev）、`preact` + `htm`（运行期）。
+- **配置全是手写的**（不用 `npm create vite` 的模板），就两个文件：`client/vite.config.ts`（`base: './'` + `target: es2022` + `outDir: dist`）、`client/tsconfig.json`（`strict` + `noUnusedLocals` / `noUnusedParameters` + `noEmit`，`include: ["src"]`）。
+- ⚠️ **加 / 改依赖之后必须重启 `npm run dev`**：Vite 的依赖预打包在**启动时**算一次、缓存在 `client/node_modules/.vite`，不重启就一直拿着旧的那份 —— 表现是「明明装上了却找不到模块」（2026-10-15 加 preact / htm 时踩过）。怀疑缓存坏了就删掉 `node_modules/.vite` 再起。
+
+### 9.2 起一条能玩的链
+
+```powershell
+server/bin/moe-kill.exe --single --seats 4 --port 31415   # ① 后端：单局，听 31415（重开一局要重启进程）
+Push-Location client; npm run dev; Pop-Location            # ② 前端：开发服务器（热更）⇒ http://localhost:5173
+tools/watch-memory.ps1                                    # ③ 看护（可选但强烈建议）：进程整体失控只有它看得见
+```
+
+浏览器开 `http://localhost:5173`，地址栏**默认**填好了 `ws://<当前主机名>:31415`（`ui.ts` 的 `DEFAULT_PORT` = 31415，主机名取 `location.hostname`）⇒ 点「连接」。**开 4 个页面各点一次**就能坐满开局 —— 注意**开局第一步是选将询问**（`Ask.Hero`），所以「连上了但界面停着」是正常的等待，不是卡死。
+
+- 后端日志在 `server/log/service.log`（**测试模式写的是 `test.log`**，两个别搞混）。
+- 前端只跟后端要**一个 WebSocket**：`vite.config.ts` **没有** proxy，也不需要 —— WebSocket 不受同源策略限制，直连 31415 就行。
+
+### 9.3 改协议 / 改类型（两端共用一个真相源）
+
+- **真相源是 `server/proto.d.lua`**。改了它 ⇒ 跑 **`server/bin/moe-kill.exe --gen-proto`** 重生成 `client/src/proto.d.ts`（产物**进 git**；`server/test/proto-type.lua` 钉住「磁盘那份 == 现翻的」，**忘了跑用例会红**）。
+- 后端在**运行期**用同一份声明校验线上形状（`moe.shape`）—— **多带字段也算不合** ⇒ 前端答复里「没选的那半边**不写那个键**」（`architecture.md` §20）。
+
+### 9.4 调试
+
+- **`npm run dev` 不做类型检查**（只转译，转译即丢类型）。要查类型就跑 **`npm run build`**（= `tsc && vite build`，`tsconfig` 是 `noEmit`）—— 收尾时跑一次。
+- **浏览器 DevTools**（零配置，日常够用）：
+  - Network → WS → 那条连接：**帧全是二进制**（`Binary Frame`），看不见 JSON 是**正常的** —— 服务端不收文本帧、前端也一律 `send(ArrayBuffer)`。要看内容就在 `rpc.ts` 的收发处临时打一行。
+  - 想看局面镜像：`Agent` 是模块内的实例，临时在 `main.ts` 末尾加一句 `(window as any).agent = agent;`，Console 里就能直接翻 `agent.players` / `agent.cards`。
+  - 以上两处都是**临时探针，别提交**。
+- **在 VS Code 里给 TS 打断点**：`.vscode/launch.json` 目前只有三条 **Lua** 配置（全部测试 / 单套件 / attach），**还没有** Chrome 那条。要断点就自己加一条（先把 `npm run dev` 起着）：
+
+  ```json
+  {
+      "name": "🌐 Chrome（前端）",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/client",
+      "sourceMaps": true
+  }
+  ```
+
+  Vite 的 dev 源映射默认开着，断点直接落在 `.ts` 上。
+- **调后端**（attach 进 Lua）见 §4；内存看护的口径见 §5。
+
+### 9.5 症状 → 先看哪
+
+| 症状 | 先看 |
+| --- | --- |
+| 点了「连接」还是「没连上」 | 后端起了吗 / 端口对不对（默认 31415）/ `server/log/service.log` |
+| 连上了但界面一直停着 | 后端**在等一个询问**（开局第一步是选将）—— 后端日志里有「发给谁、问什么」 |
+| 「服务端发来了文本帧」 | 服务端那边发错了（`link.ts` 判的）：本工程一律二进制 |
+| 白屏 / 找不到模块 | 重启 `npm run dev`（Vite 预打包，见 §9.1）；还不行的删 `node_modules/.vite` |
+| 前端认不出新字段 | 忘了跑 `--gen-proto`（§9.3） |
+| 编辑期满屏红但代码是对的 | 语言服务器索引没跟上（`git pull` / 批量改文件之后）：先核对声明到底有没有，确实怀疑缓存才重启 Lua 语言服务器、**等 5~10 秒**再看 |
+
+### 9.6 产物
+
+`npm run build` ⇒ `client/dist`（`base: './'` = 相对路径，为的是将来「**由后端同一个口把 dist 发出去**」—— `architecture.md` §20「还没做」里那条）。现在要用就 `npm run preview` 或任意静态服务器。
