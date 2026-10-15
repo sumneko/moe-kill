@@ -4,6 +4,9 @@
 ---@field attributes Attributes
 ---@field name? string
 
+--- 内容侧自由数据：内核只留一个空壳类，各包用自己的同名声明往里加键（与 `Proto.Custom` 同法）
+---@class Player.Custom: table<string, any>
+
 ---@class Player: Class.Base
 ---@field private name? string
 ---@field private attributes Attributes
@@ -18,7 +21,7 @@
 ---@field game Game # 属于哪一局（牌区顺着归属者找到局）
 ---@field user? User # 谁在控制他（没有就是没人应答，交给全局时机）
 ---@field id integer # 局内唯一号（建号走局上的号源）
----@field custom table<string, any> # 内容侧挂自由数据的地方（直接读写；**写进去只存着**，发不发由 setCustomVisible 定）
+---@field custom Player.Custom # 内容侧挂自由数据的地方（直接读写；**写进去只存着**，发不发由 setCustomVisible 定）
 ---@field customBag Custom # 那只袋子的本体（可见性账本在它身上 —— 内容侧别碰它，只碰 custom，见 setCustomVisible）
 ---@field private attrVisibles table<string, Visibility> # 逐属性可见性（没设过 = 谁都不见，连本人也一样）
 ---@field private attrWatches table<string, fun()> # 已订上的属性变更订阅（每个属性只订一次）

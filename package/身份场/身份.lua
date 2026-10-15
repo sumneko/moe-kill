@@ -3,15 +3,6 @@
 ---@class Player
 local M = Class 'Player'
 
----@type 身份场.身份?
-M.identity = nil
-
----@param self Player
----@return 身份场.身份? # 身份（只读：真相在 custom 里）
-M.__getter.identity = function (self)
-    return self.custom.identity
-end
-
 --- 给这名角色定下身份（定了之后要重算技能 —— 主公技只给主公）
 ---@param name 身份场.身份
 function M:setIdentity(name)

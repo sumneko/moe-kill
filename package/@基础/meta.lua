@@ -21,6 +21,11 @@
 ---@field heroName? string # 武将名
 ---@field heroSex? 基础.性别 # 性别
 
+--- 玩家侧的自由数据里本包写入的那几个键（与各包的同名 class 声明合并）
+---@class Player.Custom
+---@field heroName? string # 武将名
+---@field heroSex? 基础.性别 # 性别
+
 ---@class Player: Class.Base
 ---@field sex? 基础.性别
 ---@field hero? HeroDef # 这名角色用的是哪张武将（由 @基础/武将.lua 的 setHero 写入）

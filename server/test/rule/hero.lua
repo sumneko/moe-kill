@@ -153,7 +153,7 @@ lt.test('武将装配：主公加成叠在武将之上', function ()
     }
 
     local lord = run.players[1]
-    lt.assertEquals('1 号位是主公', '主公', lord.identity)
+    lt.assertEquals('1 号位是主公', '主公', lord.custom.identity)
     lt.assertEquals('上限 = 武将 4 + 主公加成 1', 5, lord:getAttr('体力上限'))
     lt.assertEquals('体力也跟上', 5, lord:getAttr('体力'))
     lt.assertEquals('别人还是武将的 4', 4, run.players[2]:getAttr('体力上限'))

@@ -65,8 +65,8 @@ lt.test('选将：config 点名了身份与武将 ⇒ 不问也不再随机', fu
     }
 
     lt.assertEquals('一次都没问', 0, #asked)
-    lt.assertEquals('1 号位是主公', '主公', run.players[1].identity)
-    lt.assertEquals('4 号位是内奸', '内奸', run.players[4].identity)
+    lt.assertEquals('1 号位是主公', '主公', run.players[1].custom.identity)
+    lt.assertEquals('4 号位是内奸', '内奸', run.players[4].custom.identity)
     lt.assertEquals('武将是点名的那张', '曹操', assert(run.players[1].hero).name)
     lt.assertEquals('四家都装上了武将', true,
         run.players[1].hero ~= nil and run.players[2].hero ~= nil
@@ -161,12 +161,12 @@ lt.test('选将：只给武将 ⇒ 身份照随机（主公仍坐 1 号位）', 
     }
 
     lt.assertEquals('没人被问', 0, #asked)
-    lt.assertEquals('主公坐 1 号位', '主公', run.players[1].identity)
+    lt.assertEquals('主公坐 1 号位', '主公', run.players[1].custom.identity)
 
     ---@type table<string, true>
     local seen = {}
     for _, player in ipairs(run.players) do
-        local identity = assert(player.identity, '每个人都该有身份')
+        local identity = assert(player.custom.identity, '每个人都该有身份')
         seen[identity] = true
     end
     local distinct = 0
@@ -228,7 +228,7 @@ lt.test('开局：身份给全了就不校验配置（全是主公也接受）',
     }
 
     for i = 1, 4 do
-        lt.assertEquals('第 ' .. i .. ' 个也是主公', '主公', run.players[i].identity)
+        lt.assertEquals('第 ' .. i .. ' 个也是主公', '主公', run.players[i].custom.identity)
     end
 end)
 
@@ -243,8 +243,8 @@ lt.test('开局：身份给不全 ⇒ 报错（要么不给、要么给全）', 
         },
     }
 
-    lt.assertEquals('给了的照给', '主公', run.players[1].identity)
-    lt.assertEquals('没给的还是空', nil, run.players[3].identity)
+    lt.assertEquals('给了的照给', '主公', run.players[1].custom.identity)
+    lt.assertEquals('没给的还是空', nil, run.players[3].custom.identity)
 end)
 
 lt.test('坐次：没给就洗一遍，主公仍在 1 号位', function ()
@@ -264,11 +264,11 @@ lt.test('坐次：没给就洗一遍，主公仍在 1 号位', function ()
         prepare = prepare,
     }
 
-    lt.assertEquals('主公换到了 1 号位', '主公', assert(run.desk:getPlayer(1)).identity)
+    lt.assertEquals('主公换到了 1 号位', '主公', assert(run.desk:getPlayer(1)).custom.identity)
     lt.assertEquals('洗过牌：2、3 号位上的人都换过位', false, run.desk:getIndex(run.players[2]) == 2 and run.desk:getIndex(run.players[3]) == 3)
     for i = 1, 4 do
         lt.assertEquals('第 ' .. i .. ' 位有人', true, run.desk:getPlayer(i) ~= nil)
-        lt.assertEquals('身份跟着玩家走', prepare.identities[i], run.players[i].identity)
+        lt.assertEquals('身份跟着玩家走', prepare.identities[i], run.players[i].custom.identity)
     end
 end)
 
@@ -303,8 +303,8 @@ lt.test('坐次：同时传身份与坐次 ⇒ 主公不必在 1 号位', functi
         prepare = prepare,
     }
 
-    lt.assertEquals('1 号位不是主公', false, assert(run.desk:getPlayer(1)).identity == '主公')
-    lt.assertEquals('2 号位是主公', '主公', assert(run.desk:getPlayer(2)).identity)
+    lt.assertEquals('1 号位不是主公', false, assert(run.desk:getPlayer(1)).custom.identity == '主公')
+    lt.assertEquals('2 号位是主公', '主公', assert(run.desk:getPlayer(2)).custom.identity)
 end)
 
 lt.test('选将：主公先选（主公不在 1 号位也先问他）', function ()

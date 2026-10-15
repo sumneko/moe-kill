@@ -33,7 +33,7 @@ description: 三国杀规则知识（身份场配置、胜负奖惩、回合阶�
 
 - 配置表先做 **4~8 人**（上表前五行，`package/身份场/配置.lua` 以 `rule.identityConfig` 落进**共享袋 `rule`**，所以后续包可覆盖）；9 / 10 人表等真要用时再补。
 - **主公固定坐 1 号位**（简化假设），于是「按座位号递增」的行动顺序天然让主公首回合先手 —— 不需要给内核加「起始行动者」的概念。
-- 身份**住在玩家的自定义数据容器里**（`player.custom.proxy.identity`；内容侧 `package/身份场/身份.lua` 的 `setIdentity(name)` 写，`player.identity` 是只读的便捷读法、靠 `__getter` 转发；2026-09-30 前是标签，2026-10-10 挪进容器）：内核只记录、不解释取值。可见性由容器记账（主公公开、其余只有自己看得见）。
+- 身份**住在玩家的自定义数据容器里**（`player.custom.identity`；内容侧 `package/身份场/身份.lua` 的 `setIdentity(name)` 写，**读也是一律读 `player.custom.identity`** —— 便捷读法 `player.identity` 已于 2026-10-15 撤掉；2026-09-30 前是标签，2026-10-10 挪进容器）：内核只记录、不解释取值。可见性由容器记账（主公公开、其余只有自己看得见）。
 - **结局公开身份**（2026-10-13）：`game:endGame` 之后所有人的身份都翻成公开（`身份.lua` 订 `'游戏-结束'` → `Player:revealIdentity`）—— 结算画面要列「谁是什么身份」；「除主公外均隐藏」这条只到游戏结束为止。
 - 主公 +1 走**加体力上限与体力**（`lord:addAttr('体力上限', bonus)` 与 `lord:addAttr('体力', bonus)`，加成取 `rule.lordHpBonus`，两处都是增量、各返回撤销函数）；因为基础包先把体力与上限都写成了默认值，身份场只需再“抬”一次。
 - **`rule.defaultHp` 是「无武将时的开局体力初值」**（`package/@基础/配置.lua` 里为 5）：**2026-09-30 起它只给「还没选武将」的角色**（`@基础/体力.lua` 在 `'游戏-开始'` 里判 `player.hero`；武将的上限与体力由 `@基础/武将.lua` 的 `setHero` 写）—— 这就是当初说的「武将没写时的兜底」；主公 +1 仍是**加成**（`addAttr`），叠在武将上限之上。
@@ -185,14 +185,14 @@ local slash = Card '杀'
 -- package/身份场/meta.lua：纯类型声明（不是规则内容，装载器照常当普通文件执行，里面只有注释）
 ---@meta
 ---@alias 身份场.身份 '主公'|'忠臣'|'反贼'|'内奸'
----@class Player: Class.Base                          -- 基类要写全
----@field identity? 身份场.身份                          -- 内容侧 身份.lua 写入的字段
+---@class Player.Custom                                -- 玩家侧的自由数据：与别的包的同名声明合并
+---@field identity? 身份场.身份                          -- 内容侧 身份.lua 写入的键
 ---@class Game
 ---@field getValue fun(self: Game, name: '身份配置'): table<integer, 身份场.身份配置项[]>
 ---@field getValue fun(self: Game, name: string): any   -- 兜底必须自己再写一遍（否则会把内核签名吃掉）
 ```
 
-  于是 `player.identity` 在编辑期就是那四种身份的联合类型（拼错取值就报），`game:getValue('身份配置')` 也有了结构。**不提供可单独分发的 meta**（引用链横跨 `Game` / `Moe` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
+  于是 `player.custom.identity` 在编辑期就是那四种身份的联合类型（拼错取值就报），`game:getValue('身份配置')` 也有了结构。**要给内核已有的字段加收窄**（如 `player.custom`）**不能重声明那条 `---@field`**（报 `duplicate-doc-field`，compileError 级）—— 内核只留空壳类 `Player.Custom: table<string, any>`，各包用同名 `---@class Player.Custom` 补**自己的键**（不同键不重复、不报）。**不提供可单独分发的 meta**（引用链横跨 `Game` / `Moe` / `moe` / `bee`，单独导出不完整）：第三方开发者**直接打开本工程**写包，包目录写进来源清单即可。
 - **不要为空值防御**：注入的 `game` 按约定一定在（它就是这一局）；只有**真的会缺**的才 `error` —— 例如清单里可能没有内容包（⇒ 没牌表）、人数不在身份配置表里。详见 `moe-kill-dev` 的 `references/code-style.md` 第 9 节。
 - **属性定义只能在加载期写**：属性系统由**这一局**持有（一局一份，清空重装时重置），属性库把定义编译成生成函数、**编译后不允许再 `define`**（会在运行期报 `Cannot define new attributes after compilation`）⇒ `define` 写在包文件顶层，别写进「游戏-开始」回调。玩家侧读写用 `player:setAttr / getAttr / addAttr`（前两个等价于 `getAttributes():set/get`；**`addAttr` 是 `getAttributes():addModifier` 的直接转发** —— 同样做增减，只是多返回一个「精确减掉这次加量」的撤销函数，不理它当单向增减用也没问题）。
 - **牌区的建法**：**四个基础区由内核建好**（局上 `抽牌` / `弃牌`，玩家身上 `手牌` / `判定`）—— 内容侧**直接取、不得重建**（`game:getZone('弃牌')` / `player:getZone('手牌')`）；要加**自己**的区才用 `game:createZone(名字, 有序?)`（按名字登记、之后 `game:getZone(名字)` 取回）或 `player:addZone(名字)`，要顺序能力就传 `moe.orderedZone.create(局)` / 第二参数 `true` —— **装备的四个子区就是这么建的**（见 §9.11）。**自造牌区要带上局**（`moe.zone.create(局)` 之类 —— 牌区自己记着局，进区的牌才能按定义发 `'卡牌-进入区域'`）。

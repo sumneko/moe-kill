@@ -99,7 +99,7 @@ lt.test('房间：坐满就开局', function ()
     spinUntil(function () return game.turnPlayer ~= nil end)
 
     lt.assertEquals('四个座位都有人', 4, #game.desk.players)
-    lt.assertEquals('身份都定了', true, game.desk.players[1].identity ~= nil)
+    lt.assertEquals('身份都定了', true, game.desk.players[1].custom.identity ~= nil)
     lt.assertEquals('轮次挂上了', true, game.turnPlayer ~= nil)
     lt.assertEquals('坐满那一下最后进来的那位也拿到快照', 4, #assert(last).players)
     assert(first, '没拿到快照')

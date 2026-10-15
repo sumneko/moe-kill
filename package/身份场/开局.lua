@@ -55,7 +55,7 @@ game:on('游戏-准备', function (event)
     end
     -- 洗过之后主公不一定在 1 号位 ⇒ 换回来（没有主公就不管）
     for i = 1, count do
-        if desk:getPlayer(i).identity == '主公' then
+        if desk:getPlayer(i).custom.identity == '主公' then
             if i ~= 1 then
                 desk:swap(1, i)
             end

@@ -25,7 +25,7 @@ end
 ---@param player Player
 ---@return 身份场.身份?
 local function identity(player)
-    return player.identity
+    return player.custom.identity
 end
 
 lt.test('主公技：选将在身份之前也照样对（非主公不挂、主公补挂）', function ()

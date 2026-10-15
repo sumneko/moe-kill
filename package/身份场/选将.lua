@@ -36,7 +36,7 @@ end
 ---@param n integer # 备选数
 ---@return HeroDef[]
 local function candidatesFor(player, free, n)
-    if player.identity ~= '主公' then
+    if player.custom.identity ~= '主公' then
         return pickRandom(free, n)
     end
     ---@type HeroDef[]
@@ -79,7 +79,7 @@ game:on('游戏-准备', function (event)
     local queue = {}
     for i = 1, #seats do
         local player = seats[i]
-        if player.identity == '主公' then
+        if player.custom.identity == '主公' then
             table.insert(queue, 1, player)
         else
             queue[#queue + 1] = player

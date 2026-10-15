@@ -82,7 +82,7 @@ function M:refreshSkills()
     local wanted = {}
     for _, name in ipairs(hero:getSkills()) do
         local def = assert(game:getSkill(name), '没有叫「{}」的技能定义' % { name })
-        if not def:hasTag('主公技') or self.identity == '主公' then
+        if not def:hasTag('主公技') or self.custom.identity == '主公' then
             wanted[name] = true
         end
     end

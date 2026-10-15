@@ -2128,7 +2128,7 @@ lt.test('救援：不是主公就不挂这个技能', function ()
     local other = run.players[2]
     other:setHero(assert(run.game:getHero('孙权')))
 
-    lt.assertEquals('他不是主公', false, other.identity == '主公')
+    lt.assertEquals('他不是主公', false, other.custom.identity == '主公')
     lt.assertEquals('制衡照挂', true, other:hasSkill('制衡'))
     lt.assertEquals('救援不挂', false, other:hasSkill('救援'))
 end)

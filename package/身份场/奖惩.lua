@@ -9,12 +9,12 @@ game:on('玩家-死亡', function (player)
         return
     end
 
-    if player.identity == '反贼' then
+    if player.custom.identity == '反贼' then
         killer:draw(3)
         return
     end
 
-    if player.identity == '忠臣' and killer == game.desk:getPlayer(1) then
+    if player.custom.identity == '忠臣' and killer == game.desk:getPlayer(1) then
         local hand  = killer:getZone('手牌')
         local equip = killer.equipCards
         ---@type Card[]

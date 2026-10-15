@@ -23,6 +23,9 @@
 ---@class Proto.Custom
 ---@field identity? 身份场.身份 # 身份（由 身份.lua 的 setIdentity 写入；主公正面朝上）
 
+--- 玩家侧的自由数据里本包写入的那个键（与 `@基础/meta.lua` 的同名 class 声明合并）
+---@class Player.Custom
+---@field identity? 身份场.身份 # 身份（由 身份.lua 的 setIdentity 写入）
+
 ---@class Player: Class.Base
----@field identity? 身份场.身份 # 身份（只读：真相在 custom 里，见 身份.lua）
 ---@field isIdentityVisibleTo fun(self: Player, viewer: Player): boolean # 身份牌对他可见吗
