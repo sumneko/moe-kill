@@ -464,6 +464,13 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
   - **选型 = 甲（`preact + JSX`）**：`agent.ts` / 协议类型 / vite 配置都与框架无关 ⇒ 一行不用改；动画用 WAAPI / CSS transition 足够（牌移动 / 血条 / 高亮 / 跳字）。
   - **下一步**：按这版布局搬成真组件（`net/` 协议层 + `state/` 状态 + `view/` 牌桌与武将卡 + `debug/` 调试抽屉），第一刀 = 骨架 + 一次「出【杀】」的完整动画（选牌 → 飞到桌上 → 目标高亮 → 问【闪】 → 伤害跳字 → 进弃牌堆）。
 
+- **牌桌界面第一刀：骨架 + 一次「出【杀】」的完整动画（2026-10-16，用户「开工吧」）**：把 `layout3.html` 的定稿版式搬成真组件 —— **后端一行没改**（现有协议够用）。**落点**（`client/src/`）：`net/`（`link.ts` / `rpc.ts` 原样搬）、`state/`（`agent.ts` 搬来 + 新 `events.ts`）、`view/`（`App` / `Stage` / `Seat` / `HeroCard` / `Card` / `Equip` / `Hand` / `Ask` / `pick.ts` / `format.ts` / `seats.ts` / `anim.ts` / `table.css`）、`debug/`（`Drawer`）；**`proto.d.ts` 没搬**（生成路径写死在 `proto-type.lua` 与用例里，搬它纯属折腾）。老界面 `ui.ts` / `style.css` / `robot.ts` 留在原地，走 **`?ui=classic`** 兜底（它能答所有询问，含面板拖拽与手写答复，是调试利器）⇒ `main.ts` 按参数**动态 import** 两套界面（CSS 随之分包）。**`?ui=` 走 htm 模板 + `.ts`**（`tsconfig` 一行没动 —— 项目本来就没开 `jsx`）。
+  - **表现事件流（本刀的芯）**：`agent.onChange` 只说「变了」，做不了动画 ⇒ `agent` 收到通知时**除了改状态、还往 `events: GameEvent[]` 里压一份**（`move` / `health` / `turn` / `phase` / `over`），视图每帧 `drainEvents()` 取走、播一次就丢（协议里 `Card.Move` 本来就注明「用于播放移动动画」）；重连 / `Game.Restarted` 只换状态、不播动画（`reset()` 清空）。
+  - **出牌动画 = FLIP，不做全局位置缓存**：点「确定」那一刻 DOM 还是旧的 ⇒ **当场**量出手牌里那张牌的位置（`getBoundingClientRect`）、连牌面一起存进 `shown`；渲染后（`#playedWrap` 里的大牌已在位）量终点、用 WAAPI 从「起点 − 终点」的位移飞回来（偏移要 **÷ 舞台缩放**）。中央大牌 **2.2 秒**后自动撤下；手牌里那张牌靠 `shown.ids` 先藏起来（服务端 `Card.Move` 一到，实体牌自己就离手）。跳字同理：`health` 事件（`Player.UpdateAttribute` 里对比体力新旧值造出来）→ 座位上的 `.pop` 上浮淡出 900ms。
+  - **座位摆位按「相对我」**（`view/seats.ts`）：坐标表按「从我起沿行动顺序数」排（4 人 = 右 / 上 / 左；8 人 = 右下 → 右上 → 上排三个 → 左上 → 左下，坐标照 `layout3`），认不出的人数绕椭圆兜底；**阵亡 = `体力 ≤ 0`**（内核没有单独的存活属性）。
+  - **实跑验证**（31416 另起一个 4 人局：1 个浏览器真人 + 3 个 `?robot=` 页面；`attachRobot` 顺带支持 **`?server=`**）：选将（`Ask.Hero`）→ 我的出牌阶段点手牌【杀♣10】→ 座位高亮 → 确定 ⇒ **手牌里那张消失、中央出现大牌 + 「player → robot1」、主公座位跳 `-1`**、弃牌堆 +1 ✓；判定菱形（乐不思蜀）、阵亡灰化 + 印章、身份章、装备条（八卦阵）、技能按钮、`Ask.Select` 的候选 chips 与手牌点选、`Ask.Choice` / `Ask.UseSkill` 的兜底都手验过；`?ui=classic` 照旧渲染 ✓；`npx tsc` 与 `npm run build` 均过、问题面板 0。
+  - **本刀没做（已知）**：① 中央大牌**没有**「飞进弃牌堆」那一段（定时撤下代替 —— 要做得靠浮层幽灵牌）；② **势力标（魏蜀吴群）没数据** —— 内核 `player.kingdom` 没进 `custom`、前端拿不到（要补得动内容包 + meta 可见性，属另一批）；③ 面板拖拽、技能手动发动（点技能去发动）、卡图仍走老路。
+
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 
 | 候选 | 现状 / 前置 |

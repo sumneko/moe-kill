@@ -1,4 +1,4 @@
-import type { Agent, Ask } from './agent';
+import type { Agent, Ask } from './state/agent';
 
 /** 后端默认听这个口 */
 const DEFAULT_PORT = 31415;
@@ -190,7 +190,8 @@ function scheduleRestart(agent: Agent): void {
 
 /** 挂一个自动应答的机器玩家：连上后端、坐进来、把每条询问都答掉 */
 export function attachRobot(agent: Agent, name: string): void {
-    const url = `ws://${location.hostname || 'localhost'}:${DEFAULT_PORT}`;
+    const url = new URLSearchParams(location.search).get('server')
+        ?? `ws://${location.hostname || 'localhost'}:${DEFAULT_PORT}`;
     // 询问一到就答（不靠定时器：后台标签会把定时器节流到 1 秒一次）
     const previous = agent.onChange;
     agent.onChange = () => {

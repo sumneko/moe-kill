@@ -1,6 +1,7 @@
-import { WsLink } from './link';
-import { Rpc, RpcError } from './rpc';
-import type { Proto } from './proto';
+import { WsLink } from '../net/link';
+import { Rpc, RpcError } from '../net/rpc';
+import type { Proto } from '../proto';
+import type { GameEvent } from './events';
 
 /** 服务端在问一件事（`Ask.*`）：答上来就回包，不表态就取消 */
 export interface Ask {
@@ -64,6 +65,8 @@ export class Agent {
     readonly logs: string[] = [];
     /** 还在等的询问（通常就一个） */
     readonly asks: Ask[] = [];
+    /** 攒着还没播的表现事件（视图每帧取走） */
+    readonly events: GameEvent[] = [];
 
     /** 这一局一共几个座 */
     seats = 0;
@@ -206,6 +209,11 @@ export class Agent {
         }
     }
 
+    /** 取走攒着的表现事件 */
+    drainEvents(): GameEvent[] {
+        return this.events.splice(0, this.events.length);
+    }
+
     private requireRpc(): Rpc {
         if (!this.rpc) {
             throw new Error('还没连上');
@@ -263,6 +271,7 @@ export class Agent {
         this.panels.clear();
         this.texts.clear();
         this.asks.length = 0;
+        this.events.length = 0;
         this.tokenToAsk.clear();
         this.askRejects.clear();
         this.seats = 0;
@@ -335,8 +344,14 @@ export class Agent {
         rpc.onNotify('Player.UpdateAttribute', (params: Proto.Notify.Player.UpdateAttribute) => {
             for (const one of params.players) {
                 const player = this.players.get(one.id);
-                if (player) {
-                    player.attributes = one.attributes;
+                if (!player) {
+                    continue;
+                }
+                const before = player.attributes.find((each) => each.name === '体力')?.value;
+                player.attributes = one.attributes;
+                const after = one.attributes.find((each) => each.name === '体力')?.value;
+                if (before !== undefined && after !== undefined && before !== after) {
+                    this.events.push({ kind: 'health', player: one.id, delta: after - before });
                 }
             }
             this.changed();
@@ -370,6 +385,7 @@ export class Agent {
         rpc.onNotify('Card.Move', (params: Proto.Notify.Card.Move) => {
             for (const move of params.moves) {
                 this.log(`挪牌：${move.from} → ${move.to}`);
+                this.events.push({ kind: 'move', move });
             }
             this.changed();
         });
@@ -397,6 +413,7 @@ export class Agent {
         rpc.onNotify('Turn.Begin', (params: Proto.Notify.Turn.Begin) => {
             this.turnPlayer = params.player;
             this.log(`轮到他了：${this.playerLabel(params.player)}`);
+            this.events.push({ kind: 'turn', player: params.player });
             this.changed();
         });
         rpc.onNotify('Turn.End', (params: Proto.Notify.Turn.End) => {
@@ -407,6 +424,7 @@ export class Agent {
         });
         rpc.onNotify('Phase.Begin', (params: Proto.Notify.Phase.Begin) => {
             this.phase = params.name;
+            this.events.push({ kind: 'phase', player: params.player, name: params.name });
             this.changed();
         });
         rpc.onNotify('Phase.End', (params: Proto.Notify.Phase.End) => {
@@ -418,6 +436,7 @@ export class Agent {
         rpc.onNotify('Game.Over', (params: Proto.Notify.Game.Over) => {
             this.over = params;
             this.log(`这一局完了：${params.side}（${params.reason}）`);
+            this.events.push({ kind: 'over', side: params.side, reason: params.reason });
             this.changed();
         });
         rpc.onNotify('Game.Restarted', (params: Proto.Notify.Game.Restarted) => {

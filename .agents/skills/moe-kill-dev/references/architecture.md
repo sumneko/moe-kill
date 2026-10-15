@@ -714,15 +714,20 @@ Card '杀'
 
 - **技术栈**（2026-10-13 用户定）：**Vite + TypeScript**，配置手写（不用 `npm create vite` 的模板）。选 web 技术的理由：将来发 Steam 也能用 Electron / Tauri 装同一个前端；部署到网页是它本来的形态。
 - **协议类型从声明生成，不手抄**：`server/bin/moe-kill.exe --gen-proto` 把 `server/proto.d.lua` 翻成 **`client/src/proto.d.ts`**（生成器 `server/tools/proto-type.lua`，见 `infrastructure.md` §6）。产物**进 git**（前端 clone 下来就能编译），并由 `server/test/proto-type.lua` 钉住「磁盘上那份 == 现翻出来的那份」—— **声明改了就重跑，忘了跑用例会红**。用法：`import type { Proto } from './proto'`，然后 `Proto.SnapShot` / `Proto.Request.Ask.Select`。
-- **分层，照着后端那条链镜像**（都在 `client/src/`）：
+- **分层，照着后端那条链镜像**（都在 `client/src/`；**2026-10-16 起按目录分**）：
 
-  | 文件 | 干什么 | 对着后端的谁 |
+  | 路径 | 干什么 | 对着后端的谁 |
   | --- | --- | --- |
-  | `link.ts` | `WsLink`：浏览器原生 WebSocket，**当字节流用**（消息边界 ≠ 帧边界，收到的载荷拼起来） | `transport/{tcp-link,ws-link}.lua` |
-  | `rpc.ts` | `Rpc`：4 字节长度头 + JSON-RPC；`request` / `notify` / `onRequest`（收服务端请求）/ `onNotify` | `transport/{client,jsonrpc}.lua` |
-  | `agent.ts` | `Agent`：局面镜像（玩家 / 卡牌 / 技能 / 面板 / 回合 / 阶段 / 结局）+ 询问队列；订齐所有下行通知与方法 | `server/user/*-sync.lua` |
-  | `main.ts` | 只做接线：造 `Agent`、`agent.onChange = 重画`、渲染 `<Shell/>` | — |
-  | `ui.ts` | 界面：连接 / 加入 / 房间 / 局面 / 询问 / 事件日志（preact + htm，组件都在这一文件） | — |
+  | `net/link.ts` | `WsLink`：浏览器原生 WebSocket，**当字节流用**（消息边界 ≠ 帧边界，收到的载荷拼起来） | `transport/{tcp-link,ws-link}.lua` |
+  | `net/rpc.ts` | `Rpc`：4 字节长度头 + JSON-RPC；`request` / `notify` / `onRequest`（收服务端请求）/ `onNotify` | `transport/{client,jsonrpc}.lua` |
+  | `state/agent.ts` | `Agent`：局面镜像（玩家 / 卡牌 / 技能 / 面板 / 回合 / 阶段 / 结局）+ 询问队列 + **表现事件流**；订齐所有下行通知与方法 | `server/user/*-sync.lua` |
+  | `state/events.ts` | `GameEvent`：给视图播的表现事件（`move` / `health` / `turn` / `phase` / `over`） | — |
+  | `view/*` | **牌桌界面**（默认）：`App` 总装、`Stage` 缩放、`Seat` / `HeroCard` / `Card` / `Equip` / `Hand` 零件、`Ask` 询问条、`pick.ts` 选择逻辑、`seats.ts` 摆位、`format.ts` 牌面文本、`anim.ts` 飞行、`table.css` | — |
+  | `debug/Drawer.ts` | 调试抽屉（事件流） | — |
+  | `ui.ts` + `style.css` | **老界面**（`?ui=classic` 兜底）：能答所有询问（含面板拖拽与手写答复），调试用 | — |
+  | `robot.ts` | 机器玩家（`?robot=`） | — |
+  | `main.ts` | 只做接线：造 `Agent`、按 `?ui=` **动态 import** 两套界面、`agent.onChange = 重画` | — |
+  | `proto.d.ts` | 协议类型产物（`--gen-proto` 生成，路径写死，**没跟着搬**） | `server/proto.d.lua` |
 
 - **发帧必须是二进制**（与后端那条口径配套，§14）：服务端**不收文本帧**（⇒ 1003）；浏览器 `ws.send(字符串)` 发的正是文本帧、载荷会被 UTF-8 改写 —— 所以一律 `send(ArrayBuffer)`（`rpc.ts` 自己拼长度头 + 正文）。
 - **询问的答复形状照 `Proto.Result.<方法>`**：客户端**不能多带字段**（回包也过 `moe.shape`）。所以 `Ask.Select` 里「没选的半边**不写那个键**」（空数组合法性另说，缺键才是「没选」）。
@@ -735,4 +740,6 @@ Card '杀'
 - **乐观更新的发送端要防抖**（2026-10-15 用户定：「做好防抖」）：同一把键（一张牌 / 一个技能）上的连点 / 连拖攒 **`DEBOUNCE_MS = 150` 毫秒只发最后一次**（`Debounce`：后来的顶掉先前的），**本地照样每次都立刻改 + 重画**（该看到的响应一个不少）；这批改动失败就把「这批开始之前」那份恢复回来 + 记日志。**拖拽只发最后一次是安全的**：`Panel.Move` 是「把这张牌放到这里」的绝对语义（不是相对操作），丢掉中间几次不影响最终位置。**代价**：`movePanelCard` / `changeSkillAuto` 变成**不抛**（失败在内部恢复 + 记日志），UI 那边只管 `void` 调。
 - **技能栏是可点的（2026-10-15）**：座位上的技能名是 `<button>` —— **只有自己的能点**（`Skill.ChangeAuto` 只认自己的技能；别人的灰掉），点一下切 `auto`（**「被动触发时要不要自动同意」**，`Proto.Skill.auto` 每个技能都带）⇒ `agent.changeSkillAuto` **先按要改的值改本地镜像（乐观）**，回包对不上或失败就改回来，随后的 `Skill.Update` 广播定最终态。**自动态**用底色 + `title` 说明（「自动（被动触发时直接同意）/ 手动（被动触发时问你）」）；被禁用（`disabled`）的技能划掉。技能按钮要 `stopPropagation` —— 否则点技能会顺手把那个座位选成目标。
 - **机器玩家（`?robot=名字`）（2026-10-15）**：`client/src/robot.ts` —— 带这个参数打开页面就**自动连上后端 + 坐进来 + 把每条询问都答掉**（默认行为一点不变）。策略极简：六种询问各取「第一个候选 / 凑够 `min` 个」（`Ask.Use` 有实体牌就先用实体牌、没有就用它的「视为」；`Ask.Panel` 在 `min > 0` 时挑前几张）；**同一份候选连着问 `REPEAT_LIMIT` 次**（默认 3，指纹 = 方法 + 缘由 + 候选）就改答「不选」，防「答复不前进」的死循环。⚠️ **必须事件驱动**（2026-10-15 踩过）：起初用 `setInterval(80)` 轮询，但**浏览器把后台标签的定时器节流到 ~1 秒一次**（实测：后台页 `setInterval(100ms)` 3 秒只跑 3 次）⇒ 4 个页面里 3 个在后台 ⇒ 每条询问都等 1 秒、串行问答链慢到 **42 秒/轮**；改成「包装 `agent.onChange`，询问一到就答」后 **60 秒跑完一整局**（约 20 倍）。定时器只留一个 1 秒的兜底。用途 = **带前端的自动对局冒烟**、以及调试时「1 个真人 + N 个机器人」。**冒烟抓到过真问题**（2026-10-15）：黄盖的【苦肉】被机器人反复发动、体力扣到 **-987** —— 「人已死 ⇒ 不能发动技能」当时只落在**被动**那条路（`@基础/阵亡.lua` 的 `disablePassive`），主动技那一路没筛；现已由 `AskUseSkill`（候选 + 答复）与 `@基础/阶段/出牌阶段.lua`（循环判存活）各收一处，细节见 `progress.md`。
-- **还没做**：卡牌 / 武将的图片与动画、技能描述（要协议加字段才能悬浮显示）、观战与重连的界面表达、打包成静态产物由后端同一个口发出去（`base: './'` 已为这步留好）。
+- **牌桌界面（2026-10-16 第一刀）**：按 `client/preview/layout3.html` 的定稿版式做成真组件（1280×720 固定画布、按窗口等比 `scale`；座位按「**相对我**」摆 —— 4 人 = 右 / 上 / 左，8 人 = 右下 → 右上 → 上排三个 → 左上 → 左下，见 `view/seats.ts`；武将卡四角分工与手牌行序照原型）。**表现事件流**：`agent.onChange` 只说「变了」，做不了动画 ⇒ 通知处理器里**除了改状态、还往 `agent.events` 压一份**（`GameEvent`），视图每帧 `drainEvents()` 取走、播一次就丢；重连 / `Game.Restarted` 只换状态不播。**出牌动画用 FLIP、不做全局位置缓存**：点「确定」那一刻 DOM 还是旧的 ⇒ **当场**量出手牌里那张牌的位置、连牌面一起存进 `shown`；渲染后（中央大牌已在位）量终点、用 WAAPI 从「起点 − 终点」的位移飞回来（**偏移 ÷ 舞台缩放**）；中央大牌 2.2 秒后撤下，手牌里那张靠 `shown.ids` 先藏起来。**伤害 / 回血跳字**走 `health` 事件（`Player.UpdateAttribute` 里对比体力新旧值造出来）。**阵亡 = `体力 ≤ 0`**（内核没有单独的存活属性）。
+- **两套界面并存**：`main.ts` 按 **`?ui=classic`** 动态 import（默认牌桌 / 老界面），CSS 随之分包；**`?server=`** 可指后端地址（`robot.ts` 也认它，方便另起一个端口做测试局）。
+- **还没做**：卡牌 / 武将的**图片**、中央大牌「飞进弃牌堆」的那一段（本刀用定时撤下代替）、**势力标**（内核 `player.kingdom` 没进 `custom`，前端拿不到）、技能手动发动（点技能去发动；现在只有「切自动」）、面板拖拽搬到牌桌界面（老界面有）、技能描述悬浮（要协议加字段）、观战与重连的界面表达、打包成静态产物由后端同一个口发出去（`base: './'` 已为这步留好）。

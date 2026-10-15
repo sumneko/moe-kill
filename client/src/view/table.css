@@ -1,0 +1,216 @@
+/* 牌桌：1280×720 固定舞台，按窗口等比缩放 */
+
+:root {
+    --w: 1280px;
+    --h: 720px;
+    --card-w: 72px;
+    --card-h: 100px;
+    --title-h: 22px;
+    --hand-step: 26px;
+    --hand-per-row: 12;
+    --big-w: 120px;
+    --big-h: 168px;
+    --big-title-h: 30px;
+    --portrait-w: 100px;
+    --portrait-h: 150px;
+    --line: #3a4152;
+    --ink: #e6e9f0;
+    --muted: #98a0b3;
+    --panel: #1b2030;
+    --gold: #ffd479;
+    --wei: #4a7bc8;
+    --shu: #c8503f;
+    --wu: #4aa06a;
+    --qun: #c8a03f;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0d1018; overflow: hidden; }
+body { font: 14px/1.4 "Microsoft YaHei", system-ui, sans-serif; color: var(--ink); }
+
+button { font: inherit; color: var(--ink); background: #2a3247; border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+button:hover:not(:disabled) { background: #333d55; }
+button:disabled { cursor: default; }
+
+#viewport { position: absolute; inset: 0; }
+#stage {
+    position: absolute; left: 0; top: 0;
+    width: var(--w); height: var(--h);
+    transform-origin: 0 0;
+    background: radial-gradient(120% 90% at 50% 40%, #1b2334 0%, #0f131d 72%);
+}
+
+/* 牌：标题（花色点数 名字）横排在上方，下面留给图画 */
+.card {
+    position: relative; width: var(--card-w); height: var(--card-h);
+    border: 1px solid #4b5568; border-radius: 6px; overflow: hidden;
+    background: #f4f1e8; color: #1a1d24; flex: 0 0 auto;
+    padding: 0; text-align: left; cursor: default;
+}
+.card .title {
+    height: var(--title-h); display: flex; align-items: center; justify-content: flex-start; gap: 2px;
+    padding: 0 3px; white-space: nowrap;
+    font-size: 10px; font-weight: 700; background: #e9e4d6; border-bottom: 1px solid #c9c2ae;
+}
+.card .art { position: absolute; left: 0; right: 0; top: var(--title-h); bottom: 0;
+    background: repeating-linear-gradient(135deg, #ddd7c7 0 6px, #d3ccb9 6px 12px); }
+.card[data-red] .title { color: #b8352b; }
+.card.back { background: repeating-linear-gradient(45deg, #2b3f6b 0 6px, #23345a 6px 12px); border-color: #3d5580; }
+.card.back .title { background: #253a63; border-bottom-color: #3d5580; color: #b9c8e6; }
+.card.back .art { background: repeating-linear-gradient(45deg, #2b3f6b 0 6px, #23345a 6px 12px); }
+
+.card.big { width: var(--big-w); height: var(--big-h); }
+.card.big .title { height: var(--big-title-h); font-size: 15px; gap: 5px; }
+.card.big .art { top: var(--big-title-h); background: repeating-linear-gradient(135deg, #e2dcc9 0 8px, #d7d0bb 8px 16px); }
+.card.glow { box-shadow: 0 0 0 3px #ffd47999, 0 0 26px #ffd47955; border-color: #ffd479; }
+
+/* 手牌：能点的抬起来、选中的再高一点 */
+.card.pick { cursor: pointer; }
+.card.pick:hover { transform: translateY(-6px); }
+.card.picked { transform: translateY(-12px); box-shadow: 0 0 0 2px var(--gold), 0 6px 14px #0008; }
+.card.off { opacity: .45; filter: grayscale(1); }
+
+#topbar { position: absolute; left: 0; top: 0; width: 100%; height: 40px;
+    display: flex; align-items: center; gap: 10px; padding: 0 12px;
+    border-bottom: 1px solid var(--line); background: #151a26cc; }
+#topbar .spacer { flex: 1; }
+.tag { padding: 2px 8px; border-radius: 4px; background: #2a3247; color: var(--muted); font-size: 12px; }
+.tag.ok { background: #1f4432; color: #8fe0b0; }
+.tag.over { background: #4a2226; color: #ffb3b8; }
+
+#corner { position: absolute; left: 14px; top: 52px; display: flex; gap: 10px; }
+.pile { display: flex; align-items: center; gap: 6px; background: #151b28cc; border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 8px; }
+.pile .stack { width: 26px; height: 36px; border-radius: 4px; border: 1px solid #3d5580;
+    background: repeating-linear-gradient(45deg, #2b3f6b 0 5px, #23345a 5px 10px); }
+.pile .stack.plain { background: #3a3f52; border-color: #5a6180; }
+.pile .num { font-size: 22px; font-weight: 700; line-height: 1; }
+.pile .cap { font-size: 11px; color: var(--muted); }
+
+#center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 520px; text-align: center; }
+#skillTip { font-size: 14px; color: var(--gold); min-height: 20px; }
+#playedWrap { display: flex; justify-content: center; margin: 10px 0 8px; min-height: var(--big-h); }
+#playedTo { font-size: 13px; color: #cfd6e6; min-height: 18px; }
+
+/* 座位：立绘框只放立绘，其余全部超框 */
+.seat { position: absolute; width: var(--portrait-w); }
+.portrait { position: relative; width: var(--portrait-w); height: var(--portrait-h);
+    border: 3px solid var(--qun); border-radius: 8px; background: #1a2032; }
+.portrait .art { position: absolute; inset: 0; border-radius: inherit;
+    background: linear-gradient(160deg, #35405e 0%, #1a2032 100%); }
+.seat.wei .portrait { border-color: var(--wei); }
+.seat.shu .portrait { border-color: var(--shu); }
+.seat.wu .portrait { border-color: var(--wu); }
+.seat.qun .portrait { border-color: var(--qun); }
+
+.seat .head { width: var(--portrait-w); margin-bottom: 5px; display: flex; align-items: baseline;
+    justify-content: center; gap: 5px; }
+.seat .head .hero { font-size: 13px; font-weight: 700; color: #eef2fb; text-shadow: 0 1px 3px #000; }
+.seat .head .pname { font-size: 10px; color: var(--muted); }
+
+.portrait .kingdom { position: absolute; left: -8px; top: -8px; font-size: 11px; padding: 1px 6px;
+    border-radius: 3px; background: #0d1018e6; border: 1px solid #6b7390; color: #fff; }
+.portrait .stamp { position: absolute; right: -8px; top: 8px; width: 34px; padding: 3px 0; text-align: center;
+    font-size: 11px; line-height: 1.1; color: #fff; background: #b8352be6; border-radius: 3px; transform: rotate(-8deg); }
+.portrait .stamp.loyal { background: #2f6fb5e6; }
+.portrait .stamp.spy { background: #6b4bb0e6; }
+.portrait .hand-count { position: absolute; left: -9px; bottom: 8px; min-width: 20px; height: 20px; padding: 0 4px;
+    display: flex; align-items: center; justify-content: center; border-radius: 4px;
+    background: #0d1018e6; border: 1px solid #6b7390; color: var(--ink); font-size: 11px; font-weight: 700; }
+.portrait .fallen { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-12deg);
+    padding: 3px 8px; font-size: 15px; font-weight: 700; letter-spacing: 3px; white-space: nowrap;
+    color: #ff8b7a; border: 2px solid #ff8b7a99; border-radius: 4px; background: #2a0f0fb3; }
+.seat.dead .portrait .art { filter: grayscale(1) brightness(.55); }
+
+.portrait .pips { position: absolute; right: -9px; bottom: -6px; display: flex; flex-direction: column-reverse; gap: 3px; }
+.pip { width: 17px; height: 8px; border-radius: 2px; background: #000000b3; border: 1px solid #ffffff33; }
+.pip.on { background: #ff8b7a; border-color: #ffd0c8; }
+
+.seat.active .portrait { box-shadow: 0 0 0 3px #ffd47999, 0 0 22px #ffd47955; }
+.seat.pickable .portrait { cursor: pointer; box-shadow: 0 0 0 3px #58c0f099, 0 0 20px #58c0f055; }
+.seat.pickable .portrait:hover { box-shadow: 0 0 0 3px #58c0f0, 0 0 26px #58c0f088; }
+.seat.target .portrait { box-shadow: 0 0 0 3px #ff6b6b, 0 0 26px #ff6b6b88; }
+
+.seat .equips { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.equip { display: grid; grid-template-columns: 18px 1fr 13px 16px; align-items: center; gap: 2px;
+    min-width: var(--portrait-w); height: 14px; padding: 0 5px; border-radius: 3px;
+    background: #e9e4d6; border: 1px solid #c9c2ae; color: #1a1d24; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.equip .slot { font-size: 10px; font-weight: 400; text-align: center; }
+.equip .name { text-align: left; }
+.equip .suit { text-align: center; }
+.equip .point { text-align: right; }
+.equip[data-red] { color: #b8352b; }
+.equip.none { display: block; text-align: center; background: transparent; border: 1px dashed #45506b;
+    color: #5f6884; font-weight: 400; }
+
+.judge-col { position: absolute; left: -14px; top: 24px; display: flex; flex-direction: column; }
+.judge { width: 18px; height: 18px; margin: 5px 0; transform: rotate(45deg); border-radius: 3px;
+    background: #dde4f6; border: 2px solid #6f7da6; box-shadow: 0 1px 3px #0006;
+    display: flex; align-items: center; justify-content: center; }
+.judge span { transform: rotate(-45deg); font-size: 11px; font-weight: 700; color: #2f3a58; }
+
+.seat .side { position: absolute; left: calc(var(--portrait-w) - 6px); top: 32px; display: flex;
+    flex-direction: column; gap: 4px; }
+.seat .ico { width: 20px; height: 20px; border-radius: 50%; background: #24304a; border: 1px solid #46557a;
+    display: flex; align-items: center; justify-content: center; font-size: 10px; color: #b9c6e2; }
+
+/* 伤害 / 回血跳字 */
+.pop { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-size: 20px; font-weight: 700;
+    pointer-events: none; text-shadow: 0 2px 6px #000; animation: pop 900ms ease-out forwards; }
+.pop.hurt { color: #ff7b6b; }
+.pop.heal { color: #7bffa6; }
+@keyframes pop {
+    0%   { opacity: 0; transform: translate(-50%, 6px) scale(.8); }
+    25%  { opacity: 1; transform: translate(-50%, -10px) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -46px) scale(1); }
+}
+
+/* 自己的区域 */
+#me { position: absolute; left: 145px; bottom: 10px; display: flex; align-items: flex-end; gap: 14px; }
+#meLeft { width: 130px; }
+#meHead { width: 130px; margin: 0 auto 6px; display: flex; align-items: baseline; justify-content: center; gap: 6px; }
+#meHead .hero { font-size: 15px; font-weight: 700; color: #eef2fb; text-shadow: 0 1px 4px #000; }
+#meHead .pname { font-size: 11px; color: var(--muted); }
+#meLeft .portrait { width: 130px; height: 176px; margin: 0 auto; border-radius: 10px; }
+#meLeft .pips { right: -10px; bottom: -8px; gap: 4px; }
+#meLeft .pips .pip { width: 22px; height: 10px; }
+#meLeft .judge-col { left: -16px; top: 30px; }
+#meLeft .judge { width: 22px; height: 22px; margin: 7px 0; }
+#meLeft .judge span { font-size: 13px; }
+#meLeft .hand-count { left: -11px; bottom: 8px; min-width: 24px; height: 24px; font-size: 13px; }
+#meEquips { margin-top: 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+#meEquips .equip { min-width: 130px; height: 16px; font-size: 10px; }
+
+#meRight { position: relative; flex: 0 0 auto; display: flex; align-items: flex-end; }
+#meHand { display: flex; flex-direction: column; }
+#meHand .row { display: flex; gap: 0; align-items: flex-end; }
+#meHand .row + .row { margin-top: calc(var(--hand-step) - var(--card-h)); }
+
+#meSkills { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+#meSkills button { width: var(--card-w); height: 26px; font-size: 12px; border-radius: 4px;
+    background: linear-gradient(#2d3552, #1e2739); border: 1px solid #4a5a80; box-shadow: 0 2px 6px #0007; }
+#meSkills button:hover:not(:disabled) { background: linear-gradient(#38436a, #26314a); }
+#meSkills button.auto { border-color: var(--gold); color: var(--gold); }
+
+/* 询问条：牌桌中间偏下的一条横幅 */
+#ask { position: absolute; left: 50%; bottom: 196px; transform: translateX(-50%); min-width: 420px; max-width: 900px;
+    padding: 8px 12px; border-radius: 8px; background: #151b28f2; border: 1px solid var(--line);
+    box-shadow: 0 8px 26px #0009; }
+#ask h3 { margin: 0 0 6px; font-size: 14px; color: var(--gold); }
+#ask .hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+#ask .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+#ask .chips button.on { border-color: var(--gold); color: var(--gold); }
+#ask .bar { display: flex; gap: 8px; align-items: center; }
+#ask .bar .grow { flex: 1; }
+
+/* 终局横幅 */
+#over { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); text-align: center;
+    padding: 18px 28px; border-radius: 12px; background: #1a0f14ee; border: 2px solid #ff8b7a66; }
+#over h2 { margin: 0 0 6px; font-size: 26px; color: #ffb3b8; }
+#over p { margin: 0 0 12px; color: var(--muted); }
+
+#drawer { position: absolute; right: 0; top: 40px; bottom: 0; width: 300px; z-index: 10;
+    background: #0f1420f2; border-left: 1px solid var(--line); padding: 10px; overflow: auto; }
+#drawer h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+#drawer .line { font-size: 12px; color: #b9c2d6; border-bottom: 1px dashed #232c3f; padding: 3px 0; }

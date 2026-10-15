@@ -1,6 +1,6 @@
 import { html } from 'htm/preact';
 import { useEffect, useState } from 'preact/hooks';
-import type { Agent, Ask } from './agent';
+import type { Agent, Ask } from './state/agent';
 import type { Proto } from './proto';
 
 /** 花色符号 */
