@@ -4,7 +4,7 @@ import type { Proto } from '../proto';
 import type { Agent, Ask } from '../state/agent';
 import { Card } from './Card';
 import { answerOf, autoPick, canSubmit, pickCard, pickSkill, planText, toggle, type Selection } from './pick';
-import { cardLabel } from './format';
+import { cardLabel, seatCards } from './format';
 
 /** 一条询问要摆些什么、交上去什么 */
 export interface AskHandlers {
@@ -39,68 +39,101 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     const picked = selection.cards.length + selection.players.length + selection.heroes.length;
     const pickCards = (id: number) => onSelection(pickCard(ask, selection, id));
     const pickPlayers = (id: number) => onSelection({ ...selection, players: toggle(selection.players, id) });
-    const chips = (ids: number[], pickedList: number[], onPick: (id: number) => void, asCard = false) => html`<div class="chips">
-        ${ids.map((id) => html`<button
-            key=${id}
-            class=${pickedList.includes(id) ? 'on' : ''}
-            onClick=${() => onPick(id)}
-        >${asCard ? cardLabel(agent, id) : nameOf(agent, id)}</button>`)}
-    </div>`;
+    const own = mineCardIds(agent);
+    /** 一排可点的按钮；`asCard` 的那些要略掉自己手上 / 装备着的牌，一个都不剩就整排不摆 */
+    const chips = (ids: number[], pickedList: number[], onPick: (id: number) => void, asCard = false) => {
+        const shown = asCard ? ids.filter((id) => !own.has(id)) : ids;
+        if (shown.length === 0) {
+            return null;
+        }
+        return html`<div class="chips">
+            ${shown.map((id) => html`<button
+                key=${id}
+                class=${pickedList.includes(id) ? 'on' : ''}
+                onClick=${() => onPick(id)}
+            >${asCard ? cardLabel(agent, id) : nameOf(agent, id)}</button>`)}
+        </div>`;
+    };
 
     const body = () => {
         switch (ask.method) {
-            case 'Ask.Choice':
-                return html`<div class="chips">${(params.options as string[]).map((text, index) => html`<button
+            case 'Ask.Choice': {
+                const options = (params.options ?? []) as string[];
+                if (options.length === 0) {
+                    return null;
+                }
+                return html`<div class="chips">${options.map((text, index) => html`<button
                     key=${index}
                     onClick=${() => onAnswer({ choice: index + 1 })}
                 >${text}</button>`)}</div>`;
-            case 'Ask.Select':
+            }
+            case 'Ask.Select': {
+                const cardChips = params.card
+                    ? chips(params.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
+                    : null;
+                const playerChips = params.player ? chips(params.player.ids, selection.players, pickPlayers) : null;
+                if (!cardChips && !playerChips) {
+                    return null;
+                }
                 return html`<div>
-                    ${params.player ? html`<p class="hint">选玩家（${planText(params.player)}）</p>
-                        ${chips(params.player.ids, selection.players, pickPlayers)}` : null}
-                    ${params.card ? html`<p class="hint">选牌（${planText(params.card)}）</p>
-                        ${chips(params.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)}` : null}
+                    ${playerChips ? html`<p class="hint">选玩家（${planText(params.player)}）</p>${playerChips}` : null}
+                    ${cardChips ? html`<p class="hint">选牌（${planText(params.card)}）</p>${cardChips}` : null}
                 </div>`;
+            }
             case 'Ask.Use': {
                 const options = (params.card ?? []) as Proto.CardWithPlan[];
                 const views = (params.viewAs ?? []) as Proto.ViewAs[];
                 const option = options.find((one) => one.id === selection.option);
                 const view = selection.viewAs === null ? null : views[selection.viewAs];
                 const target = view ? view.target : option;
+                const optionChips = chips(options.map((one) => one.id), selection.option === null ? [] : [selection.option], pickCards, true);
+                const materialChips = view?.card
+                    ? chips(view.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
+                    : null;
+                if (!optionChips && views.length === 0 && !materialChips) {
+                    return null;
+                }
                 return html`<div>
-                    <p class="hint">用哪张牌（点手牌，或者点这里）</p>
-                    ${chips(options.map((one) => one.id), selection.option === null ? [] : [selection.option], pickCards, true)}
+                    ${optionChips ? html`<p class="hint">用哪张牌（点手牌，或者点这里）</p>${optionChips}` : null}
                     ${views.length > 0 ? html`<p class="hint">「视为」（用技能 / 装备把牌转成别的）</p>
                         <div class="chips">${views.map((one, index) => html`<button
                             key=${index}
                             class=${selection.viewAs === index ? 'on' : ''}
                             onClick=${() => onSelection({ ...selection, viewAs: index, option: null, cards: [], players: autoPick(views[index]?.target) })}
                         >${viewLabel(agent, one)}</button>`)}</div>` : null}
-                    ${view?.card ? html`<p class="hint">素材（${planText(view.card)}）</p>
-                        ${chips(view.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)}` : null}
+                    ${materialChips ? html`<p class="hint">素材（${planText(view?.card)}）</p>${materialChips}` : null}
                     ${target && target.max > 0 ? html`<p class="hint">给它选目标（${planText(target)}）</p>` : null}
                 </div>`;
             }
             case 'Ask.UseSkill': {
                 const skills = (params.skills ?? []) as Proto.SkillPlan[];
                 const skill = skills.find((one) => one.id === selection.skill) ?? null;
+                const materialChips = skill?.cards
+                    ? chips(skill.cards.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
+                    : null;
+                const targetChips = skill?.targets ? chips(skill.targets.ids, selection.players, pickPlayers) : null;
+                if (skills.length === 0 && !materialChips && !targetChips) {
+                    return null;
+                }
                 return html`<div>
-                    <p class="hint">发动哪个技能</p>
-                    <div class="chips">${skills.map((one) => html`<button
-                        key=${one.id}
-                        class=${selection.skill === one.id ? 'on' : ''}
-                        onClick=${() => onSelection(pickSkill(ask, selection, one.id))}
-                    >${agent.skills.get(one.id)?.name ?? `技能 ${one.id}`}</button>`)}</div>
-                    ${skill?.cards ? html`<p class="hint">要用的牌（${planText(skill.cards)}）</p>
-                        ${chips(skill.cards.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)}` : null}
-                    ${skill?.targets ? html`<p class="hint">目标（${planText(skill.targets)}）</p>
-                        ${chips(skill.targets.ids, selection.players, pickPlayers)}` : null}
+                    ${skills.length > 0 ? html`<p class="hint">发动哪个技能</p>
+                        <div class="chips">${skills.map((one) => html`<button
+                            key=${one.id}
+                            class=${selection.skill === one.id ? 'on' : ''}
+                            onClick=${() => onSelection(pickSkill(ask, selection, one.id))}
+                        >${agent.skills.get(one.id)?.name ?? `技能 ${one.id}`}</button>`)}</div>` : null}
+                    ${materialChips ? html`<p class="hint">要用的牌（${planText(skill?.cards)}）</p>${materialChips}` : null}
+                    ${targetChips ? html`<p class="hint">目标（${planText(skill?.targets)}）</p>${targetChips}` : null}
                 </div>`;
             }
-            case 'Ask.Hero':
+            case 'Ask.Hero': {
+                const heroes = (params.heroes ?? []) as string[];
+                if (heroes.length === 0) {
+                    return null;
+                }
                 return html`<div>
                     <p class="hint">选武将（${planText(params)}）</p>
-                    <div class="chips">${((params.heroes ?? []) as string[]).map((name) => html`<button
+                    <div class="chips">${heroes.map((name) => html`<button
                         key=${name}
                         class=${selection.heroes.includes(name) ? 'on' : ''}
                         onClick=${() => onSelection({
@@ -111,6 +144,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                         })}
                     >${name}</button>`)}</div>
                 </div>`;
+            }
             case 'Ask.Panel': {
                 const panel = agent.panels.get(params.id as number);
                 if (!panel) {
@@ -171,25 +205,39 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     };
 
     const needSubmit = ask.method !== 'Ask.Choice';
-    return html`<div id="ask">
-        <h3>${params.reason ?? ask.method}</h3>
-        <p class="hint">
-            ${ask.method}${left > 0 ? ` · 还剩 ${left} 秒` : ''}
-            · 勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}
-        </p>
-        ${body()}
-        <div class="bar">
-            ${needSubmit ? html`<button
-                disabled=${!canSubmit(ask, selection)}
-                onClick=${() => onAnswer(answerOf(ask, selection))}
-            >确定</button>` : null}
-            ${cancelable ? html`<button onClick=${() => onAnswer({})}>不选</button>` : null}
-            <button onClick=${() => ask.cancel()}>取消</button>
-            <span class="grow"></span>
-            <input size="22" placeholder=${'{"usedViewAs":1,...}'} value=${raw} onInput=${(event: Event) => setRaw((event.target as HTMLInputElement).value)} />
-            <button onClick=${() => onAnswer(parseRaw(raw, agent))}>手写发送</button>
+    const content = body();
+    return html`<div id="askWrap">
+        ${content ? html`<div id="ask">${content}</div>` : null}
+        <div id="askBar">
+            <div class="head">
+                <span class="title">${params.reason ?? ask.method}</span>
+                <span class="hint">
+                    ${ask.method}${left > 0 ? ` · 还剩 ${left} 秒` : ''}
+                    · 勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}
+                </span>
+            </div>
+            <div class="bar">
+                ${needSubmit ? html`<button
+                    disabled=${!canSubmit(ask, selection)}
+                    onClick=${() => onAnswer(answerOf(ask, selection))}
+                >确定</button>` : null}
+                ${cancelable ? html`<button onClick=${() => onAnswer({})}>不选</button>` : null}
+                <button onClick=${() => ask.cancel()}>取消</button>
+                <span class="grow"></span>
+                <input size="22" placeholder=${'{"usedViewAs":1,...}'} value=${raw} onInput=${(event: Event) => setRaw((event.target as HTMLInputElement).value)} />
+                <button onClick=${() => onAnswer(parseRaw(raw, agent))}>手写发送</button>
+            </div>
         </div>
     </div>`;
+}
+
+/** 我自己的牌（手牌 + 四个装备子区）：它们已经摆在牌桌上，询问里不重复列 */
+function mineCardIds(agent: Agent): Set<number> {
+    const mine = agent.me === null ? null : seatCards(agent, agent.me);
+    if (!mine) {
+        return new Set();
+    }
+    return new Set([...mine.hand, ...[...mine.equip.values()].flat()]);
 }
 
 /** 玩家名（认不出就给号） */

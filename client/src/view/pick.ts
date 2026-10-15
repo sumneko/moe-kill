@@ -47,7 +47,8 @@ export function candidates(ask: Ask | undefined, selection: Selection): { cards:
             return { cards: view?.card?.ids ?? [], players: view?.target?.ids ?? [] };
         }
         const option = options.find((one) => one.id === selection.option);
-        return { cards: [...new Set(options.flatMap((one) => one.ids))], players: option?.ids ?? [] };
+        // 选项的 `ids` 是**合法目标**、`id` 才是牌号（`CardWithPlan` inherit 的是 `Plan.Player`）
+        return { cards: options.map((one) => one.id), players: option?.ids ?? [] };
     }
     if (ask.method === 'Ask.UseSkill') {
         const skills = (params.skills ?? []) as Proto.SkillPlan[];

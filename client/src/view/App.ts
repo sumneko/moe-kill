@@ -250,14 +250,20 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                         dead=${(attr(me, '体力') ?? 1) <= 0}
                         pops=${pops.filter((one) => one.player === me.base.id)}
                     />
-                    <div id="meEquips"><${EquipList} agent=${agent} equip=${mine.equip} /></div>
+                    <div id="meEquips"><${EquipList}
+                        agent=${agent}
+                        equip=${mine.equip}
+                        picked=${selection.cards}
+                        cand=${ask ? cand.cards : null}
+                        onPick=${onPickCard}
+                    /></div>
                 </div>
                 <div id="meRight">
                     <${Hand}
                         agent=${agent}
                         ids=${handIds}
                         picked=${selection.cards}
-                        pickable=${cand.cards.length > 0}
+                        cand=${ask ? cand.cards : null}
                         onPick=${onPickCard}
                     />
                 </div>

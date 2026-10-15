@@ -10,7 +10,8 @@ export function Hand(props: {
     agent: Agent;
     ids: number[];
     picked: number[];
-    pickable: boolean;
+    /** 这次询问能点的牌；`null` = 现在没有询问（既不置灰也点不动） */
+    cand: number[] | null;
     onPick: (id: number) => void;
 }) {
     const rows: number[][] = [];
@@ -19,14 +20,18 @@ export function Hand(props: {
     }
     return html`<div id="meHand">
         ${rows.reverse().map((row, index) => html`<div class="row" key=${index}>
-            ${row.map((id) => html`<${Card}
-                key=${id}
-                agent=${props.agent}
-                id=${id}
-                pick=${props.pickable}
-                picked=${props.picked.includes(id)}
-                onClick=${props.pickable ? () => props.onPick(id) : undefined}
-            />`)}
+            ${row.map((id) => {
+                const pick = props.cand?.includes(id) ?? false;
+                return html`<${Card}
+                    key=${id}
+                    agent=${props.agent}
+                    id=${id}
+                    pick=${pick}
+                    picked=${props.picked.includes(id)}
+                    off=${props.cand ? !pick : false}
+                    onClick=${pick ? () => props.onPick(id) : undefined}
+                />`;
+            })}
         </div>`)}
     </div>`;
 }
