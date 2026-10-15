@@ -87,6 +87,15 @@ export function identityOf(player: Proto.Player | undefined): string | undefined
     return typeof identity === 'string' && identity.length > 0 ? identity : undefined;
 }
 
+/** 势力（没选将 / 老服务器就没值） */
+export function kingdomOf(player: Proto.Player | undefined): string | undefined {
+    const kingdom = player?.custom?.['heroKingdom'];
+    return typeof kingdom === 'string' && kingdom.length > 0 ? kingdom : undefined;
+}
+
+/** 势力 → 立绘边框的样式名 */
+export const KINGDOM_CLASS: Record<string, string> = { 魏: 'wei', 蜀: 'shu', 吴: 'wu', 群: 'qun' };
+
 /** 一条属性的值 */
 export function attr(player: Proto.Player | undefined, name: string): number | undefined {
     return player?.attributes.find((one) => one.name === name)?.value;

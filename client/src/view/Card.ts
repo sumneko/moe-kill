@@ -16,7 +16,11 @@ export function Card(props: {
     pick?: boolean;
     picked?: boolean;
     off?: boolean;
+    /** 能拖（面板摆位） */
+    draggable?: boolean;
     onClick?: () => void;
+    onDragStart?: () => void;
+    onDrop?: (event: DragEvent) => void;
 }) {
     const card = props.agent.cards.get(props.id);
     const face = props.face ?? cardFaceOf(props.agent, props.id);
@@ -37,7 +41,10 @@ export function Card(props: {
         data-fly=${props.flyKey ?? `card:${props.id}`}
         data-red=${isRed(suit) ? '' : undefined}
         title=${[description, converted].filter(Boolean).join('\n') || undefined}
+        draggable=${props.draggable ? true : undefined}
         onClick=${props.onClick}
+        onDragStart=${props.onDragStart}
+        onDrop=${props.onDrop}
     >
         <div class="title">
             ${face ? html`<span>${SUITS[suit] ?? suit}${face.point ?? ''}</span>` : null}

@@ -20,6 +20,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     const params = ask.params as any;
     const [left, setLeft] = useState(0);
     const [raw, setRaw] = useState('');
+    const [dragCard, setDragCard] = useState<number | null>(null);
 
     // 限时倒计时（从收到询问那一刻算）
     useEffect(() => {
@@ -121,19 +122,42 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 if (!panel) {
                     return html`<p class="hint">面板 ${params.id} 还没同步到（等下一条消息）</p>`;
                 }
-                return html`<div>
-                    <p class="hint">${panel.name} · 选 ${planText(panel)}</p>
-                    ${panel.rows.map((row, index) => html`<div class="chips" key=${index}>
+                const dropAt = (row: number, col: number) => (event: DragEvent) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (dragCard === null) {
+                        return;
+                    }
+                    setDragCard(null);
+                    void agent.movePanelCard(panel.id, dragCard, row, col);
+                };
+                return html`<div class="panel">
+                    <p class="hint">
+                        ${panel.name}${panel.moveable ? ' · 拖到别的行 / 别的牌前面就能摆位' : ''}${panel.min > 0 ? ` · 选 ${planText(panel)}` : ''}
+                    </p>
+                    ${panel.rows.map((row, rowIndex) => html`<div
+                        class="panel-row"
+                        key=${rowIndex}
+                        onDragOver=${(event: DragEvent) => {
+                            if (dragCard !== null && panel.moveable) {
+                                event.preventDefault();
+                            }
+                        }}
+                        onDrop=${dropAt(rowIndex + 1, row.cards.length + 1)}
+                    >
                         ${row.title ? html`<span class="hint">${row.title}</span>` : null}
-                        ${row.cards.map((id) => html`<${Card}
+                        ${row.cards.map((id, colIndex) => html`<${Card}
                             key=${id}
                             agent=${agent}
                             id=${id}
                             picked=${selection.cards.includes(id)}
                             off=${panel.disabled.includes(id)}
-                            pick=${!panel.disabled.includes(id)}
+                            pick=${!panel.disabled.includes(id) && !panel.moveable}
+                            draggable=${panel.moveable && !panel.disabled.includes(id)}
+                            onDragStart=${() => setDragCard(id)}
+                            onDrop=${dropAt(rowIndex + 1, colIndex + 1)}
                             onClick=${() => {
-                                if (panel.disabled.includes(id)) {
+                                if (panel.disabled.includes(id) || panel.moveable || panel.max <= 0) {
                                     return;
                                 }
                                 onSelection({

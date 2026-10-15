@@ -15,8 +15,8 @@ import { EMPTY, candidates, toggle, type Selection } from './pick';
 import { attr, cardFaceOf, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
 
-/** 桌面正中那张牌摆多久（毫秒） */
-const SHOWN_MS = 2200;
+/** 桌面正中那张牌摆多久（毫秒）—— 到点还没进弃牌堆就自己撤下 */
+const SHOWN_MS = 3600;
 /** 跳字停留多久（毫秒） */
 const POP_MS = 900;
 
@@ -48,6 +48,32 @@ function stageEl(): HTMLElement | null {
     return document.querySelector<HTMLElement>('#stage');
 }
 
+/** 让一张牌的替身从它现在的位置飞向弃牌堆（替身飞完自己消失） */
+function flyGhost(el: HTMLElement, to: DOMRect): void {
+    const stage = stageEl();
+    if (!stage) {
+        return;
+    }
+    const stageRect = stage.getBoundingClientRect();
+    const scale = Math.max(stageRect.width, 1) / 1280;
+    const from = el.getBoundingClientRect();
+    const ghost = el.cloneNode(true) as HTMLElement;
+    ghost.style.position = 'absolute';
+    ghost.style.left = `${(from.left - stageRect.left) / scale}px`;
+    ghost.style.top = `${(from.top - stageRect.top) / scale}px`;
+    ghost.style.margin = '0';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.zIndex = '30';
+    stage.appendChild(ghost);
+    const dx = (to.left + to.width / 2 - (from.left + from.width / 2)) / scale;
+    const dy = (to.top + to.height / 2 - (from.top + from.height / 2)) / scale;
+    const anim = ghost.animate([
+        { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(.4)`, opacity: 0.15 },
+    ], { duration: 420, easing: 'cubic-bezier(.4,0,.6,1)' });
+    anim.addEventListener('finish', () => ghost.remove());
+}
+
 /** 牌桌 */
 export function App(props: { agent: Agent; events: GameEvent[] }) {
     const { agent } = props;
@@ -63,15 +89,23 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         setSelection(EMPTY);
     }, [ask?.id]);
 
-    // 表现事件：现在只有跳字（牌的位置由状态自己更新）
+    // 表现事件：跳字，以及桌面正中那张牌打完飞进弃牌堆
     useEffect(() => {
         for (const event of props.events) {
-            if (event.kind !== 'health') {
+            if (event.kind === 'health') {
+                const key = nextKey.current++;
+                setPops((list) => [...list, { player: event.player, key, delta: event.delta }]);
+                window.setTimeout(() => setPops((list) => list.filter((one) => one.key !== key)), POP_MS);
                 continue;
             }
-            const key = nextKey.current++;
-            setPops((list) => [...list, { player: event.player, key, delta: event.delta }]);
-            window.setTimeout(() => setPops((list) => list.filter((one) => one.key !== key)), POP_MS);
+            if (event.kind === 'move' && event.move.to.startsWith('弃牌#')) {
+                const el = document.querySelector<HTMLElement>('[data-fly="shown"]');
+                const pile = document.querySelector<HTMLElement>('#corner .discard');
+                if (el && pile) {
+                    flyGhost(el, pile.getBoundingClientRect());
+                    setShown(null);
+                }
+            }
         }
     }, [props.events]);
 
@@ -115,6 +149,18 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     };
     const pickPlayer = (id: number) => {
         setSelection({ ...selection, players: toggle(selection.players, id) });
+    };
+
+    /** 这条询问里能不能发动这个技能（能就返回「选中它」的点击处理器，不能就空） */
+    const fireable = (skillId: number): (() => void) | null => {
+        if (ask?.method !== 'Ask.UseSkill') {
+            return null;
+        }
+        const plans = ((ask.params as any).skills ?? []) as Proto.SkillPlan[];
+        if (!plans.some((one) => one.id === skillId)) {
+            return null;
+        }
+        return () => setSelection({ ...selection, skill: skillId, cards: [], players: [] });
     };
 
     /** 交一包上去：出牌的话顺带把牌摆到桌面正中 */
@@ -161,7 +207,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                     <div class="stack"></div>
                     <div><div class="num">${zoneCards(agent, '抽牌', 0).length}</div><div class="cap">抽牌堆</div></div>
                 </div>
-                <div class="pile">
+                <div class="pile discard">
                     <div class="stack plain"></div>
                     <div><div class="num">${zoneCards(agent, '弃牌', 0).length}</div><div class="cap">弃牌堆</div></div>
                 </div>
@@ -198,7 +244,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             />`)}
 
             ${me && mine ? html`<div id="me">
-                <div id="meLeft">
+                <div
+                    id="meLeft"
+                    class=${[
+                        cand.players.includes(me.base.id) ? 'pickable' : '',
+                        selection.players.includes(me.base.id) ? 'target' : '',
+                    ].filter((one) => one.length > 0).join(' ')}
+                    onClick=${cand.players.includes(me.base.id) ? () => pickPlayer(me.base.id) : undefined}
+                >
                     <div id="meHead">
                         <span class="hero">${heroName(me) ?? '未选将'}</span>
                         <span class="pname">${me.base.userName}</span>
@@ -227,12 +280,22 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 ${[...agent.skills.values()]
                     .filter((skill) => skill.player === agent.me)
                     .sort((left, right) => left.id - right.id)
-                    .map((skill) => html`<button
-                        key=${skill.id}
-                        class=${skill.auto ? 'auto' : ''}
-                        title=${skill.auto ? '自动（点一下改手动）' : '手动（点一下改自动）'}
-                        onClick=${() => void agent.changeSkillAuto(skill.id, !skill.auto)}
-                    >${skill.name}</button>`)}
+                    .map((skill) => {
+                        const fire = fireable(skill.id);
+                        const cls = [
+                            skill.auto ? 'auto' : '',
+                            fire ? 'fire' : '',
+                            selection.skill === skill.id ? 'on' : '',
+                        ].filter((one) => one.length > 0).join(' ');
+                        return html`<button
+                            key=${skill.id}
+                            class=${cls}
+                            title=${fire
+                                ? `发动「${skill.name}」`
+                                : (skill.auto ? '自动（点一下改手动）' : '手动（点一下改自动）')}
+                            onClick=${fire ?? (() => void agent.changeSkillAuto(skill.id, !skill.auto))}
+                        >${skill.name}</button>`;
+                    })}
             </div>` : html`<div id="waiting">正在入座…</div>`}
 
             ${ask ? html`<${AskBar}

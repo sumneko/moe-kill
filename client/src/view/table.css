@@ -99,10 +99,10 @@ button:disabled { cursor: default; }
     border: 3px solid var(--qun); border-radius: 8px; background: #1a2032; }
 .portrait .art { position: absolute; inset: 0; border-radius: inherit;
     background: linear-gradient(160deg, #35405e 0%, #1a2032 100%); }
-.seat.wei .portrait { border-color: var(--wei); }
-.seat.shu .portrait { border-color: var(--shu); }
-.seat.wu .portrait { border-color: var(--wu); }
-.seat.qun .portrait { border-color: var(--qun); }
+.seat.wei .portrait, .portrait.wei { border-color: var(--wei); }
+.seat.shu .portrait, .portrait.shu { border-color: var(--shu); }
+.seat.wu .portrait, .portrait.wu { border-color: var(--wu); }
+.seat.qun .portrait, .portrait.qun { border-color: var(--qun); }
 
 .seat .head { width: var(--portrait-w); margin-bottom: 5px; display: flex; align-items: baseline;
     justify-content: center; gap: 5px; }
@@ -181,6 +181,9 @@ button:disabled { cursor: default; }
 #meLeft .hand-count { left: -11px; bottom: 8px; min-width: 24px; height: 24px; font-size: 13px; }
 #meEquips { margin-top: 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
 #meEquips .equip { min-width: 130px; height: 16px; font-size: 10px; }
+#meLeft.pickable .portrait { cursor: pointer; box-shadow: 0 0 0 3px #58c0f099, 0 0 20px #58c0f055; }
+#meLeft.pickable .portrait:hover { box-shadow: 0 0 0 3px #58c0f0, 0 0 26px #58c0f088; }
+#meLeft.target .portrait { box-shadow: 0 0 0 3px #ff6b6b, 0 0 26px #ff6b6b88; }
 
 #meRight { position: relative; flex: 0 0 auto; display: flex; align-items: flex-end; }
 #meHand { display: flex; flex-direction: column; }
@@ -192,6 +195,10 @@ button:disabled { cursor: default; }
     background: linear-gradient(#2d3552, #1e2739); border: 1px solid #4a5a80; box-shadow: 0 2px 6px #0007; }
 #meSkills button:hover:not(:disabled) { background: linear-gradient(#38436a, #26314a); }
 #meSkills button.auto { border-color: var(--gold); color: var(--gold); }
+#meSkills button.fire { border-color: #58c0f0; color: #9bd8f5; box-shadow: 0 0 12px #58c0f055; }
+#meSkills button.on { background: linear-gradient(#3a5a80, #27405c); border-color: var(--gold); color: var(--gold); }
+
+#waiting { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); color: var(--muted); }
 
 /* 询问条：牌桌中间偏下的一条横幅 */
 #ask { position: absolute; left: 50%; bottom: 196px; transform: translateX(-50%); min-width: 420px; max-width: 900px;
@@ -201,6 +208,11 @@ button:disabled { cursor: default; }
 #ask .hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
 #ask .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 #ask .chips button.on { border-color: var(--gold); color: var(--gold); }
+#ask .panel-row { display: flex; align-items: center; gap: 4px; min-height: calc(var(--card-h) + 4px); margin-bottom: 4px; }
+#ask .panel-row .card { cursor: grab; }
+#ask .panel-row .card:active { cursor: grabbing; }
+#ask input { background: #0f1420; color: inherit; border: 1px solid var(--line); border-radius: 4px;
+    padding: 2px 6px; font: inherit; }
 #ask .bar { display: flex; gap: 8px; align-items: center; }
 #ask .bar .grow { flex: 1; }
 

@@ -64,11 +64,13 @@ function M:setHero(hero)
     self.kingdom = hero:getKingdom()
     self:setAttr('体力上限', maxHp)
     self:setAttr('体力', hp)
-    -- 武将名与性别挂在 custom 里：这两样人人看得见
+    -- 武将名 / 性别 / 势力挂在 custom 里：这三样人人看得见
     self:setCustomVisible('heroName', true)
     self:setCustomVisible('heroSex', true)
-    self.custom.heroName = hero.name
-    self.custom.heroSex  = hero:getSex()
+    self:setCustomVisible('heroKingdom', true)
+    self.custom.heroName    = hero.name
+    self.custom.heroSex     = hero:getSex()
+    self.custom.heroKingdom = self.kingdom
     self:refreshSkills()
 end
 

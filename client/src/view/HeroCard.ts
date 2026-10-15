@@ -1,7 +1,7 @@
 import { html } from 'htm/preact';
 import type { Proto } from '../proto';
 import type { Agent } from '../state/agent';
-import { attr, cardLabel, cardFaceOf, heroName, identityOf } from './format';
+import { attr, cardLabel, cardFaceOf, heroName, identityOf, KINGDOM_CLASS, kingdomOf } from './format';
 
 /** 一条要播的跳字 */
 export interface Pop {
@@ -28,9 +28,10 @@ export function HeroCard(props: {
     const { agent, player } = props;
     const identity = identityOf(player);
     const stamp = identity === '主公' ? 'loyal' : identity === '内奸' ? 'spy' : '';
+    const kingdom = kingdomOf(player);
     const hp = attr(player, '体力') ?? 0;
     const max = attr(player, '体力上限') ?? hp;
-    return html`<div class="portrait">
+    return html`<div class=${`portrait ${KINGDOM_CLASS[kingdom ?? ''] ?? ''}`}>
         <div class="art"></div>
         <div class="judge-col">
             ${props.judges.map((id) => html`<div class="judge" key=${id} title=${cardLabel(agent, id)}>
@@ -38,6 +39,7 @@ export function HeroCard(props: {
             </div>`)}
         </div>
         <div class="pips">${pips(hp, max)}</div>
+        ${kingdom ? html`<div class="kingdom">${kingdom}</div>` : null}
         ${identity ? html`<div class=${`stamp ${stamp}`}>${identity}</div>` : null}
         ${props.dead ? html`<div class="fallen">阵亡</div>` : null}
         <div class="hand-count">${props.hand}</div>
