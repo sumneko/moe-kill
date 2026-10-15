@@ -27,14 +27,13 @@
 ---@field heroSex? 基础.性别 # 性别
 
 ---@class Player: Class.Base
----@field sex? 基础.性别
 ---@field hero? HeroDef # 这名角色用的是哪张武将（由 @基础/武将.lua 的 setHero 写入）
 ---@field kingdom? 基础.势力 # 势力（同上）
----@field getAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正'): number
+---@field getAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正'|'摸牌数'): number
 ---@field getAttr fun(self: Player, name: string): any
----@field setAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正', value: number)
+---@field setAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正'|'摸牌数', value: number)
 ---@field setAttr fun(self: Player, name: string, value: any)
----@field addAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正', delta: number): fun()
+---@field addAttr fun(self: Player, name: '体力'|'体力上限'|'攻击范围'|'进攻修正'|'防御修正'|'摸牌数', delta: number): fun()
 ---@field addAttr fun(self: Player, name: string, delta: any): fun()
 
 --- 判定是本包提供的时机（内核不再认识它们）：按名收窄 `on` / `fire` 的载荷
