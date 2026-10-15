@@ -219,6 +219,12 @@ export namespace Proto {
                  */
                 reason: string;
             }
+
+            /**
+             * 这一局重开了（**收到它就是新的一局**）：params 是一份按你视角裁过的完整快照
+             */
+            export interface Restarted extends Proto.SnapShot {
+            }
         }
 
         export namespace Panel {
@@ -660,6 +666,11 @@ export namespace Proto {
                  */
                 name?: string;
             }
+
+            /**
+             * 把已经终了的这一局放下、原班人马重开一局（没有参数；重建走 `Game.Restarted`）
+             */
+            export type Restart = Record<string, unknown>;
 
             /**
              * 要一份当前局面的全量快照（重连用；没有参数）

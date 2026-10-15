@@ -175,3 +175,124 @@ lt.test('房间：有人坐进来就广播房间状态', function ()
     close(game, { back })
     drain()
 end)
+
+---@async
+lt.test('重开：原班人马重坐、配置与包沿用、种子另取', function ()
+    local game = openRoom(7)
+    ---@type Client[]
+    local clients = {}
+    ---@type Client[]
+    local fronts = {}
+    for i = 1, 4 do
+        local front, back = connect()
+        fronts[i] = front
+        clients[#clients + 1] = front
+        clients[#clients + 1] = back
+    end
+    -- 重开后新局会自动开局，选将得有人答
+    local _ <close> = moe.client.register('Ask.Hero', function (_, params)
+        return { heroes = { params.heroes[1] } }
+    end)
+    for i = 1, 4 do
+        assert(fronts[i]):awaitRequest('Game.Join', { name = '玩家' .. i })
+    end
+    spinUntil(function () return game.turnPlayer ~= nil end)
+
+    game:endGame { side = '平局', reason = '用例收摊' }
+    local result, err = assert(fronts[1]):awaitRequest('Game.Restart', {})
+    lt.assertEquals('没出错', nil, err)
+    lt.assertEquals('收条是一张表', 'table', type(result))
+
+    local next = assert(moe.room._game, '没接上新局')
+    lt.assertNotEquals('换了一局', game, next)
+    lt.assertEquals('座位数沿用', 4, next.desk:getCount())
+    lt.assertEquals('包清单沿用', '身份场,标准', table.concat(next.list, ','))
+    lt.assertEquals('包来源沿用', table.concat(game.sources, ','), table.concat(next.sources, ','))
+    lt.assertEquals('种子另取（上一局 + 1）', 8, moe.room._seed)
+    ---@type table<string, true>
+    local seenName = {}
+    for i = 1, 4 do
+        local before = assert(game.desk:getPlayer(i)):getName()
+        local after  = assert(next.desk:getPlayer(i)):getName()
+        lt.assertEquals('座位 ' .. i .. ' 还是原来那个人', before, after)
+        local name = assert(after, '座位 ' .. i .. ' 上没人')
+        lt.assertEquals('一个座位一个人（名字不重复）', nil, seenName[name])
+        seenName[name] = true
+    end
+
+    spinUntil(function () return next.turnPlayer ~= nil end)
+    lt.assertEquals('新局跑起来了（身份都定了）', true, next.desk.players[1].custom.identity ~= nil)
+
+    close(next, clients)
+    drain()
+end)
+
+---@async
+lt.test('重开：这一局还没结束就重开 ⇒ 回错且什么都没改', function ()
+    local game = openRoom()
+    local front, back = connect()
+    assert(front:awaitRequest('Game.Join', { name = '甲' }))
+
+    local result, err = front:awaitRequest('Game.Restart', {})
+    lt.assertEquals('没有结果', nil, result)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '这一局还没结束', assert(err).message)
+    lt.assertEquals('还是原来那一局', game, moe.room._game)
+    lt.assertEquals('种子没动', 1, moe.room._seed)
+
+    close(game, { front, back })
+    drain()
+end)
+
+---@async
+lt.test('重开：每条连接各收到一条 Game.Restarted，各自认自己的座位', function ()
+    local game = openRoom()
+    ---@type Client[]
+    local clients = {}
+    ---@type Client[]
+    local fronts = {}
+    for i = 1, 4 do
+        local front, back = connect()
+        fronts[i] = front
+        clients[#clients + 1] = front
+        clients[#clients + 1] = back
+    end
+
+    local _ <close> = moe.client.register('Ask.Hero', function (_, params)
+        return { heroes = { params.heroes[1] } }
+    end)
+    ---@type table<Client, Proto.SnapShot>
+    local got = {}
+    local _ <close> = moe.client.register('Game.Restarted', function (client, params)
+        ---@cast params Proto.SnapShot
+        got[client] = params
+    end)
+
+    for i = 1, 4 do
+        assert(fronts[i]):awaitRequest('Game.Join', { name = '玩家' .. i })
+    end
+
+    game:endGame { side = '平局', reason = '用例收摊' }
+    local _, err = assert(fronts[1]):awaitRequest('Game.Restart', {})
+    lt.assertEquals('重开没出错', nil, err)
+    drain()
+
+    ---@type table<integer, true>
+    local seenSeat = {}
+    local seatCount = 0
+    for i = 1, 4 do
+        local snapshot = got[fronts[i]]
+        lt.assertNotEquals('第 ' .. i .. ' 条连接收到快照', nil, snapshot)
+        lt.assertEquals('快照里人人都在', 4, #assert(snapshot).players)
+        local me = assert(snapshot).me
+        lt.assertNotEquals('知道自己是哪个座位', nil, me)
+        if not seenSeat[assert(me)] then
+            seenSeat[assert(me)] = true
+            seatCount = seatCount + 1
+        end
+    end
+    lt.assertEquals('四条连接各认一个不同的座位（按各自视角裁过）', 4, seatCount)
+
+    close(assert(moe.room._game), clients)
+    drain()
+end)

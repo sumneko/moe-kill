@@ -118,6 +118,11 @@ export class Agent {
         this.applySnapshot(snapshot);
     }
 
+    /** 局终后原班人马重开一局（重建走 `Game.Restarted` 通知，不靠回包） */
+    async restart(): Promise<void> {
+        await this.requireRpc().request('Game.Restart', {});
+    }
+
     /** 把面板上的一张牌挪到某行某位：本地先挪（乐观），同一张牌的连续挪动防抖成最后一次 */
     async movePanelCard(panelId: number, card: number, row: number, col: number): Promise<void> {
         const panel = this.panels.get(panelId);
@@ -413,6 +418,12 @@ export class Agent {
         rpc.onNotify('Game.Over', (params: Proto.Notify.Game.Over) => {
             this.over = params;
             this.log(`这一局完了：${params.side}（${params.reason}）`);
+            this.changed();
+        });
+        rpc.onNotify('Game.Restarted', (params: Proto.Notify.Game.Restarted) => {
+            this.reset();
+            this.applySnapshot(params);
+            this.log('这一局重开了');
             this.changed();
         });
         rpc.onNotify('Cancel', (params: Proto.Notify.Cancel) => {

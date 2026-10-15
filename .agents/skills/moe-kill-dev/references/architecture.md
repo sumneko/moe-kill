@@ -648,7 +648,7 @@ Card '杀'
 - **批量与出口**：`Create` / `Update` / `Remove` 攒到一次调度末尾合并发（`moe.await.wake`，脏牌按 `card.id` 排序 ⇒ 下发顺序可复现），`Move` 例外（当场）。出口是 `User` 上两条（`moveCards` / `updateCards`，基类空实现），`ClientUser` 转发给视图 ⇒ 视图自己决定发哪几种。
 - **快照**：`view.snapshot` 遍历 `cardZones` 拼出 `Proto.Card[]`（按号排），接 `Proto.SnapShot.cards`。**客户端收到即整份重建**（不叠加、也不需要服务端发 Remove）⇒ 开局 / 重连都走它，不再有 `syncAll` 那种「撤旧号 + 灌新份」的通知式重发（2026-10-10 用户定）。
 
-## 17. 协议入口：接入与整局快照（`moe.room` / `Game.Join` / `Game.SnapShot`）
+## 17. 协议入口：接入、整局快照与重开一局（`moe.room` / `Game.Join` / `Game.SnapShot` / `Game.Restart`）
 
 **要解决的问题**：客户端要能「接进来、拿到现在长什么样」—— 前端不维护权威状态（§3），状态都从后端取。
 
@@ -656,11 +656,14 @@ Card '杀'
   - `moe.room.open { seats, packages, sources?, seed? }` —— 建局 + 装配（`moe.game.create` 已含装配）+ `moe.snapshot.attach(game)`，**先不开局**（等人齐）；
   - `moe.room.join(client, { name? })` —— 找个空座（用 `desk:getPlayer(i)` 探）：建玩家 + `desk:sit` + `player:setUser(New 'ClientUser' (game, client))` + `user:attach()`（§13）；**坐满就自动开局**；返回 `(Proto.SnapShot, Proto.Error?)` —— 还没开局 / 座位坐满都把原因回给客户端（`INVALID_REQUEST`）；
   - `moe.room.start(prepare?)` —— 人齐（或自己调）时开局：fire `'游戏-准备'`（载荷 `config = prepare`，不给就是默认：随机身份 + 洗座次）+ `'游戏-开始'` + `game:runFlow()`。
+  - `moe.room.restart()`（2026-10-15）—— **把已经终了的这一局放下、原班人马重开一局**：校验（有局 + `game:getResult()` 有值）→ 从**旧局**读出班底与配置（座位号 / 名字 / 连接 / `seats` / `game.list` / `game.sources`）→ `open { seed = 上一局的 + 1 }`（`moe.room._seed` 记着上一局用的那个）→ 原班人马重坐（与 `join` 共用局部函数 `seatPlayer`）→ `roomSync.broadcast` → 给每个连接推 `Game.Restarted`（带他那份快照）→ **原班人马都坐上就自动开局**（延后一笔调度）。**「换局」而不是「重置局」**（沿用 2026-09-21 的口径：再开一局 = 新 `Game` 实例）⇒ **没有一行「清理旧局」的代码**：下行账要么挂在局上（`game.cardSync` §16）、要么挂在 per-user 的 View 上，旧局没人引用就整坨回收。
 - **协议方法 `Game.Join`**（请求，参数 `{ name? }`）⇒ result = `Proto.SnapShot`。注册是**懒的**（`moe.room.open` 第一次调时往 `moe.client` 注册 —— 那时 transport 已加载，不用挑加载顺序）。
+- **`Game.Restart`**（请求，无参）⇒ result = `{}`（**只是收条**：重建走 `Game.Restarted` 通知）—— 触发者可以是**任一条连接**（现在没有房主 / 房间那一套）；「还没开局」与「这一局还没结束」都回 `INVALID_REQUEST` 带原因。**为什么重建不走回包**：触发者只有一个，而重开影响的是**每个连接**（都要整份重建）⇒ 一条通知发给所有人（含触发者），不因「谁点的」而分叉。
 - **`Game.SnapShot`**（请求，无参）⇒ result 同样是一份 `Proto.SnapShot`（重连 / 纠错要的时候再要一份）—— **状态快照走 request 的 result**（§3 第 3 条），不走通知那条路。落点 `server/user/snapshot.lua`：`moe.snapshot.attach(game)` 记下当前局（一个 VM 一局），`moe.snapshot.build(game, user)` 是唯一的拼装处（`join` 与这条请求共用）；拼装时 custom 与属性都按收件人视角裁（`player.customBag:allVisibles` / `player:visibleAttributesTo`）、`cards` 就是 `user.cardView.snapshot`（§16）、**`turnPlayer` / `phase` 读当前回合与阶段**（2026-10-13 加：重连 / 中途进来能立刻显示「谁在动」，不必等下一次切换）。**`texts` 是展示用文本**（2026-10-15）：`Proto.Text[]`（`{ name, text }`），由 `snapshot.build` 现收（所有牌 / 技能定义里声明过 `desc` 的，按裸名 —— 同名先装的胜出、输出按名排序）；**入座时就能拿到**（定义在装载期就定了）⇒ 不必等选将 / 出牌，也不需要另开一条通知。
 - **连接 → 人收在 `moe.snapshot.requireUser(client)`**（2026-10-13）：「还没开局 / 这条连接还没入座」这两个判断与它们的错误包只写一画（三个处理器共用），返回 `用户 + 座位 + 错误`；拿不到就 `return nil, err` 原样回给客户端（见 §14 的处理器契约）。
 - **快照还带 `me` / `skills` / `panels`**（2026-10-13）：`me` = 这条连接控制的是谁（`user.player.id`）—— 客户端由此知道自己坐哪（原来只能靠 `userName` 猜）；`skills` = 场上所有技能（遍历座位上每个玩家的 `player:getSkills()`，用 `moe.skillSync.toProto` 拼）；`panels` = 局上现存的每块面板（`game.panels` × `moe.panelSync.toProto(user, panel)`，按收件人视角）—— **重连要「一次拿全」**，而这两样原来只有增量通知（`Skill.Update` / `Panel.Create`），重连拿不到。**`game.panels` 是内核新加的一本账**（`Panel:__init` 登记、`Panel:__del` 摘；**强键** ⇒ 局持有就不会被回收）：在此之前面板对象只被创建方与 `panel-sync` 的弱键账持有，谁也列不出「局上现在有哪些面板」。
 - **入座后广播房间状态**（2026-10-13）：`Proto.Notify.Room.Update { seats, players }`（`seats` = 这一局一共几个座、`players` = 已经坐下的人按座位排），由 `moe.roomSync.broadcast(game)`（`server/user/room-sync.lua`）在 `moe.room.join` 末尾发一次、**给已入座的每个人一份**（照 `flow-sync.broadcast` 的写法）。**开局之前**前端靠它画「还差几人」；「我坐哪」由快照的 `me` 给 —— `Player.Update` 那种「谁的信息变了」解决不了这件事：它说的是玩家数据，不是房间进度。
+- **`Game.Restarted`**（通知，2026-10-15，params = **一份按收件人视角裁过的完整快照**，形状同 `Game.Join` 的回包）：重开后每个连接各收一条，客户端收到就 `reset` + 整份重建（与 `Game.SnapShot` 同一条路径）。**这是「状态快照走请求的 result、不走通知」（§3）的唯一例外** —— 重开不是谁问出来的；其余场合要快照一律发请求。
 
 ## 15. 玩家的自定义数据与属性下行（`player.custom` / `player.attributes` + `Player.Update*`）
 

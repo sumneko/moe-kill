@@ -8,7 +8,8 @@ const FALLBACK_MS = 1000;
 
 /** 一次泵最多处理几条（防某条答复又立刻引来新询问时占住不放） */
 const PUMP_LIMIT = 50;
-
+/** 局终后隔多久自动重开（毫秒）：留一点时间把终局画面画出来 */
+const RESTART_MS = 1500;
 /** 同一份候选连着问这么多次，就改答「不选」（防「答复不前进」的死循环） */
 const REPEAT_LIMIT = 3;
 
@@ -157,9 +158,11 @@ function pump(agent: Agent): void {
         if (!done) {
             done = true;
             agent.log('机器玩家收工：这一局完了');
+            scheduleRestart(agent);
         }
         return;
     }
+    done = false;
     busy = true;
     try {
         for (let i = 0; i < PUMP_LIMIT; i += 1) {
@@ -176,6 +179,13 @@ function pump(agent: Agent): void {
     } finally {
         busy = false;
     }
+}
+
+/** 局终后自动重开一局（四条连接都会发，慢的那几条会撞上「这一局还没结束」—— 那是正常的竞争，不报） */
+function scheduleRestart(agent: Agent): void {
+    window.setTimeout(() => {
+        void agent.restart().catch(() => undefined);
+    }, RESTART_MS);
 }
 
 /** 挂一个自动应答的机器玩家：连上后端、坐进来、把每条询问都答掉 */

@@ -193,12 +193,18 @@
 ---@field side string # 胜方阵营：主公方 / 反贼 / 内奸 / 平局
 ---@field reason string # 胜负依据（中文短句，前端可直接显示）
 
+--- 这一局重开了（**收到它就是新的一局**）：params 是一份按你视角裁过的完整快照
+---@class Proto.Notify.Game.Restarted: Proto.SnapShot
+
 --- 一条连接坐进来（座位由服务端分配；坐满就开局）
 ---@class Proto.Request.Game.Join
 ---@field name? string # 玩家名
 
 --- 要一份当前局面的全量快照（重连用；没有参数）
 ---@class Proto.Request.Game.SnapShot
+
+--- 把已经终了的这一局放下、原班人马重开一局（没有参数；重建走 `Game.Restarted`）
+---@class Proto.Request.Game.Restart
 
 ---@class Proto.Plan.Player
 ---@field ids integer[] # 候选玩家ID列表

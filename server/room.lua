@@ -16,6 +16,10 @@ moe.room = {}
 ---@type Game?
 moe.room._game = nil
 
+--- 这一局用的随机种子（重开一局时拿它 +1）
+---@type integer
+moe.room._seed = 1
+
 --- 开一局：建局 + 装配 + 让协议层认识它（先不开局，等人齐）
 ---@param options Room.OpenOptions
 ---@return Game
@@ -26,10 +30,15 @@ function moe.room.open(options)
             ---@cast params Room.JoinOptions?
             return moe.room.join(client, params)
         end)
+        moe.client.register('Game.Restart', function ()
+            return moe.room.restart()
+        end)
     end
+    local seed = options.seed or 1
+    moe.room._seed = seed
     local game = moe.game.create {
         seats    = options.seats,
-        random   = moe.random.create(options.seed or 1),
+        random   = moe.random.create(seed),
         sources  = options.sources,
         packages = options.packages,
     }
@@ -49,6 +58,25 @@ local function freeSeat(game)
     end
 end
 
+--- 让一条连接坐到某个座位（造人 + 接上下行）
+---@param game Game
+---@param index integer
+---@param client Client
+---@param name? string
+---@return Player
+---@return ClientUser
+local function seatPlayer(game, index, client, name)
+    local player = moe.player.create(game, {
+        attributes = game:getAttributeSystem():createInstance(),
+        name       = name,
+    })
+    local user = New 'ClientUser' (game, client)
+    game.desk:sit(index, player)
+    player:setUser(user)
+    user:attach()
+    return player, user
+end
+
 --- 一条连接坐进来：占一个空座、接上下行，回一份快照（坐满就开局）；还没开局 / 没空位就把原因回给客户端
 ---@param client Client
 ---@param options? Room.JoinOptions
@@ -63,14 +91,7 @@ function moe.room.join(client, options)
     if not index then
         return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '座位已经坐满' }
     end
-    local player = moe.player.create(game, {
-        attributes = game:getAttributeSystem():createInstance(),
-        name       = options?.name,
-    })
-    local user = New 'ClientUser' (game, client)
-    game.desk:sit(index, player)
-    player:setUser(user)
-    user:attach()
+    local _, user = seatPlayer(game, index, client, options?.name)
     if not freeSeat(game) then
         -- 开局延到下一笔调度：这一包的回包与房间广播先出去（开局要跑一整局，不能抢在它们前头）
         moe.await.wake(function ()
@@ -93,4 +114,57 @@ function moe.room.start(prepare)
         game:fire('游戏-开始', {})
         game:runFlow()
     end)
+end
+
+--- 把已经终了的这一局放下、原班人马重开一局（座位 / 名字 / 配置与包都沿用，种子另取）
+---@return table? # 收条（重建走 `Game.Restarted` 通知）
+---@return Proto.Error?
+function moe.room.restart()
+    local game = moe.room._game
+    if not game then
+        return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '还没有开局' }
+    end
+    if not game:getResult() then
+        return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '这一局还没结束' }
+    end
+    ---@type { index: integer, name: string?, client: Client }[]
+    local roster = {}
+    for index = 1, game.desk:getCount() do
+        local player = game.desk:getPlayer(index)
+        if player then
+            local client = player.user?.client
+            if client then
+                roster[#roster + 1] = { index = index, name = player:getName(), client = client }
+            end
+        end
+    end
+    local next = moe.room.open {
+        seats    = game.desk:getCount(),
+        packages = game.list,
+        sources  = game.sources,
+        seed     = moe.room._seed + 1,
+    }
+    for _, seat in ipairs(roster) do
+        seatPlayer(next, seat.index, seat.client, seat.name)
+    end
+    log.info('重开一局：{} 人 / 包 {} / 种子 {}' % {
+        next.desk:getCount(),
+        table.concat(next.list, ','),
+        moe.room._seed,
+    })
+    moe.roomSync.broadcast(next)
+    for _, seat in ipairs(roster) do
+        local user = assert(next.desk:getPlayer(seat.index)).user
+        ---@cast user ClientUser
+        user:notify('Game.Restarted', moe.snapshot.build(next, user))
+    end
+    if #roster > 0 then
+        -- 原班人马都在座上了 ⇒ 直接开局（延后一笔调度：收条与快照先出去）
+        moe.await.wake(function ()
+            if moe.room._game == next and not next:getResult() then
+                moe.room.start()
+            end
+        end)
+    end
+    return {}
 end

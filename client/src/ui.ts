@@ -566,6 +566,7 @@ function Head(props: { agent: Agent }) {
         <button onClick=${() => run(() => agent.join(name.trim()))}>加入</button>
         <button onClick=${() => run(() => agent.resync())}>重新同步</button>
         ${agent.over ? html`<span class="over">终局：${agent.over.side} —— ${agent.over.reason}</span>` : null}
+        ${agent.over ? html`<button onClick=${() => run(() => agent.restart())}>再来一局</button>` : null}
     </header>`;
 }
 
