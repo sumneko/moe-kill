@@ -579,6 +579,8 @@ Card '杀'
 
 ## 14. 传输层与 Client（`server/transport/`）
 
+> **对外契约的规格在 `openspec/specs/jsonrpc-protocol/spec.md`**（2026-10-15 补写，变更 `specify-jsonrpc-protocol`）：分帧、四种消息、错误码、方法 / 通知清单、时限与取消都在那儿。**形状以 `server/proto.d.lua` 为准**（`--gen-proto` 由它生成前端类型）—— 本节讲实现怎么搭、那份讲外部看到什么，**改协议时三处一起动**。
+
 - **三层切分**（都不参与热重载，走 `require`）：
 
   | 文件 | 职责 | 认识的边界 |
