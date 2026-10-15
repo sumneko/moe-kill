@@ -89,6 +89,12 @@ export class Agent {
         this.applySnapshot(snapshot);
     }
 
+    /** 把面板上的一张牌挪到某行某位（一次一张；实际形状随后由 `Panel.Update` 广播回来） */
+    async movePanelCard(panelId: number, card: number, row: number, col: number): Promise<boolean> {
+        const result = (await this.requireRpc().request('Panel.Move', { id: panelId, card, row, col })) as Proto.Result.Panel.Move;
+        return result.success;
+    }
+
     /** 断开 */
     close(): void {
         this.rpc?.close('客户端主动断开');

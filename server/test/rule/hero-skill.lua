@@ -2847,7 +2847,7 @@ end)
 ---@param zhouyu Player
 ---@param target Player
 ---@param card Card
----@param chosen? string # 目标选中的花色（`'${红桃}'` 这种；空 = 不答复）
+---@param chosen? string # 目标选中的花色（`'${suit:红桃}'` 这种；空 = 不答复）
 local function useFangan(run, zhouyu, target, card, chosen)
     local fangan = findSkill(zhouyu, '反间')
     ---@type integer
@@ -2880,7 +2880,7 @@ lt.test('反间：交一张手牌，花色不同就造成 1 点伤害', function
     local card = run.game:createCard('杀', '黑桃', 7)
     assert(zhouyu:getZone('手牌')):accept(card)
 
-    useFangan(run, zhouyu, target, card, '${红桃}')
+    useFangan(run, zhouyu, target, card, '${suit:红桃}')
 
     lt.assertEquals('目标挨了 1 点', 3, target:getAttr('体力'))
     lt.assertEquals('牌进了目标的手牌', true, moe.util.arrayHas(assert(target:getZone('手牌')):list(), card))
@@ -2897,7 +2897,7 @@ lt.test('反间：花色选对了就不挨伤害（牌照给）', function ()
     local card = run.game:createCard('杀', '黑桃', 7)
     assert(zhouyu:getZone('手牌')):accept(card)
 
-    useFangan(run, zhouyu, target, card, '${黑桃}')
+    useFangan(run, zhouyu, target, card, '${suit:黑桃}')
 
     lt.assertEquals('没挨伤害', 4, target:getAttr('体力'))
     lt.assertEquals('牌照旧给出去了', true, moe.util.arrayHas(assert(target:getZone('手牌')):list(), card))
@@ -2950,7 +2950,7 @@ lt.test('反间：候选只有其他角色，且出牌阶段限一次', function
     run.game:on('决策-询问', function (ask)
         ---@cast ask AskChoice
         if ask.reason == '反间' then
-            return '${红桃}'
+            return '${suit:红桃}'
         end
     end)
 

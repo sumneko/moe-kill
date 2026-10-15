@@ -55,19 +55,44 @@ function cardLabel(agent: Agent, id: number): string {
     return `${face.name ?? '?'}${suit}${face.point ?? ''}`;
 }
 
-/** 牌面：花色红黑分开上色 */
-function CardView(props: { agent: Agent; id: number; picked?: boolean; onClick?: () => void }) {
+/** 协议层的展示模板串（`${suit:红桃}` ⇒ ♥、`${hero:刘备}` ⇒ 刘备）；认不出的原样显示 */
+function renderMark(mark: string): string {
+    const match = /^\$\{(\w+):(.+)\}$/.exec(mark);
+    const kind = match?.[1];
+    const value = match?.[2] ?? '';
+    if (kind === 'suit') {
+        return SUITS[value] ?? value;
+    }
+    return match ? value : mark;
+}
+
+/** 牌面：花色红黑分开上色；`marks` 是挂在它身上的展示标记 */
+function CardView(props: {
+    agent: Agent;
+    id: number;
+    picked?: boolean;
+    off?: boolean;
+    marks?: string[];
+    draggable?: boolean;
+    onClick?: () => void;
+    onDragStart?: () => void;
+    onDrop?: (event: DragEvent) => void;
+}) {
     const face = props.agent.cards.get(props.id)?.face;
     const suit = face?.suit ?? '';
     const red = suit === '红桃' || suit === '方块';
     return html`<button
-        class=${'card' + (props.picked ? ' picked' : '') + (face ? '' : ' hidden')}
+        class=${'card' + (props.picked ? ' picked' : '') + (props.off ? ' off' : '') + (face ? '' : ' hidden')}
         disabled=${props.onClick ? undefined : true}
+        draggable=${props.draggable ? true : undefined}
         onClick=${props.onClick}
+        onDragStart=${props.onDragStart}
+        onDrop=${props.onDrop}
     >
         <span class="suit ${red ? 'red' : 'black'}">${SUITS[suit] ?? ''}</span>
         <span class="name">${face?.name ?? '背面'}</span>
         <span class="point">${face?.point ?? ''}</span>
+        ${(props.marks ?? []).map((mark, index) => html`<span class="mark" key=${index}>${renderMark(mark)}</span>`)}
     </button>`;
 }
 
@@ -198,6 +223,7 @@ function AskPanel(props: { agent: Agent; selection: Selection; setSelection: (ne
     const { agent, selection, setSelection } = props;
     const ask: Ask | undefined = agent.asks[0];
     const [left, setLeft] = useState(0);
+    const [dragCard, setDragCard] = useState<number | null>(null);
 
     // 限时倒计时（从收到询问那一刻算）
     useEffect(() => {
@@ -228,6 +254,10 @@ function AskPanel(props: { agent: Agent; selection: Selection; setSelection: (ne
 
     const params = ask.params as any;
     const cancelable = params.cancelable !== false;
+    const panel = ask.method === 'Ask.Panel'
+        ? agent.panels.get(params.id as number) ?? null
+        : null;
+    const picked = selection.cards.length + selection.players.length + selection.heroes.length;
     const toggle = (list: number[], id: number) => (list.includes(id) ? list.filter((one) => one !== id) : [...list, id]);
     const body = () => {
         switch (ask.method) {
@@ -295,6 +325,60 @@ function AskPanel(props: { agent: Agent; selection: Selection; setSelection: (ne
                             onPick=${(id: number) => setSelection({ ...selection, players: toggle(selection.players, id) })} />` : null}
                 </div>`;
             }
+            case 'Ask.Panel': {
+                if (!panel) {
+                    return html`<p class="muted">面板 ${params.id} 还没同步到（等下一条消息）。</p>`;
+                }
+                const board = panel;
+                const dropAt = (row: number, col: number) => (event: DragEvent) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (dragCard === null) {
+                        return;
+                    }
+                    setDragCard(null);
+                    void agent.movePanelCard(board.id, dragCard, row, col)
+                        .catch((err: unknown) => agent.log(`挪不动：${err instanceof Error ? err.message : String(err)}`));
+                };
+                return html`<div class="panel">
+                    <p>${board.name}${board.moveable ? ' · 拖到别的行就能摆位' : ''}${board.min > 0 ? ` · 选中 ${planText(board)}` : ''}</p>
+                    ${board.rows.map((row, rowIndex) => html`<div
+                        key=${rowIndex}
+                        class="panel-row"
+                        onDragOver=${(event: DragEvent) => {
+                            if (dragCard !== null && board.moveable) {
+                                event.preventDefault();
+                            }
+                        }}
+                        onDrop=${dropAt(rowIndex + 1, row.cards.length + 1)}
+                    >
+                        <span class="panel-title">${row.title ?? `第 ${rowIndex + 1} 行`}</span>
+                        ${row.cards.length === 0 ? html`<span class="muted">（空行）</span>` : null}
+                        ${row.cards.map((id, colIndex) => html`<${CardView}
+                            key=${id}
+                            agent=${agent}
+                            id=${id}
+                            picked=${selection.cards.includes(id)}
+                            off=${board.disabled.includes(id)}
+                            marks=${board.marks.filter((one) => one.card === id).map((one) => one.mark)}
+                            draggable=${board.moveable && !board.disabled.includes(id)}
+                            onDragStart=${() => setDragCard(id)}
+                            onDrop=${dropAt(rowIndex + 1, colIndex + 1)}
+                            onClick=${() => {
+                                if (board.disabled.includes(id) || board.moveable || board.max <= 0) {
+                                    return;
+                                }
+                                setSelection({
+                                    ...selection,
+                                    cards: board.max <= 1
+                                        ? (selection.cards.includes(id) ? [] : [id])
+                                        : toggle(selection.cards, id),
+                                });
+                            }}
+                        />`)}
+                    </div>`)}
+                </div>`;
+            }
             default:
                 return html`<p class="muted">这条询问（${ask.method}）界面还没做控件。</p>`;
         }
@@ -341,21 +425,25 @@ function AskPanel(props: { agent: Agent; selection: Selection; setSelection: (ne
             ask.answer(result);
             return;
         }
+        if (ask.method === 'Ask.Panel') {
+            ask.answer(selection.cards.length > 0 ? { card: selection.cards } : {});
+            return;
+        }
         ask.answer({});
     };
 
     const needsSubmit = ask.method === 'Ask.Select' || ask.method === 'Ask.Use'
-        || ask.method === 'Ask.UseSkill' || ask.method === 'Ask.Hero';
+        || ask.method === 'Ask.UseSkill' || ask.method === 'Ask.Hero' || ask.method === 'Ask.Panel';
     return html`<section class="ask">
         <h2>询问</h2>
         <h3>${params.reason ?? ask.method}</h3>
         <p class="muted">
             ${ask.method}${left > 0 ? ` · 还剩 ${left} 秒` : ''}
-            · 勾了 ${selection.cards.length + selection.players.length + selection.heroes.length} 个${selection.option !== null ? ' + 一张牌' : ''}
+            · 勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}
         </p>
         ${body()}
         <div class="bar">
-            ${needsSubmit ? html`<button onClick=${submit}>确定</button>` : null}
+            ${needsSubmit ? html`<button disabled=${picked < (panel?.min ?? 0)} onClick=${submit}>确定</button>` : null}
             ${cancelable ? html`<button onClick=${() => ask.answer({})}>不选</button>` : null}
             <button onClick=${() => ask.cancel()}>取消</button>
             <button onClick=${() => ask.answer(JSON.parse((document.getElementById('raw') as HTMLTextAreaElement | null)?.value || '{}'))}>手写发送</button>
