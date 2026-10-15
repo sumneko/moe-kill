@@ -117,6 +117,39 @@ lt.test('要一次技能使用：答复不是他身上的技能就拒收', funct
     lt.assertEquals('也没发动', nil, ask.cast)
 end)
 
+lt.test('要一次技能使用：人已经死了就不进候选', function ()
+    local game   = newGame()
+    local player = newPlayer(game)
+    player:addSkill('制衡')
+    player:setAlive(false)
+    game:on('技能-询问', function ()
+        return nil
+    end)
+
+    local ask = game:askUseSkill(player, '出牌')
+
+    lt.assertEquals('一个选项都不给', 0, #ask.options)
+    lt.assertEquals('也就没得答复', nil, ask.skill)
+    lt.assertEquals('记成取消', '取消', ask.err)
+end)
+
+lt.test('要一次技能使用：人已经死了，答复被拒收', function ()
+    local game   = newGame()
+    local player = newPlayer(game)
+    player:addSkill('制衡')
+    local skill  = assert(player:getSkills()[1])
+    player:setAlive(false)
+    game:on('技能-询问', function ()
+        return { skill = skill }
+    end)
+
+    local ask = game:askUseSkill(player, '出牌')
+
+    lt.assertEquals('没拿到答复', nil, ask.skill)
+    lt.assertEquals('原因', '已经死了，不能发动技能', ask.err)
+    lt.assertEquals('也没发动', nil, ask.cast)
+end)
+
 lt.test('要一次技能使用：没人应答 = 取消（记成失败）', function ()
     local game   = newGame()
     local player = newPlayer(game)

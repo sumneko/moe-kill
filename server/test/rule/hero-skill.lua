@@ -1189,6 +1189,28 @@ lt.test('苦肉：没人救就阵亡，也不再摸牌', function ()
     lt.assertEquals('因失去体力而死，没有致死伤害', nil, killerDamage)
 end)
 
+lt.test('苦肉：一直答发动也不会把体力扣到底（死了就停下）', function ()
+    local run      = support.start { count = 2, packages = { '标准' } }
+    local huanggai = run.players[1]
+    huanggai:setHero(assert(run.game:getHero('黄盖')))
+
+    local skill = findSkill(huanggai, '苦肉')
+
+    ---@type integer
+    local asked = 0
+    run.game:on('技能-询问', function (ask)
+        moe.await.sleep(0)
+        asked = asked + 1
+        return { skill = skill }
+    end)
+
+    local _ <close> = run.game:enterPhase(huanggai, '出牌')
+
+    lt.assertEquals('阵亡', false, huanggai:isAlive())
+    lt.assertEquals('体力停在 0，没有一直扣下去', 0, huanggai:getAttr('体力'))
+    lt.assertEquals('死了就不再问他发动技能', huanggai:getMaxHp(), asked)
+end)
+
 lt.test('洛神：准备阶段判黑就拿到那张判定牌，再问重复时停下', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local zhenji = run.players[1]

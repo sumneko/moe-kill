@@ -118,11 +118,14 @@ function M:makeOption(skill)
     return option
 end
 
---- 候选：身上有主动发动钩子的技能（按获得顺序）；声明过前置的还要凑得齐
+--- 候选：身上有主动发动钩子的技能（按获得顺序）；声明过前置的还要凑得齐；死了就不问了
 ---@return AskUseSkill.Option[]
 function M:collectOptions()
     ---@type AskUseSkill.Option[]
     local options = {}
+    if not self.to:isAlive() then
+        return options
+    end
     for _, skill in ipairs(self.to:getSkills()) do
         if skill:hasHandler('使用') then
             local option = self:makeOption(skill)
@@ -179,6 +182,9 @@ end
 ---@param value AskUseSkill.Answer
 ---@return any # 通过就是空
 function M:checkAnswer(value)
+    if not self.to:isAlive() then
+        return '已经死了，不能发动技能'
+    end
     if type(value) ~= 'table' then
         return '答复必须是一张表（`{ skill = ... }`）'
     end

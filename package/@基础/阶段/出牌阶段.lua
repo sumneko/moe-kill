@@ -9,6 +9,9 @@ local PLAY_PHASE_CONDITION = { zone = '手牌' }
 ---@param player Player
 local function playPhase(player)
     for _ = 1, MAX_PLAY_COUNT do
+        if not player:isAlive() then
+            return
+        end
         local useCard  = game:startAskUseCard(player, '出牌', PLAY_PHASE_CONDITION)
         local useSkill = game:startAskUseSkill(player, '出牌')
         -- 谁先给出答复算谁；两路都没答复 = 他自己不想出了，这个阶段就到这

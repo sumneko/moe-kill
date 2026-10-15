@@ -303,6 +303,8 @@ tools/watch-memory.ps1                                    # ③ 看护（可选�
 - 后端日志在 `server/log/service.log`（**测试模式写的是 `test.log`**，两个别搞混）。
 - 前端只跟后端要**一个 WebSocket**：`vite.config.ts` **没有** proxy，也不需要 —— WebSocket 不受同源策略限制，直连 31415 就行。
 
+**机器玩家（自动对局冒烟）**：URL 带 **`?robot=名字`** 的页面会**自己连上、坐进来、把每条询问都答掉**（`client/src/robot.ts`）—— 开 4 个 `http://localhost:5173/?robot=<各不相同的名字>` 的页面，人只负责开页面，它就能自己坐满并开打（事件流里看得到每条答复：`机器玩家答复：Ask.Use（出牌） → {"usedCard":211,"targets":[1]}`）⇒ 出问题先看那一列。**更好用的用法**：只给一部分页面带 `?robot=`，剩下的自己点 —— 「1 个真人 + N 个机器人」。**一局约 60 秒**（跑完会打出一条 `机器玩家收工：这一局完了`）；⚠️ 它是**事件驱动**的（询问一到就答），**不要**改回定时器轮询 —— 浏览器会把后台标签的定时器节流到 ~1 秒一次，那样一局要跑十几分钟（2026-10-15 实测：后台页 `setInterval(100ms)` 3 秒只跑 3 次）。
+
 ### 9.3 改协议 / 改类型（两端共用一个真相源）
 
 - **真相源是 `server/proto.d.lua`**。改了它 ⇒ 跑 **`server/bin/moe-kill.exe --gen-proto`** 重生成 `client/src/proto.d.ts`（产物**进 git**；`server/test/proto-type.lua` 钉住「磁盘那份 == 现翻的」，**忘了跑用例会红**）。

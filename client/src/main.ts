@@ -2,6 +2,7 @@ import { render } from 'preact';
 import { html } from 'htm/preact';
 import './style.css';
 import { Agent } from './agent';
+import { attachRobot } from './robot';
 import { Shell } from './ui';
 
 /** 一局在浏览器这边的镜像 */
@@ -19,3 +20,9 @@ function draw(): void {
 
 agent.onChange = draw;
 draw();
+
+/** 带 `?robot=名字` 打开就是一台机器玩家：自己连上、坐进来、把每条询问都答掉 */
+const robot = new URLSearchParams(location.search).get('robot');
+if (robot) {
+    attachRobot(agent, robot);
+}
