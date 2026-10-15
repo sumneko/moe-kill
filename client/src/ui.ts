@@ -99,8 +99,8 @@ function Seat(props: {
     const { agent, player } = props;
     const zoned = seatCards(agent, player.base.id);
     const identity = player.custom?.['identity'];
-    const health = player.custom?.['体力'];
-    const maxHealth = player.custom?.['体力上限'];
+    const health = player.attributes.find((one) => one.name === '体力')?.value;
+    const maxHealth = player.attributes.find((one) => one.name === '体力上限')?.value;
     return html`<div
         class=${'seat' + (props.isTurn ? ' turn' : '') + (props.isMe ? ' me' : '') + (props.picked ? ' picked' : '')}
         onClick=${props.onPick}

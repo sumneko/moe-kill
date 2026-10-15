@@ -65,7 +65,7 @@ function S:markDirty(player, kind)
     kinds[kind] = true
 end
 
---- 把攒着的脏玩家发下去（基础信息人人一份、custom 按各人视角裁）
+--- 把攒着的脏玩家发下去（基础信息人人一份、custom 与属性按各人视角裁）
 function S:flush()
     local dirty = self.dirty
     if not dirty then
@@ -103,6 +103,21 @@ function S:flush()
                 ---@type Proto.Notify.Player.UpdateCustom
                 local data = { players = customList }
                 user:notify('Player.UpdateCustom', data)
+            end
+            ---@type Proto.Player.Attribute[]
+            local attributeList = {}
+            for player, kinds in pairs(dirty) do
+                if kinds.attribute then
+                    local visible = player:visibleAttributesTo(viewer)
+                    if #visible > 0 then
+                        attributeList[#attributeList + 1] = { id = player.id, attributes = visible }
+                    end
+                end
+            end
+            if #attributeList > 0 then
+                ---@type Proto.Notify.Player.UpdateAttribute
+                local data = { players = attributeList }
+                user:notify('Player.UpdateAttribute', data)
             end
         end
     end

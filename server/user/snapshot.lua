@@ -13,14 +13,15 @@ function moe.snapshot.attach(game)
     moe.snapshot._game = game
 end
 
---- 拼一个玩家的协议形状（基础信息 + 按收件人视角裁的自由数据）
+--- 拼一个玩家的协议形状（基础信息 + 按收件人视角裁的自由数据与属性）
 ---@param player Player
 ---@param viewer Player
 ---@return Proto.Player
 local function toPlayer(player, viewer)
     return {
-        base   = moe.playerSync.toBase(player),
-        custom = player.customBag:allVisibles(viewer),
+        base       = moe.playerSync.toBase(player),
+        custom     = player.customBag:allVisibles(viewer),
+        attributes = player:visibleAttributesTo(viewer),
     }
 end
 

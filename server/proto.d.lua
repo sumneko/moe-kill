@@ -66,12 +66,18 @@
 ---@field userName string # 用户名
 ---@field seat integer # 座位号
 
+--- 一条属性：名字 + 当前值
+---@class Proto.Attribute
+---@field name string # 属性名（内容侧起的名字）
+---@field value number # 当前值
+
 --- 自定义数据：字段由各包自己的 meta.lua 补（内核只认「有这么一张自由表」）
 ---@class Proto.Custom
 
 ---@class Proto.Player
 ---@field base Proto.Player.Base
 ---@field custom Proto.Custom # 自定义数据，由 package 组装
+---@field attributes Proto.Attribute[] # 按收件人视角裁过的属性（没声明过可见性的不下发）
 
 ---@class Proto.SnapShot
 ---@field me? integer # 这条连接控制的是谁（还没入座就是空）
@@ -86,6 +92,10 @@
 ---@field id integer # 玩家ID
 ---@field custom Proto.Custom # 他的自定义数据（全量）
 
+---@class Proto.Player.Attribute
+---@field id integer # 玩家ID
+---@field attributes Proto.Attribute[] # 他这次可见的属性（按名字排序）
+
 --- 基础信息变了（一条里带一批玩家）
 ---@class Proto.Notify.Player.Update
 ---@field players Proto.Player.Base[] # 基础信息变了的那些玩家
@@ -93,6 +103,10 @@
 --- custom 变了（一条里带一批玩家）
 ---@class Proto.Notify.Player.UpdateCustom
 ---@field players Proto.Player.Custom[] # custom 变了的那些玩家
+
+--- 属性变了（一条里带一批玩家）
+---@class Proto.Notify.Player.UpdateAttribute
+---@field players Proto.Player.Attribute[] # 属性变了的那些玩家
 
 --- 房间状态（谁进来了 / 还差几个人）：开局之前每次有人入座都发一次
 ---@class Proto.Notify.Room.Update

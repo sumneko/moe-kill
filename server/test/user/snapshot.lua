@@ -131,3 +131,29 @@ lt.test('快照：还没开局要不到（回的是具体错误）', function ()
     lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
     lt.assertEquals('错在哪说清楚', '还没开局', err.message)
 end)
+
+---@async
+lt.test('快照：按视角带上属性（没声明过可见性的不下发）', function ()
+    local game, players, fronts = support.newPackageGame()
+    game:fire('游戏-开始')
+
+    local result, err = assert(fronts[1]):awaitRequest('Game.SnapShot', {})
+    lt.assertEquals('没出错', nil, err)
+    assert(result, '没拿到快照')
+
+    local me = assert(players[1])
+    ---@type Proto.Attribute?
+    local hp = nil
+    ---@type Proto.Attribute?
+    local range = nil
+    for _, one in ipairs(result.players[1].attributes) do
+        if one.name == '体力' then
+            hp = one
+        elseif one.name == '攻击范围' then
+            range = one
+        end
+    end
+    assert(hp, '体力没带上')
+    lt.assertEquals('体力值就是现读的那个', me:getAttr('体力'), hp.value)
+    lt.assertEquals('没声明过可见性的不下发', nil, range)
+end)

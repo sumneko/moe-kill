@@ -30,6 +30,20 @@ export namespace JSONRPC {
 
 export namespace Proto {
     /**
+     * 一条属性：名字 + 当前值
+     */
+    export interface Attribute {
+        /**
+         * 属性名（内容侧起的名字）
+         */
+        name: string;
+        /**
+         * 当前值
+         */
+        value: number;
+    }
+
+    /**
      * 可取消请求的基类
      */
     export interface Cancelable {
@@ -272,6 +286,16 @@ export namespace Proto {
             }
 
             /**
+             * 属性变了（一条里带一批玩家）
+             */
+            export interface UpdateAttribute {
+                /**
+                 * 属性变了的那些玩家
+                 */
+                players: Proto.Player.Attribute[];
+            }
+
+            /**
              * custom 变了（一条里带一批玩家）
              */
             export interface UpdateCustom {
@@ -482,9 +506,24 @@ export namespace Proto {
          * 自定义数据，由 package 组装
          */
         custom: Proto.Custom;
+        /**
+         * 按收件人视角裁过的属性（没声明过可见性的不下发）
+         */
+        attributes: Proto.Attribute[];
     }
 
     export namespace Player {
+        export interface Attribute {
+            /**
+             * 玩家ID
+             */
+            id: number;
+            /**
+             * 他这次可见的属性（按名字排序）
+             */
+            attributes: Proto.Attribute[];
+        }
+
         export interface Base {
             /**
              * 唯一ID

@@ -285,3 +285,56 @@ lt.test('玩家：时机名必须是非空字符串', function ()
         player:fire('')
     end)
 end)
+
+lt.test('玩家：属性可见性默认谁都不见，声明过的才按名单可见', function ()
+    local system = newSystem()
+    system:define('体力', { min = 0 })
+    system:define('体力上限', { min = 0 })
+    local a = newPlayer(system)
+    local b = newPlayer(system)
+    a:setAttr('体力', 3)
+    a:setAttr('体力上限', 4)
+
+    lt.assertEquals('没声明过：本人也看不见', 0, #a:visibleAttributesTo(a))
+    lt.assertEquals('问某人看不看得见 = 否', false, a:isAttrVisibleTo('体力', b))
+
+    a:setAttrVisible('体力', true)
+    a:setAttrVisible('体力上限', true)
+    local mine = a:visibleAttributesTo(a)
+    lt.assertEquals('两条都在', 2, #mine)
+    lt.assertEquals('按名字排序（前缀短的在前）', '体力', mine[1].name)
+    lt.assertEquals('值跟着来', 3, mine[1].value)
+    lt.assertEquals('第二条是体力上限', '体力上限', mine[2].name)
+    lt.assertEquals('公开的别人也看得见', 2, #a:visibleAttributesTo(b))
+
+    a:setAttrVisible('体力上限', a)
+    lt.assertEquals('改成只给本人：别人少一条', 1, #a:visibleAttributesTo(b))
+    lt.assertEquals('本人仍是两条', 2, #a:visibleAttributesTo(a))
+    lt.assertEquals('本人看得见「体力上限」', true, a:isAttrVisibleTo('体力上限', a))
+end)
+
+lt.test('玩家：只有声明过的属性变化才报脏', function ()
+    local system = newSystem()
+    system:define('体力上限', { min = 0 })
+    local game = moe.game.create { seats = 1, random = moe.random.create(1), sources = { lt.emptySource } }
+    local player = moe.player.create(game, { attributes = system:createInstance() })
+
+    ---@type Player.DirtyKind[]
+    local kinds = {}
+    game:on('玩家-数据变化', function (_, kind)
+        kinds[#kinds + 1] = kind
+    end)
+
+    player:setAttr('体力上限', 4)
+    lt.assertEquals('没声明过：写值不报脏', 0, #kinds)
+
+    player:setAttrVisible('体力上限', true)
+    lt.assertEquals('声明自己也算一次变化', 1, #kinds)
+    lt.assertEquals('报的是属性那一路', 'attribute', kinds[1])
+
+    player:setAttr('体力上限', 3)
+    lt.assertEquals('声明过再写值就报脏', 2, #kinds)
+
+    player:setAttr('体力上限', 3)
+    lt.assertEquals('值没变就不报', 2, #kinds)
+end)

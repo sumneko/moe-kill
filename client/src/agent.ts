@@ -164,7 +164,7 @@ export class Agent {
                 if (player) {
                     player.base = base;
                 } else {
-                    this.players.set(base.id, { base, custom: {} });
+                    this.players.set(base.id, { base, custom: {}, attributes: [] });
                 }
             }
             this.log(`房间里现在 ${params.players.length}/${params.seats} 个人`);
@@ -184,6 +184,15 @@ export class Agent {
                 const player = this.players.get(one.id);
                 if (player) {
                     player.custom = one.custom;
+                }
+            }
+            this.changed();
+        });
+        rpc.onNotify('Player.UpdateAttribute', (params: Proto.Notify.Player.UpdateAttribute) => {
+            for (const one of params.players) {
+                const player = this.players.get(one.id);
+                if (player) {
+                    player.attributes = one.attributes;
                 }
             }
             this.changed();

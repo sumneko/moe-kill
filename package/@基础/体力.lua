@@ -16,6 +16,9 @@ attributeSystem:define('体力上限', {
 game:on('游戏-开始', function ()
     local defaultHp = rule.defaultHp or 5
     for _, player in ipairs(game.desk.players) do
+        -- 体力是公开信息（数勾玉），先声明给所有人看，再写值
+        player:setAttrVisible('体力', true)
+        player:setAttrVisible('体力上限', true)
         if not player.hero then
             player:setAttr('体力上限', defaultHp)
             player:setAttr('体力',    defaultHp)
