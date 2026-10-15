@@ -1,6 +1,10 @@
 --- 走真 TCP 的用例的辅助：起本地监听、等一件 IO 事件
 
 local socket = require 'bee.socket'
+local time   = require 'bee.time'
+
+---@type integer # 等一件 IO 事件最多等这么多毫秒（真墙钟 —— 机器忙的时候也要等得起）
+local SPIN_TIMEOUT = 5000
 
 ---@class Test.TcpSupport
 local M = {}
@@ -22,14 +26,15 @@ end
 ---@param step fun(): any
 ---@return any
 function M.spin(step)
-    for _ = 1, 500 do
+    local deadline = time.monotonic() + SPIN_TIMEOUT
+    while time.monotonic() < deadline do
         local value = step()
         if value ~= false then
             return value
         end
         moe.await.sleep(0)
     end
-    error('等 IO 等到超时了')
+    error('等 IO 等到超时了（等了 {} 毫秒还没就绪）' % { SPIN_TIMEOUT })
 end
 
 --- 连一对：返回「监听侧收到的那个 fd」与「拨号的那端」（监听套接字用完就关）
