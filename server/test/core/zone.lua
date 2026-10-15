@@ -470,6 +470,30 @@ lt.test('牌区：可见性也收谓词（逐人现算）', function ()
     lt.assertEquals('谓词说不可见的看不见', false, zone:isVisibleTo(other))
 end)
 
+lt.test('牌区：可见性与启用状态一变就发「区域-变化」', function ()
+    local game = moe.game.create { seats = 2, random = moe.random.create(1), sources = { lt.emptySource } }
+    ---@type { zone: Zone, kind: string }[]
+    local got = {}
+    game:on('区域-变化', function (zone, kind)
+        got[#got + 1] = { zone = zone, kind = kind }
+    end)
+
+    local zone = moe.zone.create(game)
+    lt.assertEquals('建区不发', 0, #got)
+
+    zone:setVisible(false)
+    lt.assertEquals('翻暗发一次', 1, #got)
+    lt.assertEquals('说的是可见性', 'visible', assert(got[1]).kind)
+    lt.assertEquals('带的是那个区', zone, assert(got[1]).zone)
+
+    local undone <close> = zone:disable()
+    lt.assertEquals('禁用发一次', 2, #got)
+    lt.assertEquals('说的是启用状态', 'enabled', assert(got[2]).kind)
+
+    undone()
+    lt.assertEquals('撤销禁用再发一次', 3, #got)
+end)
+
 lt.test('牌区：区域事件对区的主人再发一份（公共区没有主人）', function ()
     local _ <close> = useProbe()
     local game     = newProbeGame()

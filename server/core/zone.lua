@@ -188,6 +188,7 @@ function M:disable()
         for _, card in ipairs(self:list()) do
             card:disablePassive()
         end
+        self.game:fire('区域-变化', self, 'enabled')
     end
     local undone = false
     return function ()
@@ -200,6 +201,7 @@ function M:disable()
             for _, card in ipairs(self:list()) do
                 card:enablePassive()
             end
+            self.game:fire('区域-变化', self, 'enabled')
         end
     end
 end
@@ -225,6 +227,7 @@ end
 ---@param value Visibility
 function M:setVisible(value)
     self.visible = moe.visibility.normalize(value)
+    self.game:fire('区域-变化', self, 'visible')
 end
 
 --- 这个区对某人是否可见

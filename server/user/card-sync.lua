@@ -89,6 +89,15 @@ function S:watchEvent()
     self.game:on('卡牌-变化', function (card)
         self:markDirty(card)
     end)
+
+    self.game:on('区域-变化', function (zone, kind)
+        if kind ~= 'visible' then
+            return
+        end
+        for _, card in ipairs(zone:list()) do
+            self:markDirty(card)
+        end
+    end)
 end
 
 --- 一份账（视图 id 是这份账自己的号：每张新牌进来发一个，离区就作废 —— 懒建在 `user.cardView` 上）

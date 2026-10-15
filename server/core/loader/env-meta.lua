@@ -165,6 +165,8 @@ rule = nil
 ---@field collect fun(self: Game, name: string, ...: any): any[] # 动态时机名走这条（收集所有回调的第一个返回值）
 ---@field on fun(self: Game, name: '卡牌-变化', callback: fun(card: Card): any): function # 一张牌自己变了（牌名 / 花色 / 点数这类，没换区）
 ---@field fire fun(self: Game, name: '卡牌-变化', card: Card): any
+---@field on fun(self: Game, name: '区域-变化', callback: fun(zone: Zone, kind: 'visible'|'enabled'): any): function # 一个牌区自己变了（可见性 / 启用状态）
+---@field fire fun(self: Game, name: '区域-变化', zone: Zone, kind: 'visible'|'enabled'): any
 ---@field on fun(self: Game, name: '卡牌-进入区域', callback: fun(card: Card, zone: Zone, visible?: Visibility): any): function # 任何一张牌进了某个区（牌定义那份与区主人那份之外、再在局上发一份）
 ---@field fire fun(self: Game, name: '卡牌-进入区域', card: Card, zone: Zone, visible?: Visibility): any
 ---@field on fun(self: Game, name: '卡牌-离开区域', callback: fun(card: Card, zone: Zone, visible?: Visibility): any): function # 任何一张牌离开了某个区（同上）

@@ -228,6 +228,32 @@ lt.test('卡牌同步：一批暗牌进区，号不重不漏、都不带面', fu
 end)
 
 ---@async
+lt.test('卡牌同步：区翻明 ⇒ 暗牌补发带面的那一份', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    local deck = game:getZone('抽牌')
+    attach(players)
+
+    deck:setVisible(false)
+    deck:accept(game:createCard('杀'))
+    moe.await.sleep(0)
+
+    local card = assert(deck:list()[1])
+    local view = assert(assert(me.user).cardView)
+    lt.assertEquals('暗区里的牌没有面', nil, assert(view.cardMap[card]).face)
+
+    local got = collect('Card.Update')
+    deck:setVisible(true)
+    moe.await.sleep(0)
+
+    lt.assertEquals('两个连接各收到一条更新', 2, #got)
+    for _, data in ipairs(got) do
+        local pcard = assert(assert(data.cards)[1])
+        lt.assertEquals('带上牌面了', '杀', assert(pcard.face).name)
+    end
+end)
+
+---@async
 lt.test('卡牌同步：换区会换新 id（移除 + 创建）', function ()
     local game, players = newGame()
     local me = assert(players[1])
