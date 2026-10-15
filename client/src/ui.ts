@@ -21,9 +21,11 @@ export interface Selection {
     skill: number | null;
     /** Ask.Use：选中的那张选项牌（决定目标候选） */
     option: number | null;
+    /** Ask.Use：选中的「视为」（在下标处；与 `option` 互斥） */
+    viewAs: number | null;
 }
 
-const EMPTY: Selection = { cards: [], players: [], heroes: [], skill: null, option: null };
+const EMPTY: Selection = { cards: [], players: [], heroes: [], skill: null, option: null, viewAs: null };
 
 /** 装备子区（列装备牌的顺序就是这个顺序） */
 const EQUIP_ZONES = ['武器', '防具', '进攻马', '防御马'];
@@ -248,6 +250,14 @@ function Board(props: { agent: Agent; selection: Selection; setSelection: (next:
     </section>`;
 }
 
+/** 一个「视为」选项的写法：谁提供的 ⇒ 视为哪张牌 */
+function viewAsLabel(agent: Agent, view: Proto.ViewAs): string {
+    const source = view.sourceSkill !== undefined
+        ? agent.skills.get(view.sourceSkill)?.name ?? `技能 ${view.sourceSkill}`
+        : view.sourceCard === undefined ? null : cardLabel(agent, view.sourceCard);
+    return source === null ? `视为${view.name}` : `${source} ⇒ ${view.name}`;
+}
+
 /** 候选（`ids` 里挑 `min~max` 个）用一句话说清 */
 function planText(plan: { min: number; max: number }): string {
     return plan.min === plan.max ? `${plan.min} 个` : `${plan.min}~${plan.max} 个`;
@@ -342,18 +352,30 @@ function AskPanel(props: { agent: Agent; selection: Selection; setSelection: (ne
             case 'Ask.Use': {
                 const options = (params.card ?? []) as { id: number; ids: number[]; min: number; max: number }[];
                 const option = options.find((one) => one.id === selection.option) ?? null;
-                const viewAs = (params.viewAs ?? []) as unknown[];
+                const views = (params.viewAs ?? []) as Proto.ViewAs[];
+                const view = selection.viewAs === null ? null : views[selection.viewAs] ?? null;
+                const target = view ? view.target ?? null : option;
                 return html`<div>
-                    <p>用哪张牌（点一张，再用下面的目标）</p>
+                    <p>用哪张牌（点一张，或者选一个下面的「视为」）</p>
                     <div class="chips">${options.map((one) => html`<button
                         key=${one.id}
                         class=${'chip' + (selection.option === one.id ? ' on' : '')}
-                        onClick=${() => setSelection({ ...selection, option: one.id, players: [] })}
+                        onClick=${() => setSelection({ ...selection, option: one.id, viewAs: null, players: [] })}
                     >${cardLabel(agent, one.id)}</button>`)}</div>
-                    ${option && option.max > 0 ? html`<p>给它选目标（${planText(option)}）</p>
-                        <${Chips} agent=${agent} ids=${option.ids} picked=${selection.players}
+                    ${views.length > 0 ? html`<div>
+                        <p>「视为」（用技能 / 装备把牌转成别的）</p>
+                        <div class="chips">${views.map((one, index) => html`<button
+                            key=${index}
+                            class=${'chip' + (selection.viewAs === index ? ' on' : '')}
+                            onClick=${() => setSelection({ ...selection, viewAs: index, option: null, cards: [], players: [] })}
+                        >${viewAsLabel(agent, one)}</button>`)}</div>
+                    </div>` : null}
+                    ${view?.card ? html`<p>素材（${planText(view.card)}）</p>
+                        <${Chips} agent=${agent} ids=${view.card.ids} picked=${selection.cards} cards
+                            onPick=${(id: number) => setSelection({ ...selection, cards: toggle(selection.cards, id) })} />` : null}
+                    ${target && target.max > 0 ? html`<p>给它选目标（${planText(target)}）</p>
+                        <${Chips} agent=${agent} ids=${target.ids} picked=${selection.players}
                             onPick=${(id: number) => setSelection({ ...selection, players: toggle(selection.players, id) })} />` : null}
-                    ${viewAs.length > 0 ? html`<p class="muted">「视为」的控件还没做（批三），先用下面那串手写。</p>` : null}
                 </div>`;
             }
             case 'Ask.UseSkill': {
@@ -451,7 +473,12 @@ function AskPanel(props: { agent: Agent; selection: Selection; setSelection: (ne
         }
         if (ask.method === 'Ask.Use') {
             const result: Record<string, unknown> = {};
-            if (selection.option !== null) {
+            if (selection.viewAs !== null) {
+                result.usedViewAs = selection.viewAs + 1;
+                if (selection.cards.length > 0) {
+                    result.cards = selection.cards;
+                }
+            } else if (selection.option !== null) {
                 result.usedCard = selection.option;
             }
             if (selection.players.length > 0) {
