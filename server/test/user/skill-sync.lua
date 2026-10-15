@@ -7,7 +7,7 @@ lt.test('技能下行：挂上技能就广播一条 Skill.Update', function ()
     local me    = assert(players[1])
     local front = assert(fronts[1])
 
-    ---@type Proto.Notify.skill.Update[]
+    ---@type Proto.Notify.Skill.Update[]
     local got = {}
     local _ <close> = moe.client.register('Skill.Update', function (client, params)
         if client == front then
@@ -61,7 +61,7 @@ lt.test('技能上行：客户端改自动开关 ⇒ 回包并广播更新', fun
     local skill = me:addSkill('马术')
     moe.await.sleep(0)
 
-    ---@type Proto.Notify.skill.Update[]
+    ---@type Proto.Notify.Skill.Update[]
     local got = {}
     local _ <close> = moe.client.register('Skill.Update', function (client, params)
         if client == front then

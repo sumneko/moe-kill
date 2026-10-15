@@ -92,7 +92,7 @@ function S:flush()
                     local data = { id = skill.id }
                     user:notify('Skill.Remove', data)
                 else
-                    ---@type Proto.Notify.skill.Update
+                    ---@type Proto.Notify.Skill.Update
                     local data = { skill = moe.skillSync.toProto(skill) }
                     user:notify('Skill.Update', data)
                 end

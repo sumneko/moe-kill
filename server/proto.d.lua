@@ -138,7 +138,7 @@
 ---@field tag? string[] # 标签
 ---@field disabled? boolean # 是否被禁用
 
----@class Proto.Notify.skill.Update
+---@class Proto.Notify.Skill.Update
 ---@field skill Proto.Skill # 被更新的技能
 
 ---@class Proto.Notify.Skill.Remove

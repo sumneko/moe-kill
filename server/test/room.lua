@@ -41,6 +41,19 @@ local function drain()
     end
 end
 
+--- 跑到条件成立为止（开局是延后一笔调度才跑的，流程又要好几笔调度才走到第一个回合）
+---@async
+---@param check fun(): boolean
+local function spinUntil(check)
+    for _ = 1, 200 do
+        if check() then
+            return
+        end
+        moe.await.sleep(0)
+    end
+    error('等了 200 笔调度还没等到')
+end
+
 ---@async
 lt.test('房间：客户端坐进来就拿到自己的快照', function ()
     local game = openRoom()
@@ -72,16 +85,23 @@ lt.test('房间：坐满就开局', function ()
         clients[#clients + 1] = back
     end
 
+    -- 选将要有人答，流程才走得下去（跟 flow-sync 那条「真跑一局」同一招）
+    local _ <close> = moe.client.register('Ask.Hero', function (_, params)
+        return { heroes = { params.heroes[1] } }
+    end)
+
     local first = assert(fronts[1]):awaitRequest('Game.Join', { name = '甲' })
     lt.assertEquals('第一个进来还没开局', nil, game.turnPlayer)
+    local last
     for i = 2, 4 do
-        assert(fronts[i]):awaitRequest('Game.Join', {})
+        last = assert(fronts[i]):awaitRequest('Game.Join', {})
     end
-    moe.await.sleep(0)
+    spinUntil(function () return game.turnPlayer ~= nil end)
 
     lt.assertEquals('四个座位都有人', 4, #game.desk.players)
     lt.assertEquals('身份都定了', true, game.desk.players[1].identity ~= nil)
     lt.assertEquals('轮次挂上了', true, game.turnPlayer ~= nil)
+    lt.assertEquals('坐满那一下最后进来的那位也拿到快照', 4, #assert(last).players)
     assert(first, '没拿到快照')
     lt.assertEquals('第一个进来那份只有自己', 1, #first.players)
     close(game, clients)
@@ -104,7 +124,6 @@ lt.test('房间：坐满了再进来要不到位置', function ()
     for i = 1, 4 do
         assert(fronts[i]):awaitRequest('Game.Join', { name = '玩家' .. i })
     end
-    moe.await.sleep(0)
 
     local result, err = assert(fronts[5]):awaitRequest('Game.Join', { name = '丙' })
     lt.assertEquals('没有结果', nil, result)

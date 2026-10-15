@@ -14,6 +14,7 @@
 ---@field PORT? integer | string # 听哪个端口
 ---@field SEATS? integer | string # 这一局几个人
 ---@field PACKAGES? string # 要装的包（逗号分开）
+---@field GEN_PROTO? boolean # 把协议类型产物写给前端（`client/src/proto.d.ts`），写完就退出
 local M = {}
 
 ---@alias Args.Value string | number | boolean

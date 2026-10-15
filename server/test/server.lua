@@ -47,7 +47,15 @@ lt.test('服务器：真连接坐满就开局，再来的要不到位置', funct
         last = fd
     end
 
-    -- 坐满就开局：开局第一步是问选将（服务端发来的请求）
+    -- 坐满这一下：先到的是「四个人都在了」的房间广播，然后才是最后这位自己的回包
+    local roomUpdate = assert(moe.jsonrpc.decode(assert(support.readFrame(assert(last)))))
+    lt.assertEquals('先收到房间状态', 'Room.Update', roomUpdate.method)
+    lt.assertEquals('四个座位都有人', 4, #assert(roomUpdate.params).players)
+
+    local snapshot = assert(support.readResult(assert(last), 103).result)
+    lt.assertEquals('最后进来的那位也拿到了自己的快照', 4, #snapshot.players)
+
+    -- 开局随在回包之后：第一步是问选将（服务端发来的请求）
     support.readMethod(assert(last), 'Ask.Hero')
 
     local extra = dialServer()

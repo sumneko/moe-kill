@@ -33,7 +33,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 - 前后端通过 **JSON-RPC** 通讯，协议是**通用规范**：一个后端可对接多种前端（浏览器是默认前端实现）。
 - 先做单机单人（AI 补齐人数），联网多人后续再说。
 - 重连由**专门的协议方法全量同步状态**（不靠增量事件重放）。
-- 前端暂不实现；**先做无头后端并跑测试**。
+- 前端**已经起步**（2026-10-15）：`client/`（Vite + TypeScript，浏览器原生 WebSocket），见 `references/architecture.md` 第 20 节。无头可测仍是验收主线（前端不是验收途径）。
 - 调试用 VS Code 的 `actboy168.lua-debug` 扩展。
 - Lua 版本 **5.5**；测试用 LuaLS 4.0.0 的 `--test` 入口与断言风格（`server/test/ltest.lua` 是本工程的可读精简实现）。
 
@@ -56,7 +56,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `package/`（项目根，与 `server/` 平级） | 规则集，**按包组织**（规则：`@基础` / `身份场` / `标准`，将来 `军争`…；工具：**`@tools`** —— 与游戏规则无关的纯函数工具集，**扩充内容侧的标准库**（给 `table` 加 `filter` / `map` / `contains` / `without` / `mergeArray` / `copy`，另有 `util.defer`））；包 = 一级目录（根下**不许有散落文件**） ，目录名以 `@` 开头表示**默认加载**（`@基础` ⇒ 逻辑包名 `基础`，清单不用写它，引用也不写 `@`）；跨包同名并存、裸名按清单顺序路由（见第 9 节）；由 `moe.loader` **读文件执行**加载（多来源合并成虚拟文件系统），不走 `require` / `include`、不参 与热重载；只拿注入的 `game` 与 `Card` / `Depends` / `Class` / `New` 与共享袋 `rule`（内核能力经局收口），不反向； 包目录下可以放一份 **`meta.lua`（纯类型声明，固定叫 `meta`）**给编辑器收窄自己的概念（身份、规则数值…），装载器把它当普通文件执行（里面只有注释）—— 配方见 `references/architecture.md` 9.6 |
 | `server/proto.d.lua` | 协议类型声明：**线上形状** `JSONRPC.*`（通知 / 请求 / 结果 / 错误）+ **游戏消息** `Proto.*`（`Proto.Notify.<动作>`、`Proto.Player.Base` / `Proto.Custom`；可取消请求 `Proto.Cancelable` / `Proto.Notify.Cancel`）—— 前后端共用的事实来源（见 `references/architecture.md` 第 15 节） |
 | `server/transport/` | 传输层：`jsonrpc.lua`（编解码纯函数）/ `link.lua`（`Link` 类型 + 内存实现）/ `tcp-link.lua`（真 TCP 上的 `Link`）/ `websocket.lua` + `ws-link.lua`（WebSocket：协议与它在 `Link` 上的实现）/ `accept.lua`（**嗅探**：一个口认两种协议）/ `client.lua`（`Client` 端点：`notify` / `request` / `awaitRequest`；`register` 是**模块级**的）/ `clients.lua`（连接集合：`add` / `remove` / `broadcast`）（见 `references/architecture.md` 第 14 节） |
-| `client/`（将来） | 前端（TypeScript / Web）；与 `server/` 平级 |
+| `client/` | 前端（TypeScript / Web，与 `server/` 平级）：`src/link.ts`（WebSocket 当字节流）/ `rpc.ts`（长度头 + JSON-RPC）/ `agent.ts`（局面镜像 + 询问队列）/ `main.ts`（界面，原生 DOM）/ `proto.d.ts`（**由声明生成**，别手改）（见 `references/architecture.md` 第 20 节） |
 
 ## 3. references
 

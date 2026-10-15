@@ -14,6 +14,22 @@
 ---@field fields Proto.Field[] # 自己声明的字段（不含继承来的）
 ---@field comment string # 类上方的说明（没有就是空串）
 
+--- 类型写法解析出来的节点（除 `kind` 外的字段只有对应的那个 kind 才有）
+---@class Proto.Node
+---@field kind string # `name` 名字 / `list` 数组 / `optional` 可选 / `struct` 内联结构 / `literal` 字面量 / `union` 联合
+---@field name string # `name`：类名或叶子类型名
+---@field inner Proto.Node # `list` / `optional`：里层
+---@field fields Proto.Node.Field[] # `struct`：内联结构的字段
+---@field members Proto.Node[] # `union`：各支
+---@field text string # `literal`：字面量原文
+---@field number boolean # `literal`：是不是数字
+
+--- 内联结构里的一个字段
+---@class Proto.Node.Field
+---@field name string
+---@field optional boolean
+---@field type Proto.Node
+
 ---@class Proto.API
 moe.proto = {}
 
@@ -332,18 +348,25 @@ local function astShape(classes, node, stack)
     return shaped
 end
 
---- 类型写法（原文）翻成形状
----@param classes table<string, Proto.Class>
+--- 解析一段类型写法（纯函数；写法不合法当场报错）
 ---@param text string
----@return Shape
-local function typeShape(classes, text)
+---@return Proto.Node
+function moe.proto.parseType(text)
     local state = { text = text, pos = 1 }
     local node = parseType(state)
     skipSpace(state)
     if state.pos <= #state.text then
         error('认不出的类型写法：「' .. text .. '」')
     end
-    return astShape(classes, node, {})
+    return node
+end
+
+--- 类型写法（原文）翻成形状
+---@param classes table<string, Proto.Class>
+---@param text string
+---@return Shape
+local function typeShape(classes, text)
+    return astShape(classes, moe.proto.parseType(text), {})
 end
 
 --- 解析 `proto.d.lua`（读一次，之后用缓存）

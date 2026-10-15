@@ -72,7 +72,12 @@ function moe.room.join(client, options)
     player:setUser(user)
     user:attach()
     if not freeSeat(game) then
-        moe.room.start()
+        -- 开局延到下一笔调度：这一包的回包与房间广播先出去（开局要跑一整局，不能抢在它们前头）
+        moe.await.wake(function ()
+            if moe.room._game == game and not game:getResult() then
+                moe.room.start()
+            end
+        end)
     end
     moe.roomSync.broadcast(game)
     return moe.snapshot.build(game, user)
@@ -82,7 +87,10 @@ end
 ---@param prepare? 身份场.准备配置
 function moe.room.start(prepare)
     local game = assert(moe.room._game, '还没有开局')
-    game:fire('游戏-准备', { config = prepare })
-    game:fire('游戏-开始', {})
-    game:runFlow()
+    -- 开局要跑到这局结束（里头会挂在询问上）：放它自己的协程里，别占着叫它的那条
+    moe.await.call(function ()
+        game:fire('游戏-准备', { config = prepare })
+        game:fire('游戏-开始', {})
+        game:runFlow()
+    end)
 end

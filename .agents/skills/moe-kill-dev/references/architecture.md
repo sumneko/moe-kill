@@ -113,6 +113,7 @@ sequenceDiagram
 - **accept 要循环收干**（2026-10-13 踩过）：一次事件里 `accept` 到 `false` 为止 —— 光收一个的话，backlog 里同时到的其余连接**不会再有事件**，永远没人收。收到就 `moe.link.accept(fd)`（**认协议**：头四个字节是 `GET ` 就当 HTTP 请求去走 WebSocket 握手，否则当裸帧通道）→ `moe.client.create(link)` + `client:start()` + 登记进 `moe.clients`。认协议要读数据，所以这一小段跑在协程里（`moe.await.call`），**接成什么要等一小会儿**。
 - **命令行走 `moe.args`**：`--single`（现在必须给，否则只记一条错误日志、不起服务）/ `--port`（默认 31415）/ `--seats`（默认 8）/ `--packages`（逗号分开，默认 `身份场,标准`）；`main.lua` 负责把命令行翻成 `moe.server.start` 的选项。
 - **房间 `server/room.lua`（门面 `moe.room`）不认识网络**：`open{ seats, packages, sources?, seed? }` 建局 + 装配（`moe.snapshot.attach`）+ 把 `Game.Join` 注册进协议层；`join(client, options)` 给这条连接找空座、接上下行、回一份快照，**坐满自动开局**（`moe.room.start(prepare?)`）；还没开局 / 没空位都回具体的 `Proto.Error`。
+- **「坐满就开局」的时序（2026-10-15 定，前端的第 4 个人照出来的）**：这一包的回包与房间广播**先出去**，开局**延到下一笔调度**再跑（`join` 里 `moe.await.wake`）—— 且 `start` 把「准备 / 开始 / 跑流程」包进**自己的协程**（`moe.await.call`）。两个理由各一条：① 开局要跑一整局（里头会挂在询问上），**不能占着叫它的那条协程**（原先就占着 —— 第 4 个人的 `Game.Join` 处理器被整局流程停住，回包与 4/4 广播都到不了）；② 前端要的是「先拿到自己的快照与房间状态，再被问」。延后的那一笔要带闸门（**还是这一局、而且还没结束**才开）：否则一局已经收摊后它还会去跑一遍。
 - **主循环仍归入口**：`moe.server.start` **不接管事件循环** —— 服务模式由 `main.lua` 常驻（`moe.eventLoop.start`），测试模式由 `test.lua` 控制。
 
 > **历史**：这里原先是一个「会话外壳」（`server/session/`：`Server.Session` + 决策挂起/恢复 + 事件收集 + `moe.server.Phase` 状态机）。2026-10-13 用户定**整套退役** —— 它只是「还没有 `User` 概念时为了跑测试临时加的外壳」，职责已由 `user/` 那层承担（问询走 `ClientUser:request`、应答走内核的询问家族）；连带删掉 17 条旧用例。`room.lua` 挪到 `server/room.lua`，`moe.server` 这个名字让给新的服务端入口。
@@ -693,3 +694,24 @@ Card '杀'
 - **`Game.Over` 就是终局**（写进 proto 注释与用例）：结局常发生在回合中间（阵亡 → 奖惩 → 胜负判定里 `endGame`）⇒ `endGame` 把流程任务就地收掉，那个回合的 `Turn.End` **不会再来**；所以口径是「收到 `Game.Over` 即终局」，前端不靠回合配对来判断。
 - **结局时公开身份**（内容侧，`package/身份场/身份.lua`）：订 `'游戏-结束'` 把所有人的 `identity` 改成公开（`Player:revealIdentity`）—— 结算画面要列「谁是什么身份」；它能靠 `Custom:setVisible` 报脏（§15）自动走 `Player.UpdateCustom` 发下去，内核一行不改。
 - **用例**：`server/test/user/flow-sync.lua` —— ① 手工事件：五条按序到、发的就是入座的那几位（没入座的连接收不到）；② **真跑一局**：四人房坐满 + 所有询问一律「不答」，真流程跑出来的回合 / 阶段序列（只看一个前端：回合成对、阶段名合法），最后 `Game.Over` 收尾。
+
+## 20. 前端（`client/`）
+
+**定位**：浏览器是**默认前端实现**，但协议不假定客户端实现（§3）。前端只做两件事：**播放表现**与**采集输入** —— 一条规则判断都不写。
+
+- **技术栈**（2026-10-13 用户定）：**Vite + TypeScript**，配置手写（不用 `npm create vite` 的模板）。选 web 技术的理由：将来发 Steam 也能用 Electron / Tauri 装同一个前端；部署到网页是它本来的形态。
+- **协议类型从声明生成，不手抄**：`server/bin/moe-kill.exe --gen-proto` 把 `server/proto.d.lua` 翻成 **`client/src/proto.d.ts`**（生成器 `server/tools/proto-type.lua`，见 `infrastructure.md` §6）。产物**进 git**（前端 clone 下来就能编译），并由 `server/test/proto-type.lua` 钉住「磁盘上那份 == 现翻出来的那份」—— **声明改了就重跑，忘了跑用例会红**。用法：`import type { Proto } from './proto'`，然后 `Proto.SnapShot` / `Proto.Request.Ask.Select`。
+- **四层，照着后端那条链镜像**（都在 `client/src/`）：
+
+  | 文件 | 干什么 | 对着后端的谁 |
+  | --- | --- | --- |
+  | `link.ts` | `WsLink`：浏览器原生 WebSocket，**当字节流用**（消息边界 ≠ 帧边界，收到的载荷拼起来） | `transport/{tcp-link,ws-link}.lua` |
+  | `rpc.ts` | `Rpc`：4 字节长度头 + JSON-RPC；`request` / `notify` / `onRequest`（收服务端请求）/ `onNotify` | `transport/{client,jsonrpc}.lua` |
+  | `agent.ts` | `Agent`：局面镜像（玩家 / 卡牌 / 技能 / 面板 / 回合 / 阶段 / 结局）+ 询问队列；订齐所有下行通知与方法 | `server/user/*-sync.lua` |
+  | `main.ts` | 界面：连接 / 加入 / 房间 / 局面 / 询问 / 事件日志（原生 DOM，没上框架） | — |
+
+- **发帧必须是二进制**（与后端那条口径配套，§14）：服务端**不收文本帧**（⇒ 1003）；浏览器 `ws.send(字符串)` 发的正是文本帧、载荷会被 UTF-8 改写 —— 所以一律 `send(ArrayBuffer)`（`rpc.ts` 自己拼长度头 + 正文）。
+- **询问的答复形状照 `Proto.Result.<方法>`**：客户端**不能多带字段**（回包也过 `moe.shape`）。所以 `Ask.Select` 里「没选的半边**不写那个键**」（空数组合法性另说，缺键才是「没选」）。
+- **取消有两个方向**（§14）：客户端不想答 ⇒ 回 `CANCELED`（`-2`）；服务端叫停 ⇒ 发 `Notify.Cancel`，客户端**必须回那一包** `REQUEST_CANCELED`（`-1`）—— `agent.ts` 里就是「摘掉这条询问 + 用 `-1` 收掉它」，这样界面不会留下点不动的死按钮。
+- **`--gen-proto` 与前端无关**：它只读声明、不建局、不起服务，写完就退（放在 `main.lua` 的 `TEST` 分支后面）。
+- **还没做**：卡牌 / 武将的图片与动画、面板的操作界面、技能的手动发动、观战与重连的界面表达、打包成静态产物由后端同一个口发出去（`base: './'` 已为这步留好）。

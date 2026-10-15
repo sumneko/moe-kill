@@ -22,6 +22,12 @@ if moe.args.TEST then
     return
 end
 
+--- 把协议类型产物写给前端（改完声明跑一次）
+if moe.args.GEN_PROTO then
+    log.info('协议类型写好了：{}' % { moe.protoType.write() })
+    return
+end
+
 print = log.debug
 
 --- 取一个数字参数（没给就用默认）
