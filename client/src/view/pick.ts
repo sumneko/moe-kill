@@ -158,3 +158,46 @@ export function shownCardOf(ask: Ask, selection: Selection): number | null {
 export function toggle(list: number[], id: number): number[] {
     return list.includes(id) ? list.filter((one) => one !== id) : [...list, id];
 }
+
+/** 「没得挑」的目标 / 素材：最小数就等于候选数时直接全选（省得再点一遍） */
+export function autoPick(plan: { ids: number[]; min: number } | undefined): number[] {
+    if (!plan || plan.min <= 0 || plan.min < plan.ids.length) {
+        return [];
+    }
+    return [...plan.ids];
+}
+
+/** 点一张牌（选项牌 / 素材牌 / 选牌）之后的新选择 */
+export function pickCard(ask: Ask, selection: Selection, id: number): Selection {
+    const params = ask.params as any;
+    if (selection.viewAs !== null) {
+        const views = (params.viewAs ?? []) as Proto.ViewAs[];
+        const view = views[selection.viewAs];
+        const cards = autoPick(view?.card);
+        return {
+            ...selection,
+            cards: cards.length > 0 ? cards : toggle(selection.cards, id),
+            players: autoPick(view?.target),
+        };
+    }
+    if (ask.method === 'Ask.Use') {
+        const options = (params.card ?? []) as Proto.CardWithPlan[];
+        return { ...selection, option: id, players: autoPick(options.find((one) => one.id === id)) };
+    }
+    if (ask.method === 'Ask.Select') {
+        const auto = autoPick(params.player);
+        return {
+            ...selection,
+            cards: toggle(selection.cards, id),
+            ...(auto.length > 0 ? { players: auto } : {}),
+        };
+    }
+    return { ...selection, cards: toggle(selection.cards, id) };
+}
+
+/** 点一个技能（`Ask.UseSkill`）之后的新选择 */
+export function pickSkill(ask: Ask, selection: Selection, id: number): Selection {
+    const skills = ((ask.params as any).skills ?? []) as Proto.SkillPlan[];
+    const skill = skills.find((one) => one.id === id);
+    return { ...selection, skill: id, cards: [], players: autoPick(skill?.targets) };
+}

@@ -11,7 +11,7 @@ import { Hand } from './Hand';
 import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
 import { Stage } from './Stage';
-import { EMPTY, candidates, toggle, type Selection } from './pick';
+import { EMPTY, candidates, pickCard, pickSkill, toggle, type Selection } from './pick';
 import { attr, cardFaceOf, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
 
@@ -137,15 +137,10 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const handIds = (mine?.hand ?? []).filter((id) => !(shown?.ids ?? []).includes(id));
     const cand = candidates(ask ?? undefined, selection);
 
-    const pickCard = (id: number) => {
-        if (!ask) {
-            return;
+    const onPickCard = (id: number) => {
+        if (ask) {
+            setSelection(pickCard(ask, selection, id));
         }
-        if (ask.method === 'Ask.Select' || ask.method === 'Ask.UseSkill' || selection.viewAs !== null) {
-            setSelection({ ...selection, cards: toggle(selection.cards, id) });
-            return;
-        }
-        setSelection({ ...selection, option: id, players: [] });
     };
     const pickPlayer = (id: number) => {
         setSelection({ ...selection, players: toggle(selection.players, id) });
@@ -160,7 +155,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         if (!plans.some((one) => one.id === skillId)) {
             return null;
         }
-        return () => setSelection({ ...selection, skill: skillId, cards: [], players: [] });
+        return () => setSelection(pickSkill(ask, selection, skillId));
     };
 
     /** 交一包上去：出牌的话顺带把牌摆到桌面正中 */
@@ -272,7 +267,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                         ids=${handIds}
                         picked=${selection.cards}
                         pickable=${cand.cards.length > 0}
-                        onPick=${pickCard}
+                        onPick=${onPickCard}
                     />
                 </div>
             </div>

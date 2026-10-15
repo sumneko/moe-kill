@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { Proto } from '../proto';
 import type { Agent, Ask } from '../state/agent';
 import { Card } from './Card';
-import { answerOf, canSubmit, planText, toggle, type Selection } from './pick';
+import { answerOf, autoPick, canSubmit, pickCard, pickSkill, planText, toggle, type Selection } from './pick';
 import { cardLabel } from './format';
 
 /** 一条询问要摆些什么、交上去什么 */
@@ -37,13 +37,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
 
     const cancelable = params.cancelable !== false;
     const picked = selection.cards.length + selection.players.length + selection.heroes.length;
-    const pickCards = (id: number) => {
-        if (selection.viewAs !== null) {
-            onSelection({ ...selection, cards: toggle(selection.cards, id) });
-            return;
-        }
-        onSelection({ ...selection, option: id, players: [] });
-    };
+    const pickCards = (id: number) => onSelection(pickCard(ask, selection, id));
     const pickPlayers = (id: number) => onSelection({ ...selection, players: toggle(selection.players, id) });
     const chips = (ids: number[], pickedList: number[], onPick: (id: number) => void, asCard = false) => html`<div class="chips">
         ${ids.map((id) => html`<button
@@ -80,7 +74,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                         <div class="chips">${views.map((one, index) => html`<button
                             key=${index}
                             class=${selection.viewAs === index ? 'on' : ''}
-                            onClick=${() => onSelection({ ...selection, viewAs: index, option: null, cards: [], players: [] })}
+                            onClick=${() => onSelection({ ...selection, viewAs: index, option: null, cards: [], players: autoPick(views[index]?.target) })}
                         >${viewLabel(agent, one)}</button>`)}</div>` : null}
                     ${view?.card ? html`<p class="hint">素材（${planText(view.card)}）</p>
                         ${chips(view.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)}` : null}
@@ -95,7 +89,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                     <div class="chips">${skills.map((one) => html`<button
                         key=${one.id}
                         class=${selection.skill === one.id ? 'on' : ''}
-                        onClick=${() => onSelection({ ...selection, skill: one.id, cards: [], players: [] })}
+                        onClick=${() => onSelection(pickSkill(ask, selection, one.id))}
                     >${agent.skills.get(one.id)?.name ?? `技能 ${one.id}`}</button>`)}</div>
                     ${skill?.cards ? html`<p class="hint">要用的牌（${planText(skill.cards)}）</p>
                         ${chips(skill.cards.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)}` : null}
