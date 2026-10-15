@@ -57,6 +57,7 @@ description: moe-kill 后端工程约定：前后端架构、协议分层、无�
 | `server/proto.d.lua` | 协议类型声明：**线上形状** `JSONRPC.*`（通知 / 请求 / 结果 / 错误）+ **游戏消息** `Proto.*`（`Proto.Notify.<动作>`、`Proto.Player.Base` / `Proto.Custom`；可取消请求 `Proto.Cancelable` / `Proto.Notify.Cancel`）—— 前后端共用的事实来源（见 `references/architecture.md` 第 15 节） |
 | `server/transport/` | 传输层：`jsonrpc.lua`（编解码纯函数）/ `link.lua`（`Link` 类型 + 内存实现）/ `tcp-link.lua`（真 TCP 上的 `Link`）/ `websocket.lua` + `ws-link.lua`（WebSocket：协议与它在 `Link` 上的实现）/ `accept.lua`（**嗅探**：一个口认两种协议）/ `client.lua`（`Client` 端点：`notify` / `request` / `awaitRequest`；`register` 是**模块级**的）/ `clients.lua`（连接集合：`add` / `remove` / `broadcast`）（见 `references/architecture.md` 第 14 节） |
 | `client/` | 前端（TypeScript / Web，与 `server/` 平级）：`src/link.ts`（WebSocket 当字节流）/ `rpc.ts`（长度头 + JSON-RPC）/ `agent.ts`（局面镜像 + 询问队列）/ `main.ts`（界面，原生 DOM）/ `proto.d.ts`（**由声明生成**，别手改）（见 `references/architecture.md` 第 20 节） |
+| `tools/` | **开发期辅助脚本**（shell，不是 Lua；不进构建、不进运行时）：`watch-memory.ps1` = 进程内存看护（按进程名 · PID 盯 `moe-kill`，超上限默认 **1 GB** 就击毙，目标没了再等一会儿自己也退）—— 命令行与口径见 `references/infrastructure.md` 第 5 / 7 节；VS Code 任务「内存看护」与复合任务「Test」（跑测试时并行带上它） |
 
 ## 3. references
 

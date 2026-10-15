@@ -526,6 +526,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 ## 4 工程状态提醒
 
+- **12 GB 内存失控（2026-10-15 用户报，未定位）**：手工联调（4 个浏览器页面）时 `moe-kill.exe` 涨到 12 GB。现有证据：`server/log/service.log` 末尾是**成千上万条**「往客户端发消息失败 ：对端关闭了连接」（同一毫秒里几百条）⇒ 有人在**同步地**一轮轮发消息、每轮都写一个已关的连接（`WsLink:write` 失败 ⇒ `ClientUser` 那边不会让出 ⇒ 连接的读循环没机会跑 ⇒ `closed` 永远是 false、洪水不停）。**另有两条已确认的放大器**（都能无限长）：① `Game:addEffect` 只追加、**没人摘**（`game.effects`，全仓只有 `addEffect` / `getEffect` / `getEffects` 三个读口）⇒ 发起过的根效果（连带 task / 协程 / context）全留着；② `moe.server._clients` 从**不移除**已关闭的连接（`Clients:add` 本来就返回撤销函数，只是没人用）⇒ 每次广播都往死连接写一遍。**同类前例（2026-09-21，实测吃过 100 GB）**：`game:ask` 在没人应答时**立刻以空结果完成**（不是挂住）⇒ 「循环里问 + 没人答」不进事件循环、无限分配。**看护脚本 `tools/watch-memory.ps1` 已就位**（超 1 GB 击毙，VS Code 里「内存看护」任务 / 复合任务「Test」，见 `infrastructure.md` 第 5 节）—— 复现一次抓到现场再定修法；**修法未定、还没动手**（候选：人都跑光就 `endGame` 收摊 / 记牌器结完就摘 / 服务端加内存护栏 / 关连接时从 `_clients` 摘掉）。
+
 - **本地提交可能还没推**：换机器前先推；schannel 会握手失败，用 `git -c http.sslBackend=openssl push`。
 - `openspec/specs/` **已冻结、不维护**（探索期口径见根目录 `AGENTS.md`）；进行中的变更看 `openspec/changes/`。
 - 两个见过的环境坑：

@@ -174,6 +174,7 @@ end
 - **测试期的装载缓存**（2026-10-08，`server/test/iocache.lua`，在 `test.lua` 顶层 `enable()`；**产品代码零改动**）：把装载器的「扫目录 / 读文件 / 预解析试跑」结果留住 —— ① `fs.pairs` 按目录 mtime 缓存条目；② `moe.util.loadFile` 按文件 mtime + 大小缓存内容；③ `preparse.run` 把「试跑时 chunk 对 stub（`Depends` / `Card` / `Buff` / `Hero` / `Skill`）的调用」记下来、内容没变就重放（不编译也不执行）。**只对 `package/` 下的路径生效**，`tmp/`（探针 / fixture）一律直通 ⇒ 探针用例永远读到刚写下的内容。效果：全量 **10.3 → 7.2**（只做按需装包）**→ 3.4 秒**。
 - **两个护栏**（共用 `test.lua` 里的 `timeLimit` = **10 秒**；用户 2026-09-20 定：「所有测试加起来都不会超过 100 毫秒」—— 早已不成立）。时限沿革：**5 → 10 秒**（2026-09-28，573 条贴着 5 秒）→ **10 → 15 秒**（2026-10-08，900 条墙钟 ~10.3 秒：每条用例都要建局 + 装包）→ **回到 10 秒**（同日随后做完「按需装包 + 测试期装载缓存」，全量 ~3.4 秒）：① **CPU 时间**（`enableGuards()` 里 `debug.sethook` 每 10 万条指令查一次 `os.clock()`）防死循环；② **墙钟看门狗**（看 `os.clock()`，同时充当「事件循环等待时长上限」—— 循环只会等到「下一个定时任务」）防卡在等待里，到点就报告**卡在哪个用例**（`lt.currentName`）并停循环。**2026-10-01 之前它用的是 `moe.timer.wait(timeLimit, …)`，虚拟时钟下永不触发** ⇒ 换真墙钟。内存护栏只在显式传 `--mem-limit` 时启用。
 - 临时产物统一写 `tmp/`（已 gitignore）。
+- **进程级内存看护**（2026-10-15）：`tools/watch-memory.ps1` 在**进程外面**看着 —— 测试里那三道路障看的是 Lua 堆 / 指令数 / 墙钟，前端联调那种「进程整体失控」它们都看不见（2026-10-15 实测：服务端涨到 12 GB 被人工终止）。脚本每 `-IntervalSeconds`（默认 1 秒）查一次 `moe-kill` 进程的工作集（`-Metric Private` 可换成私有内存），**超 `-LimitGB`（默认 **1** GB）就 `Stop-Process -Force`**，目标消失了再等 `-ExitDelaySeconds`（默认 10 秒 —— 期间重启的进程照样接上）后自己退出，另可 `-MaxSeconds`（默认 0 = 不限）让它在限定时间内无条件收工；日志追加到 `server/tmp/watch-memory.log`（起来 / 涨过 128 MB / 越过半上限 / 击毙 / 走人各记一条）。**为什么 1 GB 够**：服务模式进程工作集实测 ~10-20 MB（50 倍余量），而真正失控的那种几十秒就冲过去了 ⇒ 1 GB 既碰不到正常路径、又来得及拿现场；`-LimitGB` 随时能改。**按进程名盯 ⇒ 会连坐同名进程**（同时跑多个实例就 `-Id <PID>` 只盯一个）。VS Code 任务：「内存看护」（联调用，不限期）与「Test」（复合任务 = 平时那条命令 + `-ExitDelaySeconds 5 -MaxSeconds 30` 的看护并行跑）。
 
 **实测（2026-09-19）**：全量 207 个用例约 1 秒；`--test` 不建立任何对外监听、无外部客户端即可跑完；产物放到含空格与中文的路径下同样通过。
 
@@ -230,6 +231,7 @@ end
 
 ```powershell
 server/bin/moe-kill.exe --test          # 平时（只改 Lua）：直接跑全部测试（退出码 0 = 全通过），不需要构建
+tools/watch-memory.ps1           # 内存看护：盯 moe-kill 进程，超 1 GB 就击毙（服务 / 前端联调时另开一个终端跑）
 luamake -notest                  # 只编译（产出 server/bin/moe-kill.exe + server/bin/main.lua）：只在改了 C/C++ 或构建/补丁链时需要
 luamake                          # 编译 + 跑无头测试（同样会先构建一遍）
 server/bin/moe-kill.exe --test smoke.await    # 只跑一个套件

@@ -22,8 +22,29 @@
         },
         {
             "type": "shell",
-            "label": "Test",
+            "label": "跑测试",
             "command": "server/bin/moe-kill.exe --test",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "内存看护",
+            "command": "tools/watch-memory.ps1",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "内存看护（跟测试）",
+            "command": "tools/watch-memory.ps1 -ExitDelaySeconds 5 -MaxSeconds 30",
+            "problemMatcher": []
+        },
+        {
+            "label": "Test",
+            "dependsOn": [
+                "内存看护（跟测试）",
+                "跑测试"
+            ],
+            "dependsOrder": "parallel",
             "problemMatcher": []
         }
     ]
