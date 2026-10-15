@@ -11,5 +11,9 @@
     "devDependencies": {
         "typescript": "^7.0.2",
         "vite": "^8.3.4"
+    },
+    "dependencies": {
+        "htm": "^3.1.1",
+        "preact": "^11.0.1"
     }
 }

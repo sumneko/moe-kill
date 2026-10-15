@@ -1,173 +1,261 @@
-:root {
-    color-scheme: dark;
-    font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
+/* 棋盘式布局：座位在四周，中间是牌堆与回合信息，下面是自己的手牌，右边是事件流 */
+
+* {
+    box-sizing: border-box;
 }
 
 body {
     margin: 0;
-    background: #17191d;
-    color: #e6e6e6;
+    font: 14px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+    background: #1d2b26;
+    color: #e8e8e0;
 }
 
-#app {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    grid-template-rows: auto auto minmax(0, 1fr);
-    gap: 8px;
-    padding: 8px;
-    height: 100vh;
-    box-sizing: border-box;
+.app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 header {
-    grid-column: 1 / -1;
     display: flex;
+    gap: 8px;
     align-items: center;
-    gap: 8px;
-}
-
-main {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-height: 0;
-    overflow: auto;
-}
-
-aside {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-section,
-aside {
-    border: 1px solid #2c3038;
-    border-radius: 6px;
-    padding: 8px 10px;
-    background: #1d2026;
-}
-
-section.ask {
-    flex: 0 0 auto;
-}
-
-h2 {
-    margin: 0 0 6px;
-    font-size: 15px;
-    color: #9ecbff;
-}
-
-h3 {
-    margin: 0 0 4px;
-    font-size: 15px;
-}
-
-p {
-    margin: 4px 0;
-}
-
-ul {
-    margin: 4px 0;
-    padding-left: 20px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    background: #16211d;
+    border-bottom: 1px solid #2c423a;
 }
 
 input,
 textarea {
-    background: #14161a;
+    background: #0f1714;
     color: inherit;
-    border: 1px solid #3a3f4a;
+    border: 1px solid #37544a;
     border-radius: 4px;
     padding: 3px 6px;
     font: inherit;
 }
 
-input {
-    width: 8em;
-}
-
-#url {
-    width: 16em;
-}
-
 button {
-    background: #2b3140;
+    background: #2f4a41;
     color: inherit;
-    border: 1px solid #3f4759;
+    border: 1px solid #46705f;
     border-radius: 4px;
     padding: 4px 10px;
     font: inherit;
     cursor: pointer;
 }
 
-button:hover {
-    background: #364059;
+button:hover:not(:disabled) {
+    background: #3c5f52;
 }
 
-button.chip {
-    padding: 3px 8px;
-    border-color: #3f4759;
-    background: #232833;
+main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto auto;
+    gap: 10px;
+    padding: 10px;
+    flex: 1;
 }
 
-button.chip.on {
-    background: #3c6e47;
-    border-color: #4d8a5b;
+.board {
+    grid-column: 1;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 8px;
 }
 
-.muted {
-    color: #8d949f;
-}
-
-.bar {
+/* 座位：一行排开（人少时看得清，多的以后再说） */
+.seats {
     display: flex;
     gap: 8px;
-    margin-top: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.seat {
+    min-width: 150px;
+    padding: 6px 8px;
+    background: #223630;
+    border: 2px solid #33544a;
+    border-radius: 8px;
+}
+
+.seat.turn {
+    border-color: #d8b04a;
+    box-shadow: 0 0 0 2px rgba(216, 176, 74, 0.25);
+}
+
+.seat.me {
+    background: #26403a;
+}
+
+.seat.picked {
+    border-color: #58c0f0;
+    box-shadow: 0 0 0 2px rgba(88, 192, 240, 0.3);
+}
+
+.seat .who {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.seat .hp {
+    color: #a9c6bd;
+    font-size: 12px;
+}
+
+.tag {
+    background: #37544a;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 12px;
+}
+
+.middle {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+    padding: 6px;
+    background: #223630;
+    border-radius: 8px;
+}
+
+.pile {
+    background: #16211d;
+    border: 1px dashed #46705f;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+.turn {
+    margin-left: 8px;
+}
+
+.over {
+    color: #f0a058;
+    margin-left: 8px;
+}
+
+.mine {
+    padding: 6px 8px;
+    background: #223630;
+    border-radius: 8px;
+}
+
+.mine .label {
+    color: #a9c6bd;
+    font-size: 12px;
+}
+
+.cards {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 44px;
+    padding: 3px 5px;
+    background: #f4f1e8;
+    color: #1d2b26;
+    border: 2px solid #cbc4b0;
+    border-radius: 5px;
+}
+
+.card:disabled {
+    opacity: 1;
+    cursor: default;
+}
+
+.card.picked {
+    border-color: #58c0f0;
+    transform: translateY(-3px);
+}
+
+.card.hidden {
+    background: #3a5a6a;
+    color: #cfe3ec;
+    border-color: #2b4653;
+}
+
+.card .suit {
+    font-size: 13px;
+}
+
+.card .suit.red {
+    color: #c0392b;
+}
+
+.card .name {
+    font-size: 13px;
+}
+
+.card .point {
+    font-size: 11px;
+    color: #6b6a63;
+}
+
+.ask {
+    grid-column: 1;
+    padding: 8px 10px;
+    background: #223630;
+    border-radius: 8px;
+}
+
+.ask h2,
+.ask h3 {
+    margin: 0 0 4px;
 }
 
 .chips {
     display: flex;
+    gap: 4px;
     flex-wrap: wrap;
-    gap: 6px;
     margin: 4px 0;
 }
 
-.tag {
-    display: inline-block;
-    padding: 0 6px;
-    margin-right: 4px;
+.chip {
+    padding: 3px 8px;
+}
+
+.chip.on {
+    background: #58c0f0;
+    color: #16302a;
+    border-color: #9adcff;
+}
+
+.bar {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.muted {
+    color: #9ab0a8;
+}
+
+aside {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    padding: 8px 10px;
+    background: #16211d;
     border-radius: 8px;
-    background: #2b3140;
-    color: #b9c2d0;
-    font-size: 12px;
-}
-
-.card {
-    display: inline-block;
-    padding: 0 6px;
-    margin: 2px 4px 2px 0;
-    border-radius: 4px;
-    background: #232833;
-    border: 1px solid #3a3f4a;
-}
-
-.zone {
-    margin: 2px 0;
-}
-
-.over {
-    color: #ffd479;
-}
-
-#log {
     overflow: auto;
+    max-height: calc(100vh - 60px);
     font-size: 12px;
-    color: #b9c2d0;
+    color: #b9cfc8;
 }
 
-#log div {
-    border-bottom: 1px solid #262a31;
-    padding: 2px 0;
+aside h2 {
+    margin: 0 0 6px;
+    font-size: 14px;
 }
