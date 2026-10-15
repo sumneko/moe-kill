@@ -243,7 +243,7 @@ server/bin/moe-kill.exe --test rule.base      # 基础规则包套件（规则�
 server/bin/moe-kill.exe --test rule.identity  # 身份场套件（人数配置/身份写字段/主公加成与先手）
 server/bin/moe-kill.exe --test rule.setup     # 开局装配套件（8 人完整开局 + 可复现）
 server/bin/moe-kill.exe --test core.desk      # 桌子套件（座位 / 行动顺序 / 距离求值）
-server/bin/moe-kill.exe --test core.player    # 玩家套件（属性实例 / 牌区增删 / 标签 / 存活与参与行动）
+server/bin/moe-kill.exe --test core.player    # 玩家套件（属性实例 / 牌区增删 / `custom` 自由数据 / 存活与参与行动）
 server/bin/moe-kill.exe --test core.game      # 局套件（建局 / 按名字建取牌区 / 建牌 / 绑定随机源洗牌）
 server/bin/moe-kill.exe --test core.effect           # 效果族**全部**（基类 + 下面全部子类；套件名就是模块名、按**前缀**过滤，所以这一条一次跑完）
 server/bin/moe-kill.exe --test core.effect.ask       # 询问套件（答复往返 / 先答的算数 / 没人应答）

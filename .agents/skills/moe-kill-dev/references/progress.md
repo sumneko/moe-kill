@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1282 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1285 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -484,7 +484,9 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
 
 ## 3 用户已表态、还没做的方向
 
-- **属性下行 + custom 接口改造（用户 2026-10-15 定，待实施 —— 前端玩起来的前置）**：① 属性**单开一路**（照 `custom`：`Player:setAttrVisible(name, options)` 走 `moe.visibility` + 属性自带的变更事件报脏），但**协议用数组不用 Record** —— `Proto.Player.attributes: Proto.Attribute[]`（`{ name, value }`）+ 通知 `Proto.Notify.Player.UpdateAttribute { id, attributes }`；② **没声明过的一律不下发、默认所有人不可见 —— 连本人也不可见**（`custom` 将来就是**存内容侧临时数据**的地方 ⇒ 临时数据不必再用 `setTag` 那类接口；写进去不等于会下发）；③ **custom 接口改**：内容侧直接读写 **`player.custom.<key>`**、可见性用 **`player:setCustomVisible(key, options)`**，**真正的容器不暴露给内容侧**（现在是 `player.custom.proxy.xxx` + `custom:setVisible(...)`）；④ **性别（sex）挪到内容侧用 custom 存**（现在在 `@基础/武将.lua`）。落点：`server/core/{custom,player}.lua`、`server/user/{player-sync,snapshot}.lua`、`server/proto.d.lua`、`package/@基础/{武将,体力}.lua`、`package/身份场/身份.lua`、`client/src/{agent,ui}.ts`、用例 10+ 处 `custom.proxy.`；**动的是对外契约 ⇒ 按 `AGENTS.md` 该建 OpenSpec 变更并写 `specs/` 增量（不设 `skip_specs`）—— 走不走这条待用户定**。
+- **custom 接口改造 / 性别迁移（用户 2026-10-15 定，**当天已落地**）**：内容侧改成直接读写 **`player.custom.<key>`**、可见性用 **`player:setCustomVisible(key, options)`**，**真正的容器（`Custom` 实例）不暴露给内容侧**；**性别**改存 **`custom.heroSex`**（`setHero` 写）；**`Player:setTag / getTag / removeTag` 退役** —— 内容侧零调用、功能被 `custom` 全覆盖（`Effect` / `Phase` 那两份照旧）。（下面是同批定的剩下那半）
+
+- **属性下行（用户 2026-10-15 定，待实施 —— 前端玩起来的前置）**：① 属性**单开一路**（照 `custom`：`Player:setAttrVisible(name, options)` 走 `moe.visibility` + 属性自带的变更事件报脏），但**协议用数组不用 Record** —— `Proto.Player.attributes: Proto.Attribute[]`（`{ name, value }`）+ 通知 `Proto.Notify.Player.UpdateAttribute { id, attributes }`；② **没声明过的一律不下发、默认所有人不可见 —— 连本人也不可见**（`custom` 将来就是**存内容侧临时数据**的地方 ⇒ 临时数据不必再用 `setTag` 那类接口；写进去不等于会下发）；③ **custom 接口改**：内容侧直接读写 **`player.custom.<key>`**、可见性用 **`player:setCustomVisible(key, options)`**，**真正的容器不暴露给内容侧**（现在是 `player.custom.proxy.xxx` + `custom:setVisible(...)`）；④ **性别（sex）挪到内容侧用 custom 存**（现在在 `@基础/武将.lua`）。落点：`server/core/{custom,player}.lua`、`server/user/{player-sync,snapshot}.lua`、`server/proto.d.lua`、`package/@基础/{武将,体力}.lua`、`package/身份场/身份.lua`、`client/src/{agent,ui}.ts`、用例 10+ 处 `custom.proxy.`；**动的是对外契约 ⇒ 按 `AGENTS.md` 该建 OpenSpec 变更并写 `specs/` 增量（不设 `skip_specs`）—— 走不走这条待用户定**。
 
 - ~~**`resetContent` 只清「这次装载期间注册的」订阅**~~（用户 2026-10-10 提，**当天作废**）：原因是当天定下「重开游戏会重建 `Game`、同一局不会重装」⇒ 运行期订阅被 `resetContent` 清掉不再构成问题（内核那条 `Game:watch` 通道也随之下线，传输层改用局上事件 + 新增的 `'卡牌-变化'`）。
 

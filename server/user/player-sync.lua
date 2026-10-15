@@ -93,7 +93,7 @@ function S:flush()
             local customList = {}
             for player, kinds in pairs(dirty) do
                 if kinds.custom then
-                    local visible = player.custom:allVisibles(viewer)
+                    local visible = player.customBag:allVisibles(viewer)
                     if next(visible) then
                         customList[#customList + 1] = { id = player.id, custom = visible }
                     end

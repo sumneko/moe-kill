@@ -14,7 +14,7 @@ Skill '离间'
         min    = 2,
         max    = 2,
         filter = function (player, skill)
-            return player ~= skill.owner and player.sex == '男'
+            return player ~= skill.owner and player.custom.heroSex == '男'
         end,
     }
     : on('使用', function (cast)

@@ -941,8 +941,8 @@ lt.test('雌雄双股剑：异性目标给出手牌就弃置', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'
-    target.sex = '女'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '女'
 
     equipCard(run, user, '雌雄双股剑')
     local held = takeCard(run, target, '桃')
@@ -980,8 +980,8 @@ lt.test('雌雄双股剑：目标不给牌 ⇒ 令装备主摸一张', function 
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'
-    target.sex = '女'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '女'
 
     equipCard(run, user, '雌雄双股剑')
     takeCard(run, target, '桃')
@@ -1005,8 +1005,8 @@ lt.test('雌雄双股剑：目标没手牌 ⇒ 照样归一化到摸牌', functi
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'
-    target.sex = '女'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '女'
 
     equipCard(run, user, '雌雄双股剑')
     local card = takeCard(run, user, '杀')
@@ -1036,8 +1036,8 @@ lt.test('雌雄双股剑：目标答错 ⇒ 一样归一化到摸牌', function 
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'
-    target.sex = '女'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '女'
 
     equipCard(run, user, '雌雄双股剑')
     takeCard(run, target, '桃')
@@ -1066,8 +1066,8 @@ lt.test('雌雄双股剑：不发动就什么都不做', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'
-    target.sex = '女'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '女'
 
     equipCard(run, user, '雌雄双股剑')
     takeCard(run, target, '桃')
@@ -1093,8 +1093,8 @@ lt.test('雌雄双股剑：同性不发动（问都不问）', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'
-    target.sex = '男'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '男'
 
     equipCard(run, user, '雌雄双股剑')
     local card = takeCard(run, user, '杀')
@@ -1121,7 +1121,7 @@ lt.test('雌雄双股剑：缺性别就不发动（不能判断异性）', funct
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'   -- 目标没写性别
+    user.custom.heroSex   = '男'   -- 目标没写性别
 
     equipCard(run, user, '雌雄双股剑')
     local card = takeCard(run, user, '杀')
@@ -1149,9 +1149,9 @@ lt.test('雌雄双股剑：旁人用【杀】不发动', function ()
     local owner  = run.players[1]
     local user   = run.players[2]
     local target = run.players[3]
-    owner.sex  = '男'
-    user.sex   = '男'
-    target.sex = '女'
+    owner.custom.heroSex  = '男'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '女'
 
     equipCard(run, owner, '雌雄双股剑')
     local card = takeCard(run, user, '杀')
@@ -1178,8 +1178,8 @@ lt.test('雌雄双股剑：拆下后就不发动', function ()
     local run    = support.start { count = 2, packages = { '标准' } }
     local user   = run.players[1]
     local target = run.players[2]
-    user.sex   = '男'
-    target.sex = '女'
+    user.custom.heroSex   = '男'
+    target.custom.heroSex = '女'
 
     local sword = equipCard(run, user, '雌雄双股剑')
     local card  = takeCard(run, user, '杀')

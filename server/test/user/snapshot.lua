@@ -64,9 +64,9 @@ lt.test('快照：要一份整局快照（牌 + 玩家）', function ()
     local you = assert(players[2])
 
     game:getZone('弃牌'):accept(game:createCard('闪'))
-    me.custom.proxy.heroName = '刘备'
-    me.custom:setVisible('heroName', true)
-    you.custom.proxy.heroName = '曹操'
+    me.custom.heroName = '刘备'
+    me:setCustomVisible('heroName', true)
+    you.custom.heroName = '曹操'
     -- 让下一笔调度把增量发完，账里才有那张牌
     moe.await.sleep(0)
 
@@ -94,7 +94,9 @@ end)
 lt.test('快照：各人看到的自定义数据不一样', function ()
     local _, players, fronts = newGame()
     local me = assert(players[1])
-    me.custom.proxy.heroName = '刘备'
+    -- 只声明给本人看：可见性由逐键账本定，不声明就谁都不见
+    me:setCustomVisible('heroName', me)
+    me.custom.heroName = '刘备'
 
     local mine,  mineErr  = assert(fronts[1]):awaitRequest('Game.SnapShot', {})
     local yours, yoursErr = assert(fronts[2]):awaitRequest('Game.SnapShot', {})
@@ -102,8 +104,8 @@ lt.test('快照：各人看到的自定义数据不一样', function ()
     lt.assertEquals('别人也没出错', nil, yoursErr)
     assert(mine, '没拿到快照')
     assert(yours, '没拿到快照')
-    lt.assertEquals('自己看得见', '刘备', mine.players[1].custom.heroName)
-    lt.assertEquals('别人看不见', nil, yours.players[1].custom.heroName)
+    lt.assertEquals('声明给他看的看得见', '刘备', mine.players[1].custom.heroName)
+    lt.assertEquals('没声明的不给别人看', nil, yours.players[1].custom.heroName)
 end)
 
 ---@async

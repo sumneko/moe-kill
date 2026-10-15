@@ -9,14 +9,15 @@ M.identity = nil
 ---@param self Player
 ---@return 身份场.身份? # 身份（只读：真相在 custom 里）
 M.__getter.identity = function (self)
-    return self.custom.proxy.identity
+    return self.custom.identity
 end
 
 --- 给这名角色定下身份（定了之后要重算技能 —— 主公技只给主公）
 ---@param name 身份场.身份
 function M:setIdentity(name)
-    self.custom.proxy.identity = name
-    self.custom:setVisible('identity', name == '主公')
+    self.custom.identity = name
+    -- 主公正面朝上（人人看得见）；其余背面朝上 —— 新口径下「本人」也得显式声明才看得见
+    self:setCustomVisible('identity', name == '主公' and true or self)
     self:refreshSkills()
 end
 
@@ -24,12 +25,12 @@ end
 ---@param viewer Player
 ---@return boolean
 function M:isIdentityVisibleTo(viewer)
-    return self.custom:isVisible('identity', viewer)
+    return self:isCustomVisibleTo('identity', viewer)
 end
 
 --- 把身份牌翻给所有人看（结算画面用）
 function M:revealIdentity()
-    self.custom:setVisible('identity', true)
+    self:setCustomVisible('identity', true)
 end
 
 -- 结局：所有人的身份牌都翻开来（胜负定了就没必要再藏着）

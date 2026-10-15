@@ -31,7 +31,7 @@ lt.test('武将装配：装上之后读到牌面数据与体力', function ()
 
     lt.assertEquals('装的是这张武将', hero, player.hero)
     lt.assertEquals('势力跟着来', '魏', player.kingdom)
-    lt.assertEquals('性别跟着来', '男', player.sex)
+    lt.assertEquals('性别跟着来', '男', player.custom.heroSex)
     lt.assertEquals('体力上限用武将的（覆写了默认值）', 4, player:getAttr('体力上限'))
     lt.assertEquals('体力是初始值', 4, player:getAttr('体力'))
 end)

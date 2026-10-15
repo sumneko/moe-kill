@@ -65,11 +65,11 @@ Card '测试杀'
         end,
     }
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('顺序', (cardEffect.user:getTag('顺序') or '') .. '一')
+        cardEffect.user.custom['顺序'] = (cardEffect.user.custom['顺序'] or '') .. '一'
     end)
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('顺序', (cardEffect.user:getTag('顺序') or '') .. '二')
-        cardEffect.user:setTag('目标', cardEffect.target)
+        cardEffect.user.custom['顺序'] = (cardEffect.user.custom['顺序'] or '') .. '二'
+        cardEffect.user.custom['目标'] = cardEffect.target
     end)
 ]])
 
@@ -93,8 +93,8 @@ Card '测试杀'
 
     game:useCard(user, card, { target })
 
-    lt.assertEquals('两个生效回调按声明顺序执行', '一二', user:getTag('顺序'))
-    lt.assertEquals('回调拿到了目标', target, user:getTag('目标'))
+    lt.assertEquals('两个生效回调按声明顺序执行', '一二', user.custom['顺序'])
+    lt.assertEquals('回调拿到了目标', target, user.custom['目标'])
     lt.assertEquals('牌已经离开手牌', 0, hand:count())
     lt.assertEquals('收尾时机拿到这张牌', card, settledCard)
     lt.assertEquals('收尾时机也拿得到目标', target, settledTarget)
@@ -110,9 +110,9 @@ Card '测试杀'
         end,
     }
     : on('生效', function (cardEffect, useCard)
-        cardEffect.user:setTag('生效的用牌', useCard)
-        cardEffect.user:setTag('临时区拿得到', useCard:getTempZone() ~= nil)
-        cardEffect.user:setTag('生效自己建区', cardEffect:getTempZone() ~= useCard:getTempZone())
+        cardEffect.user.custom['生效的用牌'] = useCard
+        cardEffect.user.custom['临时区拿得到'] = useCard:getTempZone() ~= nil
+        cardEffect.user.custom['生效自己建区'] = cardEffect:getTempZone() ~= useCard:getTempZone()
     end)
 ]])
 
@@ -122,9 +122,9 @@ Card '测试杀'
 
     local useCard = game:useCard(user, card, { target })
 
-    lt.assertEquals('第二个参数就是这次用牌', useCard, user:getTag('生效的用牌'))
-    lt.assertEquals('不用翻父子关系就能拿临时区', true, user:getTag('临时区拿得到'))
-    lt.assertEquals('每个目标的生效自己建区（不借用牌那块）', true, user:getTag('生效自己建区'))
+    lt.assertEquals('第二个参数就是这次用牌', useCard, user.custom['生效的用牌'])
+    lt.assertEquals('不用翻父子关系就能拿临时区', true, user.custom['临时区拿得到'])
+    lt.assertEquals('每个目标的生效自己建区（不借用牌那块）', true, user.custom['生效自己建区'])
 end)
 
 lt.test('使用：声明 skipEffect 的牌只跑「使用」段，不进「生效」段', function ()
@@ -138,10 +138,10 @@ Card '测试延时'
         end,
     }
     : on('使用', function (useCard)
-        useCard.user:setTag('记录', (useCard.user:getTag('记录') or '') .. '使用;')
+        useCard.user.custom['记录'] = (useCard.user.custom['记录'] or '') .. '使用;'
     end)
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('记录', (cardEffect.user:getTag('记录') or '') .. '生效;')
+        cardEffect.user.custom['记录'] = (cardEffect.user.custom['记录'] or '') .. '生效;'
     end)
 ]])
 
@@ -156,7 +156,7 @@ Card '测试延时'
 
     game:useCard(user, card, { target })
 
-    lt.assertEquals('只跑了「使用」段', '使用;', user:getTag('记录'))
+    lt.assertEquals('只跑了「使用」段', '使用;', user.custom['记录'])
     lt.assertEquals('指定目标后照发（全局 / 来源 / 目标各一份）', 3, fired)
 end)
 
@@ -170,10 +170,10 @@ Card '测试两段'
         end,
     }
     : on('使用', function (useCard)
-        useCard.user:setTag('记录', (useCard.user:getTag('记录') or '') .. '使用;')
+        useCard.user.custom['记录'] = (useCard.user.custom['记录'] or '') .. '使用;'
     end)
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('记录', (cardEffect.user:getTag('记录') or '') .. '生效;')
+        cardEffect.user.custom['记录'] = (cardEffect.user.custom['记录'] or '') .. '生效;'
     end)
 ]])
 
@@ -183,7 +183,7 @@ Card '测试两段'
 
     game:useCard(user, card, { target })
 
-    lt.assertEquals('两段都跑了', '使用;生效;', user:getTag('记录'))
+    lt.assertEquals('两段都跑了', '使用;生效;', user.custom['记录'])
 end)
 
 lt.test('使用：声明 skipEffect 的牌不进「效果-能否生效」窗口', function ()
@@ -252,7 +252,7 @@ Card '探针杀'
         end,
     }
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('打到了', true)
+        cardEffect.user.custom['打到了'] = true
     end)
 ]])
 
@@ -268,7 +268,7 @@ Card '探针杀'
 
     local lifted = game:useCard(user, card, { target }, { ignoreDistance = true })
     lt.assertEquals('带上「无视距离」就能用', nil, lifted.err)
-    lt.assertEquals('生效照常跑', true, user:getTag('打到了'))
+    lt.assertEquals('生效照常跑', true, user.custom['打到了'])
 end)
 
 lt.test('使用：使用选项：无视次数上限、不计入次数', function ()
@@ -391,7 +391,7 @@ Card '测试杀'
         end,
     }
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('目标', cardEffect.target)
+        cardEffect.user.custom['目标'] = cardEffect.target
     end)
 ]])
 
@@ -401,7 +401,7 @@ Card '测试杀'
 
     game:useCard(user, card, target)
 
-    lt.assertEquals('单个目标照样结算', target, user:getTag('目标'))
+    lt.assertEquals('单个目标照样结算', target, user.custom['目标'])
 end)
 
 lt.test('使用：牌不在使用者手上时报错', function ()
@@ -409,7 +409,7 @@ lt.test('使用：牌不在使用者手上时报错', function ()
     write('探针/牌.lua', [[
 Card '测试杀'
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('用了', true)
+        cardEffect.user.custom['用了'] = true
     end)
 ]])
 
@@ -420,7 +420,7 @@ Card '测试杀'
 
     lt.assertFailed('手上没有这张牌', game:useCard(user, card, { target }))
 
-    lt.assertEquals('结算没跑', nil, user:getTag('用了'))
+    lt.assertEquals('结算没跑', nil, user.custom['用了'])
     lt.assertEquals('手牌还是空的', 0, hand:count())
 end)
 
@@ -444,7 +444,7 @@ Card '测试杀'
         end,
     }
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('用了', cardEffect.target)
+        cardEffect.user.custom['用了'] = cardEffect.target
     end)
 ]])
 
@@ -457,7 +457,7 @@ Card '测试杀'
     lt.assertFailed('自己不在合法目标里', game:useCard(user, card, { user }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
-    lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
+    lt.assertEquals('结算也没跑', nil, user.custom['用了'])
 end)
 
 lt.test('使用：没声明目标条件的牌用不了', function ()
@@ -465,7 +465,7 @@ lt.test('使用：没声明目标条件的牌用不了', function ()
     write('探针/牌.lua', [[
 Card '测试杀'
     : on('使用', function (useCard)
-        useCard.user:setTag('用了', useCard.targets[1])
+        useCard.user.custom['用了'] = useCard.targets[1]
     end)
 ]])
 
@@ -478,7 +478,7 @@ Card '测试杀'
     lt.assertFailed('漏写钩子不等于谁都能打', game:useCard(user, card, { target }))
 
     lt.assertEquals('牌还留在手上', 1, hand:count())
-    lt.assertEquals('结算也没跑', nil, user:getTag('用了'))
+    lt.assertEquals('结算也没跑', nil, user.custom['用了'])
 end)
 
 lt.test('使用：合法目标为空时用不了', function ()
@@ -532,7 +532,7 @@ Card '测试杀'
         end,
     }
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('用了', true)
+        cardEffect.user.custom['用了'] = true
     end)
 ]])
 
@@ -545,7 +545,7 @@ Card '测试杀'
 
     game:useCard(user, card, { target })
 
-    lt.assertEquals('两条 filter 都放行的目标能用', true, user:getTag('用了'))
+    lt.assertEquals('两条 filter 都放行的目标能用', true, user.custom['用了'])
     lt.assertEquals('牌用出去了', 0, hand:count())
 end)
 
@@ -559,9 +559,9 @@ Card '测试杀'
         end,
     }
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('父是根', game:getEffect() == cardEffect.parent)
-        cardEffect.user:setTag('种类', cardEffect.kind)
-        cardEffect.user:setTag('父是用牌', cardEffect.parent and cardEffect.parent.kind)
+        cardEffect.user.custom['父是根'] = game:getEffect() == cardEffect.parent
+        cardEffect.user.custom['种类'] = cardEffect.kind
+        cardEffect.user.custom['父是用牌'] = cardEffect.parent and cardEffect.parent.kind
     end)
 ]])
 
@@ -573,9 +573,9 @@ Card '测试杀'
 
     game:useCard(user, card, { target })
 
-    lt.assertEquals('生效不是根，根是这次用牌', true, user:getTag('父是根'))
-    lt.assertEquals('种类标识', 'cardEffect', user:getTag('种类'))
-    lt.assertEquals('生效的父是这次用牌', 'useCard', user:getTag('父是用牌'))
+    lt.assertEquals('生效不是根，根是这次用牌', true, user.custom['父是根'])
+    lt.assertEquals('种类标识', 'cardEffect', user.custom['种类'])
+    lt.assertEquals('生效的父是这次用牌', 'useCard', user.custom['父是用牌'])
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
@@ -706,8 +706,8 @@ lt.test('使用：逐目标生效，顺序按行动顺序', function ()
 Card '测试杀'
     : targets { max = 1000 }
     : on('生效', function (cardEffect)
-        local order = cardEffect.user:getTag('顺序') or ''
-        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
+        local order = cardEffect.user.custom['顺序'] or ''
+        cardEffect.user.custom['顺序'] = order .. tostring(game.desk:getIndex(cardEffect.target))
     end)
 ]])
 
@@ -719,7 +719,7 @@ Card '测试杀'
 
     game:useCard(user, card, { players[4], players[2], players[3] })
 
-    lt.assertEquals('从使用者的下家开始绕一圈', '234', user:getTag('顺序'))
+    lt.assertEquals('从使用者的下家开始绕一圈', '234', user.custom['顺序'])
 end)
 
 lt.test('使用：牌自己的「使用」钩子先跑，之后才逐个生效', function ()
@@ -728,12 +728,12 @@ lt.test('使用：牌自己的「使用」钩子先跑，之后才逐个生效',
 Card '测试杀'
     : targets { max = 1000 }
     : on('使用', function (useCard)
-        local order = useCard.user:getTag('顺序') or ''
-        useCard.user:setTag('顺序', order .. '使用')
+        local order = useCard.user.custom['顺序'] or ''
+        useCard.user.custom['顺序'] = order .. '使用'
     end)
     : on('生效', function (cardEffect)
-        local order = cardEffect.user:getTag('顺序') or ''
-        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
+        local order = cardEffect.user.custom['顺序'] or ''
+        cardEffect.user.custom['顺序'] = order .. tostring(game.desk:getIndex(cardEffect.target))
     end)
 ]])
 
@@ -745,7 +745,7 @@ Card '测试杀'
 
     game:useCard(user, card, { players[2], players[3] })
 
-    lt.assertEquals('使用 → 逐个生效', '使用23', user:getTag('顺序'))
+    lt.assertEquals('使用 → 逐个生效', '使用23', user.custom['顺序'])
 end)
 
 lt.test('使用：起点是顺序锚点，不是使用者', function ()
@@ -754,8 +754,8 @@ lt.test('使用：起点是顺序锚点，不是使用者', function ()
 Card '测试杀'
     : targets { max = 1000 }
     : on('生效', function (cardEffect)
-        local order = cardEffect.user:getTag('顺序') or ''
-        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
+        local order = cardEffect.user.custom['顺序'] or ''
+        cardEffect.user.custom['顺序'] = order .. tostring(game.desk:getIndex(cardEffect.target))
     end)
 ]])
 
@@ -768,7 +768,7 @@ Card '测试杀'
 
     game:useCard(user, card, { players[4], players[2] })
 
-    lt.assertEquals('从锚点的下家起绕一圈', '24', user:getTag('顺序'))
+    lt.assertEquals('从锚点的下家起绕一圈', '24', user.custom['顺序'])
 end)
 
 lt.test('使用：收尾时机在所有目标处理完之后，且只触发一次', function ()
@@ -777,8 +777,8 @@ lt.test('使用：收尾时机在所有目标处理完之后，且只触发一�
 Card '测试杀'
     : targets { max = 1000 }
     : on('生效', function (cardEffect)
-        local order = cardEffect.user:getTag('顺序') or ''
-        cardEffect.user:setTag('顺序', order .. '生效' .. tostring(game.desk:getIndex(cardEffect.target)))
+        local order = cardEffect.user.custom['顺序'] or ''
+        cardEffect.user.custom['顺序'] = order .. '生效' .. tostring(game.desk:getIndex(cardEffect.target))
     end)
 ]])
 
@@ -790,13 +790,13 @@ Card '测试杀'
 
     game:on('卡牌-结算后', function (useCard)
         ---@cast useCard UseCard
-        local order = useCard.user:getTag('顺序') or ''
-        useCard.user:setTag('顺序', order .. '收尾')
+        local order = useCard.user.custom['顺序'] or ''
+        useCard.user.custom['顺序'] = order .. '收尾'
     end)
 
     game:useCard(user, card, { players[2], players[3] })
 
-    lt.assertEquals('两个生效之后才收尾', '生效2生效3收尾', user:getTag('顺序'))
+    lt.assertEquals('两个生效之后才收尾', '生效2生效3收尾', user.custom['顺序'])
 end)
 
 lt.test('使用：牌出手前触发一次时机，早于第一个生效', function ()
@@ -809,8 +809,8 @@ Card '测试杀'
         end,
     }
     : on('生效', function (cardEffect)
-        local order = cardEffect.user:getTag('顺序') or ''
-        cardEffect.user:setTag('顺序', order .. '生效')
+        local order = cardEffect.user.custom['顺序'] or ''
+        cardEffect.user.custom['顺序'] = order .. '生效'
     end)
 ]])
 
@@ -823,19 +823,19 @@ Card '测试杀'
     game:on('卡牌-结算前', function (useCard)
         ---@cast useCard UseCard
         seen[#seen + 1] = useCard.card
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '取出')
-        user:setTag('取出时还在手上吗', hand:count())
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '取出'
+        user.custom['取出时还在手上吗'] = hand:count()
     end)
     game:on('卡牌-结算后', function ()
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '收尾')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '收尾'
     end)
 
     game:useCard(user, card, { target })
 
     lt.assertEquals('时机拿到这张牌', card, seen[1])
     lt.assertEquals('只触发一次', 1, #seen)
-    lt.assertEquals('此刻牌已经离开手牌（内核已把它放进这次用牌的临时区）', 0, user:getTag('取出时还在手上吗'))
-    lt.assertEquals('顺序：取出 → 生效 → 收尾', '取出生效收尾', user:getTag('顺序'))
+    lt.assertEquals('此刻牌已经离开手牌（内核已把它放进这次用牌的临时区）', 0, user.custom['取出时还在手上吗'])
+    lt.assertEquals('顺序：取出 → 生效 → 收尾', '取出生效收尾', user.custom['顺序'])
 end)
 
 lt.test('使用：上一个生效结完（哪怕它让出）才轮到下一个', function ()
@@ -846,9 +846,9 @@ Card '测试杀'
     : on('生效', function (cardEffect)
         local user = cardEffect.user
         local seat = tostring(game.desk:getIndex(cardEffect.target))
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '开始' .. seat)
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '开始' .. seat
         game:askCard(cardEffect.target, '测试杀', {})
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '结束' .. seat)
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '结束' .. seat
     end)
 ]])
 
@@ -862,12 +862,12 @@ Card '测试杀'
         moe.await.sleep(0)
     end)
     game:on('卡牌-结算后', function ()
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '收尾')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '收尾'
     end)
 
     game:useCard(user, card, { players[2], players[3] })
 
-    lt.assertEquals('前一个结完才开下一个，收尾在最后', '开始2结束2开始3结束3收尾', user:getTag('顺序'))
+    lt.assertEquals('前一个结完才开下一个，收尾在最后', '开始2结束2开始3结束3收尾', user.custom['顺序'])
 end)
 
 lt.test('使用：每个目标的生效可以被单独取消', function ()
@@ -876,8 +876,8 @@ lt.test('使用：每个目标的生效可以被单独取消', function ()
 Card '测试杀'
     : targets { max = 1000 }
     : on('生效', function (cardEffect)
-        local order = cardEffect.user:getTag('顺序') or ''
-        cardEffect.user:setTag('顺序', order .. tostring(game.desk:getIndex(cardEffect.target)))
+        local order = cardEffect.user.custom['顺序'] or ''
+        cardEffect.user.custom['顺序'] = order .. tostring(game.desk:getIndex(cardEffect.target))
     end)
 ]])
 
@@ -897,7 +897,7 @@ Card '测试杀'
 
     game:useCard(user, card, { players[2], players[3] })
 
-    lt.assertEquals('被阻止的那个没生效，其余的照常', '3', user:getTag('顺序'))
+    lt.assertEquals('被阻止的那个没生效，其余的照常', '3', user.custom['顺序'])
     lt.assertEquals('记牌器留下了这一条', 1, #game:getEffects())
 end)
 
@@ -907,7 +907,7 @@ lt.test('使用：声明了「最少 0、最多 0」就不需要目标', functio
 Card '无目标牌'
     : targets { min = 0 }
     : on('生效', function (cardEffect)
-        cardEffect.user:setTag('生效过', true)
+        cardEffect.user.custom['生效过'] = true
     end)
 ]])
 
@@ -969,7 +969,7 @@ lt.test('使用：零目标也跑完使用钩子与收尾', function ()
 Card '无目标牌'
     : targets { min = 0 }
     : on('使用', function (useCard)
-        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用')
+        useCard.user.custom['顺序'] = (useCard.user.custom['顺序'] or '') .. '使用'
     end)
 ]])
 
@@ -984,7 +984,7 @@ Card '无目标牌'
 
     local useCard = game:useCard(user, card, {})
 
-    lt.assertEquals('牌自己的使用钩子跑了', '使用', user:getTag('顺序'))
+    lt.assertEquals('牌自己的使用钩子跑了', '使用', user.custom['顺序'])
     lt.assertEquals('用牌级两个时机也跑了', '卡牌-结算前,卡牌-结算后', table.concat(events, ','))
     lt.assertEquals('这次用牌没有目标', 0, #useCard.targets)
     lt.assertEquals('牌离开手牌', 0, hand:count())
@@ -1025,11 +1025,11 @@ lt.test('使用：指定目标后逐目标发三份（全局 / 来源 / 目标�
 Card '测试杀'
     : targets { max = 1000 }
     : on('使用', function (useCard)
-        useCard.user:setTag('顺序', (useCard.user:getTag('顺序') or '') .. '使用;')
+        useCard.user.custom['顺序'] = (useCard.user.custom['顺序'] or '') .. '使用;'
     end)
     : on('生效', function (cardEffect)
         local user = cardEffect.user
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '生效' .. tostring(game.desk:getIndex(cardEffect.target)) .. ';')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '生效' .. tostring(game.desk:getIndex(cardEffect.target)) .. ';'
     end)
 ]])
 
@@ -1039,26 +1039,26 @@ Card '测试杀'
     assert(user:getZone('手牌')):accept(card)
 
     game:on('卡牌-指定目标后', function (_, target)
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '全局' .. tostring(game.desk:getIndex(target)) .. ';')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '全局' .. tostring(game.desk:getIndex(target)) .. ';'
     end)
     user:on('卡牌-来源-指定目标后', function (_, target)
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '来源' .. tostring(game.desk:getIndex(target)) .. ';')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '来源' .. tostring(game.desk:getIndex(target)) .. ';'
     end)
     players[1]:on('卡牌-目标-指定目标后', function (_, target)
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '目标1收到' .. tostring(game.desk:getIndex(target)) .. ';')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '目标1收到' .. tostring(game.desk:getIndex(target)) .. ';'
     end)
     players[2]:on('卡牌-目标-指定目标后', function (_, target)
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '目标2收到' .. tostring(game.desk:getIndex(target)) .. ';')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '目标2收到' .. tostring(game.desk:getIndex(target)) .. ';'
     end)
     players[3]:on('卡牌-目标-指定目标后', function (_, target)
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '目标3收到' .. tostring(game.desk:getIndex(target)) .. ';')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '目标3收到' .. tostring(game.desk:getIndex(target)) .. ';'
     end)
 
     game:useCard(user, card, { players[2], players[3] })
 
     lt.assertEquals('逐目标、每目标三份（全局 → 来源 → 目标），在「使用」与「生效」之前',
         '全局2;来源2;目标2收到2;全局3;来源3;目标3收到3;使用;生效2;生效3;',
-        user:getTag('顺序'))
+        user.custom['顺序'])
 end)
 
 lt.test('定义：数据袋读得回来，重复写以后写的为准', function ()
@@ -1101,7 +1101,7 @@ lt.test('使用：取消一条目标、追加一条 ⇒ 生效跑新目标、旧
 Card '测试杀'
     : targets {}
     : on('生效', function (cardEffect)
-        cardEffect.target:setTag('挨打', (cardEffect.target:getTag('挨打') or 0) + 1)
+        cardEffect.target.custom['挨打'] = (cardEffect.target.custom['挨打'] or 0) + 1
     end)
 ]])
 
@@ -1120,8 +1120,8 @@ Card '测试杀'
 
     game:useCard(user, card, { target })
 
-    lt.assertEquals('被换掉的没生效', 0, target:getTag('挨打') or 0)
-    lt.assertEquals('换上的生效一次', 1, third:getTag('挨打'))
+    lt.assertEquals('被换掉的没生效', 0, target.custom['挨打'] or 0)
+    lt.assertEquals('换上的生效一次', 1, third.custom['挨打'])
 end)
 
 lt.test('使用：追加的新目标照「成为目标」再发一遍三份时机', function ()
@@ -1168,7 +1168,7 @@ lt.test('使用：目标列表里同一个人出现两次 ⇒ 就结算两次（
 Card '测试杀'
     : targets { max = 2 }
     : on('生效', function (cardEffect)
-        cardEffect.target:setTag('挨打', (cardEffect.target:getTag('挨打') or 0) + 1)
+        cardEffect.target.custom['挨打'] = (cardEffect.target.custom['挨打'] or 0) + 1
     end)
 ]])
 
@@ -1187,8 +1187,8 @@ Card '测试杀'
 
     game:useCard(user, card, { target, third })
 
-    lt.assertEquals('追加进来的那人挨两次', 2, third:getTag('挨打'))
-    lt.assertEquals('被取消的那人没生效', 0, target:getTag('挨打') or 0)
+    lt.assertEquals('追加进来的那人挨两次', 2, third.custom['挨打'])
+    lt.assertEquals('被取消的那人没生效', 0, target.custom['挨打'] or 0)
 end)
 
 lt.test('使用：追加的目标按行动顺序排进「还没成为目标」的那批', function ()

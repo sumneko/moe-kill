@@ -351,9 +351,9 @@ game:on('玩家-死亡', function (player)
     local damage = dying and dying.damage                           -- 致死伤害 = 最后一次打他那一击
     local killer = damage and damage.from
     if not killer or killer == player then return end               -- 无凶手 / 自杀 ⇒ 不奖惩
-    if player:getTag('身份') == '反贼' then
+    if player.custom.identity == '反贼' then
         killer:draw(3)                                               -- 已阵亡的凶手由 Draw 自己拦
-    elseif player:getTag('身份') == '忠臣' and killer == game.desk:getPlayer(1) then
+    elseif player.custom.identity == '忠臣' and killer == game.desk:getPlayer(1) then
         game:moveCard(killer:getZone('手牌'):list(), '弃牌')          -- 主公杀忠臣：弃所有手牌
     end
 end)
@@ -563,7 +563,7 @@ Card '赤兔'
   - **判定用牌名**（`useCard.card.name == '杀'`）：分类（kind）里只有 `基本` / `武器` / `防具`… **没有牌名** ⇒ 不写 `card:isKind('杀')`（与【仁王盾】同一写法）。
   - **已知边界**（写清，不默默略过）：**窗口内失去防具、其「失去时」技能仍不能发动**（裁定二）做不到 —— 牌一离开子区，区级那层压制就松了（`rework-zone-disable` 的离区口径）；军争牌（【白银狮子】等）到齐时再定怎么补（可能是「buff 记牌、离区时也不松」）。
 - **【麒麟弓】（`add-qilin-bow`，2026-09-30）**：`event('伤害-来源-生效前', function (card, damage) …)`（**订主人头上那份**；_2026-10-09 从 `'伤害-来源-开始'` 改过来 —— 它要改值，就该挂在「生效前」那个口子上_）—— 伤害流程里**扣体力之前的改值点**（= 官方「造成伤害时」，见 §7）。**条件按「渠道」判**：这次伤害的 `parent` 就是本人那次【杀】的 `CardEffect`（牌名【杀】、且 `cardEffect.target == damage.to` 把「对目标角色」也编码进来；【决斗】【南蛮】【万箭】的 parent 牌名不同，天然不发动）。目标装备区里**有坐骑牌才问**（分类「坐骑」当候选，`game:askCard`），答复就 `game:moveCard(牌, '弃牌')`，**不答 = 不发动**；武器离开子区即停用被动 ⇒ 伤害时点已不在装备区就不发动（官方「关羽用【武圣】把【麒麟弓】当实体牌」那则裁定的效果面）。官方例子里麒麟弓直写「造成伤害时-2」（与古锭刀 -1 / 寒冰剑 -2 同批；同点能**防止**伤害 ⇒ 尚未扣血 —— 依据：Ch1/S1、Ch2/S7 寒冰剑例，Ch2/S5 古锭刀 / 潜袭例）。
-- **【雌雄双股剑】（`add-cixiong-swords`，2026-09-30）**：`event('卡牌-来源-指定目标后', …)`（逐目标「指定目标后」；回调里 `assert(card:getZone()).owner` 取装备主 —— 声明只订主人，要主人得自己拿）—— 2026-09-30 独立成时机；依据 = 官方 Ch1/S1 两则例子：**逐目标**触发、在卡牌结算之前。仍未做「成为目标时」/再入标与同时机多技能排序）。判**异性**：**性别 = `player.sex` 字段**（`'男' | '女'`，声明在 `@基础/meta.lua`，由将来的武将系统写入），**两边都已知且不同**才发动 —— 官方 Ch2/S9「没有性别的角色不能判断其他角色与其性别是否相同」⇒ 缺了就跳过。装备主先答 **`askChoice`**「发动」（**选项只给 `{ '发动' }`**（`askChoice` 的选项是 `string[]`、结果读 `.result`；`string?`） —— 不答 = 取消 = 不发动，`.choice` 为空；官方 Ch1/S1 两则例子里装备主**逐目标**、各自选择是否发动）；发动后目标走 **`askCard`**（`{ zone = '手牌', min = 0, max = 1 }`）：**给一张手牌 = 弃置它；给不出（没牌 / 不答 / 答错）都由 `askCard` 归一成空 ⇒ 令你摸一张**。
+- **【雌雄双股剑】（`add-cixiong-swords`，2026-09-30）**：`event('卡牌-来源-指定目标后', …)`（逐目标「指定目标后」；回调里 `assert(card:getZone()).owner` 取装备主 —— 声明只订主人，要主人得自己拿）—— 2026-09-30 独立成时机；依据 = 官方 Ch1/S1 两则例子：**逐目标**触发、在卡牌结算之前。仍未做「成为目标时」/再入标与同时机多技能排序）。判**异性**：**性别 = `player.custom.heroSex`**（`'男' | '女'`，由 `Player:setHero` 写进 `custom`，内容侧在 `@基础/武将.lua`），**两边都已知且不同**才发动 —— 官方 Ch2/S9「没有性别的角色不能判断其他角色与其性别是否相同」⇒ 缺了就跳过。装备主先答 **`askChoice`**「发动」（**选项只给 `{ '发动' }`**（`askChoice` 的选项是 `string[]`、结果读 `.result`；`string?`） —— 不答 = 取消 = 不发动，`.choice` 为空；官方 Ch1/S1 两则例子里装备主**逐目标**、各自选择是否发动）；发动后目标走 **`askCard`**（`{ zone = '手牌', min = 0, max = 1 }`）：**给一张手牌 = 弃置它；给不出（没牌 / 不答 / 答错）都由 `askCard` 归一成空 ⇒ 令你摸一张**。
 - **【青龙偃月刀】（`add-qinglong-blade`，2026-09-30）**：`event('效果-来源-被响应', function (card, ask) …)`（**「响应」时机**，由 `askPlayCard` 在【闪】打出后发两段、它订来源那份；2026-09-30 落地；手筛两条：`reason == '杀'` + 打出的是【闪】；目标取 `parent.target`）⇒ **直接 `askUseCard` 带「使用选项」**再对其使用一张【杀】——**无视距离、不受次数限制、不计入次数**（`Game.UseOptions` 三个旗标，照 FreeKill 的 `bypass_distances` / `bypass_times` / `extraUse`；**不再先问「是否发动」** —— 用不用由这次询问表达，取消 = 不发动）。卡片正文按 BWIKI 校对（「被目标角色使用的【闪】抵消时……再**使用**一张【杀】」）；**「不计入次数」与「不受次数限制」是两件事**（用户 2026-09-30 拍：不做“加一次机会”）；**只能对其、不能选额外目标**（`condition.target` 限定即达成）；第二张又被【闪】**会接着触发**（链）。
 - **【贯石斧】（`add-guanshi-axe`，2026-09-30）**：`event('效果-来源-被响应', …)`（与【青龙偃月刀】同一时机；手筛两条：`reason == '杀'` + 打出的是【闪】）⇒ **`askCard` 弃两张**（候选 = **手牌 + 装备区**、**去掉斧子自己**；**凑不出两张就不问**；给两张 = 发动、不给 = 不发动）⇒ `game:moveCard(两张, '弃牌')` ⇒ **`ask:cancel('贯石斧')`**（驳回这次响应 —— 订阅者在回调里调 `cancel`、调用后不会返回、那次结算当场停住；`askPlayCard` 据此把这次响应判为不成立）⇒【杀】**依然造成伤害**（`askPlayCard(...).success` 读作假）。**官方两条裁定**（规则集 Ch2/S1、Ch2/S5）：① `当角色用到一张装备牌提供的距离、攻击范围或技能时，不能以任何方式操作该装备牌`（判例原文就是贯石斧）⇒ **斧子自己不能当弃牌**；② `没有「依次」这个关键词的操作均指 X 张……牌一次性同时操作`（陆逊【连营】那条）⇒ 两张**一次性同时弃**（`moveCard` 一批）。卡片正文按 BWIKI（「被【闪】抵消后…令此【杀】依然造成伤害」）。
 **【八卦阵】（`add-bagua-armor`，2026-09-30；同日改走「视为声明」）**：**声明式** —— `: viewAs('闪', { confirm = true }, function (ask) … end)`（内核在被动启用时把这份「视为一张【闪】」挂在装备主身上、停用自动撤 —— 声明机制见 `architecture.md` 的「视为声明与替代响应」）—— 有人要【闪】时被依次试到 → **内核先问一句「发动」（2026-10-09 起由 `options.confirm` 驱动、排在开这次发动之前）** → `game:judge(owner, '八卦阵')` → **红（红桃 / 方块）返回真 ⇒ 内核照声明造一张虚拟【闪】**（`createVirtualCard`：无原始牌、无花色点数）；**黑 / 不发动 ⇒ 不成立** ⇒ 照常要实体【闪】（官方例：先八卦阵判黑，之后照样能打实体闪）。视为成立后**答复就是那张虚拟牌**（`'效果-被响应'` 两段照发 ⇒ 青龙 / 贯石斧的条件天然继续成立）；**发动归因**由内核自动包（`ViewAs` 有关联来源 ⇒ 整段算一次 `Card:cast`）。
@@ -1034,7 +1034,7 @@ Skill '离间'
         min    = 2,
         max    = 2,
         filter = function (player, skill)
-            return player ~= skill.owner and player.sex == '男'
+            return player ~= skill.owner and player.custom.heroSex == '男'
         end,
     }
     : on('使用', function (cast)
@@ -1050,7 +1050,7 @@ Skill '离间'
 ```
 
 - **【闭月】**（同文件）= `auto(true)` + `event('阶段-开始')`（认 `phase.name == '结束'`）+ `tryCast` 里 `owner:draw(1)` —— **零新机制**（「结束阶段开始时，你可以摸一张牌」）。
-- **【离间】的三块都是现成件**：`limit('出牌', 1)`（限一次）+ `cards`（**弃置一张牌** = `rule.ownZones`，手牌 + 装备子区，不含判定区）+ `targets { min = 2, max = 2 }`（两名**其他男性**——`player.sex == '男'`、排除自己）；`'使用'` 里搬牌 + 造**虚拟牌** + `game:useCard(后选者, 决斗, 先选者, options)`（目标单个 / 列表都收）。
+- **【离间】的三块都是现成件**：`limit('出牌', 1)`（限一次）+ `cards`（**弃置一张牌** = `rule.ownZones`，手牌 + 装备子区，不含判定区）+ `targets { min = 2, max = 2 }`（两名**其他男性**——`player.custom.heroSex == '男'`、排除自己）；`'使用'` 里搬牌 + 造**虚拟牌** + `game:useCard(后选者, 决斗, 先选者, options)`（目标单个 / 列表都收）。
 - ⚠️ **首次把「目标的点选顺序」当语义**：「**后**选择的角色视为对**先**选择的角色使用」⇒ `cast.use.targets[1]` = 挨打的、`[2]` = 视为使用者；`AskUseCard` 的答复列表**保序**（玩家点选顺序）—— 这是项目里第一个吃这条的规则，用例钉住了方向（决斗的响应问的是**先选的那位**）。
 - **「不能被【无懈可击】」走内容侧字段**（用户 2026-10-09 定）：`UseOptions.unnullifiable` —— 内核的 `UseOptions` **不变**（它只列内核自己要读的那几条），该字段由「无懈可击」这一包在 `package/标准/meta.lua` **注入类型面**、在 `无懈可击.lua` 的窗口里**自己消费**（见 §9.10）—— 与「内核不预设时机名 / 区域名 / 属性名」同一条口径。
 - 用例：`rule.hero-skill` 貂蝉 4 条（闭月默认不问就摸一张 / 关掉自动同意会问、答否不摸 / 离间弃牌 + 决斗方向 + **没人被问无懈**（`ask.kind == 'askUseCardToCard'` 一次也没出现）/ 候选只有其他男性 + 限一次）；`rule/trick` 加 1 条（声明 `unnullifiable` 的使用 ⇒ 无懈**连问都不问**）。
@@ -1084,7 +1084,7 @@ Skill '结姻'
     : targets {
         filter = function (player, skill)
             return player ~= skill.owner
-               and player.sex == '男'
+               and player.custom.heroSex == '男'
                and player:getLostHp() > 0
         end,
     }

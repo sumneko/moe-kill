@@ -1,4 +1,4 @@
----@alias Player.DirtyKind 'base'|'custom'
+---@alias Player.DirtyKind 'base'|'custom'|'attribute'
 
 ---@class Player.CreateOptions
 ---@field attributes Attributes
@@ -12,14 +12,16 @@
 ---@field private buffs Buff[] # 挂在他身上的状态（按获得顺序）
 ---@field private skills Skill[] # 他拥有的技能（按获得顺序）
 ---@field private viewAsList ViewAs[] # 他身上的「视为」声明（按声明顺序）
----@field private tags table<string, any>
 ---@field private events Event # 他自己的时机表（内容侧用 player:on / player:fire）
 ---@field private alive boolean
 ---@field private limitDeltas table<string, table<string, integer>> # 各阶段里各名字的上限增减（阶段名 → 名字 → 增减）
 ---@field game Game # 属于哪一局（牌区顺着归属者找到局）
 ---@field user? User # 谁在控制他（没有就是没人应答，交给全局时机）
 ---@field id integer # 局内唯一号（建号走局上的号源）
----@field custom Custom # 内容侧往他身上挂的自由数据（写就同步）
+---@field custom table<string, any> # 内容侧挂自由数据的地方（直接读写；**写进去只存着**，发不发由 setCustomVisible 定）
+---@field customBag Custom # 那只袋子的本体（可见性账本在它身上 —— 内容侧别碰它，只碰 custom，见 setCustomVisible）
+---@field private attrVisibles table<string, Visibility> # 逐属性可见性（没设过 = 谁都不见，连本人也一样）
+---@field private attrWatches table<string, fun()> # 已订上的属性变更订阅（每个属性只订一次）
 local M = Class 'Player'
 
 ---@param game Game
@@ -29,14 +31,16 @@ function M:__init(game, attributes, name)
     self.game        = game
     self.name        = name
     self.id          = game:nextId()
-    self.custom      = moe.custom.create(self)
+    self.customBag   = moe.custom.create(self)
+    self.custom      = self.customBag.proxy
+    self.attrVisibles = {}
+    self.attrWatches  = {}
     self.attributes  = attributes
     self.zoneList    = {}
     self.zoneMap     = {}
     self.buffs       = {}
     self.skills      = {}
     self.viewAsList  = {}
-    self.tags        = {}
     self.events      = moe.event.create()
     self.alive       = true
     self.limitDeltas = {}
@@ -70,6 +74,48 @@ end
 ---@return fun()
 function M:addAttr(name, value)
     return self.attributes:addModifier(name, value)
+end
+
+--- 定下某个属性给谁看（不设过 = 谁都不见，连本人也一样；首次声明时顺手订上它自己的变更事件）
+---@param name string
+---@param options Visibility
+function M:setAttrVisible(name, options)
+    self.attrVisibles[name] = moe.visibility.normalize(options)
+    if not self.attrWatches[name] then
+        self.attrWatches[name] = self.attributes:onChange(name, function ()
+            self:markDirty('attribute')
+        end)
+    end
+    self:markDirty('attribute')
+end
+
+--- 某个属性对某人可见吗（没声明过 = 不见）
+---@param name string
+---@param viewer Player
+---@return boolean
+function M:isAttrVisibleTo(name, viewer)
+    local options = self.attrVisibles[name]
+    if not options then
+        return false
+    end
+    return moe.visibility.isVisibleTo(options, viewer)
+end
+
+--- 这个人看得见自己的哪些属性（组装协议用；只列声明过的）
+---@param viewer Player
+---@return Proto.Attribute[]
+function M:visibleAttributesTo(viewer)
+    ---@type Proto.Attribute[]
+    local result = {}
+    for name, options in pairs(self.attrVisibles) do
+        if moe.visibility.isVisibleTo(options, viewer) then
+            result[#result + 1] = { name = name, value = self:getAttr(name) }
+        end
+    end
+    table.sort(result, function (a, b)
+        return a.name < b.name
+    end)
+    return result
 end
 
 ---@return string? # 名字（建玩家时可以不给）
@@ -284,24 +330,19 @@ function M:findCard(card)
     return nil, nil
 end
 
+--- 定下 `custom` 里某个键给谁看（不设过 = 谁都不见，连本人也一样；发不发全看这里）
 ---@param key string
----@param value any
-function M:setTag(key, value)
-    if type(key) ~= 'string' or key == '' then
-        error('标签键必须是非空字符串', 2)
-    end
-    self.tags[key] = value
+---@param options Visibility
+function M:setCustomVisible(key, options)
+    self.customBag:setVisible(key, options)
 end
 
+--- `custom` 里某个键对某人可见吗（没声明过 = 不见）
 ---@param key string
----@return any
-function M:getTag(key)
-    return self.tags[key]
-end
-
----@param key string
-function M:removeTag(key)
-    self.tags[key] = nil
+---@param viewer Player
+---@return boolean
+function M:isCustomVisibleTo(key, viewer)
+    return self.customBag:isVisible(key, viewer)
 end
 
 --- 订阅一个时机

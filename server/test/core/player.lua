@@ -142,20 +142,20 @@ lt.test('玩家：addLimit 返回的撤销函数精确、幂等', function ()
     lt.assertEquals('再撤另一笔', 0, player:getLimitDelta('杀', '出牌'))
 end)
 
-lt.test('玩家：标签原样存取', function ()
+lt.test('玩家：custom 原样存取', function ()
     local system = newSystem()
     local player = newPlayer(system)
 
-    player:setTag('身份', '主公')
-    lt.assertEquals('读到的就是写入的', '主公', player:getTag('身份'))
-    lt.assertEquals('标签可以放非字符串', true, (function ()
-        player:setTag('某表', { 1, 2 })
-        return type(player:getTag('某表')) == 'table'
+    player.custom['身份'] = '主公'
+    lt.assertEquals('读到的就是写入的', '主公', player.custom['身份'])
+    lt.assertEquals('可以放非字符串', true, (function ()
+        player.custom['某表'] = { 1, 2 }
+        return type(player.custom['某表']) == 'table'
     end)())
-    lt.assertEquals('没写过的标签读到不存在', nil, player:getTag('没写过'))
+    lt.assertEquals('没写过读到不存在', nil, player.custom['没写过'])
 
-    player:removeTag('身份')
-    lt.assertEquals('移除后读到不存在', nil, player:getTag('身份'))
+    player.custom['身份'] = nil
+    lt.assertEquals('置空后读到不存在', nil, player.custom['身份'])
 end)
 
 lt.test('玩家：参与行动由存活派生', function ()

@@ -26,7 +26,7 @@ Skill '结姻'
     : targets {
         filter = function (player, skill)
             return player ~= skill.owner
-               and player.sex == '男'
+               and player.custom.heroSex == '男'
                and player:getLostHp() > 0
         end,
     }

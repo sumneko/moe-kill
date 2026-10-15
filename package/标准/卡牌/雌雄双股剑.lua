@@ -12,8 +12,8 @@ Card '雌雄双股剑'
         local zone  = assert(card:getZone())
         local owner = assert(zone.owner)
         -- 没有性别的角色不能判断异性（官方）：两边都得知道、且不同才发动
-        local mine   = owner.sex
-        local theirs = target.sex
+        local mine   = owner.custom.heroSex
+        local theirs = target.custom.heroSex
         if not mine or not theirs or mine == theirs then
             return
         end

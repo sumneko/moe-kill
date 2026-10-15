@@ -96,14 +96,14 @@ Card '基'
     : limit('出牌', 2)
     : on('卡牌-进入区域', function ()
         local user = game.desk:getPlayer(1)
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '基')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '基'
     end)
 Card '子'
     : extends '基'
     : limit('出牌', 5)
     : on('卡牌-进入区域', function ()
         local user = game.desk:getPlayer(1)
-        user:setTag('顺序', (user:getTag('顺序') or '') .. '子')
+        user.custom['顺序'] = (user.custom['顺序'] or '') .. '子'
     end)
 ]])
 
@@ -118,7 +118,7 @@ Card '子'
     for _, handler in ipairs(handlers) do
         handler()
     end
-    lt.assertEquals('基类的钩子先跑', '基子', player:getTag('顺序'))
+    lt.assertEquals('基类的钩子先跑', '基子', player.custom['顺序'])
 end)
 
 lt.test('定义：extends 是快照，抄完两边各管各的', function ()
@@ -257,19 +257,19 @@ lt.test('定义：牌进玩家的牌区就发「卡牌-进入区域」，给的�
 Card '甲'
     : on('卡牌-进入区域', function (card, zone)
         local owner = assert(zone.owner, '发钩子的时候应该读得到归属者')
-        owner:setTag('记录', (owner:getTag('记录') or '')
-            .. card.name .. '@' .. tostring(zone == owner:getZone('武器')) .. ';')
+        owner.custom['记录'] = (owner.custom['记录'] or '')
+            .. card.name .. '@' .. tostring(zone == owner:getZone('武器')) .. ';'
     end)
 ]])
 
     local card = game:createCard('甲')
     local hand = assert(player:getZone('手牌'), '没有手牌区')
     hand:accept(card)
-    lt.assertEquals('放手牌里发一次（不是武器子区）', '甲@false;', player:getTag('记录'))
+    lt.assertEquals('放手牌里发一次（不是武器子区）', '甲@false;', player.custom['记录'])
 
     player:addZone('武器')
     assert(player:getZone('武器')):accept(card)
-    lt.assertEquals('进武器子区时收到的就是那个区', '甲@false;甲@true;', player:getTag('记录'))
+    lt.assertEquals('进武器子区时收到的就是那个区', '甲@false;甲@true;', player.custom['记录'])
 end)
 
 lt.test('定义：公共区也发「卡牌-进入区域」，定义跟着牌走', function ()
@@ -278,18 +278,18 @@ lt.test('定义：公共区也发「卡牌-进入区域」，定义跟着牌走'
 Card '甲'
     : on('卡牌-进入区域', function (card, zone)
         local seat = game.desk.seats[1]
-        seat:setTag('记录', (seat:getTag('记录') or '')
-            .. tostring(zone.owner ~= nil) .. ';')
+        seat.custom['记录'] = (seat.custom['记录'] or '')
+            .. tostring(zone.owner ~= nil) .. ';'
     end)
 ]])
 
     local discard = assert(game:getZone('弃牌'), '没有弃牌区')
     discard:accept(game:createCard('甲'))
-    lt.assertEquals('公共区也发，只是没有归属者', 'false;', player:getTag('记录'))
+    lt.assertEquals('公共区也发，只是没有归属者', 'false;', player.custom['记录'])
 
     local loose = lt.zone()
     loose:accept(game:createCard('甲'))
-    lt.assertEquals('别的局里也发，定义跟着牌走', 'false;false;', player:getTag('记录'))
+    lt.assertEquals('别的局里也发，定义跟着牌走', 'false;false;', player.custom['记录'])
 end)
 
 --- 一个钩子的源码（牌定义里用：game 是注入进去的）
@@ -300,8 +300,8 @@ local function recordEvent(label, event)
     return [[
     : on(']] .. event .. [[', function (card, zone)
         local seat = game.desk.seats[1]
-        seat:setTag('记录', (seat:getTag('记录') or '')
-            .. ']] .. label .. [[' .. card.name .. ';')
+        seat.custom['记录'] = (seat.custom['记录'] or '')
+            .. ']] .. label .. [[' .. card.name .. ';'
     end)]]
 end
 
@@ -317,10 +317,10 @@ lt.test('定义：一起收一批牌时，先发完所有「卡牌-离开区域�
     from:accept(first)
     from:accept(second)
 
-    seat:setTag('记录', nil)
+    seat.custom['记录'] = nil
     lt.assertEquals('一起收一批', true, to:accept({ first, second }))
     lt.assertEquals('先两条离开、再两条进入',
-        '离甲;离甲;进甲;进甲;', seat:getTag('记录'))
+        '离甲;离甲;进甲;进甲;', seat.custom['记录'])
 end)
 
 lt.test('定义：targets 声明目标数量的 min / max，重复调以后写的为准', function ()

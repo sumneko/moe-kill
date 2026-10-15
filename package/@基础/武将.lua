@@ -61,15 +61,14 @@ local M = Class 'Player'
 function M:setHero(hero)
     local maxHp, hp = hero:getHp()
     self.hero    = hero
-    self.sex     = hero:getSex()
     self.kingdom = hero:getKingdom()
     self:setAttr('体力上限', maxHp)
     self:setAttr('体力', hp)
-    local custom = self.custom
-    custom:setVisible('heroName', true)
-    custom:setVisible('heroSex', true)
-    custom.proxy.heroName = hero.name
-    custom.proxy.heroSex  = hero:getSex()
+    -- 武将名与性别挂在 custom 里：这两样人人看得见
+    self:setCustomVisible('heroName', true)
+    self:setCustomVisible('heroSex', true)
+    self.custom.heroName = hero.name
+    self.custom.heroSex  = hero:getSex()
     self:refreshSkills()
 end
 

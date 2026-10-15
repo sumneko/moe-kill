@@ -20,7 +20,7 @@ end
 local function toPlayer(player, viewer)
     return {
         base   = moe.playerSync.toBase(player),
-        custom = player.custom:allVisibles(viewer),
+        custom = player.customBag:allVisibles(viewer),
     }
 end
 

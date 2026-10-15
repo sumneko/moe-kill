@@ -80,7 +80,8 @@ lt.test('ClientUser：改 custom 收到 Player.UpdateCustom', function ()
     game.desk:sit(1, player)
     moe.await.sleep(0)
 
-    player.custom.proxy.heroName = '刘备'
+    player:setCustomVisible('heroName', true)
+    player.custom.heroName = '刘备'
     moe.await.sleep(0)
 
     lt.assertEquals('收到一条', 1, #got)
@@ -99,8 +100,10 @@ lt.test('ClientUser：同一笔调度里写几次也只发一条', function ()
     game.desk:sit(1, player)
     moe.await.sleep(0)
 
-    player.custom.proxy.heroName = '刘备'
-    player.custom.proxy.identity = '主公'
+    player:setCustomVisible('heroName', true)
+    player:setCustomVisible('identity', true)
+    player.custom.heroName = '刘备'
+    player.custom.identity = '主公'
     moe.await.sleep(0)
 
     lt.assertEquals('只发了一条', 1, #got)
@@ -119,7 +122,8 @@ lt.test('ClientUser：发过就清了，不会重复发', function ()
     game.desk:sit(1, player)
     moe.await.sleep(0)
 
-    player.custom.proxy.heroName = '刘备'
+    player:setCustomVisible('heroName', true)
+    player.custom.heroName = '刘备'
     moe.await.sleep(0)
     lt.assertEquals('发了一条', 1, #got)
     undo()
@@ -140,9 +144,9 @@ lt.test('ClientUser：别人只看得到公开字段', function ()
     connectUser(game, b, back)
     moe.await.sleep(0)
 
-    a.custom.proxy.heroName = '刘备'
-    a.custom:setVisible('heroName', true)
-    a.custom.proxy.identity = '主公'
+    a.custom.heroName = '刘备'
+    a:setCustomVisible('heroName', true)
+    a.custom.identity = '主公'
     moe.await.sleep(0)
 
     lt.assertEquals('收到一条', 1, #got)
@@ -163,7 +167,8 @@ lt.test('ClientUser：没有 User 的玩家不下发', function ()
     game.desk:sit(2, b)
     moe.await.sleep(0)
 
-    a.custom.proxy.heroName = '刘备'
+    a:setCustomVisible('heroName', true)
+    a.custom.heroName = '刘备'
     moe.await.sleep(0)
 
     lt.assertEquals('谁也没收到', 0, #got)

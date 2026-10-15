@@ -118,16 +118,16 @@ lt.test('对牌使用：窗口里让出时，父结算也等它结完', function
             return
         end
         moe.await.sleep(0)
-        watcher:setTag('顺序', '窗口给出原因')
+        watcher.custom['顺序'] = '窗口给出原因'
         return '不让生效'
     end)
     game:on('卡牌-结算后', function ()
-        watcher:setTag('顺序', (watcher:getTag('顺序') or '') .. '卡牌-结算后')
+        watcher.custom['顺序'] = (watcher.custom['顺序'] or '') .. '卡牌-结算后'
     end)
 
     local useCard = game:useCardToCard(user, card, target)
 
-    lt.assertEquals('窗口先给出原因，父结算才收尾', '窗口给出原因卡牌-结算后', watcher:getTag('顺序'))
+    lt.assertEquals('窗口先给出原因，父结算才收尾', '窗口给出原因卡牌-结算后', watcher.custom['顺序'])
     lt.assertEquals('那次生效被拒绝', '不让生效', assert(useCard.cardEffectToCard).err)
 end)
 

@@ -1,10 +1,11 @@
---- 玩家身上那张「内容侧自由数据」的袋子：写进去就同步、逐键定可见性
+--- 玩家身上那张「内容侧自由数据」的袋子：写进去只存着，发不发由逐键可见性定
+--- **本体不给内容侧**：内容侧读写的是 `player.custom`（就是这里那张 `proxy` 表），可见性走 `player:setCustomVisible`
 ---@class Custom
----@field owner Player # 挂在谁身上（默认只有他自己看得见）
+---@field owner Player # 挂在谁身上
 ---@field raw table<string, any> # 真实数据
----@field proxy table<string, any> # 内容侧读写的那张表
+---@field proxy table<string, any> # 内容侧读写的那张表（`player.custom`）
 ---@field hook? fun(key: string, value: any) # 变更监听
----@field private visibles table<string, Visibility> # 逐键可见性（没设过 = 只有自己）
+---@field private visibles table<string, Visibility> # 逐键可见性（没设过 = 谁都不见，连本人也一样）
 local M = Class 'Custom'
 
 ---@param owner Player
@@ -24,7 +25,7 @@ function M:__init(owner)
     })
 end
 
---- 定下某个键给谁看（不设过 = 只有他自己看得见）；可见性变了就是「这份数据变了」⇒ 照常报给下行
+--- 定下某个键给谁看（不设过 = 谁都不见，**连本人也一样**）；可见性变了就是「这份数据变了」⇒ 照常报给下行
 ---@param key string
 ---@param options Visibility
 function M:setVisible(key, options)
@@ -32,14 +33,11 @@ function M:setVisible(key, options)
     self.owner:markDirty('custom')
 end
 
---- 这个键对某人可见吗（自己的数据永远看得见）
+--- 这个键对某人可见吗（没声明过就谁都不见）
 ---@param key string
 ---@param player Player
 ---@return boolean
 function M:isVisible(key, player)
-    if player == self.owner then
-        return true
-    end
     local options = self.visibles[key]
     if not options then
         return false
