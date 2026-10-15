@@ -114,7 +114,7 @@ main {
     font-size: 12px;
 }
 
-/* 技能：自动技能加一条底线，被禁用的灰掉 */
+/* 技能：自己的能点（切自动开关）；自动技能底色亮、被禁用的划掉 */
 .seat .skills {
     display: flex;
     gap: 3px;
@@ -122,19 +122,34 @@ main {
     margin-top: 3px;
 }
 
-.seat .skill {
+.seat button.skill {
     background: #2b4653;
+    border: 1px solid #3d5f54;
     border-radius: 3px;
     padding: 0 4px;
+    font: inherit;
     font-size: 11px;
+    line-height: 16px;
+    cursor: pointer;
 }
 
-.seat .skill.auto {
-    border-bottom: 1px dotted #d8b04a;
+.seat button.skill:hover:not(:disabled) {
+    background: #365b6b;
 }
 
-.seat .skill.off {
+.seat button.skill.auto {
+    background: #6b5a22;
+    border-color: #d8b04a;
+}
+
+.seat button.skill:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+
+.seat button.skill.off {
     opacity: 0.45;
+    text-decoration: line-through;
 }
 
 /* 装备四个子区 + 判定区：一栏一行（空栏也摆着，看得出格子） */

@@ -177,10 +177,18 @@ function Seat(props: {
         <div class="hp">
             体力 ${health ?? '?'}${maxHealth === undefined ? '' : ` / ${maxHealth}`} · 手牌 ${zoned.hand.length}
         </div>
-        ${skills.length > 0 ? html`<div class="skills">${skills.map((skill) => html`<span
+        ${skills.length > 0 ? html`<div class="skills">${skills.map((skill) => html`<button
             key=${skill.id}
             class=${'skill' + (skill.auto ? ' auto' : '') + (skill.disabled ? ' off' : '')}
-        >${skill.name}</span>`)}</div>` : null}
+            disabled=${props.isMe ? undefined : true}
+            title=${skill.auto
+                ? `${skill.name}：自动（被动触发时直接同意，点一下改手动）`
+                : `${skill.name}：手动（被动触发时问你，点一下改自动）`}
+            onClick=${(event: Event) => {
+                event.stopPropagation();
+                void agent.changeSkillAuto(skill.id, !skill.auto);
+            }}
+        >${skill.name}</button>`)}</div>` : null}
         <div class="zones">
             ${EQUIP_ZONES.map((name) => html`<div class="zone" key=${name}>
                 <span class="zone-name">${name}</span>
@@ -408,8 +416,7 @@ function AskPanel(props: { agent: Agent; selection: Selection; setSelection: (ne
                         return;
                     }
                     setDragCard(null);
-                    void agent.movePanelCard(board.id, dragCard, row, col)
-                        .catch((err: unknown) => agent.log(`挪不动：${err instanceof Error ? err.message : String(err)}`));
+                    void agent.movePanelCard(board.id, dragCard, row, col);
                 };
                 return html`<div class="panel">
                     <p>${board.name}${board.moveable ? ' · 拖到别的行就能摆位' : ''}${board.min > 0 ? ` · 选中 ${planText(board)}` : ''}</p>

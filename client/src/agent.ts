@@ -24,6 +24,30 @@ const ASK_METHODS = ['Ask.Select', 'Ask.Choice', 'Ask.Use', 'Ask.UseSkill', 'Ask
 /** 最近记几条日志 */
 const LOG_LIMIT = 200;
 
+/** 防抖窗口（同一把键上的连点 / 连拖攒这么久，只发最后一次） */
+const DEBOUNCE_MS = 150;
+
+/** 同一把键上的动作攒一小会儿再跑（后来的顶掉先前的）—— 给乐观更新的发送端防抖 */
+class Debounce {
+    private readonly timers = new Map<string, number>();
+    private readonly pending = new Map<string, () => void>();
+
+    /** 记下这次的动作（同键后来的顶掉先前的），静默一小段再跑 */
+    run(key: string, action: () => void): void {
+        this.pending.set(key, action);
+        const last = this.timers.get(key);
+        if (last !== undefined) {
+            clearTimeout(last);
+        }
+        this.timers.set(key, window.setTimeout(() => {
+            this.timers.delete(key);
+            const next = this.pending.get(key);
+            this.pending.delete(key);
+            next?.();
+        }, DEBOUNCE_MS));
+    }
+}
+
 /** 一局在浏览器这边的镜像：连接、局面、下发的询问 */
 export class Agent {
     /** 局面上的玩家（按号索引） */
@@ -58,6 +82,9 @@ export class Agent {
     private rpc: Rpc | null = null;
     private readonly tokenToAsk = new Map<number, Ask>();
     private readonly askRejects = new Map<number, (err: unknown) => void>();
+    private readonly debounce = new Debounce();
+    /** 防抖期间「这批改动还没落服务器」的原来长什么样（失败时用它恢复） */
+    private readonly rollback = new Map<string, () => void>();
 
     /** 连上后端并起读循环 */
     async connect(url: string): Promise<void> {
@@ -89,10 +116,70 @@ export class Agent {
         this.applySnapshot(snapshot);
     }
 
-    /** 把面板上的一张牌挪到某行某位（一次一张；实际形状随后由 `Panel.Update` 广播回来） */
-    async movePanelCard(panelId: number, card: number, row: number, col: number): Promise<boolean> {
-        const result = (await this.requireRpc().request('Panel.Move', { id: panelId, card, row, col })) as Proto.Result.Panel.Move;
-        return result.success;
+    /** 把面板上的一张牌挪到某行某位：本地先挪（乐观），同一张牌的连续挪动防抖成最后一次 */
+    async movePanelCard(panelId: number, card: number, row: number, col: number): Promise<void> {
+        const panel = this.panels.get(panelId);
+        const key = `panel:${panelId}:${card}`;
+        if (panel && !this.rollback.has(key)) {
+            const before = panel.rows.map((one) => [...one.cards]);
+            this.rollback.set(key, () => this.restoreRows(panel, before));
+        }
+        if (panel) {
+            this.movePanelCardLocally(panel, card, row, col);
+            this.changed();
+        }
+        this.debounce.run(key, () => void this.sendPanelMove(key, panelId, card, row, col));
+    }
+
+    /** 切一个技能的自动开关（只能切自己的）：本地先改（乐观），同一技能的连点防抖成最后一次 */
+    async changeSkillAuto(skillId: number, auto: boolean): Promise<void> {
+        const skill = this.skills.get(skillId);
+        const key = `skill:${skillId}`;
+        if (skill && !this.rollback.has(key)) {
+            const before = skill.auto;
+            this.rollback.set(key, () => {
+                if (skill) {
+                    skill.auto = before;
+                    this.changed();
+                }
+            });
+        }
+        if (skill) {
+            skill.auto = auto;
+            this.changed();
+        }
+        this.debounce.run(key, () => void this.sendSkillAuto(key, skill, skillId, auto));
+    }
+
+    /** 真发一次面板挪动（防抖后）—— 失败就把这批改动之前的那份恢复回来 */
+    private async sendPanelMove(key: string, panelId: number, card: number, row: number, col: number): Promise<void> {
+        try {
+            const result = (await this.requireRpc().request('Panel.Move', { id: panelId, card, row, col })) as Proto.Result.Panel.Move;
+            if (!result.success) {
+                this.recover(key);
+                return;
+            }
+            this.rollback.delete(key);
+        } catch (err) {
+            this.recover(key);
+            this.log(`挪不动：${err instanceof Error ? err.message : String(err)}`);
+        }
+    }
+
+    /** 真发一次技能开关（防抖后）—— 回包不对就按回包改，失败就把这批改动之前的那份恢复回来 */
+    private async sendSkillAuto(key: string, skill: Proto.Skill | undefined, skillId: number, auto: boolean): Promise<void> {
+        try {
+            const result = (await this.requireRpc().request('Skill.ChangeAuto', { id: skillId, auto })) as Proto.Result.Skill.ChangeAuto;
+            if (skill && result.auto !== undefined && result.auto !== auto) {
+                skill.auto = result.auto;
+                this.changed();
+            }
+        } catch (err) {
+            this.recover(key);
+            this.log(`改不了自动：${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            this.rollback.delete(key);
+        }
     }
 
     /** 断开 */
@@ -121,6 +208,40 @@ export class Agent {
 
     private changed(): void {
         this.onChange?.();
+    }
+
+    /** 按服务端的 `moveTo` 把一张牌本地挪一下（先摘掉，再插到 `col` 处；`col` 是 1 起的插入位） */
+    private movePanelCardLocally(panel: Proto.Panel, card: number, row: number, col: number): void {
+        for (const one of panel.rows) {
+            const at = one.cards.indexOf(card);
+            if (at >= 0) {
+                one.cards.splice(at, 1);
+                break;
+            }
+        }
+        const target = panel.rows[row - 1];
+        if (!target) {
+            return;
+        }
+        const at = Math.min(Math.max(col, 1), target.cards.length + 1) - 1;
+        target.cards.splice(at, 0, card);
+    }
+
+    /** 乐观更新回退：把各行换回上次那份 */
+    private restoreRows(panel: Proto.Panel | undefined, before: number[][] | undefined): void {
+        if (!panel || !before) {
+            return;
+        }
+        panel.rows.forEach((one, index) => {
+            one.cards = before[index] ?? one.cards;
+        });
+        this.changed();
+    }
+
+    /** 这批改动没成：恢复成它之前的样子 */
+    private recover(key: string): void {
+        this.rollback.get(key)?.();
+        this.rollback.delete(key);
     }
 
     private reset(): void {
