@@ -1,6 +1,7 @@
 ---@class MoeKill
 ---@field inspect fun(root: any): string
 ---@field animScale number # 动画等待的倍率（0 = 完全不等）
+---@field debug boolean # 调试模式（`--single` 自动打开）
 moe = {}
 
 local class = require 'tools.class'
@@ -18,6 +19,7 @@ local args = require 'args'
 moe.args = args.current(arg)
 
 moe.animScale = 1
+moe.debug     = moe.args.DEBUG == true
 
 moe.util = require 'tools.utility'
 moe.util.enableCloseFunction()

@@ -80,6 +80,10 @@ export class Agent {
     over: { side: string; reason: string } | null = null;
     /** 连上了没有 */
     connected = false;
+    /** 服务器是不是调试模式（只有它才允许调动画倍率） */
+    debug = false;
+    /** 动画等待的倍率（0 = 完全不等） */
+    animScale = 1;
 
     /** 局面变了就叫一下 */
     onChange: (() => void) | null = null;
@@ -124,6 +128,11 @@ export class Agent {
     /** 局终后原班人马重开一局（重建走 `Game.Restarted` 通知，不靠回包） */
     async restart(): Promise<void> {
         await this.requireRpc().request('Game.Restart', {});
+    }
+
+    /** 改动画等待的倍率（只有服务器是调试模式时才允许；改完服务器会通知全体） */
+    async setAnimScale(scale: number): Promise<void> {
+        await this.requireRpc().request('Game.SetAnimScale', { scale });
     }
 
     /** 把面板上的一张牌挪到某行某位：本地先挪（乐观），同一张牌的连续挪动防抖成最后一次 */
@@ -279,6 +288,8 @@ export class Agent {
         this.turnPlayer = null;
         this.phase = null;
         this.over = null;
+        this.debug = false;
+        this.animScale = 1;
     }
 
     private applySnapshot(snapshot: Proto.SnapShot): void {
@@ -305,6 +316,8 @@ export class Agent {
         this.me = snapshot.me ?? null;
         this.turnPlayer = snapshot.turnPlayer ?? null;
         this.phase = snapshot.phase ?? null;
+        this.debug = snapshot.debug;
+        this.animScale = snapshot.animScale;
         this.log(`拿到快照：${snapshot.players.length} 个玩家 / ${snapshot.cards.length} 张牌`);
         this.changed();
     }
@@ -443,6 +456,11 @@ export class Agent {
             this.reset();
             this.applySnapshot(params);
             this.log('这一局重开了');
+            this.changed();
+        });
+        rpc.onNotify('Game.AnimScale', (params: Proto.Notify.Game.AnimScale) => {
+            this.animScale = params.scale;
+            this.log(`动画倍率改成 ${params.scale}`);
             this.changed();
         });
         rpc.onNotify('Cancel', (params: Proto.Notify.Cancel) => {

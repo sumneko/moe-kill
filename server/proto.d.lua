@@ -88,6 +88,8 @@
 ---@field turnPlayer? integer # 当前回合角色（没人在回合就是空）
 ---@field phase? string # 当前阶段名（不在阶段里就是空）
 ---@field texts Proto.Text[] # 展示用文本（牌与技能各按裸名收一份）
+---@field debug boolean # 服务器是不是调试模式
+---@field animScale number # 动画等待的倍率（0 = 完全不等）
 
 ---@class Proto.Player.Custom
 ---@field id integer # 玩家ID
@@ -196,6 +198,10 @@
 --- 这一局重开了（**收到它就是新的一局**）：params 是一份按你视角裁过的完整快照
 ---@class Proto.Notify.Game.Restarted: Proto.SnapShot
 
+--- 动画等待的倍率被改了（发给所有连接）
+---@class Proto.Notify.Game.AnimScale
+---@field scale number # 现在的倍率（0 = 完全不等）
+
 --- 一条连接坐进来（座位由服务端分配；坐满就开局）
 ---@class Proto.Request.Game.Join
 ---@field name? string # 玩家名
@@ -205,6 +211,10 @@
 
 --- 把已经终了的这一局放下、原班人马重开一局（没有参数；重建走 `Game.Restarted`）
 ---@class Proto.Request.Game.Restart
+
+--- 改动画等待的倍率（**只有调试模式**下允许；`0` = 完全不等）
+---@class Proto.Request.Game.SetAnimScale
+---@field scale number # 新的倍率（不能是负数）
 
 ---@class Proto.Plan.Player
 ---@field ids integer[] # 候选玩家ID列表

@@ -332,3 +332,85 @@ lt.test('重开：每条连接各收到一条 Game.Restarted，各自认自己�
     close(assert(moe.room._game), clients)
     drain()
 end)
+
+---@async
+lt.test('动画倍率：不是调试模式 ⇒ 回错且什么都没改', function ()
+    local game = openRoom()
+    local front, back = connect()
+    assert(front:awaitRequest('Game.Join', { name = '甲' }))
+
+    lt.assertEquals('测试进程按说不是调试模式', false, moe.debug)
+    local scale = moe.animScale
+
+    local result, err = front:awaitRequest('Game.SetAnimScale', { scale = 0 })
+    lt.assertEquals('没有结果', nil, result)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_REQUEST, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '只有调试模式能调动画倍率', assert(err).message)
+    lt.assertEquals('倍率一点没动', scale, moe.animScale)
+
+    close(game, { front, back })
+    drain()
+end)
+
+---@async
+lt.test('动画倍率：调试模式下改了，在座的每条连接都收到', function ()
+    local game = openRoom()
+    ---@type Client[]
+    local clients = {}
+    ---@type Client[]
+    local fronts = {}
+    for i = 1, 2 do
+        local front, back = connect()
+        fronts[i] = front
+        clients[#clients + 1] = front
+        clients[#clients + 1] = back
+    end
+
+    local oldDebug = moe.debug
+    local oldScale = moe.animScale
+    local restore <close> = moe.util.defer(function ()
+        moe.debug     = oldDebug
+        moe.animScale = oldScale
+    end)
+    moe.debug = true
+
+    ---@type table<Client, number>
+    local got = {}
+    local reg <close> = moe.client.register('Game.AnimScale', function (client, params)
+        ---@cast params Proto.Notify.Game.AnimScale
+        got[client] = params.scale
+    end)
+
+    for i = 1, 2 do
+        assert(fronts[i]):awaitRequest('Game.Join', { name = '玩家' .. i })
+    end
+
+    local result, err = fronts[1]:awaitRequest('Game.SetAnimScale', { scale = 0.5 })
+    lt.assertEquals('没出错', nil, err)
+    lt.assertEquals('收条是一张表', 'table', type(result))
+    lt.assertEquals('倍率改成了', 0.5, moe.animScale)
+    drain()
+    for i = 1, 2 do
+        lt.assertEquals('第 ' .. i .. ' 条连接收到了', 0.5, got[fronts[i]])
+    end
+
+    local _, negErr = fronts[1]:awaitRequest('Game.SetAnimScale', { scale = -1 })
+    lt.assertEquals('负数拒掉', moe.jsonrpc.INVALID_REQUEST, assert(negErr).code)
+    lt.assertEquals('倍率还是 0.5', 0.5, moe.animScale)
+
+    close(game, clients)
+    drain()
+end)
+
+---@async
+lt.test('动画倍率：快照带上「是不是调试模式」与当前倍率', function ()
+    local game = openRoom()
+    local front, back = connect()
+
+    local result = assert(front:awaitRequest('Game.Join', { name = '甲' }))
+    lt.assertEquals('快照里的调试模式', moe.debug, result.debug)
+    lt.assertEquals('快照里的倍率', moe.animScale, result.animScale)
+
+    close(game, { front, back })
+    drain()
+end)

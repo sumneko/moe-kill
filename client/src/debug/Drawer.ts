@@ -1,7 +1,10 @@
 import { html } from 'htm/preact';
 import type { Agent } from '../state/agent';
 
-/** 调试抽屉：手写发送 + 事件流 */
+/** 调试抽屉里能选的动画倍率 */
+const SPEEDS = [0, 0.5, 1, 2, 4];
+
+/** 调试抽屉：手写发送 + 动画倍率 + 事件流 */
 export function Drawer(props: {
     agent: Agent;
     /** 手写的那一包（原样发上去） */
@@ -19,6 +22,14 @@ export function Drawer(props: {
             />
             <button onClick=${props.onSend}>手写发送</button>
         </div>
+        ${props.agent.debug ? html`<div class="send">
+            <span>动画倍率</span>
+            ${SPEEDS.map((scale) => html`<button
+                key=${scale}
+                disabled=${props.agent.animScale === scale}
+                onClick=${() => void props.agent.setAnimScale(scale)}
+            >${scale}×</button>`)}
+        </div>` : null}
         <h3>事件流（最近 ${props.agent.logs.length} 条）</h3>
         ${[...props.agent.logs].reverse().map((line, index) => html`<div class="line" key=${index}>${line}</div>`)}
     </div>`;

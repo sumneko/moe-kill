@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1321 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1325 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -510,6 +510,8 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
   - **中央「轮到 X」提示去掉、空壳与样式一起清（2026-10-16，用户「把画面中央的『轮到 XXX 出牌』去掉。已经有高亮了」）**：`#center` 里那行（`轮到 ${名字} · ${阶段}`）**先问过用户**是「整句删」还是「只删『轮到谁』、留阶段」⇒ 选**整句删**（阶段从此只在调试抽屉 `ui.ts` 的「回合 … · 阶段 …」里看）。落点两处：`view/App.ts` 去掉 `<div id="skillTip">`（空壳已无意义）、`view/table.css` 删掉配套的 `#skillTip { … }`（全仓已无引用）。**「轮到谁」交给座位高亮**（`.seat` 的 `active`，实测当前回合者橙框）⇒ 视觉零损失、中央更干净。
   - **测试里的诊断用注解压（2026-10-16，用户「测试代码你直接用注解禁用诊断即可」）**：`server/test/rule/locale.lua` 的 `---@cast util table`（`util` 是 `chunk()` 执行后才出现的全局，LuaLS 报 **`unknown-cast-variable`**）⇒ 不加 `---@diagnostic disable-next-line: unknown-cast-variable` 就过不了；按用户口径**只加注解、不改写法**（不要改成 `rawget(_G, 'util')` 之类）。⚠️ LuaLS 这条诊断的名字就是 `unknown-cast-variable`（实测生效）。
   - **本轮验证**：`--test` **1321 用例 0 失败**、全工作区问题面板 **0**、`npm --prefix client run build` 过、刷页面截图确认中央干净且高亮照旧。
+
+  - **调试模式 + 动画倍率协议（2026-10-16，`add-anim-scale-control`，用户「服务器加个当前是否是debug模式，single模式自动识别为debug。加个协议客户端可以动态调整动画播放倍率，只有debug模式下生效」）**：`moe.animScale`（2026-10-15）本来是**启动时写死**的（测试设 0、宿主给 1），要运行期可调就得补协议那一段 —— 而 `architecture.md` 当初那句「前端不需要任何新消息 ⇒ 不涉及对外契约」随之作废。**落地四块**：① **调试模式**：`server/args.lua` 的 `M.current` 里 `result.DEBUG = result.DEBUG == true or result.SINGLE == true`（`--single` 自动开、`--debug` 也能显式开）⇒ 门面 `moe.debug`（与 `moe.animScale` 同一种挂法）。② **协议两条**：`Game.SetAnimScale { scale }`（**只有调试模式**下允许，否则 `-32600` + 「只有调试模式能调动画倍率」；`scale < 0` 也拒；`0` 合法 = 不等）+ `Game.AnimScale { scale }`（改完**给在座的每条连接各推一条** —— 倍率是服务器全局一份，不广播别的页面会一直显示旧值）。③ **快照带 `debug` 与 `animScale`**（入座 / 重连一次拿到，客户端才知道要不要给入口）⇒ `--gen-proto` 重生成 `client/src/proto.d.ts`。④ **前端**：`agent` 存两个值（`reset` 里归默认、快照里读、收 `Game.AnimScale` 更新）+ `setAnimScale`；`view/Drawer.ts` 在 `debug` 为真时摆一排 `0 / 0.5 / 1 / 2 / 4` 按钮。**前端那些动画时长一行不改**（`FLY_MS` / 出牌 420 / `MOVE_MS`）—— 口径还是「服务器只是慢一点」，倍率小 ⇒ 服务器等得短 ⇒ 动画被打断，正是快进要的效果。**验证**：`--test` **1325 用例 0 失败**（基线 1321 → 1325，新增 args 1 条 + room 3 条）、问题面板 0、`npm --prefix client run build` 过。
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 

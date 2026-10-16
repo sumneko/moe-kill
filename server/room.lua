@@ -33,6 +33,10 @@ function moe.room.open(options)
         moe.client.register('Game.Restart', function ()
             return moe.room.restart()
         end)
+        moe.client.register('Game.SetAnimScale', function (_, params)
+            ---@cast params Proto.Request.Game.SetAnimScale
+            return moe.room.setAnimScale(params)
+        end)
     end
     local seed = options.seed or 1
     moe.room._seed = seed
@@ -198,5 +202,32 @@ function moe.room.restart()
             end
         end)
     end
+    return {}
+end
+
+--- 改动画等待的倍率（**只有调试模式**下允许），改完告诉在座的每条连接
+---@param params Proto.Request.Game.SetAnimScale
+---@return table? # 收条
+---@return Proto.Error?
+function moe.room.setAnimScale(params)
+    if not moe.debug then
+        return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '只有调试模式能调动画倍率' }
+    end
+    local scale = params.scale
+    if scale < 0 then
+        return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '倍率不能是负数' }
+    end
+    moe.animScale = scale
+    local game = moe.room._game
+    if game then
+        for _, player in ipairs(game.desk.players) do
+            local user = player.user
+            if user then
+                ---@cast user ClientUser
+                user:notify('Game.AnimScale', { scale = scale })
+            end
+        end
+    end
+    log.info('动画倍率改成 {}' % { scale })
     return {}
 end

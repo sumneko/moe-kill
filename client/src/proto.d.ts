@@ -207,6 +207,16 @@ export namespace Proto {
 
         export namespace Game {
             /**
+             * 动画等待的倍率被改了（发给所有连接）
+             */
+            export interface AnimScale {
+                /**
+                 * 现在的倍率（0 = 完全不等）
+                 */
+                scale: number;
+            }
+
+            /**
              * 这一局结束了（**收到它就是终局**：此后不会再来回合 / 阶段）
              */
             export interface Over {
@@ -683,6 +693,16 @@ export namespace Proto {
             export type Restart = Record<string, unknown>;
 
             /**
+             * 改动画等待的倍率（**只有调试模式**下允许；`0` = 完全不等）
+             */
+            export interface SetAnimScale {
+                /**
+                 * 新的倍率（不能是负数）
+                 */
+                scale: number;
+            }
+
+            /**
              * 要一份当前局面的全量快照（重连用；没有参数）
              */
             export type SnapShot = Record<string, unknown>;
@@ -904,6 +924,14 @@ export namespace Proto {
          * 展示用文本（牌与技能各按裸名收一份）
          */
         texts: Proto.Text[];
+        /**
+         * 服务器是不是调试模式
+         */
+        debug: boolean;
+        /**
+         * 动画等待的倍率（0 = 完全不等）
+         */
+        animScale: number;
     }
 
     export interface Text {

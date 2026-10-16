@@ -11,6 +11,7 @@
 ---@field ROOT? string
 ---@field MEM_LIMIT? integer
 ---@field SINGLE? boolean # 单局模式（起一局就听端口；将来默认是 lobby）
+---@field DEBUG? boolean # 调试模式（`--single` 自动打开，也可以用 `--debug` 显式开）
 ---@field PORT? integer | string # 听哪个端口
 ---@field SEATS? integer | string # 这一局几个人
 ---@field PACKAGES? string # 要装的包（逗号分开）
@@ -84,6 +85,7 @@ function M.current(argv)
     local result = M.parse(argv or arg)
     result.DBGADDRESS = result.DBGADDRESS or '127.0.0.1'
     result.DBGPORT    = result.DBGPORT or 11418
+    result.DEBUG      = result.DEBUG == true or result.SINGLE == true
     return result
 end
 
