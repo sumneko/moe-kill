@@ -56,6 +56,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const [shown, setShown] = useState<Shown | null>(null);
     const [pops, setPops] = useState<PopRef[]>([]);
     const [drawer, setDrawer] = useState(false);
+    const [raw, setRaw] = useState('');
     const nextKey = useRef(1);
     const ask = agent.asks[0] ?? null;
 
@@ -170,6 +171,19 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             window.setTimeout(() => setShown((now) => (now?.key === key ? null : now)), SHOWN_MS);
         }
         ask.answer(result);
+    };
+
+    /** 把调试抽屉里手写的那一包原样交上去（写坏了就当空包） */
+    const sendRaw = () => {
+        if (!ask) {
+            return;
+        }
+        try {
+            answer(JSON.parse(raw || '{}'));
+        } catch (err) {
+            agent.log(`手写的那包读不出来：${err instanceof Error ? err.message : String(err)}`);
+            answer({});
+        }
     };
 
     const myName = me?.base.userName ?? '我';
@@ -303,7 +317,12 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 <p>${agent.over.reason}</p>
             </div>` : null}
 
-            ${drawer ? html`<${Drawer} agent=${agent} />` : null}
+            ${drawer ? html`<${Drawer}
+                agent=${agent}
+                raw=${raw}
+                onRawChange=${setRaw}
+                onSend=${sendRaw}
+            />` : null}
         </div>
     <//>`;
 }

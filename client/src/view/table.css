@@ -31,7 +31,7 @@ body { font: 14px/1.4 "Microsoft YaHei", system-ui, sans-serif; color: var(--ink
 button { font: inherit; color: var(--ink); background: #2a3247; border: 1px solid var(--line);
     border-radius: 4px; padding: 3px 10px; cursor: pointer; }
 button:hover:not(:disabled) { background: #333d55; }
-button:disabled { cursor: default; }
+button:disabled { cursor: default; opacity: .45; }
 
 #viewport { position: absolute; inset: 0; }
 #stage {
@@ -207,13 +207,13 @@ button:disabled { cursor: default; }
 
 #waiting { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); color: var(--muted); }
 
-/* 询问：操作条钉在棋盘中央偏下，内容框浮在它上方（框里没东西就不摆框） */
-#askWrap { position: absolute; left: 50%; bottom: 264px; transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 8px; }
-#ask, #askBar { min-width: 420px; max-width: 900px; padding: 8px 12px; border-radius: 8px;
-    background: #151b28f2; border: 1px solid var(--line); box-shadow: 0 8px 26px #0009; }
+/* 询问：不要对话框 —— 内容与按钮都直接浮在牌桌上，按钮钉在自己头像的正上方 */
+#askWrap { position: absolute; left: 50%; bottom: 208px; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#ask { display: flex; flex-direction: column; align-items: center; max-width: 900px; }
+#askBar { display: flex; flex-direction: column; align-items: center; }
 #ask .hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
-#ask .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+#ask .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 6px; }
 #ask .chips button.on { border-color: var(--gold); color: var(--gold); }
 #ask .panel-row { display: flex; align-items: center; gap: 4px; min-height: calc(var(--card-h) + 4px); margin-bottom: 4px; }
 #ask .panel-row .card { cursor: grab; }
@@ -221,10 +221,7 @@ button:disabled { cursor: default; }
 #askBar .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 #askBar .title { font-size: 14px; color: var(--gold); }
 #askBar .hint { font-size: 12px; color: var(--muted); }
-#askBar input { background: #0f1420; color: inherit; border: 1px solid var(--line); border-radius: 4px;
-    padding: 2px 6px; font: inherit; }
-#askBar .bar { display: flex; gap: 8px; align-items: center; }
-#askBar .bar .grow { flex: 1; }
+#askBar .bar { display: flex; gap: 8px; align-items: center; justify-content: center; }
 
 /* 终局横幅 */
 #over { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); text-align: center;
@@ -235,4 +232,7 @@ button:disabled { cursor: default; }
 #drawer { position: absolute; right: 0; top: 40px; bottom: 0; width: 300px; z-index: 10;
     background: #0f1420f2; border-left: 1px solid var(--line); padding: 10px; overflow: auto; }
 #drawer h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+#drawer .send { display: flex; gap: 6px; margin-bottom: 10px; }
+#drawer .send input { flex: 1; min-width: 0; background: #0f1420; color: inherit; border: 1px solid var(--line);
+    border-radius: 4px; padding: 2px 6px; font: inherit; }
 #drawer .line { font-size: 12px; color: #b9c2d6; border-bottom: 1px dashed #232c3f; padding: 3px 0; }

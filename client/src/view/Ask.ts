@@ -19,7 +19,6 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     const { agent, ask, selection, onSelection, onAnswer } = props;
     const params = ask.params as any;
     const [left, setLeft] = useState(0);
-    const [raw, setRaw] = useState('');
     const [dragCard, setDragCard] = useState<number | null>(null);
 
     // 限时倒计时（从收到询问那一刻算）
@@ -212,8 +211,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
             <div class="head">
                 <span class="title">${params.reason ?? ask.method}</span>
                 <span class="hint">
-                    ${ask.method}${left > 0 ? ` · 还剩 ${left} 秒` : ''}
-                    · 勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}
+                    ${left > 0 ? `还剩 ${left} 秒 · ` : ''}勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}
                 </span>
             </div>
             <div class="bar">
@@ -221,11 +219,11 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                     disabled=${!canSubmit(ask, selection)}
                     onClick=${() => onAnswer(answerOf(ask, selection))}
                 >确定</button>` : null}
-                ${cancelable ? html`<button onClick=${() => onAnswer({})}>不选</button>` : null}
-                <button onClick=${() => ask.cancel()}>取消</button>
-                <span class="grow"></span>
-                <input size="22" placeholder=${'{"usedViewAs":1,...}'} value=${raw} onInput=${(event: Event) => setRaw((event.target as HTMLInputElement).value)} />
-                <button onClick=${() => onAnswer(parseRaw(raw, agent))}>手写发送</button>
+                <button
+                    disabled=${!cancelable}
+                    title=${cancelable ? '这一问可以不答' : '这一问必须给出答复'}
+                    onClick=${() => onAnswer({})}
+                >取消</button>
             </div>
         </div>
     </div>`;
@@ -251,14 +249,4 @@ function viewLabel(agent: Agent, view: Proto.ViewAs): string {
         ? agent.skills.get(view.sourceSkill)?.name ?? `技能 ${view.sourceSkill}`
         : view.sourceCard === undefined ? null : cardLabel(agent, view.sourceCard);
     return source === null ? `视为${view.name}` : `${source} ⇒ ${view.name}`;
-}
-
-/** 手写那一包（写坏了就当空包） */
-function parseRaw(raw: string, agent: Agent): unknown {
-    try {
-        return JSON.parse(raw || '{}');
-    } catch (err) {
-        agent.log(`手写的那包读不出来：${err instanceof Error ? err.message : String(err)}`);
-        return {};
-    }
 }
