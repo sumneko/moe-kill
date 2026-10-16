@@ -214,9 +214,6 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             </div>
 
             <div id="center">
-                <div id="skillTip">
-                    ${agent.turnPlayer === null ? '' : `轮到 ${agent.playerLabel(agent.turnPlayer)}${agent.phase ? ` · ${agent.phase}` : ''}`}
-                </div>
                 <div id="playedWrap">
                     ${shown ? html`<${Card}
                         agent=${agent}

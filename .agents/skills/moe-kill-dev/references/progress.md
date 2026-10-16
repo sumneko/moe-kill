@@ -1,7 +1,7 @@
 # 当前进度与下一步
 
 > **这份文件是给"换台电脑接着做"用的状态快照**（2026-09-30 记录）。真相源永远是**代码 + 用例 + 其它 references**；本文件只写三件事：做到哪了、下一步做什么、什么还没定。
-> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1317 用例 0 失败**；问题面板 information 及以上 **0**。
+> 验收口径：`server/bin/moe-kill.exe --test` ⇒ **1321 用例 0 失败**；问题面板 information 及以上 **0**。
 
 ## 1 已经跑通的一条链
 
@@ -506,6 +506,10 @@ moe.game.create（建局 + 装包）→ '游戏-开始'（建牌堆 / 定义属�
   - **⚠️ 环境坑：Vite dev server 会把某个 CSS 模块缓存成空**（2026-10-16 踩到）：改完 `table.css` 后页面**完全没有样式**（元素退回块级堆叠），而 `fetch('/src/view/table.css')` 返回的包装里是 **`const __vite__css = ""`**（同一时刻 `style.css` 的 `cssLen` 是 6789 ⇒ 只有这一个模块坏）。文件本身没问题（`?direct` 返回完整 14063 字节、无控制字符）。**重启 dev server 即恢复**（`Get-NetTCPConnection -LocalPort 5173 -State Listen` 找 PID 杀掉 → `npm --prefix client run dev`）。⚠️ 配套：`npm run dev` 前必须进 `client/`（用 `npm --prefix`），否则 npm 在仓库根找 `package.json` 报 `ENOENT`。
   - **⚠️ 测评脚本必须自己拆干净，而且不要删节点**（2026-10-16 被用户抓到：「肉眼都看不到动画了，牌出现一瞬间就没了」）：我为了量得快，在 `MutationObserver` 里对每个幽灵 `pause()` + `remove()`，结果**观察器留在页面上**⇒ 之后每一条真实动画都在 60ms 内被它删掉。**两条规矩**：① 量完立刻 `observer.disconnect()` + 清掉 `window.__xxx`；② 只想看终态位置就用 `anim.pause(); anim.currentTime = 990` 然后**下一帧**读，`remove()` 只在脚本自己的临时探测里用。
   - **实测（31416 四人局，浏览器脚本推进）**：势力标四处都对、「点 `#meLeft` 选自己」成功、`__ghosts = 1`（幽灵飞过）、技能栏 `反间:fire` → 点击后变 `fire on` 且询问条展开「要用的牌 / 目标」✓；后端 **1305 用例 0 失败**（新增的是断言，基线随用例追加而涨）；前端 `tsc` / `vite build` 过。
+
+  - **中央「轮到 X」提示去掉、空壳与样式一起清（2026-10-16，用户「把画面中央的『轮到 XXX 出牌』去掉。已经有高亮了」）**：`#center` 里那行（`轮到 ${名字} · ${阶段}`）**先问过用户**是「整句删」还是「只删『轮到谁』、留阶段」⇒ 选**整句删**（阶段从此只在调试抽屉 `ui.ts` 的「回合 … · 阶段 …」里看）。落点两处：`view/App.ts` 去掉 `<div id="skillTip">`（空壳已无意义）、`view/table.css` 删掉配套的 `#skillTip { … }`（全仓已无引用）。**「轮到谁」交给座位高亮**（`.seat` 的 `active`，实测当前回合者橙框）⇒ 视觉零损失、中央更干净。
+  - **测试里的诊断用注解压（2026-10-16，用户「测试代码你直接用注解禁用诊断即可」）**：`server/test/rule/locale.lua` 的 `---@cast util table`（`util` 是 `chunk()` 执行后才出现的全局，LuaLS 报 **`unknown-cast-variable`**）⇒ 不加 `---@diagnostic disable-next-line: unknown-cast-variable` 就过不了；按用户口径**只加注解、不改写法**（不要改成 `rawget(_G, 'util')` 之类）。⚠️ LuaLS 这条诊断的名字就是 `unknown-cast-variable`（实测生效）。
+  - **本轮验证**：`--test` **1321 用例 0 失败**、全工作区问题面板 **0**、`npm --prefix client run build` 过、刷页面截图确认中央干净且高亮照旧。
 
 上一批「过河拆桥 + 顺手牵羊」已做完（`add-dismantle-and-snatch`：牌区可见性 + 两张牌 + 装备 / 判定两个空区），其后又做了 `askcard-condition-filters`（条件重做成筛选）、`split-ask-use-card`（拆出 `AskUseCard`）与 `add-ask-play-card`（拆出 `AskPlayCard`、缘由改成发起者名字，`@基础/打出.lua` 删掉）。下面这些是用户已表态、还没开工的方向，**按一个功能点一批推进**（用户 2026-09-19 定），下一批做哪个由用户定：
 

@@ -5,6 +5,7 @@ local function loadUtil()
     local path = (moe.env.ROOT_PATH:parent_path() / 'package' / '@tools' / 'util.lua'):string()
     local chunk = assert(loadfile(path))
     chunk()
+    ---@diagnostic disable-next-line: unknown-cast-variable
     ---@cast util table
     return util
 end
