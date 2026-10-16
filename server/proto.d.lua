@@ -262,33 +262,27 @@
 ---@field card? Proto.Plan.Card # 作为素材的卡牌
 ---@field target? Proto.Plan.Player # 作为目标的玩家
 
----@class Proto.Request.Ask.Use: Proto.Cancelable, Proto.Timelimit
----@field reason string # 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
----@field cancelable? boolean # 是否可以主动取消
----@field card   Proto.CardWithPlan[] # 被使用的卡牌列表
----@field viewAs Proto.ViewAs[] # 可用的视为技列表
-
----@class Proto.Result.Ask.Use
----@field usedCard? integer # 被使用的卡牌ID
----@field usedViewAs? integer # 使用了第几个viewAs效果。和 card 互斥。
----@field targets? integer[] # 被选中的目标玩家ID列表
----@field cards? integer[] # 被使用的卡牌ID列表。只有 useViewAs 时才有可能有值
-
 --- 一个可发动的技能：技能ID + 这次能挑的牌 / 目标（技能没声明就缺哪半）
 ---@class Proto.SkillPlan
 ---@field id integer # 技能ID
 ---@field cards? Proto.Plan.Card
 ---@field targets? Proto.Plan.Player
 
----@class Proto.Request.Ask.UseSkill: Proto.Cancelable, Proto.Timelimit
+--- 要一次行动：能用的牌（含视为）与能发动的技能是**三组可选分量**，各自可缺 —— 给一组就是问那一类、给多组就是一次问清
+---@class Proto.Request.Ask.Use: Proto.Cancelable, Proto.Timelimit
 ---@field reason string # 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
----@field cancelable? boolean # 恒 true：内核里「不表态 = 取消」
----@field skills Proto.SkillPlan[]
+---@field cancelable? boolean # 是否可以主动取消
+---@field card?   Proto.CardWithPlan[] # 能用的牌（不问牌就不给）
+---@field viewAs? Proto.ViewAs[] # 可用的视为技列表（同上）
+---@field skill?  Proto.SkillPlan[] # 能发动的技能（同上）
 
----@class Proto.Result.Ask.UseSkill
----@field usedSkill? integer # 发动哪个技能（ID；缺 = 取消）
----@field cards? integer[] # 这次发动带的牌
----@field targets? integer[] # 这次发动指定的目标
+--- 一次答复：给了哪个 `used*` 就是哪一种（三者互斥）
+---@class Proto.Result.Ask.Use
+---@field usedCard? integer # 用了哪张牌
+---@field usedViewAs? integer # 用了第几个viewAs效果
+---@field usedSkill? integer # 发动哪个技能（ID）
+---@field targets? integer[] # 被选中的目标玩家ID列表
+---@field cards? integer[] # 这次带的素材牌（视为 / 技能用；`usedCard` 时不带）
 
 --- 要在若干武将里挑：候选是一份武将全名（`包名.定义名`；不给 = 不做限制）
 ---@class Proto.Request.Ask.Hero: Proto.Cancelable, Proto.Timelimit

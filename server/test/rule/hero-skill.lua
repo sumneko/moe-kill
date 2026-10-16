@@ -309,26 +309,22 @@ Skill '探针技'
     local player = run.players[1]
     local skill  = player:addSkill('探针技')
 
-    ---@type AskUseSkill?
+    ---@type AskUse?
     local asked = nil
     local asks  = 0
-    run.game:on('技能-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askUse' then
+            return
+        end
         moe.await.sleep(0)
         asks = asks + 1
         if asks > 1 then
             -- 第二轮不答 ⇒ 出牌阶段到此结束
             return nil
         end
+        ---@cast ask AskUse
         asked = ask
         return { skill = skill }
-    end)
-    run.game:on('卡牌-询问', function (ask)
-        if ask.kind ~= 'askUseCard' then
-            return
-        end
-        -- 牌那一路永远不答：这一轮该由技能那一路说了算
-        moe.await.sleep(0)
-        return nil
     end)
 
     local _ <close> = run.game:enterPhase(player, '出牌')
@@ -358,7 +354,10 @@ lt.test('仁德：给 1 张不回，本阶段累计到 2 张时回 1 点', funct
     local plan  = { first, second }
     local index = 0
     local asked = 0
-    run.game:on('技能-询问', function ()
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askUse' then
+            return
+        end
         asked = asked + 1
         if asked == 2 then
             lt.assertEquals('给第 1 张后还没回血', 3, liubei:getAttr('体力'))
@@ -394,7 +393,10 @@ lt.test('仁德：一次给 2 张直接回，此后不再回（每阶段只回�
     local plan  = { { first, second }, third }
     local index = 0
     local asked = 0
-    run.game:on('技能-询问', function ()
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askUse' then
+            return
+        end
         asked = asked + 1
         if asked == 2 then
             lt.assertEquals('第一次给 2 张后已经回过（3 → 4）', 4, liubei:getAttr('体力'))
@@ -430,7 +432,10 @@ lt.test('仁德：账挂在自己的出牌阶段上，跨阶段重新累计', fu
     local plan  = { first, second, third }
     local index = 0
     local asked = 0
-    run.game:on('技能-询问', function ()
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askUse' then
+            return
+        end
         asked = asked + 1
         if asked == 2 or asked > 4 then
             -- 第 2 次不答 ⇒ 结束第一个阶段；第 5 次不答 ⇒ 结束第二个阶段
@@ -462,23 +467,26 @@ lt.test('仁德：目标只能选别人；牌给到对方手上，归因在技�
 
     local card = takeCard(run, liubei, '杀')
 
-    ---@type AskUseSkill?
+    ---@type AskUse?
     local skillAsk = nil
     local asked    = 0
-    run.game:on('技能-询问', function (ask)
+    run.game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askUse' then
+            return
+        end
         asked = asked + 1
         if asked > 1 then
             return nil
         end
-        ---@cast ask AskUseSkill
+        ---@cast ask AskUse
         skillAsk = ask
         return { skill = renDe, cards = card, targets = friend }
     end)
 
     local _ <close> = run.game:enterPhase(liubei, '出牌')
 
-    local fromAnswerer = assert(skillAsk, '该问过技能那一路')
-    local option = assert(fromAnswerer.options[1], '仁德该在选项里')
+    local fromAnswerer = assert(skillAsk, '该问过技能那一半')
+    local option = assert(fromAnswerer.skills[1], '仁德该在选项里')
     lt.assertEquals('就是仁德', renDe, option.skill)
     local candidates = assert(option.targets, '仁德该带目标那半').legal
     lt.assertEquals('候选是其他三个人', 3, #candidates)
@@ -1104,7 +1112,7 @@ lt.test('苦肉：出牌阶段失去 1 点体力摸两张牌（不是伤害，�
     local skill = findSkill(huanggai, '苦肉')
     ---@type integer
     local round = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         moe.await.sleep(0)
         round = round + 1
         if round > 2 then
@@ -1142,7 +1150,7 @@ lt.test('苦肉：体力 1 时发动会进濒死，被【桃】救回来再摸�
 
     ---@type integer
     local asked = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         moe.await.sleep(0)
         asked = asked + 1
         if asked > 1 then
@@ -1178,7 +1186,7 @@ lt.test('苦肉：没人救就阵亡，也不再摸牌', function ()
 
     ---@type integer
     local asked = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         moe.await.sleep(0)
         asked = asked + 1
         if asked > 1 then
@@ -1210,7 +1218,7 @@ lt.test('苦肉：一直答发动也不会把体力扣到底（死了就停下�
 
     ---@type integer
     local asked = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         moe.await.sleep(0)
         asked = asked + 1
         return { skill = skill }
@@ -1596,7 +1604,7 @@ lt.test('青囊：弃一张手牌让已受伤的角色回 1 点', function ()
     friend:setAttr('体力', 3)
 
     local asked = 0
-    run.game:on('技能-询问', function ()
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
         if asked > 1 then
             return nil -- 没答 ⇒ 结束出牌阶段
@@ -1618,24 +1626,19 @@ lt.test('青囊：没人受伤就不进选项（凑不齐前置）', function ()
     local run    = startWithHeroes { '华佗', '魏队友' }
     local huatuo = run.players[1]
     takeCard(run, huatuo, '闪') -- 手里有牌，排除「没牌」那条
+    takeCard(run, huatuo, '无中生有') -- 再给一张出牌阶段用得出去的（否则一条询问都发不出来）
 
-    ---@type AskUseSkill?
+    ---@type AskUse?
     local asked = nil
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         moe.await.sleep(0)
         asked = asked or ask
         return nil
     end)
-    run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askUseCard' then
-            moe.await.sleep(0)
-            return nil
-        end
-    end)
 
     local _ <close> = run.game:enterPhase(huatuo, '出牌')
 
-    lt.assertEquals('都满血 ⇒ 青囊不进选项', 0, #assert(asked, '该问过技能那一路').options)
+    lt.assertEquals('都满血 ⇒ 青囊不进选项', 0, #assert(asked, '该问过技能那一半').skills)
 end)
 
 lt.test('青囊：本阶段发动过一次就不再进选项', function ()
@@ -1648,15 +1651,16 @@ lt.test('青囊：本阶段发动过一次就不再进选项', function ()
     local qingnang = findSkill(huatuo, '青囊')
 
     local cost = takeCard(run, huatuo, '闪')
+    takeCard(run, huatuo, '无中生有') -- 再给一张出牌阶段用得出去的（否则第二轮一条询问都发不出来）
     friend:setAttr('体力', 2)
 
     local asked = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
         if asked == 1 then
             return { skill = qingnang, cards = cost, targets = friend }
         end
-        lt.assertEquals('第二次问时它已经不在选项里', 0, #ask.options)
+        lt.assertEquals('第二次问时它已经不在选项里', 0, #ask.skills)
         return nil
     end)
 
@@ -1991,7 +1995,7 @@ lt.test('制衡：弃两张手牌，摸回等量的牌', function ()
     local second = takeCard(run, sunquan, '闪')
 
     local asked = 0
-    run.game:on('技能-询问', function ()
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
         if asked > 1 then
             return nil
@@ -2020,22 +2024,21 @@ lt.test('制衡：装备区的牌也能弃（「任意张牌」）', function ()
     local handCard = takeCard(run, sunquan, '杀')
     lt.assertEquals('装上后攻击范围 3', 3, sunquan:getAttr('攻击范围'))
 
-    ---@type AskUseSkill?
+    ---@type AskUse?
     local skillAsk = nil
     local asked    = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
         if asked > 1 then
             return nil
         end
-        ---@cast ask AskUseSkill
         skillAsk = ask
         return { skill = zhiheng, cards = { weapon, handCard } }
     end)
 
     local _ <close> = run.game:enterPhase(sunquan, '出牌')
 
-    local legal = assert(assert(assert(skillAsk).options[1]).cards, '制衡该带牌那半').legal
+    local legal = assert(assert(assert(skillAsk).skills[1]).cards, '制衡该带牌那半').legal
     lt.assertEquals('候选 = 手牌 + 装备区', 2, #legal)
     lt.assertEquals('武器进了弃牌堆', true, moe.util.arrayHas(assert(run.game:getZone('弃牌')):list(), weapon))
     lt.assertEquals('离区之后加成撤销', 1, sunquan:getAttr('攻击范围'))
@@ -2051,22 +2054,21 @@ lt.test('制衡：判定区的牌不在候选里', function ()
     local doomed   = run.game:createCard('乐不思蜀', '红桃', 6)
     assert(sunquan:getZone('判定')):accept(doomed)
 
-    ---@type AskUseSkill?
+    ---@type AskUse?
     local skillAsk = nil
     local asked    = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
         if asked > 1 then
             return nil
         end
-        ---@cast ask AskUseSkill
         skillAsk = ask
         return nil
     end)
 
     local _ <close> = run.game:enterPhase(sunquan, '出牌')
 
-    local legal = assert(assert(assert(skillAsk).options[1]).cards, '制衡该带牌那半').legal
+    local legal = assert(assert(assert(skillAsk).skills[1]).cards, '制衡该带牌那半').legal
     lt.assertEquals('候选只有手牌那张', 1, #legal)
     lt.assertEquals('就是手牌里那张', handCard, legal[1])
 end)
@@ -2080,15 +2082,14 @@ lt.test('制衡：出牌阶段限一次，用过了就不再进选项', function
     local first  = takeCard(run, sunquan, '杀')
     takeCard(run, sunquan, '闪')
 
-    ---@type AskUseSkill?
+    ---@type AskUse?
     local secondAsk = nil
     local asked     = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
         if asked > 2 then
             return nil
         end
-        ---@cast ask AskUseSkill
         if asked == 1 then
             return { skill = zhiheng, cards = first }
         end
@@ -2098,8 +2099,8 @@ lt.test('制衡：出牌阶段限一次，用过了就不再进选项', function
 
     local _ <close> = run.game:enterPhase(sunquan, '出牌')
 
-    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
-    lt.assertEquals('但制衡已经不在选项里', 0, #assert(assert(secondAsk).options))
+    lt.assertEquals('第二轮也问过技能那一半', true, secondAsk ~= nil)
+    lt.assertEquals('但制衡已经不在选项里', 0, #assert(assert(secondAsk).skills))
 end)
 
 lt.test('救援：其他吴势力角色使用【桃】令他回复时，回复值 +1', function ()
@@ -2625,12 +2626,11 @@ lt.test('离间：弃一张牌，后选的男性角色对先选的用一张【�
 
     ---@type integer
     local asked = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
         if asked > 1 then
             return nil
         end
-        ---@cast ask AskUseSkill
         return { skill = lijian, cards = { thrown }, targets = { first, second } }
     end)
 
@@ -2653,16 +2653,16 @@ lt.test('离间：候选只有其他男性角色，且出牌阶段限一次', fu
     local lijian = findSkill(diaochan, '离间')
 
     local thrown = takeCard(run, diaochan, '杀')
+    takeCard(run, diaochan, '无中生有') -- 再给一张出牌阶段用得出去的（否则用过之后一条询问都发不出来）
 
-    ---@type AskUseSkill? # 第二轮（用过之后）
+    ---@type AskUse? # 第二轮（用过之后）
     local secondAsk = nil
-    ---@type AskUseSkill? # 第一轮
+    ---@type AskUse? # 第一轮
     local firstAsk  = nil
     ---@type integer
     local asked     = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
-        ---@cast ask AskUseSkill
         if asked == 1 then
             firstAsk = ask
             return { skill = lijian, cards = { thrown }, targets = { run.players[2], run.players[3] } }
@@ -2673,12 +2673,12 @@ lt.test('离间：候选只有其他男性角色，且出牌阶段限一次', fu
 
     local _ <close> = run.game:enterPhase(diaochan, '出牌')
 
-    local legal = assert(assert(assert(firstAsk).options[1]).targets, '离间该带目标那半').legal
+    local legal = assert(assert(assert(firstAsk).skills[1]).targets, '离间该带目标那半').legal
     lt.assertEquals('候选是那两名男性', 2, #legal)
     lt.assertEquals('不含自己', false, moe.util.arrayHas(legal, diaochan))
     lt.assertEquals('不含女性', false, moe.util.arrayHas(legal, run.players[4]))
-    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
-    lt.assertEquals('但离间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).options))
+    lt.assertEquals('第二轮也问过技能那一半', true, secondAsk ~= nil)
+    lt.assertEquals('但离间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).skills))
 end)
 
 lt.test('枭姬：装备区的牌离开就摸两张（默认自动同意，不问）', function ()
@@ -2759,16 +2759,17 @@ lt.test('结姻：弃两张手牌 + 一名已受伤的男性 ⇒ 双方各回 1 
     local second = run.game:createCard('闪', '红桃', 2)
     assert(me:getZone('手牌')):accept(first)
     assert(me:getZone('手牌')):accept(second)
+    -- 再给一张出牌阶段用得出去的（否则结姻用过之后一条询问都发不出来）
+    assert(me:getZone('手牌')):accept(run.game:createCard('无中生有'))
 
     local jieyin = findSkill(me, '结姻')
 
-    ---@type AskUseSkill? # 第二轮（用过之后）
+    ---@type AskUse? # 第二轮（用过之后）
     local secondAsk = nil
     ---@type integer
     local asked     = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
-        ---@cast ask AskUseSkill
         if asked == 1 then
             return { skill = jieyin, cards = { first, second }, targets = { other } }
         end
@@ -2782,8 +2783,8 @@ lt.test('结姻：弃两张手牌 + 一名已受伤的男性 ⇒ 双方各回 1 
     local thrown = assert(run.game:getZone('弃牌')):list()
     lt.assertEquals('弃的第一张进了弃牌堆', true, moe.util.arrayHas(thrown, first))
     lt.assertEquals('弃的第二张也进了弃牌堆', true, moe.util.arrayHas(thrown, second))
-    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
-    lt.assertEquals('但结姻已经不在选项里（限一次）', 0, #assert(secondAsk).options)
+    lt.assertEquals('第二轮也问过技能那一半', true, secondAsk ~= nil)
+    lt.assertEquals('但结姻已经不在选项里（限一次）', 0, #assert(secondAsk).skills)
 end)
 
 lt.test('结姻：候选只有已受伤的其他男性角色', function ()
@@ -2806,10 +2807,9 @@ lt.test('结姻：候选只有已受伤的其他男性角色', function ()
     assert(me:getZone('手牌')):accept(first)
     assert(me:getZone('手牌')):accept(second)
 
-    ---@type AskUseSkill? # 出牌阶段那次询问
+    ---@type AskUse? # 出牌阶段那次询问
     local ask = nil
-    run.game:on('技能-询问', function (asked)
-        ---@cast asked AskUseSkill
+    support.answerPlayPhase(run.game, function (asked)
         if not ask then
             ask = asked
         end
@@ -2820,7 +2820,7 @@ lt.test('结姻：候选只有已受伤的其他男性角色', function ()
 
     ---@type AskUseSkill.Option?
     local option = nil
-    for _, item in ipairs(assert(ask, '出牌阶段该问过一次').options) do
+    for _, item in ipairs(assert(ask, '出牌阶段该问过一次').skills) do
         if item.targets then
             option = item
         end
@@ -2886,9 +2886,8 @@ local function useFangan(run, zhouyu, target, card, chosen)
     local fangan = findSkill(zhouyu, '反间')
     ---@type integer
     local asked = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
-        ---@cast ask AskUseSkill
         if asked == 1 then
             return { skill = fangan, cards = { card }, targets = { target } }
         end
@@ -2964,16 +2963,17 @@ lt.test('反间：候选只有其他角色，且出牌阶段限一次', function
 
     local card = run.game:createCard('杀', '黑桃', 7)
     assert(zhouyu:getZone('手牌')):accept(card)
+    -- 再给一张出牌阶段用得出去的（否则反间用过之后一条询问都发不出来）
+    assert(zhouyu:getZone('手牌')):accept(run.game:createCard('无中生有'))
 
-    ---@type AskUseSkill? # 第二轮（用过之后）
+    ---@type AskUse? # 第二轮（用过之后）
     local secondAsk = nil
-    ---@type AskUseSkill? # 第一轮
+    ---@type AskUse? # 第一轮
     local firstAsk  = nil
     ---@type integer
     local asked     = 0
-    run.game:on('技能-询问', function (ask)
+    support.answerPlayPhase(run.game, function (ask)
         asked = asked + 1
-        ---@cast ask AskUseSkill
         if asked == 1 then
             firstAsk = ask
             return { skill = fangan, cards = { card }, targets = { run.players[2] } }
@@ -2990,11 +2990,11 @@ lt.test('反间：候选只有其他角色，且出牌阶段限一次', function
 
     local _ <close> = run.game:enterPhase(zhouyu, '出牌')
 
-    local legal = assert(assert(assert(firstAsk).options[1]).targets, '反间该带目标那半').legal
+    local legal = assert(assert(assert(firstAsk).skills[1]).targets, '反间该带目标那半').legal
     lt.assertEquals('候选是另外三名', 3, #legal)
     lt.assertEquals('不含自己', false, moe.util.arrayHas(legal, zhouyu))
-    lt.assertEquals('第二轮也问过技能那一路', true, secondAsk ~= nil)
-    lt.assertEquals('但反间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).options))
+    lt.assertEquals('第二轮也问过技能那一半', true, secondAsk ~= nil)
+    lt.assertEquals('但反间已经不在选项里（限一次）', 0, #assert(assert(secondAsk).skills))
 end)
 
 lt.test('谦逊：不能被选为【顺手牵羊】的目标（别人照旧）', function ()

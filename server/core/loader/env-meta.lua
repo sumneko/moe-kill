@@ -154,12 +154,12 @@ rule = nil
 ---@field fire fun(self: Game, name: '效果-收尾', effect: Effect): any
 ---@field on fun(self: Game, name: '效果-被响应', callback: fun(ask: AskPlayCard): any): function # 一次生效被响应了（要驳回就在回调里 `ask:cancel(原因)` —— 调用后不会返回；本时机不读返回值）
 ---@field fire fun(self: Game, name: '效果-被响应', ask: AskPlayCard): any
----@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
----@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any # 返回值就是答复（`AskCard.Answer`；没人表态给空）
----@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any
----@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any): function
----@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-询问', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskUse|AskPlayCard): any): function # 问应答方要答复：**第一个给出答复的胜出（后面的订阅者不再调）**；返回空 = 不表态
+---@field fire fun(self: Game, name: '卡牌-询问', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskUse|AskPlayCard): any # 返回值就是答复（`AskCard.Answer`；没人表态给空）
+---@field on fun(self: Game, name: '卡牌-答复', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskUse|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskUse|AskPlayCard): any
+---@field on fun(self: Game, name: '卡牌-答复后', callback: fun(askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskUse|AskPlayCard): any): function
+---@field fire fun(self: Game, name: '卡牌-答复后', askCard: AskCard|AskCardWithTarget|AskUseCard|AskUseCardToCard|AskUse|AskPlayCard): any
 ---@field on fun(self: Game, name: '卡牌-能否使用', callback: fun(check: Game.Event.卡牌能否使用): any): function
 ---@field fire fun(self: Game, name: '卡牌-能否使用', check: Game.Event.卡牌能否使用): any # 返回值就是那条否决原因
 ---@field on fun(self: Game, name: '卡牌-使用选项', callback: fun(check: Game.Event.卡牌使用选项): (Game.UseOptionsInput?)): function # 这次使用选项的全局那份（使用者身上还有一份）

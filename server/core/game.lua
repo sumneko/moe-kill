@@ -1110,6 +1110,37 @@ function M:askUseSkill(to, reason)
     return ask
 end
 
+--- 起一次「要一次行动」的询问（能用的牌与能发动的技能一起摆）：**只到 apply** —— 不等它、也不替你用出去
+---@param to Player # 被问者
+---@param reason? string # 给用户看的提示文本（可带格式：`模板@参数表`，见 `jsonrpc-protocol` 规格；原样带到应答方）
+---@param condition? AskUseCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
+---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
+---@return AskUse # 这次询问（还没结完：等它用 `:await()`，用牌 / 发动技能用 `:useCard()` / `:useSkill()`）
+function M:startAskUse(to, reason, condition, useOptions)
+    local ask = moe.askUse.create {
+        game       = self,
+        to         = to,
+        reason     = reason,
+        condition  = condition,
+        useOptions = useOptions,
+    }
+    ask:apply()
+    return ask
+end
+
+--- 要一次行动（能用的牌与能发动的技能一起摆）—— **不替你决定**：答复是牌就 `:useCard()`、是技能就 `:useSkill()`
+---@async
+---@param to Player # 被问者
+---@param reason? string # 给用户看的提示文本（可带格式：`模板@参数表`，见 `jsonrpc-protocol` 规格；原样带到应答方）
+---@param condition? AskUseCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
+---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
+---@return AskUse # 这次询问（已经结完：答复读 `.card` / `.targets` / `.skill`，失败读 `.err`）
+function M:askUse(to, reason, condition, useOptions)
+    local ask = self:startAskUse(to, reason, condition, useOptions)
+    ask:await()
+    return ask
+end
+
 --- 要一张牌（要一次「对一张牌的使用」：能对目标牌使用的牌才进选项）—— 答复到手后**直接把它用出去**（结果读 `ask.useCardToCard`）
 ---@async
 ---@param to Player # 被问者

@@ -42,6 +42,11 @@ export function candidates(ask: Ask | undefined, selection: Selection): { cards:
     if (ask.method === 'Ask.Use') {
         const options = (params.card ?? []) as Proto.CardWithPlan[];
         const views = (params.viewAs ?? []) as Proto.ViewAs[];
+        const skills = (params.skill ?? []) as Proto.SkillPlan[];
+        if (selection.skill !== null) {
+            const skill = skills.find((one) => one.id === selection.skill);
+            return { cards: skill?.cards?.ids ?? [], players: skill?.targets?.ids ?? [] };
+        }
         if (selection.viewAs !== null) {
             const view = views[selection.viewAs];
             return { cards: view?.card?.ids ?? [], players: view?.target?.ids ?? [] };
@@ -49,11 +54,6 @@ export function candidates(ask: Ask | undefined, selection: Selection): { cards:
         const option = options.find((one) => one.id === selection.option);
         // 选项的 `ids` 是**合法目标**、`id` 才是牌号（`CardWithPlan` inherit 的是 `Plan.Player`）
         return { cards: options.map((one) => one.id), players: option?.ids ?? [] };
-    }
-    if (ask.method === 'Ask.UseSkill') {
-        const skills = (params.skills ?? []) as Proto.SkillPlan[];
-        const skill = skills.find((one) => one.id === selection.skill);
-        return { cards: skill?.cards?.ids ?? [], players: skill?.targets?.ids ?? [] };
     }
     return { cards: [], players: [] };
 }
@@ -74,22 +74,21 @@ export function canSubmit(ask: Ask | undefined, selection: Selection): boolean {
     if (ask.method === 'Ask.Use') {
         const options = (params.card ?? []) as Proto.CardWithPlan[];
         const views = (params.viewAs ?? []) as Proto.ViewAs[];
+        const skills = (params.skill ?? []) as Proto.SkillPlan[];
+        if (selection.skill !== null) {
+            const skill = skills.find((one) => one.id === selection.skill);
+            if (!skill) {
+                return false;
+            }
+            return selection.cards.length >= (skill.cards?.min ?? 0)
+                && selection.players.length >= (skill.targets?.min ?? 0);
+        }
         if (selection.viewAs !== null) {
             const view = views[selection.viewAs];
             return selection.cards.length >= (view?.card?.min ?? 0);
         }
         const option = options.find((one) => one.id === selection.option);
         return option ? selection.players.length >= option.min : false;
-    }
-    if (ask.method === 'Ask.UseSkill') {
-        const skills = (params.skills ?? []) as Proto.SkillPlan[];
-        const skill = skills.find((one) => one.id === selection.skill);
-        if (!skill) {
-            return false;
-        }
-        const enoughCards = selection.cards.length >= (skill.cards?.min ?? 0);
-        const enoughTargets = selection.players.length >= (skill.targets?.min ?? 0);
-        return enoughCards && enoughTargets;
     }
     if (ask.method === 'Ask.Hero') {
         return selection.heroes.length >= ((params.min as number | undefined) ?? 1);
@@ -112,23 +111,12 @@ export function answerOf(ask: Ask, selection: Selection): unknown {
     }
     if (ask.method === 'Ask.Use') {
         const result: Record<string, unknown> = {};
-        if (selection.viewAs !== null) {
-            result.usedViewAs = selection.viewAs + 1;
-            if (selection.cards.length > 0) {
-                result.cards = selection.cards;
-            }
-        } else if (selection.option !== null) {
-            result.usedCard = selection.option;
-        }
-        if (selection.players.length > 0) {
-            result.targets = selection.players;
-        }
-        return result;
-    }
-    if (ask.method === 'Ask.UseSkill') {
-        const result: Record<string, unknown> = {};
         if (selection.skill !== null) {
             result.usedSkill = selection.skill;
+        } else if (selection.viewAs !== null) {
+            result.usedViewAs = selection.viewAs + 1;
+        } else if (selection.option !== null) {
+            result.usedCard = selection.option;
         }
         if (selection.cards.length > 0) {
             result.cards = selection.cards;
@@ -183,7 +171,7 @@ export function pickCard(ask: Ask, selection: Selection, id: number): Selection 
     }
     if (ask.method === 'Ask.Use') {
         const options = (params.card ?? []) as Proto.CardWithPlan[];
-        return { ...selection, option: id, players: autoPick(options.find((one) => one.id === id)) };
+        return { ...selection, option: id, skill: null, players: autoPick(options.find((one) => one.id === id)) };
     }
     if (ask.method === 'Ask.Select') {
         const auto = autoPick(params.player);
@@ -196,9 +184,9 @@ export function pickCard(ask: Ask, selection: Selection, id: number): Selection 
     return { ...selection, cards: toggle(selection.cards, id) };
 }
 
-/** 点一个技能（`Ask.UseSkill`）之后的新选择 */
+/** 点一个技能（`Ask.Use` 的技能那里）之后的新选择 */
 export function pickSkill(ask: Ask, selection: Selection, id: number): Selection {
-    const skills = ((ask.params as any).skills ?? []) as Proto.SkillPlan[];
+    const skills = ((ask.params as any).skill ?? []) as Proto.SkillPlan[];
     const skill = skills.find((one) => one.id === id);
-    return { ...selection, skill: id, cards: [], players: autoPick(skill?.targets) };
+    return { ...selection, skill: id, option: null, viewAs: null, cards: [], players: autoPick(skill?.targets) };
 }

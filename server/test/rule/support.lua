@@ -40,6 +40,20 @@ local function scripted(answers)
     end
 end
 
+--- 登记「出牌阶段怎么答」：出牌阶段只有一条询问（`askUse`），用牌与发动技能都从这一条里答
+---@param game Game
+---@param handler fun(ask: AskUse): any # 答复（`{ card = ... }` / `{ skill = ... }` / 空 = 不想出了）
+---@return function # 撤销订阅
+function M.answerPlayPhase(game, handler)
+    return game:on('卡牌-询问', function (ask)
+        if ask.kind ~= 'askUse' then
+            return
+        end
+        ---@cast ask AskUse
+        return handler(ask)
+    end)
+end
+
 --- 从这次询问的合法选项里挑第一个，目标只取第一个（客户端会这么答）
 ---@param ask AskCard
 ---@return AskCard.Answer?
@@ -52,7 +66,7 @@ function M.pickFirst(ask)
     if not option then
         return nil
     end
-    if ask.kind == 'askUseCard' then
+    if ask.kind == 'askUseCard' or ask.kind == 'askUse' then
         ---@cast ask AskUseCard
         ---@cast option AskUseCard.Option
         local legal = option.plan.legal

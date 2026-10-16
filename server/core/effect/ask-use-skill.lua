@@ -59,13 +59,14 @@ function M:__init(game, to, reason)
 end
 
 --- 这个技能这次能挑的目标（声明里有 `filter` 就逐角色筛，没有就是所有存活角色）
+---@param game Game
 ---@param skill Skill
 ---@param condition SkillDef.TargetCondition
 ---@return Player[]
-function M:collectTargets(skill, condition)
+local function collectTargets(game, skill, condition)
     ---@type Player[]
     local targets = {}
-    for _, player in ipairs(self.game.desk.alivePlayers) do
+    for _, player in ipairs(game.desk.alivePlayers) do
         if not condition.filter or condition.filter(player, skill) then
             targets[#targets + 1] = player
         end
@@ -74,10 +75,11 @@ function M:collectTargets(skill, condition)
 end
 
 --- 这个技能现在还能发动吗（自己回合的阶段里次数有没有用尽）
+---@param game Game
 ---@param skill Skill
 ---@return boolean
-function M:canFire(skill)
-    local phase = self.game:getUsePhase(skill.owner)
+local function canFire(game, skill)
+    local phase = game:getUsePhase(skill.owner)
     if not phase then
         return true
     end
@@ -85,10 +87,12 @@ function M:canFire(skill)
 end
 
 --- 把一个技能装成选项（前置凑不齐 / 次数用尽就返回空）
+---@param game Game
+---@param to Player
 ---@param skill Skill
 ---@return AskUseSkill.Option?
-function M:makeOption(skill)
-    if not self:canFire(skill) then
+local function makeOption(game, to, skill)
+    if not canFire(game, skill) then
         return nil
     end
     ---@type AskUseSkill.Option
@@ -96,8 +100,8 @@ function M:makeOption(skill)
 
     local cardCondition = skill.def.cardCondition
     if cardCondition then
-        local normalized = assert(moe.askCard.normalizeCondition(self.game, self.to, cardCondition))
-        local cards      = moe.askCard.collectCandidates(self.to, normalized)
+        local normalized = assert(moe.askCard.normalizeCondition(game, to, cardCondition))
+        local cards      = moe.askCard.collectCandidates(to, normalized)
         if #cards < normalized.min then
             return nil
         end
@@ -108,7 +112,7 @@ function M:makeOption(skill)
     if targetCondition then
         local min     = targetCondition.min or 1
         local max     = targetCondition.max or min
-        local targets = self:collectTargets(skill, targetCondition)
+        local targets = collectTargets(game, skill, targetCondition)
         if #targets < min then
             return nil
         end
@@ -119,16 +123,18 @@ function M:makeOption(skill)
 end
 
 --- 候选：身上有主动发动钩子的技能（按获得顺序）；声明过前置的还要凑得齐；死了就不问了
+---@param game Game
+---@param to Player
 ---@return AskUseSkill.Option[]
-function M:collectOptions()
+local function collectOptions(game, to)
     ---@type AskUseSkill.Option[]
     local options = {}
-    if not self.to:isAlive() then
+    if not to:isAlive() then
         return options
     end
-    for _, skill in ipairs(self.to:getSkills()) do
+    for _, skill in ipairs(to:getSkills()) do
         if skill:hasHandler('使用') then
-            local option = self:makeOption(skill)
+            local option = makeOption(game, to, skill)
             if option then
                 options[#options + 1] = option
             end
@@ -138,10 +144,11 @@ function M:collectOptions()
 end
 
 --- 在选项里找那个技能（找不到给空）
+---@param options AskUseSkill.Option[]
 ---@param value any
 ---@return AskUseSkill.Option?
-function M:findOption(value)
-    for _, option in ipairs(self.options) do
+local function findOption(options, value)
+    for _, option in ipairs(options) do
         if option.skill == value then
             return option
         end
@@ -152,7 +159,7 @@ end
 ---@param plan AskUseSkill.CardPlan
 ---@param value AskUseSkill.Answer
 ---@return any # 通过就是空
-function M:checkCards(plan, value)
+local function checkCards(plan, value)
     ---@type Card[]
     local cards = {}
     if value.cards ~= nil then
@@ -179,22 +186,24 @@ function M:checkCards(plan, value)
 end
 
 --- 答复合不合法：技能落在选项里，牌与目标各自按声明校验（该给就要给、不该给就不能给）
----@param value AskUseSkill.Answer
+---@param to Player
+---@param options AskUseSkill.Option[]
+---@param value table # 答复是外部输入（协议 / AI 给的），写宽 —— 里面自己按 `type` 把关
 ---@return any # 通过就是空
-function M:checkAnswer(value)
-    if not self.to:isAlive() then
+local function checkAnswer(to, options, value)
+    if not to:isAlive() then
         return '已经死了，不能发动技能'
     end
     if type(value) ~= 'table' then
         return '答复必须是一张表（`{ skill = ... }`）'
     end
-    local option = self:findOption(value.skill)
+    local option = findOption(options, value.skill)
     if not option then
         return '答复不是可以发动的技能'
     end
 
     if option.cards then
-        local problem = self:checkCards(option.cards, value)
+        local problem = checkCards(option.cards, value)
         if problem then
             return problem
         end
@@ -222,9 +231,9 @@ function M:checkAnswer(value)
 end
 
 --- 答复入库前统一成 `{ skill, cards = 列表?, targets = 列表? }` 的形状（单值或一列都收）
----@param value AskUseSkill.Answer
+---@param value table
 ---@return AskUseSkill.Result
-function M:normalizeAnswer(value)
+local function normalizeAnswer(value)
     ---@type AskUseSkill.Result
     local result = { skill = value.skill }
     if value.cards ~= nil then
@@ -243,6 +252,23 @@ M.__getter.skill = function (self)
     return self.result?.skill
 end
 
+--- 把一次技能答复发动出去（顺手记一次技能次数）
+---@param game Game
+---@param skill Skill
+---@param result AskUseSkill.Result
+---@return Cast
+local function fireSkill(game, skill, result)
+    local cast = skill:use {
+        cards   = result.cards or {},
+        targets = result.targets or {},
+    }
+    local phase = game:getUsePhase(skill.owner)
+    if phase then
+        phase:addUseCount(skill.def.fullName, 1)
+    end
+    return cast
+end
+
 --- 把这次答复发动出去（幂等；没答复就什么都不做）
 ---@async
 ---@return Cast? # 那次发动
@@ -256,21 +282,14 @@ function M:use()
     end
     ---@type AskUseSkill.Result
     local result = assert(self.result)
-    self.cast = skill:use {
-        cards   = result.cards or {},
-        targets = result.targets or {},
-    }
-    local phase = self.game:getUsePhase(skill.owner)
-    if phase then
-        phase:addUseCount(skill.def.fullName, 1)
-    end
+    self.cast = fireSkill(self.game, skill, result)
     return self.cast
 end
 
 --- 把询问交给应答方（候选先摆好；答复一到，结果就定下了）
 ---@async
 function M:settle()
-    self.options = self:collectOptions()
+    self.options = collectOptions(self.game, self.to)
 
     local answer = self.to.user?:askUseSkill(self)
                 or self.game:fire('技能-询问', self)
@@ -280,12 +299,12 @@ function M:settle()
         return
     end
 
-    local problem = self:checkAnswer(answer)
+    local problem = checkAnswer(self.to, self.options, answer)
     if problem then
         self.task:reject(problem)
         return
     end
-    self.task:resolve(self:normalizeAnswer(answer))
+    self.task:resolve(normalizeAnswer(answer))
 end
 
 ---@class AskUseSkill.API
@@ -296,3 +315,9 @@ moe.askUseSkill = {}
 function moe.askUseSkill.create(options)
     return New 'AskUseSkill' (options.game, options.to, options.reason)
 end
+
+--- 技能那半的三件事：合体询问（`AskUse`）也走这一份，别抄第二遍
+moe.askUseSkill.collectOptions  = collectOptions
+moe.askUseSkill.checkAnswer     = checkAnswer
+moe.askUseSkill.normalizeAnswer = normalizeAnswer
+moe.askUseSkill.fire            = fireSkill

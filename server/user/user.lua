@@ -57,6 +57,12 @@ end
 function M:askUseCard(ask)
 end
 
+--- 要一次行动（能用的牌与能发动的技能一起摆）
+---@param ask AskUse
+---@return AskUseCard.Answer|AskUseSkill.Answer?
+function M:askUse(ask)
+end
+
 --- 要一次「对一张牌的使用」
 ---@param ask AskUseCardToCard
 ---@return AskCard.Answer?

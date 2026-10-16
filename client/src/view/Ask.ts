@@ -83,14 +83,21 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
             case 'Ask.Use': {
                 const options = (params.card ?? []) as Proto.CardWithPlan[];
                 const views = (params.viewAs ?? []) as Proto.ViewAs[];
+                const skills = (params.skill ?? []) as Proto.SkillPlan[];
                 const option = options.find((one) => one.id === selection.option);
                 const view = selection.viewAs === null ? null : views[selection.viewAs];
-                const target = view ? view.target : option;
+                const skill = skills.find((one) => one.id === selection.skill) ?? null;
+                const target = skill ? skill.targets : view ? view.target : option;
                 const optionChips = chips(options.map((one) => one.id), selection.option === null ? [] : [selection.option], pickCards, true);
                 const materialChips = view?.card
                     ? chips(view.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
                     : null;
-                if (!optionChips && views.length === 0 && !materialChips) {
+                const skillMaterial = skill?.cards
+                    ? chips(skill.cards.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
+                    : null;
+                const skillTarget = skill?.targets ? chips(skill.targets.ids, selection.players, pickPlayers) : null;
+                if (!optionChips && views.length === 0 && skills.length === 0
+                    && !materialChips && !skillMaterial && !skillTarget) {
                     return null;
                 }
                 return html`<div>
@@ -99,31 +106,18 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                         <div class="chips">${views.map((one, index) => html`<button
                             key=${index}
                             class=${selection.viewAs === index ? 'on' : ''}
-                            onClick=${() => onSelection({ ...selection, viewAs: index, option: null, cards: [], players: autoPick(views[index]?.target) })}
+                            onClick=${() => onSelection({ ...selection, viewAs: index, option: null, skill: null, cards: [], players: autoPick(views[index]?.target) })}
                         >${viewLabel(agent, one)}</button>`)}</div>` : null}
-                    ${materialChips ? html`<p class="hint">素材（${planText(view?.card)}）</p>${materialChips}` : null}
-                    ${target && target.max > 0 ? html`<p class="hint">给它选目标（${planText(target)}）</p>` : null}
-                </div>`;
-            }
-            case 'Ask.UseSkill': {
-                const skills = (params.skills ?? []) as Proto.SkillPlan[];
-                const skill = skills.find((one) => one.id === selection.skill) ?? null;
-                const materialChips = skill?.cards
-                    ? chips(skill.cards.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
-                    : null;
-                const targetChips = skill?.targets ? chips(skill.targets.ids, selection.players, pickPlayers) : null;
-                if (skills.length === 0 && !materialChips && !targetChips) {
-                    return null;
-                }
-                return html`<div>
                     ${skills.length > 0 ? html`<p class="hint">发动哪个技能</p>
                         <div class="chips">${skills.map((one) => html`<button
                             key=${one.id}
                             class=${selection.skill === one.id ? 'on' : ''}
                             onClick=${() => onSelection(pickSkill(ask, selection, one.id))}
                         >${agent.skills.get(one.id)?.name ?? `技能 ${one.id}`}</button>`)}</div>` : null}
-                    ${materialChips ? html`<p class="hint">要用的牌（${planText(skill?.cards)}）</p>${materialChips}` : null}
-                    ${targetChips ? html`<p class="hint">目标（${planText(skill?.targets)}）</p>${targetChips}` : null}
+                    ${materialChips ? html`<p class="hint">素材（${planText(view?.card)}）</p>${materialChips}` : null}
+                    ${skillMaterial ? html`<p class="hint">要用的牌（${planText(skill?.cards)}）</p>${skillMaterial}` : null}
+                    ${skillTarget ? html`<p class="hint">目标（${planText(skill?.targets)}）</p>${skillTarget}` : null}
+                    ${target && target.max > 0 ? html`<p class="hint">给它选目标（${planText(target)}）</p>` : null}
                 </div>`;
             }
             case 'Ask.Hero': {

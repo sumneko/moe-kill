@@ -151,6 +151,14 @@ local function isEmptyAnswer(value)
     return value.viewAs == nil and #moe.util.toList(value.card) == 0
 end
 
+--- 这次的答复是不是「空答复」（没给牌、也没给声明）= 取消
+--- 子类答复里能带别的东西（如 `AskUse` 的技能）就覆写它
+---@param value AskCard.Answer
+---@return boolean
+function M:isEmptyAnswer(value)
+    return isEmptyAnswer(value)
+end
+
 --- 这张牌过不过这些筛选项（每项都是列表：不填 = 无要求；牌上没有对应属性时算不过）
 ---@param card Card
 ---@param condition AskCard.NormalizedCondition
@@ -287,9 +295,11 @@ function M:checkOption(option, value)
 end
 
 --- 答复落在张数区间与合法选项里吗（不在就给原因）
----@param value AskCard.Answer
+--- 答复是外部输入（协议 / AI 给的），类型写宽 —— 里面自己按 `type` 把关
+---@param self AskCard
+---@param value table
 ---@return any # 通过就是空
-function M:checkAnswer(value)
+local function checkAnswer(self, value)
     if type(value) ~= 'table' then
         return '答复必须是一张表（`{ card = ... }`）'
     end
@@ -344,10 +354,14 @@ function M:checkAnswer(value)
     return self:checkOption(assert(matched), value)
 end
 
+function M:checkAnswer(value)
+    return checkAnswer(self, value)
+end
+
 --- 答复入库前统一成 `{ cards = 列表, targets = 列表? }` 的形状（单张或一列都收）
----@param value AskCard.Answer
+---@param value table
 ---@return AskCard.Result
-function M:normalizeAnswer(value)
+local function normalizeAnswer(value)
     ---@type Player[]?
     local targets = nil
     if value.targets ~= nil then
@@ -357,6 +371,10 @@ function M:normalizeAnswer(value)
         cards   = moe.util.toList(value.card),
         targets = targets,
     }
+end
+
+function M:normalizeAnswer(value)
+    return normalizeAnswer(value)
 end
 
 --- 答复给出的那些牌（没答就是空表）
@@ -452,7 +470,7 @@ function M:collectAnswer()
     end
 
     -- 空答复 = 取消：这次允许不给才算一次答复，否则记成「取消」
-    if isEmptyAnswer(answer) and not self:allowNone() then
+    if self:isEmptyAnswer(answer) and not self:allowNone() then
         self.task:reject('取消')
         return false
     end
@@ -500,6 +518,10 @@ moe.askCard.collectCandidates = collectCandidates
 
 --- 校验一组目标（个数 / 归属 / 重复；`AskCardWithTarget` 与 `AskUseSkill` 共用）
 moe.askCard.checkTargets = checkTargets
+
+--- 答复校验与归一（`AskUse` 在答复分流时也要走这一份，别抄第二遍）
+moe.askCard.checkAnswer     = checkAnswer
+moe.askCard.normalizeAnswer = normalizeAnswer
 
 ---@param options AskCard.CreateOptions
 ---@return AskCard

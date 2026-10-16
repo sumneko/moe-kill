@@ -20,7 +20,7 @@ export interface Ask {
 }
 
 /** 会下发给客户端的那些询问 */
-const ASK_METHODS = ['Ask.Select', 'Ask.Choice', 'Ask.Use', 'Ask.UseSkill', 'Ask.Hero', 'Ask.Panel'];
+const ASK_METHODS = ['Ask.Select', 'Ask.Choice', 'Ask.Use', 'Ask.Hero', 'Ask.Panel'];
 
 /** 最近记几条日志 */
 const LOG_LIMIT = 200;

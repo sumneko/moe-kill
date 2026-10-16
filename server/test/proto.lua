@@ -99,7 +99,7 @@ lt.test('协议声明：上线要校验的形状都有声明', function ()
     for _, method in ipairs { 'Game.Join', 'Game.SnapShot', 'Skill.ChangeAuto', 'Panel.Move' } do
         lt.assertNotEquals('上行参数「' .. method .. '」有声明', nil, moe.proto.shape('Proto.Request.' .. method))
     end
-    for _, method in ipairs { 'Ask.Select', 'Ask.Choice', 'Ask.Use', 'Ask.UseSkill', 'Ask.Hero', 'Ask.Panel' } do
+    for _, method in ipairs { 'Ask.Select', 'Ask.Choice', 'Ask.Use', 'Ask.Hero', 'Ask.Panel' } do
         lt.assertNotEquals('回包「' .. method .. '」有声明', nil, moe.proto.shape('Proto.Result.' .. method))
     end
 end)

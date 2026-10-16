@@ -34,7 +34,6 @@ end
 local SELECT_RESULT    = resultShape 'Ask.Select'
 local CHOICE_RESULT    = resultShape 'Ask.Choice'
 local USE_RESULT       = resultShape 'Ask.Use'
-local USE_SKILL_RESULT = resultShape 'Ask.UseSkill'
 local HERO_RESULT      = resultShape 'Ask.Hero'
 local PANEL_RESULT     = resultShape 'Ask.Panel'
 
@@ -98,8 +97,9 @@ end
 ---@class ClientUser.UseResult
 ---@field usedCard? Card # 被使用的那张实体牌
 ---@field usedViewAs? integer # 用了第几个「视为」（发起方给的列表下标）
+---@field usedSkill? integer # 发动了哪个技能（技能号；换了真技能是调用方的事）
 ---@field players? Player[] # 被选中的目标
----@field cards? Card[] # 这次使用带的素材牌（视为那条才有）
+---@field cards? Card[] # 这次带的素材牌（视为 / 技能那两条才有）
 
 --- 发一次 `Ask.Choice`（选项由调用者摆好），把回包的索引换回选项字符串
 ---@async
@@ -167,6 +167,9 @@ function M:use(ask, params)
     end
     if result.usedViewAs then
         parsed.usedViewAs = result.usedViewAs
+    end
+    if result.usedSkill then
+        parsed.usedSkill = result.usedSkill
     end
     if result.targets then
         ---@type Player[]?
@@ -388,14 +391,13 @@ function M:askUseCardToCard(ask)
     return self:pickCards(ask)
 end
 
---- 要一次技能使用：候选技能各带这次能挑的牌与目标（协议：`Ask.UseSkill`）
----@async
----@param ask AskUseSkill
----@return AskUseSkill.Answer?
-function M:askUseSkill(ask)
+--- 一次技能询问的候选：每个技能带这次能挑的牌与目标（协议里 `Ask.Use` 的 `skill` 那一组）
+---@param options AskUseSkill.Option[]
+---@return Proto.SkillPlan[]
+function M:skillPlans(options)
     ---@type Proto.SkillPlan[]
     local skills = {}
-    for _, option in ipairs(ask.options) do
+    for _, option in ipairs(options) do
         ---@type Proto.SkillPlan
         local plan = { id = option.skill.id }
         local cards = option.cards
@@ -408,46 +410,46 @@ function M:askUseSkill(ask)
         end
         skills[#skills + 1] = plan
     end
-    ---@type Proto.Request.Ask.UseSkill
-    local params = {
-        reason     = ask.reason,
-        cancelable = true,
-        skills     = skills,
-        timeLimit  = DEFAULT_TIME_LIMIT,
-    }
-    local result = self:request('Ask.UseSkill', params, ask):await()
-    if not result or moe.shape.problem(result, USE_SKILL_RESULT) then
-        return nil
-    end
+    return skills
+end
+
+--- 答复换成「技能族」的形状（没答上就是空）
+---@param options AskUseSkill.Option[]
+---@param result ClientUser.UseResult
+---@return AskUseSkill.Answer?
+function M:skillAnswer(options, result)
     local used = result.usedSkill
     if not used then
         return nil
     end
-    for _, option in ipairs(ask.options) do
+    for _, option in ipairs(options) do
         if option.skill.id == used then
-            ---@type Card[]?
-            local cards = nil
-            if result.cards then
-                cards = self:cardList(result.cards)
-                if not cards then
-                    return nil
-                end
-            end
-            ---@type Player[]?
-            local targets = nil
-            if result.targets then
-                targets = self:playerList(result.targets)
-                if not targets then
-                    return nil
-                end
-            end
             return {
                 skill   = option.skill,
-                cards   = cards,
-                targets = targets,
+                cards   = result.cards,
+                targets = result.players,
             }
         end
     end
+end
+
+--- 要一次技能使用：候选技能各带这次能挑的牌与目标（协议：`Ask.Use` 只给 `skill` 那一组）
+---@async
+---@param ask AskUseSkill
+---@return AskUseSkill.Answer?
+function M:askUseSkill(ask)
+    ---@type Proto.Request.Ask.Use
+    local params = {
+        reason     = ask.reason,
+        cancelable = true,
+        skill      = self:skillPlans(ask.options),
+        timeLimit  = DEFAULT_TIME_LIMIT,
+    }
+    local parsed = self:use(ask, params)
+    if not parsed then
+        return nil
+    end
+    return self:skillAnswer(ask.options, parsed)
 end
 
 --- 要他在若干武将里挑（协议：`Ask.Hero`；候选是一份武将全名，名单缺省 = 不做限制）
@@ -539,16 +541,17 @@ function M:viewAsParams(viewAs, plan)
     return params
 end
 
---- 要一次「使用」：实体候选带目标区间，视为候选带来源、素材条件与目标区间（协议：`Ask.Use`）
----@async
----@param ask AskUseCard
----@return AskUseCard.Answer?
-function M:askUseCard(ask)
+--- 一次用牌询问的候选：实体牌带目标区间，视为带来源、素材条件与目标区间（协议里 `Ask.Use` 的 `card` / `viewAs` 两组）
+---@param ask AskUseCard|AskUse
+---@return Proto.CardWithPlan[] # `card` 那一组
+---@return Proto.ViewAs[] # `viewAs` 那一组
+---@return ViewAs[] # 与发出去那份一一对应（回包给的是下标）
+function M:cardPlans(ask)
     ---@type Proto.CardWithPlan[]
     local cards = {}
     ---@type Proto.ViewAs[]
     local viewAsList = {}
-    ---@type ViewAs[] # 发出去的视为列表 ⇄ 真声明（回包给的是下标）
+    ---@type ViewAs[]
     local viewAsOptions = {}
     for _, option in ipairs(ask.options) do
         ---@cast option AskUseCard.Option
@@ -569,6 +572,30 @@ function M:askUseCard(ask)
             end
         end
     end
+    return cards, viewAsList, viewAsOptions
+end
+
+--- 答复换成「用牌族」的形状（视为答复 / 用实体牌答复两种）
+---@param viewAsOptions ViewAs[]
+---@param parsed ClientUser.UseResult
+---@return AskUseCard.Answer?
+function M:cardAnswer(viewAsOptions, parsed)
+    if parsed.usedViewAs then
+        return {
+            viewAs    = viewAsOptions[parsed.usedViewAs],
+            targets   = parsed.players,
+            materials = parsed.cards,
+        }
+    end
+    return { card = parsed.usedCard, targets = parsed.players }
+end
+
+--- 要一次「使用」：实体候选带目标区间，视为候选带来源、素材条件与目标区间（协议：`Ask.Use` 给 `card` / `viewAs` 两组）
+---@async
+---@param ask AskUseCard
+---@return AskUseCard.Answer?
+function M:askUseCard(ask)
+    local cards, viewAsList, viewAsOptions = self:cardPlans(ask)
     local parsed = self:use(ask, {
         reason     = ask.reason,
         cancelable = ask.condition.cancelable,
@@ -579,14 +606,31 @@ function M:askUseCard(ask)
     if not parsed then
         return nil
     end
-    if parsed.usedViewAs then
-        return {
-            viewAs    = viewAsOptions[parsed.usedViewAs],
-            targets   = parsed.players,
-            materials = parsed.cards,
-        }
+    return self:cardAnswer(viewAsOptions, parsed)
+end
+
+--- 要一次行动：能用的牌（含视为）与能发动的技能**一起**摆出来（协议：`Ask.Use` 三组都给）
+---@async
+---@param ask AskUse
+---@return AskUseCard.Answer|AskUseSkill.Answer?
+function M:askUse(ask)
+    local cards, viewAsList, viewAsOptions = self:cardPlans(ask)
+    local parsed = self:use(ask, {
+        reason     = ask.reason,
+        cancelable = ask.condition.cancelable,
+        card       = cards,
+        viewAs     = viewAsList,
+        skill      = self:skillPlans(ask.skills),
+        timeLimit  = ask.timeLimit or DEFAULT_TIME_LIMIT,
+    })
+    if not parsed then
+        return nil
     end
-    return { card = parsed.usedCard, targets = parsed.players }
+    local asSkill = self:skillAnswer(ask.skills, parsed)
+    if asSkill then
+        return asSkill
+    end
+    return self:cardAnswer(viewAsOptions, parsed)
 end
 
 --- 叫停一次请求：只发一条 `Cancel` 通知（请求本身照旧等回包 —— 有 id 的请求必须回包，

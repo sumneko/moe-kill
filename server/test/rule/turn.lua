@@ -41,7 +41,7 @@ local function startTurn(options)
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askUseCard' or ask.kind == 'askUseSkill' then
+        if ask.kind == 'askUseCard' or ask.kind == 'askUse' then
             moe.await.sleep(0)
             return options.answer(ask, run)
         end
@@ -226,7 +226,7 @@ lt.test('回合：出牌阶段用一张杀并结算', function ()
             run.players[1]:getZone('手牌'):accept(slash)
         end,
         answer = function (ask, run)
-            if ask.kind ~= 'askUseCard' or not slash then
+            if ask.kind ~= 'askUse' or not slash then
                 return nil
             end
             local card = slash
@@ -397,7 +397,7 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
             -- 【闪】没声明目标条件 ⇒ 用不了
             hand:accept(run.game:createCard('闪'))
             run.game:on('卡牌-询问', function (ask)
-                if ask.kind ~= 'askUseCard' then
+                if ask.kind ~= 'askUse' then
                     return
                 end
                 ---@type string[]
@@ -414,10 +414,9 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
 
     state.task:await()
 
-    lt.assertEquals('问了两次（第二次选项已空，答复方就此收手）', 2, #offered)
+    lt.assertEquals('只问了一次（用完那张【杀】之后连询问都不发了）', 1, #offered)
     lt.assertEquals('第一次的选项里没有用不了的【闪】', false, offered[1]:find('闪', 1, true) ~= nil)
     lt.assertEquals('第一次的选项里是【杀】', true, offered[1]:find('^杀', 1) ~= nil)
-    lt.assertEquals('用完一张【杀】之后第二次的选项空了', '', offered[2])
 
     local lost = 0
     for _, player in ipairs(state.run.desk.alivePlayers) do
@@ -684,7 +683,7 @@ lt.test('克己：出牌阶段出过【杀】⇒ 照常弃牌', function ()
             assert(seatWithHero(run, '吕蒙'):getZone('手牌')):accept(slash)
         end,
         answer = function (ask, run)
-            if ask.kind ~= 'askUseCard' or not slash then
+            if ask.kind ~= 'askUse' or not slash then
                 return nil
             end
             local card = slash
@@ -743,7 +742,7 @@ lt.test('克己：只在【决斗】里打出过【杀】也一样不跳过', fu
             end)
         end,
         answer = function (ask, run)
-            if ask.kind ~= 'askUseCard' or not duel then
+            if ask.kind ~= 'askUse' or not duel then
                 return nil
             end
             local card = duel

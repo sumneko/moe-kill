@@ -644,6 +644,9 @@ export namespace Proto {
                 responseTo?: Proto.ResponseTo;
             }
 
+            /**
+             * 要一次行动：能用的牌（含视为）与能发动的技能是**三组可选分量**，各自可缺 —— 给一组就是问那一类、给多组就是一次问清
+             */
             export interface Use extends Proto.Cancelable, Proto.Timelimit {
                 /**
                  * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
@@ -654,25 +657,17 @@ export namespace Proto {
                  */
                 cancelable?: boolean;
                 /**
-                 * 被使用的卡牌列表
+                 * 能用的牌（不问牌就不给）
                  */
-                card: Proto.CardWithPlan[];
+                card?: Proto.CardWithPlan[];
                 /**
-                 * 可用的视为技列表
+                 * 可用的视为技列表（同上）
                  */
-                viewAs: Proto.ViewAs[];
-            }
-
-            export interface UseSkill extends Proto.Cancelable, Proto.Timelimit {
+                viewAs?: Proto.ViewAs[];
                 /**
-                 * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
+                 * 能发动的技能（同上）
                  */
-                reason: string;
-                /**
-                 * 恒 true：内核里「不表态 = 取消」
-                 */
-                cancelable?: boolean;
-                skills: Proto.SkillPlan[];
+                skill?: Proto.SkillPlan[];
             }
         }
 
@@ -798,38 +793,30 @@ export namespace Proto {
                 card?: number[];
             }
 
+            /**
+             * 一次答复：给了哪个 `used*` 就是哪一种（三者互斥）
+             */
             export interface Use {
                 /**
-                 * 被使用的卡牌ID
+                 * 用了哪张牌
                  */
                 usedCard?: number;
                 /**
-                 * 使用了第几个viewAs效果。和 card 互斥。
+                 * 用了第几个viewAs效果
                  */
                 usedViewAs?: number;
+                /**
+                 * 发动哪个技能（ID）
+                 */
+                usedSkill?: number;
                 /**
                  * 被选中的目标玩家ID列表
                  */
                 targets?: number[];
                 /**
-                 * 被使用的卡牌ID列表。只有 useViewAs 时才有可能有值
+                 * 这次带的素材牌（视为 / 技能用；`usedCard` 时不带）
                  */
                 cards?: number[];
-            }
-
-            export interface UseSkill {
-                /**
-                 * 发动哪个技能（ID；缺 = 取消）
-                 */
-                usedSkill?: number;
-                /**
-                 * 这次发动带的牌
-                 */
-                cards?: number[];
-                /**
-                 * 这次发动指定的目标
-                 */
-                targets?: number[];
             }
         }
 

@@ -22,12 +22,12 @@ end
 lt.test('询问：要一次技能使用，候选带技能号与能挑的牌 / 目标，答复直接发动', function ()
     local game, me, other, skill, card = prepare()
 
-    ---@type Proto.Request.Ask.UseSkill?
+    ---@type Proto.Request.Ask.Use?
     local sent = nil
-    local _ <close> = moe.client.register('Ask.UseSkill', function (_, params)
-        ---@cast params Proto.Request.Ask.UseSkill
+    local _ <close> = moe.client.register('Ask.Use', function (_, params)
+        ---@cast params Proto.Request.Ask.Use
         sent = params
-        local plan = assert(params.skills[1])
+        local plan = assert(params.skill[1])
         return {
             usedSkill = plan.id,
             cards     = assert(plan.cards).ids,
@@ -43,8 +43,8 @@ lt.test('询问：要一次技能使用，候选带技能号与能挑的牌 / �
     ask:apply():await()
 
     local params = assert(sent, '没问过客户端')
-    lt.assertEquals('候选只有那个技能', 1, #params.skills)
-    local plan = assert(params.skills[1])
+    lt.assertEquals('候选只有那个技能', 1, #params.skill)
+    local plan = assert(params.skill[1])
     lt.assertEquals('发的是技能号', skill.id, plan.id)
     lt.assertEquals('能挑的牌就是那张', support.cardId(me, card), assert(plan.cards).ids[1])
     lt.assertEquals('牌只要一张', '1,1', assert(plan.cards).min .. ',' .. assert(plan.cards).max)
@@ -58,7 +58,7 @@ end)
 lt.test('询问：技能号不认 ⇒ 这次不算成立', function ()
     local game, me = prepare()
 
-    local _ <close> = moe.client.register('Ask.UseSkill', function ()
+    local _ <close> = moe.client.register('Ask.Use', function ()
         return { usedSkill = 9999 }
     end)
 
@@ -77,9 +77,9 @@ end)
 lt.test('询问：该给牌却没给 ⇒ 内核拒收', function ()
     local game, me = prepare()
 
-    local _ <close> = moe.client.register('Ask.UseSkill', function (_, params)
-        ---@cast params Proto.Request.Ask.UseSkill
-        return { usedSkill = assert(params.skills[1]).id }
+    local _ <close> = moe.client.register('Ask.Use', function (_, params)
+        ---@cast params Proto.Request.Ask.Use
+        return { usedSkill = assert(params.skill[1]).id }
     end)
 
     local ask = moe.askUseSkill.create {

@@ -175,10 +175,10 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
 
     /** 这条询问里能不能发动这个技能（能就返回「选中它」的点击处理器，不能就空） */
     const fireable = (skillId: number): (() => void) | null => {
-        if (ask?.method !== 'Ask.UseSkill') {
+        if (ask?.method !== 'Ask.Use') {
             return null;
         }
-        const plans = ((ask.params as any).skills ?? []) as Proto.SkillPlan[];
+        const plans = ((ask.params as any).skill ?? []) as Proto.SkillPlan[];
         if (!plans.some((one) => one.id === skillId)) {
             return null;
         }
