@@ -4,7 +4,7 @@ import type { Proto } from '../proto';
 import type { Agent, Ask } from '../state/agent';
 import { Card } from './Card';
 import { answerOf, autoPick, canSubmit, pickCard, pickSkill, planText, toggle, type Selection } from './pick';
-import { cardLabel, heroName, seatCards } from './format';
+import { cardLabel, colorOf, formatText, heroName, seatCards, type TextPiece } from './format';
 
 /** 一条询问要摆些什么、交上去什么 */
 export interface AskHandlers {
@@ -213,7 +213,10 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 <div class="left" style=${`width: ${Math.max(0, Math.min(100, (left / timeLimit) * 100))}%`}></div>
             </div>` : null}
             <div class="head">
-                <span class="title">${askTitle(agent, ask, params)}</span>
+                <span class="title">${askTitle(agent, ask, params).map((piece, index) => html`<span
+                    key=${index}
+                    style=${piece.color ? `color:${piece.color}` : undefined}
+                >${piece.text}</span>`)}</span>
                 <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
             </div>
             <div class="bar">
@@ -245,15 +248,36 @@ function whoOf(agent: Agent, id: number): string {
     return heroName(agent.players.get(id)) ?? agent.playerLabel(id);
 }
 
-/** 这次询问的抬头：`reason` 本身就是给用户看的整句，响应类在后面接上「响应谁的那张牌」 */
-function askTitle(agent: Agent, ask: Ask, params: any): string {
-    const reason = (params.reason as string | undefined) ?? ask.method;
+/** 一个角色怎么显示：自己就是「你」（高亮），否则武将名或用户名 */
+function whoPiece(agent: Agent, id: number): TextPiece {
+    if (agent.me === id) {
+        return { text: '你', color: colorOf('me') };
+    }
+    return { text: whoOf(agent, id), color: colorOf('player') };
+}
+
+/** 这次询问的抬头：`reason` 是带格式的文本（走 `formatText`），响应类再拼上「响应谁的那张牌」 */
+function askTitle(agent: Agent, ask: Ask, params: any): TextPiece[] {
+    const title = formatText((params.reason as string | undefined) ?? ask.method);
     const responseTo = params.responseTo as Proto.ResponseTo | undefined;
     if (!responseTo) {
-        return reason;
+        return title;
     }
-    const who = [responseTo.player, ...responseTo.targets].map((id) => whoOf(agent, id)).join(' → ');
-    return `${reason} → ${responseTo.card}（${who}）`;
+    const who: TextPiece[] = [];
+    for (const [index, id] of [responseTo.player, ...responseTo.targets].entries()) {
+        if (index > 0) {
+            who.push({ text: ' → ' });
+        }
+        who.push(whoPiece(agent, id));
+    }
+    return [
+        ...title,
+        { text: ' → ' },
+        { text: responseTo.card, color: colorOf('card') },
+        { text: '（' },
+        ...who,
+        { text: '）' },
+    ];
 }
 
 /** 玩家名（认不出就给号） */

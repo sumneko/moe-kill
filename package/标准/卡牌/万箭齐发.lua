@@ -12,7 +12,7 @@ Card '万箭齐发'
     }
     : on('生效', function (cardEffect, useCard)
         local target = cardEffect.target
-        if game:askPlayCard(target, '打出一张 闪', { name = '闪' }, { responseTo = useCard }).card then
+        if game:askPlayCard(target, '${locale:打出一张 {card}}@{card:闪}', { name = '闪' }, { responseTo = useCard }).card then
             return
         end
         game:damage(cardEffect.user, target, 1, cardEffect.card)

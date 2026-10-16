@@ -13,7 +13,7 @@ Card '杀'
     }
     : on('生效', function (cardEffect, useCard)
         -- 要一张打出的【闪】来响应这次生效；响应成立（含被驳回判定）读 .success
-        local ask = game:askPlayCard(cardEffect.target, '打出一张 闪', { name = '闪' }, { responseTo = useCard })
+        local ask = game:askPlayCard(cardEffect.target, '${locale:打出一张 {card}}@{card:闪}', { name = '闪' }, { responseTo = useCard })
         if ask.success then
             return
         end

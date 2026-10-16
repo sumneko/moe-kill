@@ -15,7 +15,7 @@ Card '决斗'
         -- 上限 1000 次，防止答复不前进时死循环
         for _ = 1, 1000 do
             local options = { responseTo = useCard }
-            if not game:askPlayCard(defender, '打出一张 杀', { name = '杀' }, options).card then
+            if not game:askPlayCard(defender, '${locale:打出一张 {card}}@{card:杀}', { name = '杀' }, options).card then
                 game:damage(attacker, defender, 1, cardEffect.card)
                 return
             end

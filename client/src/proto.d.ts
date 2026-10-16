@@ -561,7 +561,7 @@ export namespace Proto {
         export namespace Ask {
             export interface Choice extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
                  */
                 reason: string;
                 /**
@@ -579,7 +579,7 @@ export namespace Proto {
              */
             export interface Hero extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
                  */
                 reason: string;
                 /**
@@ -601,7 +601,7 @@ export namespace Proto {
              */
             export interface Panel extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
                  */
                 reason: string;
                 /**
@@ -619,7 +619,7 @@ export namespace Proto {
              */
             export interface Select extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
                  */
                 reason: string;
                 /**
@@ -636,7 +636,7 @@ export namespace Proto {
 
             export interface Use extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
                  */
                 reason: string;
                 /**
@@ -655,7 +655,7 @@ export namespace Proto {
 
             export interface UseSkill extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 * 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
                  */
                 reason: string;
                 /**
