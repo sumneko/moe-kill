@@ -24,6 +24,11 @@ function M:revealIdentity()
     self:setCustomVisible('identity', true)
 end
 
+-- 阵亡：身份牌当场翻给所有人看（官方 Ch1/S2:64「死亡时首先亮出其身份牌」）
+game:on('玩家-死亡', function (player)
+    player:revealIdentity()
+end)
+
 -- 结局：所有人的身份牌都翻开来（胜负定了就没必要再藏着）
 game:on('游戏-结束', function ()
     for _, player in ipairs(game.desk.players) do
