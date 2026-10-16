@@ -95,8 +95,12 @@ button:disabled { cursor: default; opacity: .45; }
     background: #151b28cc; border: 1px solid var(--line); color: var(--gold); font-size: 13px; }
 #playedZone { position: relative; height: var(--card-h); margin: 10px 0 8px;
     background: #ffffff14; border-radius: 6px; }
-#playedZone .card { position: absolute; top: 0; }
-#playedZone .card.ghost { opacity: .45; }
+#playedZone .card { position: absolute; top: 0; opacity: .45; }
+/* 换人开回合：整排向左淡出 */
+#playedZone.leaving .card { animation: played-away 360ms cubic-bezier(.4, 0, .7, 1) forwards; }
+@keyframes played-away {
+    to { transform: translateX(-96px); opacity: 0; }
+}
 #playedTo { font-size: 13px; color: #cfd6e6; min-height: 18px; }
 
 /* 座位：立绘框只放立绘，其余全部超框 */

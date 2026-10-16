@@ -392,11 +392,6 @@ export class Agent {
         });
         rpc.onNotify('Card.Remove', (params: Proto.Notify.Card.Remove) => {
             for (const id of params.ids) {
-                const card = this.cards.get(id);
-                // 处理区里那张被收掉了：前端要在原位上留个影子（这时账里还没删掉，问得到它在哪个区）
-                if (card?.zone === '#0') {
-                    this.events.push({ kind: 'gone', id, face: card.face ?? {} });
-                }
                 this.cards.delete(id);
             }
             this.changed();
@@ -405,6 +400,10 @@ export class Agent {
             for (const move of params.moves) {
                 this.log(`挪牌：${move.from} → ${move.to}`);
                 this.events.push({ kind: 'move', move });
+                // 搬进无主区 = 进了公共处理区（`#0` 没有区名，只有临时处理区会走到这儿）
+                if (move.to.startsWith('#')) {
+                    this.events.push({ kind: 'entered', face: move.face ?? {} });
+                }
             }
             this.changed();
         });

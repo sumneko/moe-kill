@@ -110,7 +110,7 @@ function ghostGroup(faces: (Proto.CardFace | undefined)[]): HTMLElement {
 }
 
 /** 飞行总时长（毫秒） */
-const FLY_MS = 1000;
+export const FLY_MS = 1000;
 
 /** 起步马上提速（加速段短）、之后一路减速（减速段长），到点速度正好为 0 */
 const FLY_EASING = 'cubic-bezier(.25, 0, .25, 1)';

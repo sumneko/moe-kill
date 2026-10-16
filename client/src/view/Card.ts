@@ -20,13 +20,12 @@ export function Card(props: {
     draggable?: boolean;
     /** 外部给的定位样式（处理区那条牌列用） */
     style?: string;
-    /** 只剩个影子（处理区里已搬走的那张） */
-    ghost?: boolean;
     onClick?: () => void;
     onDragStart?: () => void;
     onDrop?: (event: DragEvent) => void;
 }) {
-    const card = props.agent.cards.get(props.id);
+    // 只给了牌面的（处理区那条尾巴）：不查账 —— 那些号跟账里不是一套
+    const card = props.face ? undefined : props.agent.cards.get(props.id);
     const face = props.face ?? cardFaceOf(props.agent, props.id);
     const suit = face?.suit ?? '';
     const cls = [
@@ -36,7 +35,6 @@ export function Card(props: {
         props.pick ? 'pick' : '',
         props.picked ? 'picked' : '',
         props.off ? 'off' : '',
-        props.ghost ? 'ghost' : '',
         card?.face || card?.modifier || props.face ? '' : 'back',
     ].filter((one) => one.length > 0).join(' ');
     const description = props.agent.text(face?.name ?? '');

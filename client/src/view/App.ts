@@ -1,5 +1,5 @@
 import { html } from 'htm/preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Proto } from '../proto';
 import type { Agent } from '../state/agent';
 import type { GameEvent } from '../state/events';
@@ -12,7 +12,7 @@ import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
 import { Stage } from './Stage';
 import { EMPTY, candidates, pickCard, pickSkill, toggle, type Selection } from './pick';
-import { measureCards, playMoves } from './anim';
+import { FLY_MS, measureCards, playMoves } from './anim';
 import { attr, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
 
@@ -24,14 +24,18 @@ const PLAYED_W = 840;
 const PLAYED_GAP = 0;
 /** 挤到不能再挤时每张至少露多少 */
 const PLAYED_MIN_STEP = 16;
-/** 幻影被服务器删掉之后再留多久（毫秒） */
-const GHOST_LINGER_MS = 5000;
+/** 换人开回合时，处理区那排影子向左淡出多久（毫秒） */
+const PLAYED_OUT_MS = 360;
+/** 处理区来了新影子：从它右边多远滑进来（画布坐标） */
+const PLAYED_ENTER_X = 56;
+/** 处理区影子挪位 / 进场的时长（毫秒） */
+const PLAYED_MOVE_MS = 260;
 /** 跳字停留多久（毫秒） */
 const POP_MS = 900;
 
-/** 处理区里的一条幻影：牌已经搬走了，位子先留着 */
+/** 处理区里的一条影子：这个回合有人打出过这张牌（之后它去哪都不再管） */
 interface Ghost {
-    id: number;
+    key: number;
     face: Proto.CardFace;
 }
 
@@ -61,6 +65,16 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const { agent } = props;
     const [selection, setSelection] = useState<Selection>(EMPTY);
     const [ghosts, setGhosts] = useState<Ghost[]>([]);
+    /** 换人开回合了、整排正在向左淡出 */
+    const [leaving, setLeaving] = useState(false);
+    /** 处理区每条影子算好的位置 */
+    const placedLeft = useRef(new Map<number, number>());
+    /** 上一轮每条影子蹲在哪儿（用来算出「该滑多远」） */
+    const wasLeft = useRef(new Map<number, number>());
+    /** 换代号：清空处理区时 +1，用来丢掉那些还在飞、稍后才到的影子 */
+    const gen = useRef(0);
+    /** 上一眼看过的回合角色（换人就把处理区清掉） */
+    const turnSeen = useRef<number | null>(null);
     const [pops, setPops] = useState<PopRef[]>([]);
     const [drawer, setDrawer] = useState(false);
     const [raw, setRaw] = useState('');
@@ -85,13 +99,16 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 window.setTimeout(() => setPops((list) => list.filter((one) => one.key !== key)), POP_MS);
                 continue;
             }
-            if (event.kind === 'gone') {
-                // 处理区那张被服务器删了：先留个影子，再等一会儿撤
-                const ghost: Ghost = { id: event.id, face: event.face };
-                setGhosts((list) => list.some((one) => one.id === ghost.id) ? list : [...list, ghost]);
+            if (event.kind === 'entered') {
+                // 牌搬进处理区：等飞行动画播完，再在原位留一条影子（影子不跟这张牌的下落）
+                const key = nextKey.current++;
+                const ghost: Ghost = { key, face: event.face };
+                const mine = gen.current;
                 window.setTimeout(() => {
-                    setGhosts((list) => list.filter((one) => one.id !== ghost.id));
-                }, GHOST_LINGER_MS);
+                    if (gen.current === mine) {
+                        setGhosts((list) => [...list, ghost]);
+                    }
+                }, FLY_MS);
                 continue;
             }
             if (event.kind !== 'move') {
@@ -113,8 +130,27 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
 
     // 重开一局：处理区的影子跟着清掉
     useEffect(() => {
+        gen.current++;
+        turnSeen.current = null;
+        setLeaving(false);
         setGhosts([]);
     }, [agent.over]);
+
+    // 换人开回合：处理区整排向左淡出（那排影子只是「本回合出过哪些牌」的记忆）
+    useEffect(() => {
+        const now = agent.turnPlayer;
+        const before = turnSeen.current;
+        turnSeen.current = now;
+        if (before === null || before === now) {
+            return;
+        }
+        gen.current++;
+        setLeaving(true);
+        window.setTimeout(() => {
+            setLeaving(false);
+            setGhosts([]);
+        }, PLAYED_OUT_MS);
+    }, [agent.turnPlayer]);
 
     const me = agent.me === null ? null : agent.players.get(agent.me) ?? null;
     const total = layoutSeats ?? Math.max(agent.seats, agent.players.size, 1);
@@ -170,14 +206,41 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         }
     };
 
-    /** 处理区里现躺着的牌 + 已经搬走的影子（按号排：新号更大 ⇒ 靠右、盖在旧卡上面） */
-    const rows = [
-        ...[...agent.cards.values()]
-            .filter((card) => card.zone === '#0')
-            .map((card) => ({ id: card.id, face: card.face ?? {}, ghost: false })),
-        ...ghosts.map((one) => ({ ...one, ghost: true })),
-    ].sort((left, right) => left.id - right.id);
-    const placedLeft = placedLefts(rows.length);
+    /** 处理区那条尾巴：按出牌先后排（新的靠右、盖住旧卡） */
+    const rows = ghosts;
+
+    // 位置要在渲染期就算出来 —— 放 effect 里的话，第一帧会先落在 left:0（看着像从左边滑进来）
+    useMemo(() => {
+        const lefts = placedLefts(ghosts.length);
+        placedLeft.current = new Map(ghosts.map((one, index) => [one.key, lefts[index] ?? 0]));
+    }, [ghosts]);
+
+    // 已经在那儿、又换了位子的影子滑过去；刚冒出来的从右侧淡入（与手牌同一种进场）
+    useLayoutEffect(() => {
+        for (const [id, left] of placedLeft.current) {
+            const el = document.querySelector<HTMLElement>(`[data-fly="played:${id}"]`);
+            const before = wasLeft.current.get(id);
+            if (before === undefined) {
+                // 终值写 .45：与 table.css 里 #playedZone .card 的 opacity 一致，否则播完会跳一下
+                el?.animate(
+                    [
+                        { transform: `translateX(${PLAYED_ENTER_X}px)`, opacity: 0 },
+                        { transform: 'translateX(0px)', opacity: 0.45 },
+                    ],
+                    { duration: PLAYED_MOVE_MS, easing: 'cubic-bezier(.25, 0, .25, 1)' },
+                );
+                continue;
+            }
+            if (before === left) {
+                continue;
+            }
+            el?.animate(
+                [{ transform: `translateX(${before - left}px)` }, { transform: 'translateX(0px)' }],
+                { duration: PLAYED_MOVE_MS, easing: 'cubic-bezier(.25, 0, .25, 1)' },
+            );
+        }
+        wasLeft.current = new Map(placedLeft.current);
+    });
 
     return html`<${Stage}>
         <div class="root">
@@ -204,16 +267,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             ${myPhase ? html`<div id="myPhase">${myPhase}阶段</div>` : null}
 
             <div id="center">
-                <div id="playedZone">
+                <div id="playedZone" class=${leaving ? 'leaving' : undefined}>
                     ${rows.map((one, index) => html`<${Card}
-                        key=${one.id}
+                        key=${one.key}
                         agent=${agent}
-                        id=${one.id}
+                        id=${one.key}
                         face=${one.face}
-                        flyKey=${`played:${one.id}`}
-                        style=${`left: ${placedLeft[index] ?? 0}px; z-index: ${index}`}
-                        glow=${!one.ghost}
-                        ghost=${one.ghost}
+                        flyKey=${`played:${one.key}`}
+                        style=${`left: ${placedLeft.current.get(one.key) ?? 0}px; z-index: ${index}`}
                     />`)}
                 </div>
             </div>

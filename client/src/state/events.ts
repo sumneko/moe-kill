@@ -12,5 +12,5 @@ export type GameEvent =
     | { kind: 'phase'; player: number; name: string }
     /** 终局了 */
     | { kind: 'over'; side: string; reason: string }
-    /** 处理区里那张牌被服务器删了（在位子上留个影子） */
-    | { kind: 'gone'; id: number; face: Proto.CardFace };
+    /** 有牌搬进公共处理区了（打出的 / 使用的那张，以及五谷丰登亮出来的） */
+    | { kind: 'entered'; face: Proto.CardFace };
