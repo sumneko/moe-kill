@@ -1,7 +1,7 @@
 import { html } from 'htm/preact';
 import type { Agent } from '../state/agent';
 
-/** 调试抽屉里能选的动画倍率 */
+/** 调试抽屉里能选的动画倍率（**时长乘数**：`0` = 没有动画，越大等得越久） */
 const SPEEDS = [0, 0.5, 1, 2, 4];
 
 /** 调试抽屉：手写发送 + 动画倍率 + 事件流 */
@@ -23,7 +23,7 @@ export function Drawer(props: {
             <button onClick=${props.onSend}>手写发送</button>
         </div>
         ${props.agent.debug ? html`<div class="send">
-            <span>动画倍率</span>
+            <span title="等待时长 = 节拍秒数 × 倍率：0 = 没有动画，2 就是等两倍久">动画倍率</span>
             ${SPEEDS.map((scale) => html`<button
                 key=${scale}
                 disabled=${props.agent.animScale === scale}
