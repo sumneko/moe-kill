@@ -91,6 +91,8 @@ button:disabled { cursor: default; opacity: .45; }
 .pile .cap { font-size: 11px; color: var(--muted); }
 
 #center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 840px; text-align: center; }
+#myPhase { position: absolute; left: 14px; bottom: 14px; padding: 4px 10px; border-radius: 6px;
+    background: #151b28cc; border: 1px solid var(--line); color: var(--gold); font-size: 13px; }
 #playedZone { position: relative; height: var(--card-h); margin: 10px 0 8px;
     background: #ffffff14; border-radius: 6px; }
 #playedZone .card { position: absolute; top: 0; }

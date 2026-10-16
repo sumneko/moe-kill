@@ -124,6 +124,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         .sort((left, right) => seatOffset(left, me?.base.seat ?? 1, total) - seatOffset(right, me?.base.seat ?? 1, total));
     const mine = me ? seatCards(agent, me.base.id) : null;
     const handIds = mine?.hand ?? [];
+    /** 我自己的阶段（不在我的回合里就是空） */
+    const myPhase = agent.me !== null && agent.turnPlayer === agent.me ? agent.phase : null;
     const cand = candidates(ask ?? undefined, selection);
 
     const onPickCard = (id: number) => {
@@ -198,6 +200,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                     <div><div class="num">${zoneCards(agent, '弃牌', 0).length}</div><div class="cap">弃牌堆</div></div>
                 </div>
             </div>
+
+            ${myPhase ? html`<div id="myPhase">${myPhase}阶段</div>` : null}
 
             <div id="center">
                 <div id="playedZone">
