@@ -28,6 +28,7 @@ end
 --- 按局的账本挂在局上：`package` 可见性只给本文件看（内核不认识协议，就不写进 game.lua 了）
 ---@class Game.CardSync
 ---@field dirtyCards? table<Card, true> # 还没下发的脏卡（下一笔调度统一发）
+---@field moving? table<Card, true> # 正在途中的牌（表现从「前」走到「后」：账上暂时没有它们）
 ---@field viewSeq integer # 视图随机源的种子号源（每份视图发一段：换号挑牌用，不碰局里的随机源）
 local S = Class 'Game.CardSync'
 
@@ -50,6 +51,9 @@ end
 
 ---@param card Card
 function S:markDirty(card)
+    if self.moving and self.moving[card] then
+        return
+    end
     if self.dirtyCards then
         self.dirtyCards[card] = true
         return
@@ -74,16 +78,47 @@ function S:markDirty(card)
     end)
 end
 
+--- 开始一趟移动：它旧的脏一并作废（落位时重建的号带的是当时的最新状态）
+---@param card Card
+---@private
+function S:markMoving(card)
+    self.moving = self.moving or {}
+    self.moving[card] = true
+    if self.dirtyCards then
+        self.dirtyCards[card] = nil
+    end
+end
+
+--- 这趟移动结束了，脏卡照常处理
+---@param card Card
+---@private
+function S:markArrived(card)
+    local moving = self.moving
+    if moving then
+        moving[card] = nil
+    end
+end
+
 ---@private
 function S:watchEvent()
-    self.game:on('卡牌-批量移动', function (moves)
+    -- 搬动分三个时机：表现在「前」、让出在「时」、落位在「后」；账跟着两头走，不走脏卡那笔调度
+    self.game:on('卡牌-批量移动前', function (moves)
+        for _, move in ipairs(moves) do
+            self:markMoving(move.card)
+        end
         self:eachUser(function (user)
             user:moveCards(moves)
+            user:removeCards(moves)
         end)
+    end)
 
+    self.game:on('卡牌-批量移动后', function (moves)
         for _, move in ipairs(moves) do
-            self:markDirty(move.card)
+            self:markArrived(move.card)
         end
+        self:eachUser(function (user)
+            user:createCards(moves)
+        end)
     end)
 
     self.game:on('卡牌-变化', function (card)
@@ -225,6 +260,48 @@ function V:moveCards(moves)
     })
 end
 
+--- 搬动前：换区的那几张旧号就此作废（按账里记着的旧区摘 —— 内核这时已经把它们挪到新区了）
+---@param moves Zone.Move[]
+function V:removeCards(moves)
+    ---@type integer[]
+    local removes = {}
+    for _, move in ipairs(moves) do
+        local pcard = self.cardMap[move.card]
+        if (pcard?.zone or '') ~= self:toPZone(move.to) then
+            if pcard then
+                moe.util.arrayRemove(self.cardZones[pcard.zone or ''], move.card)
+                self.cardMap[move.card] = nil
+                removes[#removes+1] = pcard.id
+            end
+        end
+    end
+    self:sendRemoves(removes)
+end
+
+--- 搬动后：换区的那几张在新位置上建号（落位）
+---@param moves Zone.Move[]
+function V:createCards(moves)
+    ---@type Proto.Card[]
+    local creates = {}
+    ---@type table<string, true> # 这一批里被动过号的区（末尾各洗一次）
+    local shuffled = {}
+    for _, move in ipairs(moves) do
+        local zone = self:toPZone(move.to)
+        if (self.cardMap[move.card]?.zone or '') ~= zone then
+            table.insert(self.cardZones[zone], move.card)
+            local pcard = self:toPCard(move.card)
+            pcard.id = self:nextId()
+            self.cardMap[move.card] = pcard
+            shuffled[zone] = true
+            creates[#creates+1] = pcard
+        end
+    end
+    for key in pairs(shuffled) do
+        self:shuffleHidden(key)
+    end
+    self:sendCreates(creates)
+end
+
 ---@param card Card
 ---@return Proto.Card
 function V:toPCard(card)
@@ -271,6 +348,63 @@ V.__getter.snapshot = function (self)
     return cards
 end
 
+--- 一起发「旧号作废」（一条通知带全部号）
+---@param ids integer[]
+function V:sendRemoves(ids)
+    if #ids == 0 then
+        return
+    end
+    self.user:notify('Card.Remove', {
+        ids = ids,
+    })
+end
+
+--- 一起发「新牌进账」：按区收成一条，正面给完整对象、背面只给号
+---@param cards Proto.Card[]
+function V:sendCreates(cards)
+    if #cards == 0 then
+        return
+    end
+    ---@type table<string, { zone: string, cards: Proto.Card[] }> # 正面朝上：给完整对象
+    local shows = {}
+    ---@type { zone: string, cards: Proto.Card[] }[]
+    local showList = {}
+    ---@type table<string, { zone: string, cards: integer[] }> # 背面朝上：只给号
+    local hides = {}
+    ---@type { zone: string, cards: integer[] }[]
+    local hideList = {}
+    for _, pcard in ipairs(cards) do
+        local zone = pcard.zone or ''
+        if pcard.face then
+            local entry = shows[zone]
+            if not entry then
+                entry = { zone = zone, cards = {} }
+                shows[zone] = entry
+                showList[#showList + 1] = entry
+            end
+            table.insert(entry.cards, pcard)
+        else
+            local entry = hides[zone]
+            if not entry then
+                entry = { zone = zone, cards = {} }
+                hides[zone] = entry
+                hideList[#hideList + 1] = entry
+            end
+            table.insert(entry.cards, pcard.id)
+        end
+    end
+
+    ---@type Proto.Notify.Card.Create
+    local data = {}
+    if #showList > 0 then
+        data.show = showList
+    end
+    if #hideList > 0 then
+        data.hide = hideList
+    end
+    self.user:notify('Card.Create', data)
+end
+
 ---@param cards Card[]
 function V:updateCards(cards)
     ---@type Proto.Card[]
@@ -297,6 +431,7 @@ function V:updateCards(cards)
             moe.util.arrayRemove(self.cardZones[oldPZone], card)
             table.insert(self.cardZones[newPZone], card)
 
+            -- 账上没有它 = 这一张刚被造出来（还没进过账）：只建号、不记旧号
             if pcard then
                 removes[#removes+1] = pcard.id
             end
@@ -308,7 +443,6 @@ function V:updateCards(cards)
             creates[#creates+1] = pcard
         end
     end
-
     for key in pairs(shuffled) do
         self:shuffleHidden(key)
     end
@@ -318,49 +452,6 @@ function V:updateCards(cards)
             cards = updates,
         })
     end
-    if #removes > 0 then
-        self.user:notify('Card.Remove', {
-            ids = removes,
-        })
-    end
-    if #creates > 0 then
-        ---@type table<string, { zone: string, cards: Proto.Card[] }> # 正面朝上：给完整对象
-        local shows = {}
-        ---@type { zone: string, cards: Proto.Card[] }[]
-        local showList = {}
-        ---@type table<string, { zone: string, cards: integer[] }> # 背面朝上：只给号
-        local hides = {}
-        ---@type { zone: string, cards: integer[] }[]
-        local hideList = {}
-        for _, pcard in ipairs(creates) do
-            local zone = pcard.zone or ''
-            if pcard.face then
-                local entry = shows[zone]
-                if not entry then
-                    entry = { zone = zone, cards = {} }
-                    shows[zone] = entry
-                    showList[#showList + 1] = entry
-                end
-                table.insert(entry.cards, pcard)
-            else
-                local entry = hides[zone]
-                if not entry then
-                    entry = { zone = zone, cards = {} }
-                    hides[zone] = entry
-                    hideList[#hideList + 1] = entry
-                end
-                table.insert(entry.cards, pcard.id)
-            end
-        end
-
-        ---@type Proto.Notify.Card.Create
-        local data = {}
-        if #showList > 0 then
-            data.show = showList
-        end
-        if #hideList > 0 then
-            data.hide = hideList
-        end
-        self.user:notify('Card.Create', data)
-    end
+    self:sendRemoves(removes)
+    self:sendCreates(creates)
 end

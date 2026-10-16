@@ -114,6 +114,7 @@ function M:takeIn(cards, visible, at)
 end
 
 --- 一起发这批搬动的事件（按每条记录自己的源区 / 目标区发）：先所有「卡牌-离开区域」、再所有「卡牌-进入区域」
+--- 三个时机夹在两段之间：前（表现通知）/ 时（让出）/ 后（落位通知）
 ---@protected
 ---@param moves Zone.Move[]
 function M:notifyMoved(moves)
@@ -121,17 +122,23 @@ function M:notifyMoved(moves)
         local first = moves[1]
         log.debug('[flow] 搬牌 {} 张：{} → {}' % { #moves, zoneLabel(first.from), zoneLabel(first.to) })
     end
+
+    self.game:fire('卡牌-批量移动前', moves)
+
     for _, move in ipairs(moves) do
         local from = move.from
         if from then
             from:notifyLeave(move.card, move.visible)
         end
     end
+
+    self.game:fire('卡牌-批量移动时', moves)
+
     for _, move in ipairs(moves) do
         move.to:notifyEnter(move.card, move.visible)
     end
 
-    self.game:fire('卡牌-批量移动', moves)
+    self.game:fire('卡牌-批量移动后', moves)
 end
 
 --- 关掉这个区：之后往里收的牌不再进它，直接送弃牌堆（牌区自己没了也一样）

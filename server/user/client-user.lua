@@ -645,6 +645,16 @@ function M:moveCards(moves)
     self.cardView:moveCards(moves)
 end
 
+---@param moves Zone.Move[]
+function M:removeCards(moves)
+    self.cardView:removeCards(moves)
+end
+
+---@param moves Zone.Move[]
+function M:createCards(moves)
+    self.cardView:createCards(moves)
+end
+
 ---@param cards Card[]
 function M:updateCards(cards)
     self.cardView:updateCards(cards)

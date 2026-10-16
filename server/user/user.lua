@@ -98,6 +98,16 @@ end
 function M:moveCards(moves)
 end
 
+--- 搬走的那几张旧号作废（当场发；默认什么都不做）
+---@param moves Zone.Move[]
+function M:removeCards(moves)
+end
+
+--- 搬到的那几张建号落位（当场发；默认什么都不做）
+---@param moves Zone.Move[]
+function M:createCards(moves)
+end
+
 ---@param cards Card[]
 function M:updateCards(cards)
 end

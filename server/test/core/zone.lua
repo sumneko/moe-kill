@@ -129,10 +129,35 @@ lt.test('牌区：进 / 离区还会在局上发一份', function ()
     lt.assertEquals('牌定义那份也没少', '牌自己-进入,牌自己-离开,牌自己-进入', table.concat(ownSeen, ','))
 end)
 
+lt.test('牌区：搬动的三个时机夹在「离开 / 进入」两段事件之间', function ()
+    local close <close> = useProbe()
+    local game = newProbeGame()
+    local deck = assert(game:getZone('抽牌'))
+
+    ---@type string[]
+    local seen = {}
+    local undos = {
+        game:on('卡牌-批量移动前', function () seen[#seen + 1] = '前' end),
+        game:on('卡牌-离开区域', function () seen[#seen + 1] = '离开' end),
+        game:on('卡牌-批量移动时', function () seen[#seen + 1] = '时' end),
+        game:on('卡牌-进入区域', function () seen[#seen + 1] = '进入' end),
+        game:on('卡牌-批量移动后', function () seen[#seen + 1] = '后' end),
+    }
+
+    local card = game:createCard('记区域')
+    deck:accept(card)
+    seen = {}
+    game:moveCard(card, '弃牌')
+
+    for _, undo in ipairs(undos) do
+        undo()
+    end
+    lt.assertEquals('顺序：前 → 离开 → 时 → 进入 → 后', '前,离开,时,进入,后', table.concat(seen, ','))
+end)
+
 lt.test('牌区：放入后计数与查看正确', function ()
     local zone  = lt.zone()
     local cards = fill(zone, { '甲', '乙', '丙' })
-
     lt.assertEquals('放入后计数', 3, zone:count())
     lt.assertEquals('顺序与放入一致', '甲,乙,丙', zoneLabels(zone))
     lt.assertEquals('查看第二张', cards[2], zone:peek(2))

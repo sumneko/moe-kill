@@ -173,8 +173,12 @@ rule = nil
 ---@field fire fun(self: Game, name: '卡牌-进入区域', card: Card, zone: Zone, visible?: Visibility): any
 ---@field on fun(self: Game, name: '卡牌-离开区域', callback: fun(card: Card, zone: Zone, visible?: Visibility): any): function # 任何一张牌离开了某个区（同上）
 ---@field fire fun(self: Game, name: '卡牌-离开区域', card: Card, zone: Zone, visible?: Visibility): any
----@field on fun(self: Game, name: '卡牌-批量移动', callback: fun(moves: Zone.Move[]): any): function # 一批牌一起搬完了（「卡牌-离开区域」/「卡牌-进入区域」都发完之后，把整批记录一次发出来）
----@field fire fun(self: Game, name: '卡牌-批量移动', moves: Zone.Move[]): any
+---@field on fun(self: Game, name: '卡牌-批量移动前', callback: fun(moves: Zone.Move[]): any): function # 搬动了、两边的事件还没发：表现通知在这（撤下 + 起飞）
+---@field fire fun(self: Game, name: '卡牌-批量移动前', moves: Zone.Move[]): any
+---@field on fun(self: Game, name: '卡牌-批量移动时', callback: fun(moves: Zone.Move[]): any): function # 离开事件发完、进入事件没发：让出点在这（内容侧按节拍 sleep）
+---@field fire fun(self: Game, name: '卡牌-批量移动时', moves: Zone.Move[]): any
+---@field on fun(self: Game, name: '卡牌-批量移动后', callback: fun(moves: Zone.Move[]): any): function # 两边的事件都发完了：落位通知在这
+---@field fire fun(self: Game, name: '卡牌-批量移动后', moves: Zone.Move[]): any
 ---@field on fun(self: Game, name: '卡牌-结算前', callback: fun(useCard: UseCard|UseCardToCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function

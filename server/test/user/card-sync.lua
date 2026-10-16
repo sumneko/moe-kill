@@ -405,6 +405,40 @@ lt.test('卡牌同步：搬进明区人人都看得见牌面', function ()
 end)
 
 ---@async
+lt.test('卡牌同步：撤离通知在节拍之前发、落位通知在节拍之后发', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    attach(players)
+    local moves   = collect('Card.Move')
+    local removes = collect('Card.Remove')
+    local creates = collect('Card.Create')
+
+    local card = game:createCard('杀')
+    me:getZone('手牌'):accept(card)
+    moe.await.sleep(0)
+    clear(moves)
+    clear(removes)
+    clear(creates)
+
+    ---@type integer?
+    local movesAtBeat, removesAtBeat, createsAtBeat
+    game:on('卡牌-批量移动时', function ()
+        movesAtBeat   = #moves
+        removesAtBeat = #removes
+        createsAtBeat = #creates
+        moe.await.sleep(0)
+    end)
+
+    game:getZone('弃牌'):accept(card)
+
+    lt.assertEquals('节拍之前：撤离通知到了（每个连接一条）', 2, movesAtBeat)
+    lt.assertEquals('节拍之前：旧号已经作废了', 2, removesAtBeat)
+    lt.assertEquals('节拍之前：还没落位', 0, createsAtBeat)
+    lt.assertEquals('节拍之后：落位通知到了', 2, #creates)
+    lt.assertEquals('落位那张带着牌面', '杀', assert(shown(creates[1])[1].face).name)
+end)
+
+---@async
 lt.test('卡牌同步：无名区（临时区）之间互移不发移动、也不换 id', function ()
     local game, players = newGame()
     local me = assert(players[1])

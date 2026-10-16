@@ -17,7 +17,8 @@ game:on('回合-开始', function ()
 end)
 
 --- 一次搬动（摸牌 / 弃牌 / 装备 / 判定区 / 洗回）一起等一次，不按张数算
-game:on('卡牌-批量移动', function (moves)
+--- 「时」= 表现通知已经发出去了、落位通知还没发：在这里让出，客户端才有时间播完这一段
+game:on('卡牌-批量移动时', function (moves)
     if #moves > 0 then
         game:animSleep(BEAT.moveCard)
     end
