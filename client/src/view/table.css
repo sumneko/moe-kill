@@ -218,6 +218,9 @@ button:disabled { cursor: default; opacity: .45; }
 #ask .panel-row { display: flex; align-items: center; gap: 4px; min-height: calc(var(--card-h) + 4px); margin-bottom: 4px; }
 #ask .panel-row .card { cursor: grab; }
 #ask .panel-row .card:active { cursor: grabbing; }
+#askBar .timeout { align-self: stretch; min-width: 212px; height: 3px; margin-bottom: 7px;
+    background: #ffffff1f; border-radius: 2px; overflow: hidden; }
+#askBar .timeout .left { height: 100%; background: var(--gold); transition: width .25s linear; }
 #askBar .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 #askBar .title { font-size: 14px; color: var(--gold); }
 #askBar .hint { font-size: 12px; color: var(--muted); }

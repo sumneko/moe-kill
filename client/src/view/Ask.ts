@@ -21,7 +21,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     const [left, setLeft] = useState(0);
     const [dragCard, setDragCard] = useState<number | null>(null);
 
-    // 限时倒计时（从收到询问那一刻算）
+    // 限时倒计时（从收到询问那一刻算）：只拿来画进度条
     useEffect(() => {
         const limit = (ask.params as any).timeLimit as number | undefined;
         if (!limit) {
@@ -29,12 +29,13 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
             return;
         }
         const until = Date.now() + limit * 1000;
-        setLeft(Math.ceil(limit));
-        const tick = window.setInterval(() => setLeft(Math.max(0, Math.ceil((until - Date.now()) / 1000))), 250);
+        setLeft(limit);
+        const tick = window.setInterval(() => setLeft(Math.max(0, (until - Date.now()) / 1000)), 250);
         return () => window.clearInterval(tick);
     }, [ask.id]);
 
     const cancelable = params.cancelable !== false;
+    const timeLimit = (params.timeLimit as number | undefined) ?? 0;
     const picked = selection.cards.length + selection.players.length + selection.heroes.length;
     const pickCards = (id: number) => onSelection(pickCard(ask, selection, id));
     const pickPlayers = (id: number) => onSelection({ ...selection, players: toggle(selection.players, id) });
@@ -208,11 +209,12 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     return html`<div id="askWrap">
         ${content ? html`<div id="ask">${content}</div>` : null}
         <div id="askBar">
+            ${timeLimit > 0 ? html`<div class="timeout">
+                <div class="left" style=${`width: ${Math.max(0, Math.min(100, (left / timeLimit) * 100))}%`}></div>
+            </div>` : null}
             <div class="head">
                 <span class="title">${params.reason ?? ask.method}</span>
-                <span class="hint">
-                    ${left > 0 ? `还剩 ${left} 秒 · ` : ''}勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}
-                </span>
+                <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
             </div>
             <div class="bar">
                 ${needSubmit ? html`<button
