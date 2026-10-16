@@ -113,7 +113,7 @@ sequenceDiagram
 - **只做单局**：`moe.server.start{ port, seats, packages, sources?, seed? }` 先 `moe.room.open{…}` 建局，再 `bind` + `listen`，把监听 fd 挂到事件循环（`moe.loopWaiter.watch`）。**重开要重启进程**（第二次 `start` 直接报错）。将来服务器默认起的是 lobby，单局是 `--single` 这个开关挑的模式 —— **lobby 还没做**。
 - **accept 要循环收干**（2026-10-13 踩过）：一次事件里 `accept` 到 `false` 为止 —— 光收一个的话，backlog 里同时到的其余连接**不会再有事件**，永远没人收。收到就 `moe.link.accept(fd)`（**认协议**：头四个字节是 `GET ` 就当 HTTP 请求去走 WebSocket 握手，否则当裸帧通道）→ `moe.client.create(link)` + `client:start()` + 登记进 `moe.clients`。认协议要读数据，所以这一小段跑在协程里（`moe.await.call`），**接成什么要等一小会儿**。
 - **命令行走 `moe.args`**：`--single`（现在必须给，否则只记一条错误日志、不起服务）/ `--port`（默认 31415）/ `--seats`（默认 8）/ `--packages`（逗号分开，默认 `身份场,标准`）；`main.lua` 负责把命令行翻成 `moe.server.start` 的选项。
-- **房间 `server/room.lua`（门面 `moe.room`）不认识网络**：`open{ seats, packages, sources?, seed? }` 建局 + 装配（`moe.snapshot.attach`）+ 把 `Game.Join` 注册进协议层；`join(client, options)` 给这条连接找空座、接上下行、回一份快照，**坐满自动开局**（`moe.room.start(prepare?)`）；还没开局 / 没空位都回具体的 `Proto.Error`。
+- **房间 `server/room.lua`（门面 `moe.room`）不认识网络**：`open{ seats, packages, sources?, seed? }` 建局 + 装配（`moe.snapshot.attach`）+ 把 `Game.Join` 注册进协议层；`join(client, options)` **先试重连接管**（同名 **且 `user.client.closed`** 的座位 —— 座位与角色一行不动，只 `player:setUser` 换掉背后的 `user`），不成再找空座、接上下行、回一份快照，**坐满自动开局**（`moe.room.start(prepare?)`）；还没开局 / 没空位都回具体的 `Proto.Error`。
 - **「坐满就开局」的时序（2026-10-15 定，前端的第 4 个人照出来的）**：这一包的回包与房间广播**先出去**，开局**延到下一笔调度**再跑（`join` 里 `moe.await.wake`）—— 且 `start` 把「准备 / 开始 / 跑流程」包进**自己的协程**（`moe.await.call`）。两个理由各一条：① 开局要跑一整局（里头会挂在询问上），**不能占着叫它的那条协程**（原先就占着 —— 第 4 个人的 `Game.Join` 处理器被整局流程停住，回包与 4/4 广播都到不了）；② 前端要的是「先拿到自己的快照与房间状态，再被问」。延后的那一笔要带闸门（**还是这一局、而且还没结束**才开）：否则一局已经收摊后它还会去跑一遍。
 - **主循环仍归入口**：`moe.server.start` **不接管事件循环** —— 服务模式由 `main.lua` 常驻（`moe.eventLoop.start`），测试模式由 `test.lua` 控制。
 
@@ -655,7 +655,7 @@ Card '杀'
 
 - **房间层 `server/room.lua`**（2026-10-10 用户定；2026-10-13 从 `server/session/` 挪到 `server/`）：
   - `moe.room.open { seats, packages, sources?, seed? }` —— 建局 + 装配（`moe.game.create` 已含装配）+ `moe.snapshot.attach(game)`，**先不开局**（等人齐）；
-  - `moe.room.join(client, { name? })` —— 找个空座（用 `desk:getPlayer(i)` 探）：建玩家 + `desk:sit` + `player:setUser(New 'ClientUser' (game, client))` + `user:attach()`（§13）；**坐满就自动开局**；返回 `(Proto.SnapShot, Proto.Error?)` —— 还没开局 / 座位坐满都把原因回给客户端（`INVALID_REQUEST`）；
+  - `moe.room.join(client, { name? })` —— **先试重连接管**（2026-10-16）：带了名字、又存在**同名且他那条连接已经断了**（`user.client.closed`）的座位 ⇒ **接管它** —— `New 'ClientUser'` + `player:setUser(user)` + `user:attach()` + 回快照，**座位与角色一行不动**（体力 / 手牌 / 身份全保留）；没有这样的座位才找空座（用 `desk:getPlayer(i)` 探）：建玩家 + `desk:sit` + `player:setUser(New 'ClientUser' (game, client))` + `user:attach()`（§13）；**坐满就自动开局**；返回 `(Proto.SnapShot, Proto.Error?)` —— 还没开局 / 座位坐满都把原因回给客户端（`INVALID_REQUEST`）；
   - `moe.room.start(prepare?)` —— 人齐（或自己调）时开局：fire `'游戏-准备'`（载荷 `config = prepare`，不给就是默认：随机身份 + 洗座次）+ `'游戏-开始'` + `game:runFlow()`。
   - `moe.room.restart()`（2026-10-15）—— **把已经终了的这一局放下、原班人马重开一局**：校验（有局 + `game:getResult()` 有值）→ 从**旧局**读出班底与配置（座位号 / 名字 / 连接 / `seats` / `game.list` / `game.sources`）→ `open { seed = 上一局的 + 1 }`（`moe.room._seed` 记着上一局用的那个）→ 原班人马重坐（与 `join` 共用局部函数 `seatPlayer`）→ `roomSync.broadcast` → 给每个连接推 `Game.Restarted`（带他那份快照）→ **原班人马都坐上就自动开局**（延后一笔调度）。**「换局」而不是「重置局」**（沿用 2026-09-21 的口径：再开一局 = 新 `Game` 实例）⇒ **没有一行「清理旧局」的代码**：下行账要么挂在局上（`game.cardSync` §16）、要么挂在 per-user 的 View 上，旧局没人引用就整坨回收。
 - **协议方法 `Game.Join`**（请求，参数 `{ name? }`）⇒ result = `Proto.SnapShot`。注册是**懒的**（`moe.room.open` 第一次调时往 `moe.client` 注册 —— 那时 transport 已加载，不用挑加载顺序）。

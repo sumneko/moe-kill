@@ -109,6 +109,42 @@ lt.test('房间：坐满就开局', function ()
 end)
 
 ---@async
+lt.test('房间：同名的那条连接断了 ⇒ 后来的连接接管那个座位', function ()
+    local game = openRoom()
+    ---@type Client[]
+    local clients = {}
+    local first, firstBack   = connect()
+    local second, secondBack = connect()
+    clients[#clients + 1] = first
+    clients[#clients + 1] = firstBack
+    clients[#clients + 1] = second
+    clients[#clients + 1] = secondBack
+
+    local result = assert(first:awaitRequest('Game.Join', { name = '甲' }))
+    local me     = assert(assert(result).me)
+    local player = assert(game.desk:getPlayer(me))
+
+    -- 先在这名角色身上留一处变化，验证接管前后是同一个角色
+    player:addAttr('体力', -1)
+    local hp = player:getAttr('体力')
+
+    -- 前端刷新 / 掉线：那条连接收摊，名字还占在座位上
+    first:close('断线')
+    drain()
+
+    local back = assert(second:awaitRequest('Game.Join', { name = '甲' }))
+    drain()
+
+    lt.assertEquals('还是同一个座位', player, game.desk:getPlayer(me))
+    lt.assertEquals('角色没换（体力照旧）', hp, player:getAttr('体力'))
+    lt.assertEquals('背后的连接换成了新的', secondBack, assert(player.user).client)
+    lt.assertEquals('接管的人也拿到快照', me, assert(back).me)
+
+    close(game, clients)
+    drain()
+end)
+
+---@async
 lt.test('房间：坐满了再进来要不到位置', function ()
     local game = openRoom()
     ---@type Client[]

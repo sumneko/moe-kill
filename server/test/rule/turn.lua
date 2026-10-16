@@ -247,6 +247,28 @@ lt.test('回合：出牌阶段用一张杀并结算', function ()
     lt.assertEquals('手上少了一张（摸 2 出 1 ⇒ 2 张）', 2, lord:getZone('手牌'):count())
 end)
 
+lt.test('回合：弃牌阶段手牌不超体力时连问都不问', function ()
+    ---@type integer
+    local asked = 0
+    local state = startTurn {
+        setup = function (run)
+            local hand = assert(run.players[1]:getZone('手牌'), '没有手牌区')
+            for _ = 1, 2 do
+                hand:accept(run.game:createCard('闪'))
+            end
+        end,
+        answer  = endPhase(),
+        discard = function ()
+            asked = asked + 1
+        end,
+        stopAfter = 1,
+    }
+
+    advance(state, 1)
+
+    lt.assertEquals('2 张 + 摸 2 张 = 体力 4 ⇒ 一次都没问', 0, asked)
+end)
+
 lt.test('回合：弃牌阶段弃到体力值', function ()
     local state = startTurn {
         setup = function (run)

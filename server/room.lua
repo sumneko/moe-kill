@@ -77,6 +77,32 @@ local function seatPlayer(game, index, client, name)
     return player, user
 end
 
+--- 找一个「同名、而且他那条连接已经断了」的座位（重连接管它；测试 / 电脑没有 client，不算离线）
+---@param game Game
+---@param name string
+---@return Player?
+local function findOffline(game, name)
+    for _, player in ipairs(game.desk.players) do
+        local user = player.user
+        if player:getName() == name and user and user.client and user.client.closed then
+            return player
+        end
+    end
+end
+
+--- 接管一个断了线的座位：座位与角色一行不动，只把背后的 user 换成新连接
+---@param game Game
+---@param player Player
+---@param client Client
+---@return Proto.SnapShot
+local function reseat(game, player, client)
+    local user = New 'ClientUser' (game, client)
+    player:setUser(user)
+    user:attach()
+    log.info('接了回来：{}（座位 {}）' % { player:getName() or '?', game.desk:getIndex(player) })
+    return moe.snapshot.build(game, user)
+end
+
 --- 一条连接坐进来：占一个空座、接上下行，回一份快照（坐满就开局）；还没开局 / 没空位就把原因回给客户端
 ---@param client Client
 ---@param options? Room.JoinOptions
@@ -86,6 +112,12 @@ function moe.room.join(client, options)
     local game = moe.room._game
     if not game then
         return nil, { code = moe.jsonrpc.INVALID_REQUEST, message = '还没有开局' }
+    end
+    -- 同名且他那条连接已经断了 ⇒ 接管那个座位（座位与角色都不动，只换背后的 user）
+    local name = options?.name
+    local back = name and findOffline(game, name)
+    if back then
+        return reseat(game, back, client)
     end
     local index = freeSeat(game)
     if not index then
