@@ -12,27 +12,39 @@ import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
 import { Stage } from './Stage';
 import { EMPTY, candidates, pickCard, pickSkill, toggle, type Selection } from './pick';
-import { flyGhost, measureCards, playMoves, zoneRect } from './anim';
-import { attr, cardFaceOf, heroName, seatCards, zoneCards } from './format';
+import { measureCards, playMoves } from './anim';
+import { attr, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
 
-/** 桌面正中那张牌最多摆多久（毫秒）—— 正常靠「它进弃牌堆」那条移动撤下，这里只是兜底 */
-const SHOWN_MS = 10000;
+/** 一张牌多宽（与 `table.css` 的 `--card-w` 一致） */
+const CARD_W = 72;
+/** 处理区那条牌列的宽（与 `table.css` 的 `#center` 一致） */
+const PLAYED_W = 640;
+/** 一条牌列里相邻两张的间距（放得下时用） */
+const PLAYED_GAP = 8;
+/** 挤到不能再挤时每张至少露多少 */
+const PLAYED_MIN_STEP = 16;
+/** 幻影被服务器删掉之后再留多久（毫秒） */
+const GHOST_LINGER_MS = 5000;
 /** 跳字停留多久（毫秒） */
 const POP_MS = 900;
 
-/** 桌面正中展示的那张牌 */
-interface Shown {
-    /** 实体牌的号（已经出掉的，用来把手牌里那张先藏起来） */
-    ids: number[];
-    /** 牌面（出牌那一刻抄下来的） */
+/** 处理区里的一条幻影：牌已经搬走了，位子先留着 */
+interface Ghost {
+    id: number;
     face: Proto.CardFace;
-    /** 飞过来的起点（屏幕上量的；量不到就不飞） */
-    from: DOMRect | null;
-    /** 打给谁 */
-    to: number[];
-    /** 这批展示的记号（到点清空时认一下） */
-    key: number;
+}
+
+/** 牌列里每张牌的左边缘：区里放得下就按间距排，放不下就重叠；张数越多越挤 */
+function placedLefts(count: number): number[] {
+    if (count <= 0) {
+        return [];
+    }
+    const room = count > 1 ? (PLAYED_W - CARD_W) / (count - 1) : 0;
+    const step = Math.max(Math.min(CARD_W + PLAYED_GAP, room), PLAYED_MIN_STEP);
+    const total = CARD_W + step * (count - 1);
+    const start = (PLAYED_W - total) / 2;
+    return Array.from({ length: count }, (_, index) => start + index * step);
 }
 
 interface PopRef extends Pop {
@@ -44,16 +56,11 @@ function seatOffset(player: Proto.Player, mySeat: number, total: number): number
     return ((player.base.seat - mySeat) % total + total) % total;
 }
 
-/** 舞台元素（量坐标用） */
-function stageEl(): HTMLElement | null {
-    return document.querySelector<HTMLElement>('#stage');
-}
-
 /** 牌桌 */
 export function App(props: { agent: Agent; events: GameEvent[] }) {
     const { agent } = props;
     const [selection, setSelection] = useState<Selection>(EMPTY);
-    const [shown, setShown] = useState<Shown | null>(null);
+    const [ghosts, setGhosts] = useState<Ghost[]>([]);
     const [pops, setPops] = useState<PopRef[]>([]);
     const [drawer, setDrawer] = useState(false);
     const [raw, setRaw] = useState('');
@@ -76,16 +83,17 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 window.setTimeout(() => setPops((list) => list.filter((one) => one.key !== key)), POP_MS);
                 continue;
             }
-            if (event.kind !== 'move') {
+            if (event.kind === 'gone') {
+                // 处理区那张被服务器删了：先留个影子，再等一会儿撤
+                const ghost: Ghost = { id: event.id, face: event.face };
+                setGhosts((list) => list.some((one) => one.id === ghost.id) ? list : [...list, ghost]);
+                window.setTimeout(() => {
+                    setGhosts((list) => list.filter((one) => one.id !== ghost.id));
+                }, GHOST_LINGER_MS);
                 continue;
             }
-            if (shown && event.move.to.startsWith('弃牌#')) {
-                const el = document.querySelector<HTMLElement>('[data-fly="shown"]');
-                const pile = zoneRect(agent, '弃牌#0');
-                if (el && pile) {
-                    flyGhost(el.cloneNode(true) as HTMLElement, el.getBoundingClientRect(), pile, 0.4);
-                }
-                setShown(null);
+            if (event.kind !== 'move') {
+                continue;
             }
             const key = `${event.move.from}→${event.move.to}`;
             const list = groups.get(key);
@@ -96,28 +104,15 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             }
         }
         for (const list of groups.values()) {
-            playMoves(agent, list, shown?.ids ?? []);
+            playMoves(agent, list, []);
         }
         measureCards();
     }, [props.events]);
 
-    // 桌面正中那张牌：从手里飞过来
+    // 重开一局：处理区的影子跟着清掉
     useEffect(() => {
-        if (!shown?.from) {
-            return;
-        }
-        const el = document.querySelector<HTMLElement>('[data-fly="shown"]');
-        const stage = stageEl();
-        if (!el || !stage) {
-            return;
-        }
-        const to = el.getBoundingClientRect();
-        const scale = Math.max(stage.getBoundingClientRect().width, 1) / 1280;
-        el.animate([
-            { transform: `translate(${(shown.from.left - to.left) / scale}px, ${(shown.from.top - to.top) / scale}px)` },
-            { transform: 'translate(0px, 0px)' },
-        ], { duration: 420, easing: 'cubic-bezier(.25, 0, .25, 1)' });
-    }, [shown]);
+        setGhosts([]);
+    }, [agent.over]);
 
     const me = agent.me === null ? null : agent.players.get(agent.me) ?? null;
     const total = Math.max(agent.seats, agent.players.size, 1);
@@ -126,7 +121,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         .filter((player) => player.base.id !== agent.me)
         .sort((left, right) => seatOffset(left, me?.base.seat ?? 1, total) - seatOffset(right, me?.base.seat ?? 1, total));
     const mine = me ? seatCards(agent, me.base.id) : null;
-    const handIds = (mine?.hand ?? []).filter((id) => !(shown?.ids ?? []).includes(id));
+    const handIds = mine?.hand ?? [];
     const cand = candidates(ask ?? undefined, selection);
 
     const onPickCard = (id: number) => {
@@ -150,25 +145,10 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         return () => setSelection(pickSkill(ask, selection, skillId));
     };
 
-    /** 交一包上去：出牌的话顺带把牌摆到桌面正中 */
+    /** 交一包上去（出牌那张由服务器回推的 `Card.Move` 上处理区） */
     const answer = (result: unknown) => {
         if (!ask) {
             return;
-        }
-        if (ask.method === 'Ask.Use' && selection.option !== null) {
-            const key = nextKey.current++;
-            const cardId = selection.option;
-            const from = document
-                .querySelector<HTMLElement>(`[data-fly="card:${cardId}"]`)
-                ?.getBoundingClientRect() ?? null;
-            setShown({
-                ids: [cardId],
-                face: cardFaceOf(agent, cardId) ?? {},
-                from,
-                to: selection.players,
-                key,
-            });
-            window.setTimeout(() => setShown((now) => (now?.key === key ? null : now)), SHOWN_MS);
         }
         ask.answer(result);
     };
@@ -186,10 +166,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         }
     };
 
-    const myName = me?.base.userName ?? '我';
-    const shownTo = shown && shown.to.length > 0
-        ? `${myName} → ${shown.to.map((id) => agent.playerLabel(id)).join('、')}`
-        : '';
+    /** 处理区里现躺着的牌 + 已经搬走的影子（按号排：新号更大 ⇒ 靠右、盖在旧卡上面） */
+    const rows = [
+        ...[...agent.cards.values()]
+            .filter((card) => card.zone === '#0')
+            .map((card) => ({ id: card.id, face: card.face ?? {}, ghost: false })),
+        ...ghosts.map((one) => ({ ...one, ghost: true })),
+    ].sort((left, right) => left.id - right.id);
+    const placedLeft = placedLefts(rows.length);
 
     return html`<${Stage}>
         <div class="root">
@@ -214,17 +198,18 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             </div>
 
             <div id="center">
-                <div id="playedWrap">
-                    ${shown ? html`<${Card}
+                <div id="playedZone">
+                    ${rows.map((one, index) => html`<${Card}
+                        key=${one.id}
                         agent=${agent}
-                        id=${0}
-                        face=${shown.face}
-                        flyKey="shown"
-                        big
-                        glow
-                    />` : null}
+                        id=${one.id}
+                        face=${one.face}
+                        flyKey=${`played:${one.id}`}
+                        style=${`left: ${placedLeft[index] ?? 0}px; z-index: ${index}`}
+                        glow=${!one.ghost}
+                        ghost=${one.ghost}
+                    />`)}
                 </div>
-                <div id="playedTo">${shownTo}</div>
             </div>
 
             ${others.map((player, index) => html`<${Seat}

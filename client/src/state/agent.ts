@@ -391,6 +391,11 @@ export class Agent {
         });
         rpc.onNotify('Card.Remove', (params: Proto.Notify.Card.Remove) => {
             for (const id of params.ids) {
+                const card = this.cards.get(id);
+                // 处理区里那张被收掉了：前端要在原位上留个影子（这时账里还没删掉，问得到它在哪个区）
+                if (card?.zone === '#0') {
+                    this.events.push({ kind: 'gone', id, face: card.face ?? {} });
+                }
                 this.cards.delete(id);
             }
             this.changed();

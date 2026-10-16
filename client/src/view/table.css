@@ -90,8 +90,11 @@ button:disabled { cursor: default; opacity: .45; }
 .pile .num { font-size: 22px; font-weight: 700; line-height: 1; }
 .pile .cap { font-size: 11px; color: var(--muted); }
 
-#center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 520px; text-align: center; }
-#playedWrap { display: flex; justify-content: center; margin: 10px 0 8px; min-height: var(--big-h); }
+#center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 640px; text-align: center; }
+#playedZone { position: relative; height: var(--card-h); margin: 10px 0 8px;
+    background: #ffffff14; border-radius: 6px; }
+#playedZone .card { position: absolute; top: 0; }
+#playedZone .card.ghost { opacity: .45; }
 #playedTo { font-size: 13px; color: #cfd6e6; min-height: 18px; }
 
 /* 座位：立绘框只放立绘，其余全部超框 */

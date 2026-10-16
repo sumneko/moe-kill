@@ -11,4 +11,6 @@ export type GameEvent =
     /** 进了阶段 */
     | { kind: 'phase'; player: number; name: string }
     /** 终局了 */
-    | { kind: 'over'; side: string; reason: string };
+    | { kind: 'over'; side: string; reason: string }
+    /** 处理区里那张牌被服务器删了（在位子上留个影子） */
+    | { kind: 'gone'; id: number; face: Proto.CardFace };

@@ -18,6 +18,10 @@ export function Card(props: {
     off?: boolean;
     /** 能拖（面板摆位） */
     draggable?: boolean;
+    /** 外部给的定位样式（处理区那条牌列用） */
+    style?: string;
+    /** 只剩个影子（处理区里已搬走的那张） */
+    ghost?: boolean;
     onClick?: () => void;
     onDragStart?: () => void;
     onDrop?: (event: DragEvent) => void;
@@ -32,12 +36,14 @@ export function Card(props: {
         props.pick ? 'pick' : '',
         props.picked ? 'picked' : '',
         props.off ? 'off' : '',
+        props.ghost ? 'ghost' : '',
         card?.face || card?.modifier || props.face ? '' : 'back',
     ].filter((one) => one.length > 0).join(' ');
     const description = props.agent.text(face?.name ?? '');
     const converted = isConverted(card) ? `转化自「${card?.face?.name ?? '背面'}」` : undefined;
     return html`<div
         class=${cls}
+        style=${props.style}
         data-fly=${props.flyKey ?? `card:${props.id}`}
         data-red=${isRed(suit) ? '' : undefined}
         title=${[description, converted].filter(Boolean).join('\n') || undefined}
