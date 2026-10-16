@@ -7,7 +7,8 @@ Card '青龙偃月刀'
     : extends '武器牌'
     : value('攻击范围', 3)
     : event('效果-来源-被响应', function (card, ask)
-        if ask.reason ~= '杀' or ask.card?.name ~= '闪' then
+        local responseTo = ask.responseOptions?.responseTo
+        if responseTo?.card.name ~= '杀' or ask.card?.name ~= '闪' then
             return
         end
         local killer = ask.parent

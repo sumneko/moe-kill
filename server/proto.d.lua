@@ -219,19 +219,26 @@
 ---@class Proto.CardWithPlan: Proto.Plan.Player
 ---@field id integer # 卡牌ID
 
+--- 这次响应冲哪次使用去的（只在「响应类询问」上给）
+---@class Proto.ResponseTo
+---@field card    string    # 被响应的那张牌的牌名
+---@field player  integer   # 那次使用的使用者
+---@field targets integer[] # 那次使用的目标
+
 --- 要求客户端选择卡牌和玩家（可能是多选）
 ---@class Proto.Request.Ask.Select: Proto.Cancelable, Proto.Timelimit
----@field reason      string
+---@field reason      string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
 ---@field cancelable? boolean # 是否可以主动取消
 ---@field player?     Proto.Plan.Player
 ---@field card?       Proto.Plan.Card
+---@field responseTo? Proto.ResponseTo # 这次响应冲哪次使用去的（不是响应就不给）
 
 ---@class Proto.Result.Ask.Select
 ---@field player? integer[] # 被选中的玩家ID列表
 ---@field card?   integer[] # 被选中的卡牌ID列表
 
 ---@class Proto.Request.Ask.Choice: Proto.Cancelable, Proto.Timelimit
----@field reason string # 这次确认的原因
+---@field reason string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
 ---@field options string[] # 可选项列表
 ---@field cancelable? boolean # 是否可以主动取消
 
@@ -246,7 +253,7 @@
 ---@field target? Proto.Plan.Player # 作为目标的玩家
 
 ---@class Proto.Request.Ask.Use: Proto.Cancelable, Proto.Timelimit
----@field reason string # 这次使用的原因
+---@field reason string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
 ---@field cancelable? boolean # 是否可以主动取消
 ---@field card   Proto.CardWithPlan[] # 被使用的卡牌列表
 ---@field viewAs Proto.ViewAs[] # 可用的视为技列表
@@ -264,7 +271,7 @@
 ---@field targets? Proto.Plan.Player
 
 ---@class Proto.Request.Ask.UseSkill: Proto.Cancelable, Proto.Timelimit
----@field reason string
+---@field reason string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
 ---@field cancelable? boolean # 恒 true：内核里「不表态 = 取消」
 ---@field skills Proto.SkillPlan[]
 
@@ -275,7 +282,7 @@
 
 --- 要在若干武将里挑：候选是一份武将全名（`包名.定义名`；不给 = 不做限制）
 ---@class Proto.Request.Ask.Hero: Proto.Cancelable, Proto.Timelimit
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
 ---@field heroes? string[] # 候选武将全名（`包名.定义名`；不给 = 不做限制）
 ---@field min integer # 最少选几个
 ---@field max integer # 最多选几个
@@ -331,7 +338,7 @@
 
 --- 要他在某块面板上操作（面板的形状与能怎么操作早在 `Panel.Create` / `Update` 里给过）
 ---@class Proto.Request.Ask.Panel: Proto.Cancelable, Proto.Timelimit
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
 ---@field cancelable? boolean # 是否可以主动取消
 ---@field id integer # 在哪块面板上操作
 

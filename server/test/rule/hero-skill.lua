@@ -22,6 +22,18 @@ local function useProbe()
     end
 end
 
+--- 这次询问是不是「要打出一张某种牌」（响应类的追同项不带 `responseTo`，所以看「要什么牌」）
+---@param ask AskCard
+---@param name string
+---@return boolean
+local function wantsPlay(ask, name)
+    if ask.kind ~= 'askPlayCard' then
+        return false
+    end
+    local names = ask.condition.names
+    return names ~= nil and names[1] == name
+end
+
 --- 探针包里备两个能站边的势力武将（标准包目前只有曹操）
 local function defineHelpers()
     write('探针/武将.lua', [[
@@ -116,7 +128,7 @@ lt.test('护驾：曹操被要【闪】时，令其他魏势力角色打出一�
     local kinds = {}
     run.game:on('卡牌-答复后', function (ask)
         kinds[#kinds + 1] = ask.kind
-        if ask.to == caocao and ask.reason == '杀' then
+        if ask.to == caocao and ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             answered = ask.card
         end
     end)
@@ -608,7 +620,7 @@ lt.test('武圣：响应【南蛮入侵】时用红牌当【杀】顶上', funct
     ---@type Card?
     local answered = nil
     run.game:on('卡牌-答复', function (ask)
-        if ask.kind == 'askPlayCard' and ask.reason == '南蛮入侵' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '南蛮入侵' then
             answered = ask.card
         end
     end)
@@ -692,7 +704,7 @@ lt.test('龙胆：把一张【杀】当【闪】打出，响应掉那张【杀�
     ---@type Card?
     local played = nil
     run.game:on('卡牌-答复', function (ask)
-        if ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             played = ask.card
         end
     end)
@@ -1347,7 +1359,7 @@ lt.test('倾国：把一张黑色手牌当【闪】打出，响应掉那张【�
     ---@type Card?
     local played = nil
     run.game:on('卡牌-答复', function (ask)
-        if ask.kind == 'askPlayCard' and ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             played = ask.card
         end
     end)
@@ -1796,7 +1808,7 @@ lt.test('铁骑：判红 ⇒ 目标出不了【闪】，照常挨 1 点', functi
         used = useCard
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             asked = asked + 1
         end
     end)
@@ -1831,7 +1843,7 @@ lt.test('铁骑：判黑 ⇒ 不成立，照常能出【闪】响应', function 
     local jink  = takeCard(run, foe, '闪')
 
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = jink }
         end
     end)
@@ -1858,7 +1870,7 @@ lt.test('铁骑：不发动 ⇒ 照常问他出不出【闪】', function ()
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             asked = asked + 1
         end
     end)
@@ -2603,7 +2615,7 @@ lt.test('离间：弃一张牌，后选的男性角色对先选的用一张【�
     local nullifyAsked = 0
     run.game:on('卡牌-询问', function (ask)
         ---@cast ask AskCard
-        if ask.kind == 'askPlayCard' and ask.reason == '决斗' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '决斗' then
             askedTo = ask.to
         end
         if ask.kind == 'askUseCardToCard' then
@@ -3422,7 +3434,7 @@ lt.test('无双：【杀】的目标只出一张【闪】⇒ 追问一张，拿�
     ---@type AskPlayCard?
     local second = nil
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' and ask.to == target then
+        if wantsPlay(ask, '闪') and ask.to == target then
             asked = asked + 1
             if asked == 2 then
                 ---@cast ask AskPlayCard
@@ -3457,7 +3469,7 @@ lt.test('无双：【杀】的目标出齐两张【闪】⇒ 不受伤，「被�
     ---@type integer
     local index = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' and ask.to == target then
+        if wantsPlay(ask, '闪') and ask.to == target then
             index = index + 1
             return { card = dodges[index] }
         end
@@ -3465,7 +3477,7 @@ lt.test('无双：【杀】的目标出齐两张【闪】⇒ 不受伤，「被�
     ---@type integer
     local responded = 0
     run.game:on('效果-被响应', function (ask)
-        if ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             responded = responded + 1
         end
     end)
@@ -3488,7 +3500,7 @@ lt.test('无双：目标一张【闪】都没有 ⇒ 不插手（不多问）', 
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' then
+        if wantsPlay(ask, '闪') then
             asked = asked + 1
         end
     end)
@@ -3512,7 +3524,7 @@ lt.test('无双：【决斗】里对方每轮要两张【杀】（吕布自己�
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
         -- 只数「打出【杀】」那次询问（无懈窗口的缘由也是牌名，别混进来）
-        if ask.kind == 'askPlayCard' and ask.reason == '决斗' and ask.to == foe then
+        if wantsPlay(ask, '杀') and ask.to == foe then
             asked = asked + 1
             return { card = foeSlash }
         end
@@ -3538,7 +3550,7 @@ lt.test('无双：【决斗】里使用者每轮要两张【杀】（吕布是�
     ---@type integer
     local askedFoe = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind ~= 'askPlayCard' or ask.reason ~= '决斗' then
+        if not wantsPlay(ask, '杀') then
             return
         end
         if ask.to == lvbu then
@@ -3567,7 +3579,7 @@ lt.test('无双：目标答复空表（主动不出）⇒ 不追第二张', func
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' and ask.to == target then
+        if wantsPlay(ask, '闪') and ask.to == target then
             asked = asked + 1
             return {}
         end
@@ -3596,7 +3608,7 @@ lt.test('无双：【决斗】里吕布自己只要一张（两边都有牌时�
     local askedLvbu = 0
     local foeIndex, lvbuIndex = 0, 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind ~= 'askPlayCard' or ask.reason ~= '决斗' then
+        if not wantsPlay(ask, '杀') then
             return
         end
         if ask.to == foe then
@@ -3631,7 +3643,7 @@ lt.test('无双：中途失去技能，这次使用里的要求照旧（官方 C
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' and ask.to == target then
+        if wantsPlay(ask, '闪') and ask.to == target then
             asked = asked + 1
             return { card = assert(target:getZone('手牌')):list()[1] }
         end

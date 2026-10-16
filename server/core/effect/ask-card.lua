@@ -63,13 +63,13 @@
 ---@class AskCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field condition? AskCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌；构造时归一化）
 ---@field responseOptions? AskCard.ResponseOptions # 这次询问的额外交代
 
 ---@class AskCard : Effect
 ---@field to Player # 被问者
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本
 ---@field condition AskCard.NormalizedCondition # 要什么样的牌（构造时归一化，恒给出）
 ---@field responseOptions? AskCard.ResponseOptions # 这次询问的额外交代
 ---@field options AskCard.Option[] # 合法选项（询问交给应答方之前就摆好；恒给出）

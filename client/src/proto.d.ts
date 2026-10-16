@@ -561,7 +561,7 @@ export namespace Proto {
         export namespace Ask {
             export interface Choice extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 这次确认的原因
+                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
                  */
                 reason: string;
                 /**
@@ -579,7 +579,7 @@ export namespace Proto {
              */
             export interface Hero extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 这次为什么问
+                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
                  */
                 reason: string;
                 /**
@@ -601,7 +601,7 @@ export namespace Proto {
              */
             export interface Panel extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 这次为什么问
+                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
                  */
                 reason: string;
                 /**
@@ -618,6 +618,9 @@ export namespace Proto {
              * 要求客户端选择卡牌和玩家（可能是多选）
              */
             export interface Select extends Proto.Cancelable, Proto.Timelimit {
+                /**
+                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 */
                 reason: string;
                 /**
                  * 是否可以主动取消
@@ -625,11 +628,15 @@ export namespace Proto {
                 cancelable?: boolean;
                 player?: Proto.Plan.Player;
                 card?: Proto.Plan.Card;
+                /**
+                 * 这次响应冲哪次使用去的（不是响应就不给）
+                 */
+                responseTo?: Proto.ResponseTo;
             }
 
             export interface Use extends Proto.Cancelable, Proto.Timelimit {
                 /**
-                 * 这次使用的原因
+                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
                  */
                 reason: string;
                 /**
@@ -647,6 +654,9 @@ export namespace Proto {
             }
 
             export interface UseSkill extends Proto.Cancelable, Proto.Timelimit {
+                /**
+                 * 给用户看的提示文本（内容侧写全句，如「打出一张 闪」）
+                 */
                 reason: string;
                 /**
                  * 恒 true：内核里「不表态 = 取消」
@@ -714,6 +724,24 @@ export namespace Proto {
                 auto: boolean;
             }
         }
+    }
+
+    /**
+     * 这次响应冲哪次使用去的（只在「响应类询问」上给）
+     */
+    export interface ResponseTo {
+        /**
+         * 被响应的那张牌的牌名
+         */
+        card: string;
+        /**
+         * 那次使用的使用者
+         */
+        player: number;
+        /**
+         * 那次使用的目标
+         */
+        targets: number[];
     }
 
     export namespace Result {

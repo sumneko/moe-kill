@@ -76,7 +76,7 @@ lt.test('杀：使用过程中记上「不能响应」就不问他出【闪】',
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             asked = asked + 1
         end
     end)
@@ -111,7 +111,7 @@ lt.test('杀：记成谓词 ⇒ 只按这次的目标筛', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             asked = asked + 1
         end
     end)
@@ -142,7 +142,7 @@ lt.test('杀：记成 true ⇒ 这次的目标都不能响应', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '杀' then
+        if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             asked = asked + 1
         end
     end)

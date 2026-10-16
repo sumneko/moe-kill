@@ -2,13 +2,13 @@
 ---@class AskChoice.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field options string[] # 有哪些可选项（内容由发起方定，应答方自己解释）
 
 --- 要一名角色在若干选项里挑一个：选项由发起方给，答复必须是其中之一（不答 = 取消，结果为空）
 ---@class AskChoice : Effect
 ---@field to Player # 被问者
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本
 ---@field options string[] # 可选项（内容由发起方定）
 ---@field result? string # 挑中的那个选项（没答上时不存在）
 ---@field choice? string # 同上，语义化读法

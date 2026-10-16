@@ -46,13 +46,13 @@ end
 ---@class AskPlayer.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field condition? AskPlayer.Condition # 要什么样的角色（省略 = 全部存活角色）
 
 --- 要若干名角色：候选名单由内核摆好，答复必须是里面的（个数落在 `min` / `max` 之间、不重复）
 ---@class AskPlayer : Effect
 ---@field to Player # 被问者
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本
 ---@field condition AskPlayer.NormalizedCondition # 要什么样的角色（构造时归一化）
 ---@field options? Player[] # 候选名单（恒给出；交给应答方之前摆在询问上）
 ---@field player? Player # 答复给出的第一个角色（没答就是空）

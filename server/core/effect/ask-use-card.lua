@@ -17,7 +17,7 @@
 ---@class AskUseCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field condition? AskUseCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
 ---@field useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 

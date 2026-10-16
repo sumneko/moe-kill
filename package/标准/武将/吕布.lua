@@ -22,6 +22,7 @@ local function requireTwo(skill, useCard, other, name)
         -- 追一张：归因算是【无双】的一次发动（拿不出来就吊销这次响应 ——【杀】照常造成伤害、【决斗】那边判「没打出来」；
         -- 吊销发生在「被响应」那两段时机之前 ⇒ 青龙偃月刀 / 贯石斧不会被误触发）
         skill:cast(function ()
+            -- 追的这一张**不传 `responseTo`**：它是同一轮响应里的第二次询问，标成新响应会让上面那个订阅再匹配到自己、一直追下去
             if not game:askPlayCard(other, ask.reason, { name = name }).card then
                 ask:cancel('无双')
             end

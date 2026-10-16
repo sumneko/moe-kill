@@ -1,7 +1,7 @@
 ---@class AskUseSkill.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 
 --- 技能这次能挑的牌与张数区间（技能声明了 `cards` 才有）
 ---@class AskUseSkill.CardPlan
@@ -39,7 +39,7 @@
 --- 凑不齐前置的技能不进选项；答复里的牌与目标必须落在选项里（声明了就必须给、没声明就不能给）
 ---@class AskUseSkill : Effect
 ---@field to Player # 被问者
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本
 ---@field options AskUseSkill.Option[] # 可选的技能（询问交给应答方之前就摆好）
 ---@field skill? Skill # 答复的技能（= `.result.skill`；没答上就是空）
 ---@field cast? Cast # 把这次答复发动出去得到的「那次发动」（没答复 / 还没发动就是空）

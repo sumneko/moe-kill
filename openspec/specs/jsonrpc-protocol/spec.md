@@ -101,6 +101,8 @@
 
 **询问的答复** SHALL 走**反向请求**（服务端发、客户端回结果）：`Ask.Select` / `Ask.Choice` / `Ask.Use` / `Ask.UseSkill` / `Ask.Hero` / `Ask.Panel` —— 形状各自在 `proto.d.lua` 里（`Proto.Request.Ask.*` / `Proto.Result.Ask.*`）。
 
+**响应类询问** SHALL 通过 `Proto.ResponseTo` 把「这次响应冲哪次使用去的」一并交代（被响应的牌名 + 那次使用的使用者 + 目标），客户端据此能写出「打出一张 *X* → *Y*（A → B）」；不是响应的询问 MUST NOT 给这个字段。
+
 **状态快照 SHALL 走请求的 `result`**，MUST NOT 走通知那条路（唯一的例外是 `Game.Restarted`：重开不是谁问出来的，见「下行通知清单」）。
 
 #### Scenario: 入座时拿到一份快照

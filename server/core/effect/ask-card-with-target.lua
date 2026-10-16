@@ -6,7 +6,7 @@
 ---@class AskCardWithTarget.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field conditions? AskCardWithTarget.Conditions # 两半条件（省略 = 都不筛：牌 = 他所有牌区的牌、目标 = 存活角色）
 
 --- 要一次「给出」：答复必须带目标（这批牌给出给哪些目标），个数落在目标那半的 `min` / `max` 之间

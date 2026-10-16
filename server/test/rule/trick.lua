@@ -828,21 +828,24 @@ lt.test('无懈可击：非锦囊不问（【杀】照旧只问【闪】）', fu
 
     ---@type boolean
     local askedNullify = false
-    ---@type string[]
-    local reasons = {}
+    ---@type AskPlayCard[]
+    local asks = {}
     run.game:on('卡牌-询问', function (ask)
         if isNullifyAsk(ask) then
             askedNullify = true
             return
         end
-        reasons[#reasons + 1] = ask.reason
+        ---@cast ask AskPlayCard
+        asks[#asks + 1] = ask
     end)
 
     run.game:useCard(user, slash, { run.players[2] })
 
     lt.assertEquals('没出现要无懈的询问', false, askedNullify)
-    lt.assertEquals('只问了那一次【闪】', 1, #reasons)
-    lt.assertEquals('缘由是【杀】', '杀', reasons[1])
+    lt.assertEquals('只问了那一次【闪】', 1, #asks)
+    local only = assert(asks[1])
+    lt.assertEquals('要的是【闪】', '闪', assert(only.condition.names)[1])
+    lt.assertEquals('响应的是那张【杀】', '杀', assert(only.responseOptions?.responseTo).card.name)
 end)
 
 lt.test('无懈可击：主动用不出去（只在「生效前」被问到时才用）', function ()

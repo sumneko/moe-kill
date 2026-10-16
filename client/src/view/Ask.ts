@@ -4,7 +4,7 @@ import type { Proto } from '../proto';
 import type { Agent, Ask } from '../state/agent';
 import { Card } from './Card';
 import { answerOf, autoPick, canSubmit, pickCard, pickSkill, planText, toggle, type Selection } from './pick';
-import { cardLabel, seatCards } from './format';
+import { cardLabel, heroName, seatCards } from './format';
 
 /** 一条询问要摆些什么、交上去什么 */
 export interface AskHandlers {
@@ -213,7 +213,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 <div class="left" style=${`width: ${Math.max(0, Math.min(100, (left / timeLimit) * 100))}%`}></div>
             </div>` : null}
             <div class="head">
-                <span class="title">${params.reason ?? ask.method}</span>
+                <span class="title">${askTitle(agent, ask, params)}</span>
                 <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
             </div>
             <div class="bar">
@@ -238,6 +238,22 @@ function mineCardIds(agent: Agent): Set<number> {
         return new Set();
     }
     return new Set([...mine.hand, ...[...mine.equip.values()].flat()]);
+}
+
+/** 角色怎么称呼：优先武将名，还没选将就用户名 */
+function whoOf(agent: Agent, id: number): string {
+    return heroName(agent.players.get(id)) ?? agent.playerLabel(id);
+}
+
+/** 这次询问的抬头：`reason` 本身就是给用户看的整句，响应类在后面接上「响应谁的那张牌」 */
+function askTitle(agent: Agent, ask: Ask, params: any): string {
+    const reason = (params.reason as string | undefined) ?? ask.method;
+    const responseTo = params.responseTo as Proto.ResponseTo | undefined;
+    if (!responseTo) {
+        return reason;
+    }
+    const who = [responseTo.player, ...responseTo.targets].map((id) => whoOf(agent, id)).join(' → ');
+    return `${reason} → ${responseTo.card}（${who}）`;
 }
 
 /** 玩家名（认不出就给号） */

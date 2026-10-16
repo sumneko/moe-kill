@@ -1020,7 +1020,7 @@ end
 
 --- 要一张牌
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param condition? AskCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
 ---@return AskCard # 这次询问（已经结完：答复读 `.card`（第一张）/ `.cards`（全部）/ `.targets`，失败读 `.err`）
 ---@async
@@ -1037,7 +1037,7 @@ end
 
 --- 要一张牌（要一次给出：一批牌 + 接收它们的角色）
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param conditions? AskCardWithTarget.Conditions # 两半条件（牌那半 `card`、目标那半 `target`；省略 = 都不筛）
 ---@return AskCardWithTarget # 这次询问（已经结完：答复读 `.cards`（全部）/ `.target`（第一个目标）、`.targets`（全部目标），失败读 `.err`）
 ---@async
@@ -1054,7 +1054,7 @@ end
 
 --- 起一次「要一张牌并使用」的询问：**只到 apply** —— 不等它、也不替你用出去
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不筛：他所有牌区的牌）
 ---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 ---@return AskUseCard # 这次询问（还没结完：等它用 `:await()`，用出去用 `:use()`）
@@ -1073,7 +1073,7 @@ end
 --- 要一张牌（要一次使用：能用的牌 + 目标）—— 答复到手后**直接把它用出去**（结果读 `ask.useCard`）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param condition? AskUseCard.Condition # 要什么样的牌（比 `askCard` 多一条 `target`；省略 = 不筛：他所有牌区的牌）
 ---@param useOptions? Game.UseOptions # 这次使用的选项（候选收集与用出去都带上）
 ---@return AskUseCard # 这次询问（已经结完：答复读 `.card` / `.targets`，那次使用读 `.useCard`，失败读 `.err`）
@@ -1086,7 +1086,7 @@ end
 
 --- 起一次「要一个技能发动」的询问：**只到 apply** —— 不等它、也不替你发动出去
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@return AskUseSkill # 这次询问（还没结完：等它用 `:await()`，发动用 `:use()`）
 function M:startAskUseSkill(to, reason)
     local ask = moe.askUseSkill.create {
@@ -1101,7 +1101,7 @@ end
 --- 要一个技能发动（候选 = 他身上的主动技）—— 答复到手后**直接发动它**（结果读 `ask.cast`）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@return AskUseSkill # 这次询问（已经结完：答复读 `.skill`，那次发动读 `.cast`，失败读 `.err`）
 function M:askUseSkill(to, reason)
     local ask = self:startAskUseSkill(to, reason)
@@ -1113,15 +1113,17 @@ end
 --- 要一张牌（要一次「对一张牌的使用」：能对目标牌使用的牌才进选项）—— 答复到手后**直接把它用出去**（结果读 `ask.useCardToCard`）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param condition AskUseCardToCard.Condition # 要什么样的牌（`target` = 要用在哪张牌上）
+---@param responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（`responseTo` = 一次响应）
 ---@return AskUseCardToCard # 这次询问（已经结完：答复读 `.card`，那次使用读 `.useCardToCard`，失败读 `.err`）
-function M:askUseCardToCard(to, reason, condition)
+function M:askUseCardToCard(to, reason, condition, responseOptions)
     local ask = moe.askUseCardToCard.create {
-        game      = self,
-        to        = to,
-        reason    = reason,
-        condition = condition,
+        game            = self,
+        to              = to,
+        reason          = reason,
+        condition       = condition,
+        responseOptions = responseOptions,
     }
     ask:apply():await()
     ask:use()
@@ -1132,7 +1134,7 @@ end
 --- 给了 `responseTo` = 一次**响应**：没答上就是「取消」；答复到手就算这次响应成立（发「被响应」两段时机）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param condition? AskPlayCard.Condition # 要什么样的牌（省略 = 不筛：他所有牌区的牌）
 ---@param responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（如「这次响应冲哪次使用」）
 ---@return AskPlayCard # 这次询问（已经结完：答复读 `.card`，**响应成立吗读 `.success`**，失败读 `.err`）
@@ -1151,7 +1153,7 @@ end
 --- 要一名角色（候选名单由内核摆好，答复必须是里面的一个）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param condition? AskPlayer.Condition # 要什么样的角色（候选名单 + `min` / `max` 个数区间；省略 = 存活角色全算候选、正好一名）
 ---@return AskPlayer # 这次询问（已经结完：答复读 `.player` / `.players`，失败读 `.err`）
 function M:askPlayer(to, reason, condition)
@@ -1168,7 +1170,7 @@ end
 --- 要他在若干选项里挑一个（选项由发起方给，答复必须是其中之一）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param options string[] # 有哪些可选项（内容由发起方定，应答方自己解释）
 ---@return AskChoice # 这次询问（已经结完：结果读 `.result`，失败读 `.err`）
 function M:askChoice(to, reason, options)
@@ -1185,7 +1187,7 @@ end
 --- 要他在一块面板上摆 / 挑（`{ moveable = true }` 才允许移动牌）—— 一次询问**开着**到点「确定」为止，中间可以来回很多次
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param panel Panel # 摆在哪块面板上（内容侧用 `createPanel` 建）
 ---@return AskPanel # 这次询问（已经结完：各行读 `.rows`、选中的牌读 `.card` / `.cards`，失败读 `.err`）
 function M:askPanel(to, reason, panel)
@@ -1202,7 +1204,7 @@ end
 --- 要他在若干武将里挑（候选名单由发起方给；左慈那类「挑别人的武将」也用它）
 ---@async
 ---@param to Player # 被问者
----@param reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@param reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@param condition? AskHero.Condition # 要什么样的武将（省略 = 不做限制）
 ---@return AskHero # 这次询问（已经结完：答复读 `.hero` / `.heroes`，失败读 `.err`）
 function M:askHero(to, reason, condition)

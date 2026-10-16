@@ -20,13 +20,13 @@
 ---@class AskPanel.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field panel Panel # 摆在哪块面板上
 
 --- 一次面板询问：**开着**到应答方点「确定」为止 —— 中间可以来回很多次，每次只收变化值
 ---@class AskPanel : Effect
 ---@field to Player # 被问者
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本
 ---@field panel Panel # 这块面板
 ---@field rows Card[][] # 定下的各行（`= .result.rows`）
 ---@field card? Card # 选中的那张牌（没选就是空；`= .result.card`）

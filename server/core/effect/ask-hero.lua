@@ -35,13 +35,13 @@ end
 ---@class AskHero.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field condition? AskHero.Condition # 要什么样的武将（省略 = 不做限制）
 
 --- 要若干名武将：候选名单由发起方给，答复必须是里面的（个数落在 `min` / `max` 之间、不重复）
 ---@class AskHero : Effect
 ---@field to Player # 被问者
----@field reason string # 这次为什么问
+---@field reason string # 给用户看的提示文本
 ---@field condition? AskHero.NormalizedCondition # 要什么样的武将（构造时归一化）
 ---@field options? HeroDef[] # 候选名单（没给条件时为空 = 不做限制）
 ---@field hero? HeroDef # 答复给出的第一个武将（没答就是空）

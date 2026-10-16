@@ -287,6 +287,20 @@ function M:cardPlan(ask)
     return { ids = self:cardIds(cards), min = condition.min, max = condition.max }
 end
 
+--- 这次响应冲哪次使用去的（牌名 + 使用者 + 目标）；不是响应就给空
+---@param useCard? UseCard
+---@return Proto.ResponseTo?
+function M:responseToParams(useCard)
+    if not useCard then
+        return nil
+    end
+    return {
+        card    = useCard.card.name,
+        player  = useCard.user.id,
+        targets = self:playerIds(useCard.targets),
+    }
+end
+
 --- 一次「选一张牌」的完整实现（候选摆上、回包转回真牌）：`askCard` / `askPlayCard` / `askUseCardToCard` 共用
 ---@async
 ---@param ask AskCard
@@ -296,6 +310,7 @@ function M:pickCards(ask)
         reason     = ask.reason,
         cancelable = ask.condition.cancelable,
         card       = self:cardPlan(ask),
+        responseTo = self:responseToParams(ask.responseOptions?.responseTo),
         timeLimit  = ask.timeLimit or DEFAULT_TIME_LIMIT,
     })
     if not parsed then

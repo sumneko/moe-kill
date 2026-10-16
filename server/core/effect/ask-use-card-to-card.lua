@@ -13,8 +13,9 @@
 ---@class AskUseCardToCard.CreateOptions
 ---@field game Game
 ---@field to Player # 被问者
----@field reason? string # 这次为什么问（内容由发起方定；原样带到应答方）
+---@field reason? string # 给用户看的提示文本（内容侧写全句，如「打出一张 闪」；原样带到应答方）
 ---@field condition AskUseCardToCard.Condition # 要什么样的牌（`target` 必给）
+---@field responseOptions? AskCard.ResponseOptions # 这次询问的额外交代（`responseTo` = 一次响应）
 
 --- 要一次「对一张牌的使用」：候选逐张跑 `canUseToCard`（用不了的牌不进选项），答复只要给牌
 ---@class AskUseCardToCard : AskCard
@@ -70,5 +71,5 @@ end
 ---@param options AskUseCardToCard.CreateOptions
 ---@return AskUseCardToCard
 function moe.askUseCardToCard.create(options)
-    return New 'AskUseCardToCard' (options.game, options.to, options.reason, options.condition)
+    return New 'AskUseCardToCard' (options.game, options.to, options.reason, options.condition, options.responseOptions)
 end
