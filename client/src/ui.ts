@@ -2,6 +2,7 @@ import { html } from 'htm/preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Agent, Ask } from './state/agent';
 import type { Proto } from './proto';
+import { formatPlain } from './view/format';
 
 /** 花色符号 */
 const SUITS: Record<string, string> = { 黑桃: '♠', 红桃: '♥', 梅花: '♣', 方块: '♦' };
@@ -85,17 +86,6 @@ function cardLabel(agent: Agent, id: number): string {
     return `${face.name ?? '?'}${suit}${face.point ?? ''}`;
 }
 
-/** 协议层的展示模板串（`${suit:红桃}` ⇒ ♥、`${hero:刘备}` ⇒ 刘备）；认不出的原样显示 */
-function renderMark(mark: string): string {
-    const match = /^\$\{(\w+):(.+)\}$/.exec(mark);
-    const kind = match?.[1];
-    const value = match?.[2] ?? '';
-    if (kind === 'suit') {
-        return SUITS[value] ?? value;
-    }
-    return match ? value : mark;
-}
-
 /** 悬浮提示：把有内容的那几行拼起来（一行都没有就是 undefined） */
 function tooltip(lines: (string | undefined)[]): string | undefined {
     const all = lines.filter((one): one is string => Boolean(one));
@@ -135,7 +125,7 @@ function CardView(props: {
         <span class="name">${face?.name ?? '背面'}</span>
         <span class="point">${face?.point ?? ''}</span>
         ${converted ? html`<span class="mark convert">转</span>` : null}
-        ${(props.marks ?? []).map((mark, index) => html`<span class="mark" key=${index}>${renderMark(mark)}</span>`)}
+        ${(props.marks ?? []).map((mark, index) => html`<span class="mark" key=${index}>${formatPlain(mark)}</span>`)}
     </button>`;
 }
 

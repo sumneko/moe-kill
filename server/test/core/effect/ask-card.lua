@@ -105,6 +105,17 @@ lt.test('询问：条件构造时归一化（列表 + 默认张数）', function
     lt.assertEquals('于是没有筛选项', nil, loose.condition.names)
 end)
 
+lt.test('询问：max 给 0 ⇒ min 的默认值不盖过它（空答复就是合法答复）', function ()
+    local game, players = newGame(2)
+    putInHand(players[2], { game:createCard('闪') })
+
+    local ask = game:askCard(players[2], nil, { max = 0 })
+
+    lt.assertEquals('张数区间是 0,0', '0,0', ask.condition.min .. ',' .. ask.condition.max)
+    lt.assertEquals('没人应答也算成立（不是拒收）', true, ask.success)
+    lt.assertEquals('于是没有牌', nil, ask.card)
+end)
+
 lt.test('询问：条件里的区名构造时解析成区对象（解析不到的丢掉）', function ()
     local game, players = newGame(2)
     putInHand(players[2], { game:createCard('闪') })

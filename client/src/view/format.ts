@@ -101,15 +101,9 @@ export function attr(player: Proto.Player | undefined, name: string): number | u
     return player?.attributes.find((one) => one.name === name)?.value;
 }
 
-/** 协议层展示串里的 `${suit:红桃}` 这类模板 */
-export function renderMark(mark: string): string {
-    const match = /^\$\{(\w+):(.+)\}$/.exec(mark);
-    const kind = match?.[1];
-    const value = match?.[2] ?? '';
-    if (kind === 'suit') {
-        return SUITS[value] ?? value;
-    }
-    return match ? value : mark;
+/** 只要纯文本的地方用它（`reason` 之外的展示串）：把片段拼起来、丢掉颜色 */
+export function formatPlain(text: string, tables: TextTables = {}): string {
+    return formatText(text, tables).map((piece) => piece.text).join('');
 }
 
 /** 一段渲染好的文本：内容 + 可选的颜色 */

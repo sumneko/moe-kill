@@ -104,8 +104,9 @@ local function normalizeCondition(game, to, condition)
     for key, value in pairs(condition) do
         normalized[key] = value
     end
-    normalized.min  = condition.min or 1
-    normalized.max  = condition.max or normalized.min
+    -- `max` 可以小到 0（「一张都不给」也是合法答复）—— `min` 的默认值不能盖过它
+    normalized.max = condition.max or condition.min or 1
+    normalized.min = condition.min or math.min(1, normalized.max)
     normalized.cancelable = condition.cancelable ~= false
     if condition.name then
         normalized.names = moe.util.toList(condition.name)
