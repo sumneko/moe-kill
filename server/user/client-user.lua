@@ -75,7 +75,7 @@ function M:request(method, params, host)
     local timeLimit = params.timeLimit
     if timeLimit then
         -- 计时器挂在请求上：请求一有结果（回包到了 / 被叫停）它跟着一起拆
-        -- 收尾用 `cancel`（`reject` 只记结果、不叫醒等它的人）
+        -- 到点了就把结果强行定成「超时」（`cancel`：不管之前记过什么）
         request:bindGC(moe.timer.wait(timeLimit + TIME_LIMIT_SLACK, function ()
             if request.resolved then
                 return

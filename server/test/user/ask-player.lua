@@ -148,7 +148,7 @@ lt.test('请求：宿主被收掉 ⇒ 叫停客户端，等待按「请求被取
     local canceled = assert(err, '该以失败收尾')
     lt.assertEquals('按「请求被取消」收', -1, canceled.code)
     lt.assertEquals('原因照协议写', 'request canceled', canceled.message)
-    lt.assertEquals('任务没收掉：还等着那一包', true, IsValid(request))
+    lt.assertEquals('取消是把这次请求当场收掉（不再等那一包了）', false, IsValid(request))
 end)
 
 ---@async

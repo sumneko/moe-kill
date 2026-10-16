@@ -106,7 +106,7 @@ function M:onRejected(callback)
     return self
 end
 
---- 完成这次任务：只把结果记下来，收口交给 `Delete`（见 `__del`）
+--- 完成这次任务：把结果记下来；没人替它收尾的就当场收口（见 `deleteIfOrphan`）
 ---@param result? any
 function M:resolve(result)
     if self.resolved then
@@ -114,9 +114,10 @@ function M:resolve(result)
     end
     self.resolved = true
     self.result   = result
+    self:deleteIfOrphan()
 end
 
---- 让这次任务失败：只把原因记下来，收口交给 `Delete`（见 `__del`）
+--- 让这次任务失败：同上，把原因记下来
 ---@param err any
 function M:reject(err)
     if self.resolved then
@@ -124,6 +125,20 @@ function M:reject(err)
     end
     self.resolved = true
     self.err      = err
+    self:deleteIfOrphan()
+end
+
+--- 没有执行体的任务（建出来直接交给别人等的那种）没人会替它收口：结果一定就当场收掉
+--- 有执行体的那些由执行体跑完自己收口（`executeSync` / `executeAsync` 的收尾）
+---@private
+function M:deleteIfOrphan()
+    if self.thread then
+        return
+    end
+    if not IsValid(self) then
+        return
+    end
+    Delete(self)
 end
 
 --- 停掉这次任务：优先级最高（结果已经定过也强行改成「取消」），当场收口；已经删除过（收口过）就不再动
