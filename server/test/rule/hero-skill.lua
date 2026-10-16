@@ -323,7 +323,7 @@ Skill '探针技'
         return { skill = skill }
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason ~= '出牌' then
+        if ask.kind ~= 'askUseCard' then
             return
         end
         -- 牌那一路永远不答：这一轮该由技能那一路说了算
@@ -907,7 +907,7 @@ lt.test('反馈：受到伤害后，获得伤害来源的一张牌', function ()
     ---@type AskCard?
     local asked = nil
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '反馈' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '反馈') then
             ---@cast ask AskCard
             asked = ask
             return { card = spoils }
@@ -933,7 +933,7 @@ lt.test('反馈：无来源伤害不发动', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '反馈' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '反馈') then
             asked = asked + 1
         end
     end)
@@ -957,7 +957,7 @@ lt.test('反馈：伤害来源身上没牌就不问', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '反馈' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '反馈') then
             asked = asked + 1
         end
     end)
@@ -980,7 +980,7 @@ lt.test('反馈：不发动时，来源的牌不动', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '反馈' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '反馈') then
             asked = asked + 1
             return nil
         end
@@ -1005,7 +1005,7 @@ lt.test('鬼才：把判定牌换成自己的一张手牌', function ()
     assert(sima:getZone('手牌')):accept(hand)
 
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '鬼才') then
             return { card = hand }
         end
     end)
@@ -1029,7 +1029,7 @@ lt.test('鬼才：这次改判归因在技能名下', function ()
     local hand = takeCard(run, sima, '桃')
 
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '鬼才') then
             return { card = hand }
         end
     end)
@@ -1061,7 +1061,7 @@ lt.test('鬼才：不发动时判定照旧', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '鬼才') then
             asked = asked + 1
             return nil
         end
@@ -1084,7 +1084,7 @@ lt.test('鬼才：自己手里没牌就不问', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '鬼才' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '鬼才') then
             asked = asked + 1
         end
     end)
@@ -1154,7 +1154,7 @@ lt.test('苦肉：体力 1 时发动会进濒死，被【桃】救回来再摸�
     ---@type integer
     local dyingAsked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askUseCard' and ask.reason == '濒死' and ask.to == saver then
+        if ask.kind == 'askUseCard' and support.askFrom(ask, '濒死') and ask.to == saver then
             dyingAsked = dyingAsked + 1
             return { card = peach, targets = { huanggai } }
         end
@@ -1416,7 +1416,7 @@ lt.test('刚烈：判红桃就什么都不发生（连来源都不问）', funct
         end
     end)
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             ---@cast ask AskChoice
             return '发动'
         end
@@ -1425,7 +1425,7 @@ lt.test('刚烈：判红桃就什么都不发生（连来源都不问）', funct
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             asked = asked + 1
         end
     end)
@@ -1452,7 +1452,7 @@ lt.test('刚烈：判非红桃就让来源弃两张手牌，他自己不掉血',
         end
     end)
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             ---@cast ask AskChoice
             return '发动'
         end
@@ -1462,7 +1462,7 @@ lt.test('刚烈：判非红桃就让来源弃两张手牌，他自己不掉血',
     local second = takeCard(run, user, '闪')
     local slash  = takeCard(run, user, '杀')
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             return { card = { first, second } }
         end
     end)
@@ -1490,7 +1490,7 @@ lt.test('刚烈：给不满两张就挨那 1 点（伤害来源是夏侯惇）',
         end
     end)
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             ---@cast ask AskChoice
             return '发动'
         end
@@ -1499,7 +1499,7 @@ lt.test('刚烈：给不满两张就挨那 1 点（伤害来源是夏侯惇）',
     local only  = takeCard(run, user, '杀')
     local slash = takeCard(run, user, '杀')
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             return { card = only }
         end
     end)
@@ -1534,7 +1534,7 @@ lt.test('刚烈：来源取消不给，也一样挨那 1 点', function ()
         end
     end)
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             ---@cast ask AskChoice
             return '发动'
         end
@@ -1569,7 +1569,7 @@ lt.test('刚烈：无来源的伤害不发动', function ()
     ---@type integer
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '刚烈' then
+        if support.askFrom(ask, '刚烈') then
             asked = asked + 1
         end
     end)
@@ -1627,7 +1627,7 @@ lt.test('青囊：没人受伤就不进选项（凑不齐前置）', function ()
         return nil
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '出牌' then
+        if ask.kind == 'askUseCard' then
             moe.await.sleep(0)
             return nil
         end
@@ -2370,7 +2370,7 @@ lt.test('遗计：观看牌堆顶两张，给出的一张给对方、取消时�
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind ~= 'askCardWithTarget' or ask.reason ~= '遗计' then
+        if ask.kind ~= 'askCardWithTarget' or not support.askFrom(ask, '遗计') then
             return
         end
         ---@cast ask AskCardWithTarget
@@ -2401,7 +2401,7 @@ lt.test('遗计：可以一次把两张都给同一个人', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind ~= 'askCardWithTarget' or ask.reason ~= '遗计' then
+        if ask.kind ~= 'askCardWithTarget' or not support.askFrom(ask, '遗计') then
             return
         end
         ---@cast ask AskCardWithTarget
@@ -2425,7 +2425,7 @@ lt.test('遗计：受 2 点伤害就发动两轮', function ()
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind ~= 'askCardWithTarget' or ask.reason ~= '遗计' then
+        if ask.kind ~= 'askCardWithTarget' or not support.askFrom(ask, '遗计') then
             return
         end
         asked = asked + 1
@@ -2450,7 +2450,7 @@ lt.test('遗计：不发动就什么也不做', function ()
     ---@type integer
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason ~= '遗计' then
+        if not support.askFrom(ask, '遗计') then
             return
         end
         asked = asked + 1
@@ -2477,7 +2477,7 @@ lt.test('突袭：发动就放弃摸牌，改为拿两名其他角色各一张�
     ---@type integer
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason ~= '突袭' then
+        if not support.askFrom(ask, '突袭') then
             return
         end
         ---@cast ask AskPlayer
@@ -2503,7 +2503,7 @@ lt.test('突袭：不发动就照常摸两张', function ()
     ---@type integer
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason ~= '突袭' then
+        if not support.askFrom(ask, '突袭') then
             return
         end
         asked = asked + 1
@@ -2524,7 +2524,7 @@ lt.test('突袭：一个都不选就是不发动，照常摸两张', function ()
     takeCard(run, one, '杀')
 
     run.game:on('决策-询问', function (ask)
-        if ask.reason ~= '突袭' then
+        if not support.askFrom(ask, '突袭') then
             return
         end
         return {}
@@ -2544,7 +2544,7 @@ lt.test('突袭：别人都没手牌就不问、照常摸牌', function ()
     ---@type integer
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '突袭' then
+        if support.askFrom(ask, '突袭') then
             asked = asked + 1
         end
     end)
@@ -2896,7 +2896,7 @@ local function useFangan(run, zhouyu, target, card, chosen)
     end)
     run.game:on('决策-询问', function (ask)
         ---@cast ask AskChoice
-        if ask.reason == '反间' then
+        if support.askFrom(ask, '反间') then
             return chosen
         end
     end)
@@ -2983,7 +2983,7 @@ lt.test('反间：候选只有其他角色，且出牌阶段限一次', function
     end)
     run.game:on('决策-询问', function (ask)
         ---@cast ask AskChoice
-        if ask.reason == '反间' then
+        if support.askFrom(ask, '反间') then
             return '${suit:红桃}'
         end
     end)
@@ -3697,7 +3697,7 @@ lt.test('观星：准备阶段开始观看牌堆顶 X 张（X = 存活角色数�
     ---@type integer
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason ~= '观星' then
+        if not support.askFrom(ask, '观星') then
             return
         end
         asked = asked + 1
@@ -3729,7 +3729,7 @@ lt.test('观星：把牌摆到「牌堆底」那一行（面板上摆完点确�
     local top    = { assert(deck:peek(1)), assert(deck:peek(2)), assert(deck:peek(3)) }
 
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '观星' then
+        if support.askFrom(ask, '观星') then
             return '发动'
         end
     end)
@@ -3768,7 +3768,7 @@ lt.test('观星：答复中途被拒收 ⇒ 已经摆好的照摆（不回到原
     local top  = { assert(deck:peek(1)), assert(deck:peek(2)), assert(deck:peek(3)) }
 
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '观星' then
+        if support.askFrom(ask, '观星') then
             return '发动'
         end
     end)
@@ -3833,7 +3833,7 @@ lt.test('观星：X 至多为 5（六人局也只观看 5 张）', function ()
     end
 
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '观星' then
+        if support.askFrom(ask, '观星') then
             return '发动'
         end
     end)

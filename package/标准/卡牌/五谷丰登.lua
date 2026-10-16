@@ -18,7 +18,7 @@ Card '五谷丰登'
     : on('生效', function (cardEffect, useCard)
         ---@type Panel
         local panel = useCard:getTag('panel')
-        local card = game:askPanel(cardEffect.target, '五谷丰登', panel).card
+        local card = game:askPanel(cardEffect.target, '五谷丰登：选一张牌', panel).card
         if not card then
             -- 没答上（超时之类）照样得「获得其中一张」：替他拿第一张还没被拿走的
             for _, one in ipairs(panel:cards()) do

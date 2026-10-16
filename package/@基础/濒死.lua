@@ -45,7 +45,7 @@ function Dying:settle()
     for asker in game.desk:actionOrder() do
         -- 答了就接着问他，答不上来换下一位（上限 1000 次，防止答复不前进时死循环）
         for _ = 1, 1000 do
-            if not game:askUseCard(asker, '濒死', condition).useCard then
+            if not game:askUseCard(asker, util.locale('濒死：使用一张 {card}', { card = '桃' }), condition).useCard then
                 break
             end
             -- 救回来了就收工

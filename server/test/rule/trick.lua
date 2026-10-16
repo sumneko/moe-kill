@@ -470,7 +470,7 @@ lt.test('借刀杀人：被借刀者用出【杀】，武器留在自己身上',
         return victim
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '借刀杀人' then
+        if support.askFrom(ask, '借刀杀人') then
             return { card = slash, targets = { victim } }
         end
     end)

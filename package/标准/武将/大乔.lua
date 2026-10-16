@@ -24,7 +24,7 @@ Skill '流离'
         if #candidates == 0 then
             return
         end
-        local ask = game:askCardWithTarget(owner, '流离', {
+        local ask = game:askCardWithTarget(owner, util.locale('流离：弃一张牌，把 {card} 转移给别人', { card = '杀' }), {
             card = {
                 zone = rule.ownZones,
                 min  = 1,

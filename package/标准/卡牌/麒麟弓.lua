@@ -25,7 +25,7 @@ Card '麒麟弓'
         if #mounts == 0 then
             return
         end
-        local discarded = game:askCard(owner, '麒麟弓', { card = mounts }).card
+        local discarded = game:askCard(owner, '麒麟弓：弃掉其一张坐骑', { card = mounts }).card
         if not discarded then
             return
         end

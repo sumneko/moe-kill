@@ -91,7 +91,7 @@ game:on('游戏-准备', function (event)
             local candidates = candidatesFor(player, free, count)
             assert(#candidates > 0, '武将不够分了')
             -- 没人答（超时 / 取消）就服务器替他拿第一张
-            local chosen = game:askHero(player, '选将', { hero = candidates }).hero or candidates[1]
+            local chosen = game:askHero(player, '请选择一名武将', { hero = candidates }).hero or candidates[1]
             takeOut(free, chosen)
             player:setHero(chosen)
         end

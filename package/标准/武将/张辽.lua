@@ -20,7 +20,7 @@ Skill '突袭'
             return
         end
         -- 不问「发不发动」：选几个就是几个，一个都不选 = 不发动（照常摸牌）
-        local ask = game:askPlayer(skill.owner, '突袭', { player = victims, min = 0, max = 2 })
+        local ask = game:askPlayer(skill.owner, '突袭：获得至多两名角色各一张手牌', { player = victims, min = 0, max = 2 })
         if #ask.players == 0 then
             return
         end

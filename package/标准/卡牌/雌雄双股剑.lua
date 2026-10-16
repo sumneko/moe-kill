@@ -19,11 +19,11 @@ Card '雌雄双股剑'
             return
         end
         -- 不答 = 取消 = 不发动（`.choice` 为空）—— 否定项不必当选项传
-        if game:askChoice(owner, '雌雄双股剑', { '发动' }).choice ~= '发动' then
+        if game:askChoice(owner, '雌雄双股剑：是否发动？', { '发动' }).choice ~= '发动' then
             return
         end
         -- 给牌 = 弃置它；给不出（没牌 / 不答 / 答错）由 askCard 归一成空 ⇒ 令你摸一张
-        local given = game:askCard(target, '雌雄双股剑', { zone = '手牌', min = 0, max = 1 }).card
+        local given = game:askCard(target, '雌雄双股剑：弃一张手牌，否则他摸一张牌', { zone = '手牌', min = 0, max = 1 }).card
         card:cast(function ()
             if given then
                 game:moveCard(given, '弃牌')

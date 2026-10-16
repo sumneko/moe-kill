@@ -20,7 +20,7 @@ Skill '刚烈'
                 return
             end
             -- 要两张手牌：给不满（张数不对）或干脆取消，都由他挨那 1 点伤害
-            local cards = game:askCard(from, '刚烈', { zone = '手牌', min = 2, max = 2 }).cards
+            local cards = game:askCard(from, '刚烈：弃两张手牌', { zone = '手牌', min = 2, max = 2 }).cards
             if #cards == 2 then
                 game:moveCard(cards, '弃牌')
                 return

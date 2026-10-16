@@ -20,7 +20,7 @@ Card '青龙偃月刀'
         local owner = assert(zone.owner)
         -- 再对其使用一张【杀】：无视距离、不受次数限制、不计入次数（不答 = 不发动）
         card:cast(function ()
-            game:askUseCard(owner, '青龙偃月刀', { name = '杀', target = killer.target }, {
+            game:askUseCard(owner, util.locale('青龙偃月刀：再使用一张 {card}', { card = '杀' }), { name = '杀', target = killer.target }, {
                 ignoreDistance = true,
                 ignoreUseLimit = true,
                 notCounted     = true,

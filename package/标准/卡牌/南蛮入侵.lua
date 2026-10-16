@@ -12,7 +12,7 @@ Card '南蛮入侵'
     }
     : on('生效', function (cardEffect, useCard)
         local target = cardEffect.target
-        if game:askPlayCard(target, '${locale:打出一张 {card}}@{card:杀}', { name = '杀' }, { responseTo = useCard }).card then
+        if game:askPlayCard(target, util.locale('打出一张 {card}', { card = '杀' }), { name = '杀' }, { responseTo = useCard }).card then
             return
         end
         game:damage(cardEffect.user, target, 1, cardEffect.card)

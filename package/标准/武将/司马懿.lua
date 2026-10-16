@@ -15,7 +15,7 @@ Skill '鬼才'
             return
         end
         skill:tryCast(function ()
-            local card = game:askCard(skill.owner, '鬼才', { zone = '手牌' }).card
+            local card = game:askCard(skill.owner, '鬼才：打出一张手牌替换判定牌', { zone = '手牌' }).card
             if card then
                 judge:replace(card)
             end
@@ -32,7 +32,7 @@ Skill '反馈'
             return
         end
         skill:tryCast(function ()
-            local card = game:askCard(skill.owner, '反馈', { zone = from:getZones(), cancelable = false }).card
+            local card = game:askCard(skill.owner, '反馈：获得其一张牌', { zone = from:getZones(), cancelable = false }).card
             if card then
                 game:moveCard(card, skill.owner:getZone('手牌'))
             end

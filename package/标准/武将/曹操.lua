@@ -32,7 +32,7 @@ Skill '护驾'
             return player ~= skill.owner and player.kingdom == skill.owner.kingdom
         end)
         for helper in game.desk:actionOrder(helpers, skill.owner) do
-            local help = game:askCard(helper, '护驾', { name = '闪' })
+            local help = game:askCard(helper, util.locale('护驾：打出一张 {card}', { card = '闪' }), { name = '闪' })
             if help.card then
                 game:moveCard(help.cards, ask:getTempZone())
                 return help.cards

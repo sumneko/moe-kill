@@ -9,7 +9,7 @@ local function discardPhase(player)
         if extra <= 0 then
             return
         end
-        local cards = game:askCard(player, '弃牌', { zone = '手牌', max = extra, cancelable = false }).cards
+        local cards = game:askCard(player, util.locale('请弃置 {num} 张手牌', { num = extra }), { zone = '手牌', max = extra, cancelable = false }).cards
         if #cards == 0 then
             -- 没答 / 被拒收就由服务器一次替他弃够：手牌从前往后数
             local handCards = hand:list()

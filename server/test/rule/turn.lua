@@ -41,11 +41,11 @@ local function startTurn(options)
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '出牌' then
+        if ask.kind == 'askUseCard' or ask.kind == 'askUseSkill' then
             moe.await.sleep(0)
             return options.answer(ask, run)
         end
-        if ask.reason == '弃牌' and options.discard then
+        if ask.kind == 'askCard' and support.askFrom(ask, '弃置') and options.discard then
             moe.await.sleep(0)
             return options.discard(ask, run)
         end
@@ -226,7 +226,7 @@ lt.test('回合：出牌阶段用一张杀并结算', function ()
             run.players[1]:getZone('手牌'):accept(slash)
         end,
         answer = function (ask, run)
-            if ask.reason ~= '出牌' or not slash then
+            if ask.kind ~= 'askUseCard' or not slash then
                 return nil
             end
             local card = slash
@@ -397,7 +397,7 @@ lt.test('回合：出牌阶段的选项只含能用的牌，用完【杀】就�
             -- 【闪】没声明目标条件 ⇒ 用不了
             hand:accept(run.game:createCard('闪'))
             run.game:on('卡牌-询问', function (ask)
-                if ask.reason ~= '出牌' then
+                if ask.kind ~= 'askUseCard' then
                     return
                 end
                 ---@type string[]
@@ -648,6 +648,34 @@ lt.test('克己：出牌阶段没出过【杀】⇒ 跳过弃牌阶段', functio
     lt.assertEquals('一张都没弃（弃牌堆是空的）', 0, assert(state.run.game:getZone('弃牌')):count())
 end)
 
+lt.test('询问文案：内容侧用 util.locale 拼出「模板@参数表」', function ()
+    ---@type string?
+    local seen = nil
+    local state = startTurn {
+        setup = function (run)
+            local hand = assert(assert(run.players[1]):getZone('手牌'))
+            for _ = 1, 6 do
+                hand:accept(run.game:createCard('杀'))
+            end
+            run.game:on('卡牌-询问', function (ask)
+                if ask.kind == 'askCard' and support.askFrom(ask, '弃置') then
+                    seen = ask.reason
+                end
+            end)
+        end,
+        answer = function ()
+            return nil
+        end,
+        stopAfter = 1,
+    }
+
+    advance(state, 1)
+
+    local reason = assert(seen, '该问过弃牌')
+    lt.assertEquals('模板 + 紧跟的参数表', true,
+        reason:find('${locale:请弃置 {num} 张手牌}@{"num":', 1, true) == 1)
+end)
+
 lt.test('克己：出牌阶段出过【杀】⇒ 照常弃牌', function ()
     local slash = nil
     local state = startTurn {
@@ -656,7 +684,7 @@ lt.test('克己：出牌阶段出过【杀】⇒ 照常弃牌', function ()
             assert(seatWithHero(run, '吕蒙'):getZone('手牌')):accept(slash)
         end,
         answer = function (ask, run)
-            if ask.reason ~= '出牌' or not slash then
+            if ask.kind ~= 'askUseCard' or not slash then
                 return nil
             end
             local card = slash
@@ -715,7 +743,7 @@ lt.test('克己：只在【决斗】里打出过【杀】也一样不跳过', fu
             end)
         end,
         answer = function (ask, run)
-            if ask.reason ~= '出牌' or not duel then
+            if ask.kind ~= 'askUseCard' or not duel then
                 return nil
             end
             local card = duel

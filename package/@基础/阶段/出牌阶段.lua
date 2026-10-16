@@ -12,8 +12,8 @@ local function playPhase(player)
         if not player:isAlive() then
             return
         end
-        local useCard  = game:startAskUseCard(player, '出牌', PLAY_PHASE_CONDITION)
-        local useSkill = game:startAskUseSkill(player, '出牌')
+        local useCard  = game:startAskUseCard(player, '请使用一张牌', PLAY_PHASE_CONDITION)
+        local useSkill = game:startAskUseSkill(player, '请发动一个技能')
         -- 谁先给出答复算谁；两路都没答复 = 他自己不想出了，这个阶段就到这
         local result = game:effectRace({ useCard, useSkill }, function (effect)
             ---@cast effect AskUseCard|AskUseSkill

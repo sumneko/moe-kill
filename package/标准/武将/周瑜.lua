@@ -36,7 +36,7 @@ Skill '反间'
             return
         end
         -- 不答复 = 没选花色 ⇒ 跟任何选项都对不上 ⇒ 一定算「花色不同」
-        local chosen = game:askChoice(target, '反间', { '${suit:红桃}', '${suit:方块}', '${suit:黑桃}', '${suit:梅花}' }).choice
+        local chosen = game:askChoice(target, '反间：选择一种花色', { '${suit:红桃}', '${suit:方块}', '${suit:黑桃}', '${suit:梅花}' }).choice
         -- 正面朝上给出去 = 这次搬动对所有人可见
         game:moveCard(card, target:getZone('手牌'), true)
         if chosen ~= '${suit:' .. (card.suit or '') .. '}' then

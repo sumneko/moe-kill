@@ -112,10 +112,10 @@ export interface TextPiece {
     color?: string;
 }
 
-/** 文本的两张表：模板函数表（`函数表[函数名][内容]`）与颜色表（代码 → 色值） */
+/** 文本的两张表：模板函数表（`函数表[函数名][内容]`）与类型样式表（类型 → 色值） */
 export interface TextTables {
     func?: Record<string, Record<string, string>>;
-    color?: Record<string, string>;
+    type?: Record<string, string>;
 }
 
 /** 内置的模板函数表（`locale` 现在是空的 —— 查不到就用内容原样） */
@@ -124,17 +124,18 @@ const DEFAULT_FUNC: Record<string, Record<string, string>> = {
     suit: SUITS,
 };
 
-/** 内置的颜色表（色值由客户端分配；内容侧只写代码） */
-const DEFAULT_COLOR: Record<string, string> = {
+/** 内置的类型样式表（色值由客户端分配；服务端只给类型） */
+const DEFAULT_TYPE: Record<string, string> = {
     card: '#ffcc00',
+    skill: '#ffe08a',
     player: '#7fd4ff',
     me: '#7bffa6',
     warn: '#ff7070',
 };
 
-/** 按颜色代码取色值（认不出给空 —— 不上色） */
-export function colorOf(code: string): string | undefined {
-    return DEFAULT_COLOR[code];
+/** 按类型取色值（认不出给空 —— 不上色） */
+export function colorOf(type: string): string | undefined {
+    return DEFAULT_TYPE[type];
 }
 
 const COLOR_SHAPE = /^#[0-9a-fA-F]{3,6}$/;
@@ -156,64 +157,62 @@ function matchBrace(text: string, start: number): number {
     return -1;
 }
 
-/** 找第一个 `@{名字:值}`：返回它拆开的四段；没有就给空 */
-function takeParam(text: string): { name: string; value: string; before: string; after: string } | null {
-    for (let i = 0; i + 1 < text.length; i++) {
-        if (text[i] !== '@' || text[i + 1] !== '{') {
-            continue;
-        }
-        const end = matchBrace(text, i + 1);
-        if (end < 0) {
-            return null;
-        }
-        const inner = text.slice(i + 2, end);
-        const colon = inner.indexOf(':');
-        if (colon < 0) {
-            return null;
-        }
-        return {
-            name: inner.slice(0, colon),
-            value: inner.slice(colon + 1),
-            before: text.slice(0, i),
-            after: text.slice(end + 1),
-        };
-    }
-    return null;
+/** 一个模板：`${…}` 的范围，以及紧跟其后的参数表（没有就为空） */
+interface Template {
+    /** `${` 的下标 */
+    start: number;
+    /** 配对 `}` 的下标 */
+    end: number;
+    /** `@` 之后那段 JSON（没有、或解析不了就是空） */
+    params?: Record<string, unknown>;
+    /** 这次要吃掉到哪里（有参数表就是参数表的 `}`） */
+    stop: number;
 }
 
-/** 把模板展开成纯文本：`${函数名:内容}` 查表（查不到用内容），`visited` 记已展开过的内容 */
-function expandTemplates(text: string, tables: Required<TextTables>, visited: Set<string>): string {
-    let out = '';
-    let at = 0;
-    while (at < text.length) {
-        const start = text.indexOf('${', at);
-        if (start < 0) {
-            out += text.slice(at);
-            break;
-        }
-        const end = matchBrace(text, start + 1);
-        if (end < 0) {
-            out += text.slice(at);
-            break;
-        }
-        const inner = text.slice(start + 2, end);
-        const colon = inner.indexOf(':');
-        const name = colon < 0 ? '' : inner.slice(0, colon);
-        const content = colon < 0 ? inner : inner.slice(colon + 1);
-        out += text.slice(at, start);
-        if (visited.has(content)) {
-            out += text.slice(start, end + 1);
-        } else {
-            visited.add(content);
-            out += tables.func[name]?.[content] ?? content;
-        }
-        at = end + 1;
+/** 从 `at` 起找第一个模板（`${…}`），并看它后面紧跟着没有 `@{…}` 参数表；没有模板给空 */
+function takeTemplate(text: string, at: number): Template | null {
+    const start = text.indexOf('${', at);
+    if (start < 0) {
+        return null;
     }
-    return out;
+    const end = matchBrace(text, start + 1);
+    if (end < 0) {
+        return null;
+    }
+    if (text[end + 1] !== '@' || text[end + 2] !== '{') {
+        return { start, end, stop: end };
+    }
+    const paramsEnd = matchBrace(text, end + 2);
+    if (paramsEnd < 0) {
+        return { start, end, stop: end };
+    }
+    let params: Record<string, unknown> | undefined;
+    try {
+        params = JSON.parse(text.slice(end + 2, paramsEnd + 1)) as Record<string, unknown>;
+    } catch {
+        params = undefined;
+    }
+    return params === undefined
+        ? { start, end, stop: end }
+        : { start, end, params, stop: paramsEnd };
 }
 
-/** 把 `{名字}` / `{名字#代码}` 换成参数值（没有对应参数就保持原文），并按名字或代码上色 */
-function fillParams(text: string, params: Map<string, string>, colors: Record<string, string>): TextPiece[] {
+/** 展开一个模板：查函数表（查不到用内容本身）；`visited` 里已经有的内容不展开（返回空） */
+function expandTemplate(name: string, content: string, func: Record<string, Record<string, string>>, visited: Set<string>): string | null {
+    if (visited.has(content)) {
+        return null;
+    }
+    visited.add(content);
+    return func[name]?.[content] ?? content;
+}
+
+/** 把参数值写成显示的文本（不是字符串就写成 JSON） */
+function textOf(value: unknown): string {
+    return typeof value === 'string' ? value : JSON.stringify(value) ?? String(value);
+}
+
+/** 把模板内容里的 `{键}` / `{键#类型}` 换成参数值（没有该键就保持原文），并按类型上色 */
+function fillParams(text: string, params: Record<string, unknown>, types: Record<string, string>): TextPiece[] {
     const out: TextPiece[] = [];
     let at = 0;
     while (at < text.length) {
@@ -227,14 +226,14 @@ function fillParams(text: string, params: Map<string, string>, colors: Record<st
         }
         const inner = text.slice(start + 1, end);
         const hash = inner.indexOf('#');
-        const name = hash < 0 ? inner : inner.slice(0, hash);
-        const code = hash < 0 ? name : inner.slice(hash + 1);
-        const value = params.get(name);
+        const key = hash < 0 ? inner : inner.slice(0, hash);
+        const type = hash < 0 ? key : inner.slice(hash + 1);
+        const value = params[key];
         out.push({ text: text.slice(at, start) });
         if (value === undefined) {
             out.push({ text: text.slice(start, end + 1) });
         } else {
-            out.push({ text: value, color: colors[code] });
+            out.push({ text: textOf(value), color: types[type] });
         }
         at = end + 1;
     }
@@ -242,22 +241,36 @@ function fillParams(text: string, params: Map<string, string>, colors: Record<st
     return out.filter((piece) => piece.text.length > 0);
 }
 
-/** 渲染询问缘由这类带格式的文本：`${函数名:内容}` 模板 + 只认第一个 `@{名字:值}` 参数 */
+/** 渲染询问缘由这类带格式的文本：`${函数名:内容}` 模板 + 紧跟其后的 `@{JSON}` 参数表；模板之外原样 */
 export function formatText(text: string, tables: TextTables = {}): TextPiece[] {
-    const merged: Required<TextTables> = {
-        func: { ...DEFAULT_FUNC, ...tables.func },
-        color: { ...DEFAULT_COLOR, ...tables.color },
-    };
-    const param = takeParam(text);
-    const body = param ? param.before + param.after : text;
+    const func: Record<string, Record<string, string>> = { ...DEFAULT_FUNC, ...tables.func };
+    const types: Record<string, string> = { ...DEFAULT_TYPE, ...tables.type };
     const visited = new Set<string>();
-    const expanded = expandTemplates(body, merged, visited);
-    const params = new Map<string, string>();
-    if (param) {
-        params.set(param.name, expandTemplates(param.value, merged, visited));
+    const out: TextPiece[] = [];
+    let at = 0;
+    while (at < text.length) {
+        const found = takeTemplate(text, at);
+        if (!found) {
+            out.push({ text: text.slice(at) });
+            break;
+        }
+        out.push({ text: text.slice(at, found.start) });
+        const inner = text.slice(found.start + 2, found.end);
+        const colon = inner.indexOf(':');
+        const name = colon < 0 ? '' : inner.slice(0, colon);
+        const content = colon < 0 ? inner : inner.slice(colon + 1);
+        const expanded = expandTemplate(name, content, func, visited);
+        if (expanded === null) {
+            out.push({ text: text.slice(found.start, found.end + 1) });
+        } else {
+            out.push(...fillParams(expanded, found.params ?? {}, types));
+        }
+        at = found.stop + 1;
     }
-    return fillParams(expanded, params, merged.color).map((piece) =>
-        piece.color !== undefined && !COLOR_SHAPE.test(piece.color)
-            ? { text: piece.text }
-            : piece);
+    return out
+        .filter((piece) => piece.text.length > 0)
+        .map((piece) =>
+            piece.color !== undefined && !COLOR_SHAPE.test(piece.color)
+                ? { text: piece.text }
+                : piece);
 }

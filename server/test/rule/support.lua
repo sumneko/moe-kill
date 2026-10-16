@@ -5,6 +5,15 @@
 ---@field game Game
 local M = {}
 
+--- 这条询问是不是某个来源（技能 / 牌）引发的 —— 文案里带着它的名字
+---@param ask { reason: string? } # 这次询问（只用到 `reason`）
+---@param name string
+---@return boolean
+function M.askFrom(ask, name)
+    local reason = ask.reason
+    return type(reason) == 'string' and reason:find(name, 1, true) ~= nil
+end
+
 ---@class Test.RuleSupport.StartOptions
 ---@field packages? string[] # 装载清单（省略时只装默认加载的包）
 ---@field count integer # 座位数

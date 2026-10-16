@@ -38,7 +38,7 @@ Skill '遗计'
                     if shown:count() == 0 then
                         break
                     end
-                    local ask = game:askCardWithTarget(skill.owner, '遗计', {
+                    local ask = game:askCardWithTarget(skill.owner, '遗计：把摸到的两张牌分配给别人', {
                         card = {
                             zone = shown,
                             min  = 1,

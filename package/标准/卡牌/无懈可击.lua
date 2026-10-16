@@ -30,7 +30,7 @@ local function nullified(card, useCard)
     for player in game.desk:actionOrder() do
         ---@type AskUseCardToCard.Condition
         local condition = { name = '无懈可击', target = card }
-        local asked = game:askUseCardToCard(player, '${locale:打出一张 {card}}@{card:无懈可击}', condition, { responseTo = useCard })
+        local asked = game:askUseCardToCard(player, util.locale('打出一张 {card}', { card = '无懈可击' }), condition, { responseTo = useCard })
         -- 刚用出去的那张无懈自己也会被问一遍「能否生效」：它没生效，就说明它没抵掉 card
         if asked.useCardToCard?.cardEffectToCard?.success then
             return true

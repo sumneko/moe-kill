@@ -799,7 +799,7 @@ lt.test('麒麟弓：用【杀】造成伤害时可以弃掉目标的一张坐�
     ---@type integer? # 询问时点目标的体力（应当还没扣）
     local hpWhenAsked = nil
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind ~= 'askCard' or ask.reason ~= '麒麟弓' then
+        if ask.kind ~= 'askCard' or not support.askFrom(ask, '麒麟弓') then
             return
         end
         ---@cast ask AskCard
@@ -832,7 +832,7 @@ lt.test('麒麟弓：不答复就不发动', function ()
 
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '麒麟弓') then
             asked = asked + 1
         end
     end)
@@ -855,7 +855,7 @@ lt.test('麒麟弓：目标没有坐骑就不问', function ()
 
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '麒麟弓') then
             asked = asked + 1
         end
     end)
@@ -877,7 +877,7 @@ lt.test('麒麟弓：别的牌造成的伤害不发动（【决斗】）', funct
 
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '麒麟弓') then
             asked = asked + 1
         end
     end)
@@ -901,7 +901,7 @@ lt.test('麒麟弓：旁人用【杀】不发动', function ()
 
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '麒麟弓') then
             asked = asked + 1
         end
     end)
@@ -926,7 +926,7 @@ lt.test('麒麟弓：拆下后就不发动', function ()
 
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '麒麟弓' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '麒麟弓') then
             asked = asked + 1
         end
     end)
@@ -952,14 +952,14 @@ lt.test('雌雄双股剑：异性目标给出手牌就弃置', function ()
     ---@type string[]
     local trace = {}
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             ---@cast ask AskChoice
             trace[#trace + 1] = '是否发动'
             return '发动'
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             trace[#trace + 1] = '要牌'
             return { card = held }
         elseif ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
@@ -988,7 +988,7 @@ lt.test('雌雄双股剑：目标不给牌 ⇒ 令装备主摸一张', function 
     local card = takeCard(run, user, '杀')
 
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             ---@cast ask AskChoice
             return '发动'
         end
@@ -1014,13 +1014,13 @@ lt.test('雌雄双股剑：目标没手牌 ⇒ 照样归一化到摸牌', functi
     ---@type AskCard?
     local giveAsk = nil
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             ---@cast ask AskChoice
             return '发动'
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '雌雄双股剑' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '雌雄双股剑') then
             ---@cast ask AskCard
             giveAsk = ask
         end
@@ -1045,13 +1045,13 @@ lt.test('雌雄双股剑：目标答错 ⇒ 一样归一化到摸牌', function 
     local other = run.game:createCard('闪')   -- 不在目标手里
 
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             ---@cast ask AskChoice
             return '发动'
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '雌雄双股剑' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '雌雄双股剑') then
             return { card = other }
         end
     end)
@@ -1075,7 +1075,7 @@ lt.test('雌雄双股剑：不发动就什么都不做', function ()
 
     local gave = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askCard' and ask.reason == '雌雄双股剑' then
+        if ask.kind == 'askCard' and support.askFrom(ask, '雌雄双股剑') then
             gave = gave + 1
         end
     end)
@@ -1101,12 +1101,12 @@ lt.test('雌雄双股剑：同性不发动（问都不问）', function ()
 
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
@@ -1128,12 +1128,12 @@ lt.test('雌雄双股剑：缺性别就不发动（不能判断异性）', funct
 
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
@@ -1158,12 +1158,12 @@ lt.test('雌雄双股剑：旁人用【杀】不发动', function ()
 
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
@@ -1187,12 +1187,12 @@ lt.test('雌雄双股剑：拆下后就不发动', function ()
 
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '雌雄双股剑' then
+        if support.askFrom(ask, '雌雄双股剑') then
             asked = asked + 1
         end
     end)
@@ -1217,7 +1217,7 @@ lt.test('青龙偃月刀：追加的【杀】打同一个目标（不计入次�
     local trace = {}
     local dodged = false
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+        if ask.kind == 'askUseCard' and support.askFrom(ask, '青龙偃月刀') then
             ---@cast ask AskUseCard
             trace[#trace + 1] = '再杀'
             return { card = second, targets = { target } }
@@ -1250,7 +1250,7 @@ lt.test('青龙偃月刀：不发动就什么都不做', function ()
 
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+        if ask.kind == 'askUseCard' and support.askFrom(ask, '青龙偃月刀') then
             asked = asked + 1
         elseif ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
@@ -1277,7 +1277,7 @@ lt.test('青龙偃月刀：没有第二张【杀】就问不出（候选为空�
     ---@type integer?
     local candidates = nil
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+        if ask.kind == 'askUseCard' and support.askFrom(ask, '青龙偃月刀') then
             ---@cast ask AskUseCard
             asked = asked + 1
             candidates = #assert(ask.options)
@@ -1310,7 +1310,7 @@ lt.test('青龙偃月刀：第二张又被【闪】就接着问（链）', funct
     local dodgeIndex = 0
     local useAsked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askUseCard' and ask.reason == '青龙偃月刀' then
+        if ask.kind == 'askUseCard' and support.askFrom(ask, '青龙偃月刀') then
             ---@cast ask AskUseCard
             useAsked = useAsked + 1
             lastCandidates = #assert(ask.options)
@@ -1345,12 +1345,12 @@ lt.test('青龙偃月刀：旁人用【杀】不发动', function ()
 
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '青龙偃月刀' then
+        if support.askFrom(ask, '青龙偃月刀') then
             asked = asked + 1
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '青龙偃月刀' then
+        if support.askFrom(ask, '青龙偃月刀') then
             asked = asked + 1
         elseif ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
@@ -1373,12 +1373,12 @@ lt.test('青龙偃月刀：不是【杀】的闪答复不问（万箭齐发）',
 
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '青龙偃月刀' then
+        if support.askFrom(ask, '青龙偃月刀') then
             asked = asked + 1
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '青龙偃月刀' then
+        if support.askFrom(ask, '青龙偃月刀') then
             asked = asked + 1
         elseif ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '万箭齐发' then
             return { card = dodge }
@@ -1405,12 +1405,12 @@ lt.test('青龙偃月刀：拆下后就不发动', function ()
 
     local asked = 0
     run.game:on('决策-询问', function (ask)
-        if ask.reason == '青龙偃月刀' then
+        if support.askFrom(ask, '青龙偃月刀') then
             asked = asked + 1
         end
     end)
     run.game:on('卡牌-询问', function (ask)
-        if ask.reason == '青龙偃月刀' then
+        if support.askFrom(ask, '青龙偃月刀') then
             asked = asked + 1
         elseif ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
@@ -1436,7 +1436,7 @@ lt.test('贯石斧：弃两张牌，被闪的【杀】依然造成伤害', funct
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
-        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+        elseif ask.kind == 'askCard' and support.askFrom(ask, '贯石斧') then
             return { card = { one, two } }
         end
     end)
@@ -1466,7 +1466,7 @@ lt.test('贯石斧：不弃牌就不发动', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
-        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+        elseif ask.kind == 'askCard' and support.askFrom(ask, '贯石斧') then
             asked = asked + 1
         end
     end)
@@ -1492,7 +1492,7 @@ lt.test('贯石斧：能弃的凑不出两张就不问（斧子自己不能弃�
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
-        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+        elseif ask.kind == 'askCard' and support.askFrom(ask, '贯石斧') then
             asked = asked + 1
         end
     end)
@@ -1518,7 +1518,7 @@ lt.test('贯石斧：手牌 + 坐骑混着弃也行', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
-        elseif ask.kind == 'askCard' and ask.reason == '贯石斧' then
+        elseif ask.kind == 'askCard' and support.askFrom(ask, '贯石斧') then
             return { card = { spare, horse } }
         end
     end)
@@ -1547,7 +1547,7 @@ lt.test('贯石斧：旁人用【杀】不发动', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
-        elseif ask.reason == '贯石斧' then
+        elseif support.askFrom(ask, '贯石斧') then
             asked = asked + 1
         end
     end)
@@ -1573,7 +1573,7 @@ lt.test('贯石斧：不是【杀】被闪不问（万箭齐发）', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '万箭齐发' then
             return { card = dodge }
-        elseif ask.reason == '贯石斧' then
+        elseif support.askFrom(ask, '贯石斧') then
             asked = asked + 1
         end
     end)
@@ -1601,7 +1601,7 @@ lt.test('贯石斧：拆下后就不发动', function ()
     run.game:on('卡牌-询问', function (ask)
         if ask.kind == 'askPlayCard' and ask.responseOptions?.responseTo?.card.name == '杀' then
             return { card = dodge }
-        elseif ask.reason == '贯石斧' then
+        elseif support.askFrom(ask, '贯石斧') then
             asked = asked + 1
         end
     end)

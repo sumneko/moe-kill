@@ -26,7 +26,7 @@ Skill '观星'
             local panel = createPanel('观星', skill.owner, { moveable = true, min = 0 })
                 : row(shown:list(), '牌堆顶')
                 : row({}, '牌堆底')
-            game:askPanel(skill.owner, '观星', panel)
+            game:askPanel(skill.owner, '观星：重新排列牌堆顶的牌', panel)
             -- 摆成什么样就照什么样放回：问没问成、答复到了哪一步，摆的事都记在面板上（剩在临时区的会被默认收尾送进弃牌）
             local rows = panel.cardsByRow
             deck:placeTop(rows[1])
