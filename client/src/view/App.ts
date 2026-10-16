@@ -64,6 +64,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const [pops, setPops] = useState<PopRef[]>([]);
     const [drawer, setDrawer] = useState(false);
     const [raw, setRaw] = useState('');
+    /** 调试用：按几个人摆座位（空 = 按实际人数） */
+    const [layoutSeats, setLayoutSeats] = useState<number | null>(null);
     const nextKey = useRef(1);
     const ask = agent.asks[0] ?? null;
 
@@ -115,7 +117,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     }, [agent.over]);
 
     const me = agent.me === null ? null : agent.players.get(agent.me) ?? null;
-    const total = Math.max(agent.seats, agent.players.size, 1);
+    const total = layoutSeats ?? Math.max(agent.seats, agent.players.size, 1);
     const slots = seatSlots(total);
     const others = [...agent.players.values()]
         .filter((player) => player.base.id !== agent.me)
@@ -212,18 +214,26 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 </div>
             </div>
 
-            ${others.map((player, index) => html`<${Seat}
-                key=${player.base.id}
-                agent=${agent}
-                player=${player}
-                left=${slots[index]?.left ?? 0}
-                top=${slots[index]?.top ?? 0}
-                active=${agent.turnPlayer === player.base.id}
-                pickable=${cand.players.includes(player.base.id)}
-                target=${selection.players.includes(player.base.id)}
-                pops=${pops.filter((one) => one.player === player.base.id)}
-                onClick=${cand.players.includes(player.base.id) ? () => pickPlayer(player.base.id) : undefined}
-            />`)}
+            ${slots.map((slot, index) => {
+                const player = others[index];
+                if (!player) {
+                    return html`<div class="seat" key=${`vacant:${index}`} style=${`left:${slot.left}px;top:${slot.top}px`}>
+                        <div class="portrait vacant">空位</div>
+                    </div>`;
+                }
+                return html`<${Seat}
+                    key=${player.base.id}
+                    agent=${agent}
+                    player=${player}
+                    left=${slot.left}
+                    top=${slot.top}
+                    active=${agent.turnPlayer === player.base.id}
+                    pickable=${cand.players.includes(player.base.id)}
+                    target=${selection.players.includes(player.base.id)}
+                    pops=${pops.filter((one) => one.player === player.base.id)}
+                    onClick=${cand.players.includes(player.base.id) ? () => pickPlayer(player.base.id) : undefined}
+                />`;
+            })}
 
             ${me && mine ? html`<div id="me">
                 <div
@@ -304,6 +314,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 raw=${raw}
                 onRawChange=${setRaw}
                 onSend=${sendRaw}
+                layoutSeats=${layoutSeats}
+                onLayout=${setLayoutSeats}
             />` : null}
         </div>
     <//>`;

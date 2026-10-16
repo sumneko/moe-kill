@@ -112,6 +112,8 @@ button:disabled { cursor: default; opacity: .45; }
     justify-content: center; gap: 5px; }
 .seat .head .hero { font-size: 13px; font-weight: 700; color: #eef2fb; text-shadow: 0 1px 3px #000; }
 .seat .head .pname { font-size: 10px; color: var(--muted); }
+.portrait.vacant { display: flex; align-items: center; justify-content: center; border-style: dashed;
+    border-color: #3d4763; background: #ffffff08; color: var(--muted); font-size: 12px; }
 
 .portrait .kingdom { position: absolute; left: -8px; top: -8px; font-size: 11px; padding: 1px 6px;
     border-radius: 3px; background: #0d1018e6; border: 1px solid #6b7390; color: #fff; }
