@@ -71,14 +71,16 @@ function M:bindFinish()
     local task = assert(self.task, '效果还没有发动')
     local game = self.game
     local function finish()
+        log.debug('[flow] 结算结束 {}（{}）' % { self.kind, self.err and '失败' or '成功' })
         game:fire('效果-收尾', self)
         self.to?:fire('效果-收尾', self)
         local zone = self.tempZone
         if not zone then
             return
         end
-        -- 结算的默认收尾：内容侧没留走的牌进弃牌堆
+        -- 结算的默认收尾：内容侧没留走的牌进弃牌堆；收完就把这块区关掉
         game:getZone('弃牌'):accept(zone:list())
+        zone:close()
     end
     task:onResolved(finish)
     task:onRejected(finish)
@@ -119,6 +121,7 @@ function M:apply()
     if self.task then
         return self
     end
+    log.debug('[flow] 结算开始 {}' % { self.kind })
     if self.game:getResult() then
         self.task = moe.task.create { effect = self }
         self:bindFinish()

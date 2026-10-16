@@ -22,6 +22,24 @@ const HEADER_SIZE = 4;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+/** 一条出站消息的摘要（给调试看） */
+function outLine(message: any): string {
+    const id = message.id === undefined || message.id === null ? '' : ` #${message.id}`;
+    if (typeof message.method === 'string') {
+        return `→ ${message.method}${id}`;
+    }
+    return message.error ? `→ 错 ${message.error.code}${id}` : `→ 结果${id}`;
+}
+
+/** 一条入站消息的摘要（给调试看） */
+function inLine(message: any): string {
+    const id = message.id === undefined || message.id === null ? '' : ` #${message.id}`;
+    if (typeof message.method === 'string') {
+        return `← ${message.method}${id}`;
+    }
+    return message.error ? `← 错 ${message.error.code}${id}` : `← 结果${id}`;
+}
+
 /** 一条连接上的 JSON-RPC 端点：4 字节长度头 + 正文，收到请求就交给处理器 */
 export class Rpc {
     private readonly link: WsLink;
@@ -30,6 +48,9 @@ export class Rpc {
     private readonly notifications = new Map<string, NotifyHandler>();
     private nextId = 1;
     private closed = false;
+
+    /** 记一行通讯（调试用：连上之后设上就行） */
+    onTraffic: ((line: string) => void) | null = null;
 
     constructor(link: WsLink) {
         this.link = link;
@@ -93,6 +114,7 @@ export class Rpc {
     }
 
     private handle(message: any): void {
+        this.onTraffic?.(inLine(message));
         if (typeof message?.method === 'string') {
             const params = message.params ?? {};
             if (message.id === undefined || message.id === null) {
@@ -140,6 +162,7 @@ export class Rpc {
         if (this.closed) {
             return;
         }
+        this.onTraffic?.(outLine(message));
         const body = encoder.encode(JSON.stringify(message));
         const frame = new ArrayBuffer(HEADER_SIZE + body.length);
         new DataView(frame).setUint32(0, body.length);

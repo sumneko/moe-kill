@@ -41,7 +41,6 @@ Skill '激将'
         for helper in game.desk:actionOrder(helpers, skill.owner) do
             local help = game:askCard(helper, util.locale('激将：打出一张 {card}', { card = '杀' }), { name = '杀' })
             if help.card then
-                game:moveCard(help.cards, ask:getTempZone())
                 return help.cards
             end
         end

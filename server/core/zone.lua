@@ -3,10 +3,25 @@
 ---@field protected cards Card[] # 从区顶到区底（有序区靠这个顺序说话：1 = 顶）
 ---@field private disabled integer # 被禁用的层数（0 = 启用）
 ---@field private visible Visibility # 可见性：`true` = 所有人、`false` = 无人、一批角色 = 只有他们（默认 `true`）
+---@field private closed? boolean # 已经关了（临时处理区收完尾之后关掉：再往里收牌就直接送弃牌堆）
 ---@field owner? Player # 这个区属于谁（公共区没有归属者）
 ---@field name? string # 这个区叫什么（登记它的那一方写：玩家建区 / 局上建区；临时区这种自留地没有名字）
 ---@field game Game # 属于哪一局
 local M = Class 'Zone'
+
+--- 区的短名字（给日志用：没名字的就是临时处理区这类自留地）
+---@param zone? Zone
+---@return string
+local function zoneLabel(zone)
+    if not zone then
+        return '（无归属）'
+    end
+    local name = zone.name
+    if not name or name == '' then
+        return '临时区'
+    end
+    return zone.owner and ('{}（{}）' % { name, zone.owner:getName() or '?' }) or name
+end
 
 --- 一次批量搬运里的一条记录
 ---@class Zone.Move
@@ -102,6 +117,10 @@ end
 ---@protected
 ---@param moves Zone.Move[]
 function M:notifyMoved(moves)
+    if #moves > 0 then
+        local first = moves[1]
+        log.debug('[flow] 搬牌 {} 张：{} → {}' % { #moves, zoneLabel(first.from), zoneLabel(first.to) })
+    end
     for _, move in ipairs(moves) do
         local from = move.from
         if from then
@@ -115,12 +134,24 @@ function M:notifyMoved(moves)
     self.game:fire('卡牌-批量移动', moves)
 end
 
+--- 关掉这个区：之后往里收的牌不再进它，直接送弃牌堆（牌区自己没了也一样）
+function M:close()
+    self.closed = true
+end
+
 --- 收下这批牌（它们原来在哪个区都行：检查过了才动，最后一起发「卡牌-离开区域」/「卡牌-进入区域」；收的是每张牌的实体牌 —— 虚拟牌进不了牌区，收它就等于收它的素材）
+--- 这个区已经关了（或已经被删了）就不再收货：牌总要有个地方待 —— 直接送弃牌堆
 ---@param cards Card|Card[] # 要收的牌（单张或一批）
 ---@param visible? Visibility # 这次搬动对谁可见（不给 = 源区可见 or 目标区可见，由读的人算）
 ---@return boolean # 收下了没有
 ---@return string? # 没收下的原因
 function M:accept(cards, visible)
+    if self.closed or not IsValid(self) then
+        local discard = self.game:getZone('弃牌')
+        if discard ~= self then
+            return discard:accept(cards, visible)
+        end
+    end
     self:notifyMoved(self:takeIn(self:toPhysical(cards), visible))
     return true
 end

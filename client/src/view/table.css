@@ -90,7 +90,7 @@ button:disabled { cursor: default; opacity: .45; }
 .pile .num { font-size: 22px; font-weight: 700; line-height: 1; }
 .pile .cap { font-size: 11px; color: var(--muted); }
 
-#center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 640px; text-align: center; }
+#center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 840px; text-align: center; }
 #playedZone { position: relative; height: var(--card-h); margin: 10px 0 8px;
     background: #ffffff14; border-radius: 6px; }
 #playedZone .card { position: absolute; top: 0; }

@@ -19,9 +19,9 @@ import { seatSlots } from './seats';
 /** 一张牌多宽（与 `table.css` 的 `--card-w` 一致） */
 const CARD_W = 72;
 /** 处理区那条牌列的宽（与 `table.css` 的 `#center` 一致） */
-const PLAYED_W = 640;
-/** 一条牌列里相邻两张的间距（放得下时用） */
-const PLAYED_GAP = 8;
+const PLAYED_W = 840;
+/** 一条牌列里相邻两张的间距（默认不留空隙，与手牌一致） */
+const PLAYED_GAP = 0;
 /** 挤到不能再挤时每张至少露多少 */
 const PLAYED_MIN_STEP = 16;
 /** 幻影被服务器删掉之后再留多久（毫秒） */

@@ -102,6 +102,7 @@ export class Agent {
         await link.open();
         const rpc = new Rpc(link);
         this.rpc = rpc;
+        rpc.onTraffic = (line) => this.log(line);
         this.connected = true;
         this.bind(rpc);
         this.log(`连上了 ${url}`);

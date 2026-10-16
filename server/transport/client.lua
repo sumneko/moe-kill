@@ -19,6 +19,22 @@ local function encodeFrame(text)
     return string.pack('>I4', #text) .. text
 end
 
+--- 一条 RPC 文本的摘要（方法名 + 号；认不出就给个大概）—— 完整包走 `log.trace`
+---@param text string
+---@return string
+local function summarize(text)
+    local id     = text:match('"jsonrpc":"2%.0","id":(%d+)')
+    local method = text:match('"jsonrpc":"2%.0","method":"([^"]*)"')
+    if method then
+        return id and ('{} #{}' % { method, id }) or method
+    end
+    local code = text:match('"jsonrpc":"2%.0","id":%d+,"error":{"code":(-?%d+)')
+    if code then
+        return id and ('错 {} #{}' % { code, id }) or ('错 {}' % { code })
+    end
+    return id and ('结果 #{}' % { id }) or '认不出的消息'
+end
+
 --- 一个客户端在后端的代理：一条连接 + 一个 JSON-RPC 端点
 ---@class Client : Class.Base
 ---@field link Link # 它走的那条连接
@@ -69,6 +85,8 @@ end
 --- 处理一条从连接上读到的消息
 ---@param text string
 function M:onMessage(text)
+    log.debug('[rpc] 收 {}' % { summarize(text) })
+    log.trace('[rpc] 收 {}' % { text })
     local message, decodeErr = moe.jsonrpc.decode(text)
     if not message then
         self:send(moe.jsonrpc.encodeError(nil, moe.jsonrpc.PARSE_ERROR, '这条消息解析不了', decodeErr))
@@ -175,6 +193,8 @@ function M:send(text)
     if self.closed then
         return false, '连接已关闭'
     end
+    log.debug('[rpc] 发 {}' % { summarize(text) })
+    log.trace('[rpc] 发 {}' % { text })
     local ok, err = self.link:write(encodeFrame(text))
     if not ok then
         log.warn('往客户端发消息失败，这条连接收摊了：{}' % { err or '未知原因' })

@@ -45,6 +45,7 @@ Card '记可见'
     : on('卡牌-进入区域', function (card, zone, visible)
         game:setValue('搬动可见性', visible)
     end)
+Card '记关区'
 ]]
 
 ---@return fun() # 配 <close> 用
@@ -547,4 +548,30 @@ lt.test('牌区：搬牌时给的可见性原样交给事件（不给就是空�
 
     game:moveCard(card, '弃牌')
     lt.assertEquals('不给就是空（读的人按源区可见 or 目标区可见算）', nil, game:getValue('搬动可见性'))
+end)
+
+lt.test('牌区：关掉的区不再收货，牌直接进弃牌堆', function ()
+    local game    = newProbeGame()
+    local stash   = moe.zone.create(game)
+    local discard = assert(game:getZone('弃牌'))
+
+    local first = game:createCard('记关区')
+    stash:accept(first)
+    lt.assertEquals('关之前正常收下', 1, stash:count())
+
+    stash:close()
+    stash:accept(game:createCard('记关区'))
+    lt.assertEquals('关掉之后不再收进自己', 1, stash:count())
+    lt.assertEquals('弃牌堆里多了一张', 1, discard:count())
+end)
+
+lt.test('牌区：区自己已经被删了，收牌也直接进弃牌堆', function ()
+    local game    = newProbeGame()
+    local stash   = moe.zone.create(game)
+    local discard = assert(game:getZone('弃牌'))
+
+    Delete(stash)
+    stash:accept(game:createCard('记关区'))
+
+    lt.assertEquals('牌进了弃牌堆', 1, discard:count())
 end)

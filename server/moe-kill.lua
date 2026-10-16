@@ -63,7 +63,7 @@ local function createLog(path, errorStream)
             return time.time() // 1000
         end,
         path  = path,
-        level = tostring(moe.args.LOGLEVEL or 'info'):lower(),
+        level = tostring(moe.args.LOGLEVEL or 'debug'):lower(),
         print = function (timeStamp, level, sourceStr, message)
             local fullMessage = messageFormat % { timeStamp, level, sourceStr, message }
             log:write(fullMessage)
