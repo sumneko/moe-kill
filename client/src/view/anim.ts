@@ -1,6 +1,6 @@
 import type { Proto } from '../proto';
 import type { Agent } from '../state/agent';
-import { SUITS } from './format';
+import { SUITS, isRed } from './format';
 
 /** 舞台宽度（画布坐标的基准） */
 const STAGE_W = 1280;
@@ -79,6 +79,9 @@ function ghostOf(face: Proto.CardFace | undefined): HTMLElement {
     const ghost = document.createElement('div');
     ghost.className = face ? 'card' : 'card back';
     if (face) {
+        if (isRed(face.suit ?? '')) {
+            ghost.setAttribute('data-red', '');
+        }
         const title = document.createElement('div');
         title.className = 'title';
         const who = document.createElement('span');
