@@ -34,6 +34,7 @@ lt.test('询问：要一次使用，实体候选带目标区间，回包的 id �
     lt.assertEquals('候选带的是牌号', slashId, plan.id)
     lt.assertEquals('目标区间的张数', '1,1', plan.min .. ',' .. plan.max)
     lt.assertEquals('可用目标里有对方', true, moe.util.arrayHas(plan.ids, other.id))
+    lt.assertEquals('带上了内容侧写的操作提示', '选 1 名攻击范围内的其他角色', plan.hint)
     lt.assertEquals('这次成了', true, ask.success)
     lt.assertEquals('拿到的是一张真牌', slash, ask.card)
     lt.assertEquals('目标就是对方', true, moe.util.arrayHas(ask.targets or {}, other))
@@ -47,7 +48,7 @@ lt.test('询问：视为候选带来源与素材条件，同答给素材就不�
 
     local jink = support.giveCard(game, me, '闪', '红桃', 2)
     local jinkId = support.cardId(me, jink)
-    me:addViewAs('杀', nil, { condition = { name = '闪', zone = '手牌', min = 1 } })
+    me:addViewAs('杀', nil, { condition = { name = '闪', zone = '手牌', min = 1 }, hint = '用一张【闪】当【杀】' })
 
     ---@type Proto.Request.Ask.Use?
     local sent = nil
@@ -83,6 +84,7 @@ lt.test('询问：视为候选带来源与素材条件，同答给素材就不�
     lt.assertEquals('没有关联来源就不给来源', nil, viewAs.sourceCard)
     lt.assertEquals('素材候选就是那张【闪】', jinkId, assert(viewAs.card).ids[1])
     lt.assertEquals('视为候选也带目标区间', true, #assert(viewAs.target).ids > 0)
+    lt.assertEquals('带上了声明写的操作提示', '用一张【闪】当【杀】', viewAs.hint)
     lt.assertEquals('只问了这一次', 'Ask.Use', table.concat(asked, '|'))
     lt.assertEquals('这次成了', true, ask.success)
     local produced = assert(ask.card)

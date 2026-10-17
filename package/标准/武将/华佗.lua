@@ -9,6 +9,7 @@ Hero '华佗'
 -- 【青囊】出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复 1 点体力。
 Skill '青囊'
     : desc '出牌阶段限一次，你可以弃置一张手牌并选择一名已受伤的角色，然后其回复 1 点体力。'
+    : hint '选 1 张手牌弃置 + 1 名已受伤的角色，其回复 1 点体力'
     : limit('出牌', 1)
     : cards { zone = '手牌' }
     : targets { filter = function (player)
@@ -26,6 +27,6 @@ Skill '青囊'
 -- 【急救】你的回合外，你可以将一张红色牌当【桃】使用。
 Skill '急救'
     : desc '你的回合外，你可以将一张红色牌当【桃】使用。'
-    : viewAs('桃', { condition = { color = '红', zone = rule.ownZones } }, function (ask, skill)
+    : viewAs('桃', { condition = { color = '红', zone = rule.ownZones }, hint = '把 1 张红色牌当【桃】使用' }, function (ask, skill)
         return skill.owner.turn == nil
     end)

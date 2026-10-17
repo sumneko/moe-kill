@@ -3,6 +3,7 @@
 
 Card '桃'
     : desc '出牌阶段，对自己使用：回复 1 点体力；或令一名处于濒死状态的角色回复 1 点体力。'
+    : hint '选自己或溃死角色，回复 1 点体力'
     : extends '基本牌'
     : targets {
         filter = function (player, plan)

@@ -108,6 +108,10 @@ export namespace Proto {
          * 卡牌ID
          */
         id: number;
+        /**
+         * 选中它之后要做什么（内容侧写的提示）
+         */
+        hint?: string;
     }
 
     /**
@@ -952,6 +956,10 @@ export namespace Proto {
         id: number;
         cards?: Proto.Plan.Card;
         targets?: Proto.Plan.Player;
+        /**
+         * 选中它之后要做什么（内容侧写的提示）
+         */
+        hint?: string;
     }
 
     export interface SnapShot {
@@ -1043,5 +1051,9 @@ export namespace Proto {
          * 作为目标的玩家
          */
         target?: Proto.Plan.Player;
+        /**
+         * 选中它之后要做什么（内容侧写的提示）
+         */
+        hint?: string;
     }
 }

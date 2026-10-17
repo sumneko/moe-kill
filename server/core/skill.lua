@@ -21,6 +21,7 @@
 ---@field source string # 声明它的文件（逻辑路径）
 ---@field package autoFire boolean # 自动同意的默认值（不写 = 每次问）
 ---@field descText? string # 展示用的描述文本（客户端悬浮显示；没声明就是空）
+---@field hintText? string # 选中它之后要做什么（客户端选中时显示；没声明就是空）
 ---@field cardCondition? AskCard.Condition # 这次发动要带的牌（`cards()` 声明；不写 = 不要牌）
 ---@field targetCondition? SkillDef.TargetCondition # 这次发动要的目标（`targets()` 声明；不写 = 不要目标）
 ---@field private viewAsList ViewAs.Decl[] # 声明过的「视为」（`viewAs()` 声明）
@@ -111,6 +112,14 @@ end
 ---@return SkillDef
 function M:desc(text)
     self.descText = text
+    return self
+end
+
+--- 声明选中这个技能之后要做什么（客户端选中它时显示；不写 = 没有）
+---@param text string
+---@return SkillDef
+function M:hint(text)
+    self.hintText = text
     return self
 end
 

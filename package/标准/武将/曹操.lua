@@ -27,7 +27,7 @@ Skill '护驾'
     : desc '主公技，当你需要使用或打出【闪】时，你可以令其他魏势力角色选择是否打出一张【闪】（视为由你使用或打出）。'
     : auto(true)
     : tags '主公技'
-    : viewAs('闪', { confirm = true }, function (ask, skill)
+    : viewAs('闪', { confirm = true, hint = '令其他魏势力角色替你打出【闪】' }, function (ask, skill)
         local helpers = table.filter(game.desk.alivePlayers, function (player)
             return player ~= skill.owner and player.kingdom == skill.owner.kingdom
         end)

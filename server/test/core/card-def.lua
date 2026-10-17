@@ -99,6 +99,18 @@ Card '乙'
     lt.assertEquals('不写就是空', nil, assert(game:getCard('乙')).descText)
 end)
 
+lt.test('定义：操作提示声明与读，不写就是空', function ()
+    local guard <close> = useProbe()
+    local game = newGame([[
+Card '甲'
+    : hint '选一张牌。'
+Card '乙'
+]])
+
+    lt.assertEquals('读得到', '选一张牌。', assert(game:getCard('甲')).hintText)
+    lt.assertEquals('不写就是空', nil, assert(game:getCard('乙')).hintText)
+end)
+
 lt.test('定义：extends 抄分类、牌区与限额，基类的钩子跑在前面', function ()
     local guard <close> = useProbe()
     local game, player = newGame([[

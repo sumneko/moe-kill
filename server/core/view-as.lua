@@ -2,6 +2,7 @@
 ---@class ViewAs.Options
 ---@field condition? AskCard.Condition # 要什么样的素材（不填 = 不要素材，牌由内核照牌名造）
 ---@field confirm? boolean # 发动前先问一句（不填 = 不问：有素材的靠「交素材」那一次互动表态）
+---@field hint? string # 选中这份「视为」之后要做什么（客户端选中时显示；不填 = 没有）
 
 --- 一份「视为」的声明（`CardDef:viewAs` / `SkillDef:viewAs` 存它；被动启用时内核照它建 `ViewAs` 挂在持有者身上）
 ---@class ViewAs.Decl

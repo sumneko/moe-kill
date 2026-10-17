@@ -37,4 +37,4 @@ Skill '洛神'
 -- 【倾国】你可以将一张黑色手牌当【闪】使用或打出。
 Skill '倾国'
     : desc '你可以将一张黑色手牌当【闪】使用或打出。'
-    : viewAs('闪', { condition = { color = '黑', zone = '手牌' } })
+    : viewAs('闪', { condition = { color = '黑', zone = '手牌' }, hint = '把 1 张黑色手牌当【闪】打出' })

@@ -401,7 +401,7 @@ function M:skillPlans(options)
     local skills = {}
     for _, option in ipairs(options) do
         ---@type Proto.SkillPlan
-        local plan = { id = option.skill.id }
+        local plan = { id = option.skill.id, hint = option.skill.def.hintText }
         local cards = option.cards
         if cards then
             plan.cards = { ids = self:cardIds(cards.legal), min = cards.min, max = cards.max }
@@ -540,6 +540,7 @@ function M:viewAsParams(viewAs, plan)
         }
     end
     params.target = { ids = self:playerIds(plan.legal), min = plan.min, max = plan.max }
+    params.hint = viewAs.options?.hint
     return params
 end
 
@@ -565,6 +566,7 @@ function M:cardPlans(ask)
                 ids = self:playerIds(plan.legal),
                 min = plan.min,
                 max = plan.max,
+                hint = card.def.hintText,
             }
         else
             local viewAs = option.viewAs

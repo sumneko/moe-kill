@@ -4,6 +4,7 @@
 
 Card '麒麟弓'
     : desc '当你使用【杀】对目标角色造成伤害时，你可以弃置其装备区里的一张坐骑牌。\n攻击范围 5'
+    : hint '装备到你的装备区'
     : extends '武器牌'
     : value('攻击范围', 5)
     : event('伤害-来源-生效前', function (card, damage)

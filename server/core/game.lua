@@ -45,6 +45,7 @@
 ---@field private useZone? string # 必须从哪个牌区用（没声明 = 使用者任一牌区都行）
 ---@field skipsEffect? boolean # 使用后不进入「生效」（声明过 `skipEffect`）
 ---@field descText? string # 展示用的描述文本（客户端悬浮显示；没声明就是空）
+---@field hintText? string # 选中它之后要做什么（客户端选中时显示；没声明就是空）
 local CardDef = Class 'CardDef'
 
 ---@type integer # 没声明限额时的兜底：事实上的「不限次数」
@@ -106,6 +107,14 @@ end
 ---@return CardDef
 function CardDef:desc(text)
     self.descText = text
+    return self
+end
+
+--- 声明选中这张牌之后要做什么（客户端选中它时显示；不写 = 没有）
+---@param text string
+---@return CardDef
+function CardDef:hint(text)
+    self.hintText = text
     return self
 end
 

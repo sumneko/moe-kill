@@ -10,6 +10,7 @@ Hero '甘宁'
 Skill '奇袭'
     : desc '你可以将一张黑色牌当【过河拆桥】使用。'
     : viewAs('过河拆桥', {
+        hint = '把 1 张黑色牌当【过河拆桥】使用',
         condition = {
             color = '黑',
             zone  = rule.ownZones,

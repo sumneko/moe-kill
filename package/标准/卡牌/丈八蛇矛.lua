@@ -4,6 +4,7 @@
 
 Card '丈八蛇矛'
     : desc '你可以将两张手牌当【杀】使用或打出。\n攻击范围 3'
+    : hint '装备到你的装备区'
     : extends '武器牌'
     : value('攻击范围', 3)
-    : viewAs('杀', { condition = { zone = '手牌', min = 2 } })
+    : viewAs('杀', { condition = { zone = '手牌', min = 2 }, hint = '把 2 张手牌当【杀】使用' })

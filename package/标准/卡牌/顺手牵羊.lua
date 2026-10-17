@@ -4,6 +4,7 @@
 
 Card '顺手牵羊'
     : desc '出牌阶段，对距离 1 以内的一名区域里有牌的其他角色使用。你获得其区域里的一张牌。'
+    : hint '选 1 名距离 1 以内、区域里有牌的角色，获得其一张牌'
     : extends '锦囊牌'
     : targets {
         filter = function (player, plan)

@@ -3,6 +3,7 @@
 
 Card '决斗'
     : desc '出牌阶段，对一名其他角色使用。由目标角色开始，其与你轮流打出一张【杀】，首先不出【杀】的一方受到另一方造成的 1 点伤害。'
+    : hint '选 1 名其他角色，双方轮流出【杀】'
     : extends '锦囊牌'
     : targets {
         filter = function (player, plan)

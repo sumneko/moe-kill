@@ -50,6 +50,7 @@ Skill '流离'
 Skill '国色'
     : desc '你可以将一张方块牌当【乐不思蜀】使用。'
     : viewAs('乐不思蜀', {
+        hint = '把 1 张方块牌当【乐不思蜀】使用',
         condition = {
             suit = '方块',
             zone = rule.ownZones,

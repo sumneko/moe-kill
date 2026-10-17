@@ -10,6 +10,7 @@ Hero '关羽'
 Skill '武圣'
     : desc '你可以将一张红色牌当【杀】使用或打出。'
     : viewAs('杀', {
+        hint = '把 1 张红色牌当【杀】使用',
         condition = {
             color = '红',
             zone  = rule.ownZones,

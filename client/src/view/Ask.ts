@@ -205,6 +205,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
                 ${targetHint(ask, selection) ? html`<span class="hint">${targetHint(ask, selection)}</span>` : null}
             </div>
+            ${selectionHint(ask, selection) ? html`<p class="sub">${selectionHint(ask, selection)}</p>` : null}
             <div class="bar">
                 <${ActionButtons} agent=${agent} ask=${ask} selection=${selection} onSelection=${onSelection} />
                 ${needSubmit ? html`<button
@@ -254,6 +255,26 @@ function ActionButtons(props: { agent: Agent; ask: Ask; selection: Selection; on
                 })}
         >${viewLabel(props.agent, one)}</button>`)}
     </div>`;
+}
+
+/** 选中了哪个选项就说清接下来要做什么（内容侧在选项上给的话） */
+function selectionHint(ask: Ask, selection: Selection): string | null {
+    if (ask.method !== 'Ask.Use') {
+        return null;
+    }
+    const params = ask.params as any;
+    if (selection.skill !== null) {
+        const plan = ((params.skill ?? []) as Proto.SkillPlan[]).find((one) => one.id === selection.skill);
+        return plan?.hint ?? null;
+    }
+    if (selection.viewAs !== null) {
+        return ((params.viewAs ?? []) as Proto.ViewAs[])[selection.viewAs]?.hint ?? null;
+    }
+    if (selection.option !== null) {
+        const option = ((params.card ?? []) as Proto.CardWithPlan[]).find((one) => one.id === selection.option);
+        return option?.hint ?? null;
+    }
+    return null;
 }
 
 /** 还要在桌上点目标时提示一句（目标是在座位上点，不在询问条里摆） */

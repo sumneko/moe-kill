@@ -49,6 +49,7 @@ lt.test('询问：要一次技能使用，候选带技能号与能挑的牌 / �
     lt.assertEquals('能挑的牌就是那张', support.cardId(me, card), assert(plan.cards).ids[1])
     lt.assertEquals('牌只要一张', '1,1', assert(plan.cards).min .. ',' .. assert(plan.cards).max)
     lt.assertEquals('目标里有对方', true, moe.util.arrayHas(assert(plan.targets).ids, other.id))
+    lt.assertEquals('带上了内容侧写的操作提示', '选 1 张手牌弃置 + 1 名已受伤的角色，其回复 1 点体力', plan.hint)
     lt.assertEquals('这次成了', true, ask.success)
     lt.assertEquals('选中的就是这个技能', skill, ask.skill)
     lt.assertEquals('发动时带着那张牌', true, moe.util.arrayHas(assert(ask.result).cards or {}, card))

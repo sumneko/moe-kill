@@ -4,6 +4,7 @@
 
 Card '过河拆桥'
     : desc '出牌阶段，对一名区域里有牌的其他角色使用。你弃置其区域里的一张牌。'
+    : hint '选 1 名区域里有牌的角色，弃置其一张牌'
     : extends '锦囊牌'
     : targets {
         filter = function (player, plan)

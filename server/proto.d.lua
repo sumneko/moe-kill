@@ -253,6 +253,7 @@
 
 ---@class Proto.CardWithPlan: Proto.Plan.Player
 ---@field id integer # 卡牌ID
+---@field hint? string # 选中它之后要做什么（内容侧写的提示）
 
 --- 这次响应冲哪次使用去的（只在「响应类询问」上给）
 ---@class Proto.ResponseTo
@@ -287,12 +288,14 @@
 ---@field sourceSkill? integer # 提供这个视为技的技能名。和 sourceCard 互斥
 ---@field card? Proto.Plan.Card # 作为素材的卡牌
 ---@field target? Proto.Plan.Player # 作为目标的玩家
+---@field hint? string # 选中它之后要做什么（内容侧写的提示）
 
 --- 一个可发动的技能：技能ID + 这次能挑的牌 / 目标（技能没声明就缺哪半）
 ---@class Proto.SkillPlan
 ---@field id integer # 技能ID
 ---@field cards? Proto.Plan.Card
 ---@field targets? Proto.Plan.Player
+---@field hint? string # 选中它之后要做什么（内容侧写的提示）
 
 --- 要一次行动：能用的牌（含视为）与能发动的技能是**三组可选分量**，各自可缺 —— 给一组就是问那一类、给多组就是一次问清
 ---@class Proto.Request.Ask.Use: Proto.Cancelable, Proto.Timelimit

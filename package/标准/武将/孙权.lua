@@ -10,6 +10,7 @@ Hero '孙权'
 -- 【制衡】出牌阶段限一次，你可以弃置任意张牌，然后摸等量的牌。
 Skill '制衡'
     : desc '出牌阶段限一次，你可以弃置任意张牌，然后摸等量的牌。'
+    : hint '选任意张牌弃置，然后摸等量的牌'
     : limit('出牌', 1)
     : cards { zone = rule.ownZones, max = 1000 }
     : on('使用', function (cast)

@@ -60,6 +60,14 @@ lt.test('技能定义：展示描述声明与读，不写就是空', function ()
     lt.assertEquals('不写就是空', nil, assert(game:getSkill('乙')).descText)
 end)
 
+lt.test('技能定义：操作提示声明与读，不写就是空', function ()
+    useProbe()
+    local game = newGame("Skill '甲' : hint '做点什么。'\nSkill '乙'")
+
+    lt.assertEquals('读得到', '做点什么。', assert(game:getSkill('甲')).hintText)
+    lt.assertEquals('不写就是空', nil, assert(game:getSkill('乙')).hintText)
+end)
+
 lt.test('技能定义：不写自动同意就是关（每次问）', function ()
     useProbe()
     local game   = newGame(PROBE)
