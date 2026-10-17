@@ -19,6 +19,23 @@ export interface Selection {
 
 export const EMPTY: Selection = { cards: [], players: [], heroes: [], skill: null, option: null, viewAs: null };
 
+/**
+ * 一条询问的初始勾选：「要一张牌」的询问（打出一张 X 这类）先替他选上第一张 ——
+ * 大多数时候手里就那一张，省一次点击；选中会亮，改选或取消都还在。
+ */
+export function initialSelection(ask: Ask): Selection {
+    const params = ask.params as any;
+    if (ask.method !== 'Ask.Select' || !params?.card || params.card.max !== 1) {
+        return EMPTY;
+    }
+    const ids = (params.card.ids ?? []) as number[];
+    const first = ids[0];
+    if (first === undefined) {
+        return EMPTY;
+    }
+    return { ...EMPTY, cards: [first] };
+}
+
 /** 候选要几个 */
 export function planText(plan: { min: number; max: number } | undefined): string {
     if (!plan) {
@@ -184,9 +201,14 @@ export function pickCard(ask: Ask, selection: Selection, id: number): Selection 
     }
     if (ask.method === 'Ask.Select') {
         const auto = autoPick(params.player);
+        // 只要一张的时候点另一张是「换成它」（点同一张 = 取消），别把两张都勾上
+        const max = (params.card?.max ?? 0) as number;
+        const cards = max <= 1
+            ? (selection.cards.includes(id) ? [] : [id])
+            : toggle(selection.cards, id);
         return {
             ...selection,
-            cards: toggle(selection.cards, id),
+            cards,
             ...(auto.length > 0 ? { players: auto } : {}),
         };
     }

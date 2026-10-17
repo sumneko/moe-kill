@@ -65,10 +65,11 @@ button:disabled { cursor: default; opacity: .45; }
 .card.big .art { top: var(--big-title-h); background: repeating-linear-gradient(135deg, #e2dcc9 0 8px, #d7d0bb 8px 16px); }
 .card.glow { box-shadow: 0 0 0 3px #ffd47999, 0 0 26px #ffd47955; border-color: #ffd479; }
 
-/* 手牌：能点的抬起来、选中的再高一点 */
+/* 手牌：能点的抬起来、选中的再高一点（选中态要压过悬浮态，否则鼠标过往一只照样把它放低） */
 .card.pick { cursor: pointer; }
 .card.pick:hover { transform: translateY(-6px); }
-.card.picked { transform: translateY(-12px); box-shadow: 0 0 0 2px var(--gold), 0 6px 14px #0008; }
+.card.picked,
+.card.pick.picked:hover { transform: translateY(-12px); box-shadow: 0 0 0 2px var(--gold), 0 6px 14px #0008; }
 .card.off { opacity: .45; filter: grayscale(1); }
 .fly-group { display: flex; align-items: flex-end; }
 

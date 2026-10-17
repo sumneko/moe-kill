@@ -12,7 +12,7 @@ import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
 import { SettingsCard } from './Settings';
 import { Stage } from './Stage';
-import { EMPTY, candidates, pickCard, toggle, type Selection } from './pick';
+import { EMPTY, candidates, initialSelection, pickCard, toggle, type Selection } from './pick';
 import { FLY_MS, measureCards, playMoves } from './anim';
 import { attr, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
@@ -85,9 +85,9 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const nextKey = useRef(1);
     const ask = agent.asks[0] ?? null;
 
-    // 换一条询问就把勾的清掉
+    // 换一条询问就把勾的清掉（「要一张牌」的那种先替他选上第一张）
     useEffect(() => {
-        setSelection(EMPTY);
+        setSelection(ask ? initialSelection(ask) : EMPTY);
     }, [ask?.id]);
 
     // 表现事件：跳字 + 卡牌移动（自己出的那张走「中央展示」那条路）
