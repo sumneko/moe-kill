@@ -152,9 +152,9 @@ button:disabled { cursor: default; opacity: .45; }
 .equip .name { text-align: left; }
 .equip .suit { text-align: center; }
 .equip .point { text-align: right; }
+/* 空槽：完全透明但占着位置（四个装备栏的位置要固定，飞行落点靠它） */
+.equip.empty { visibility: hidden; }
 .equip[data-red] { color: #b8352b; }
-.equip.none { display: block; text-align: center; background: transparent; border: 1px dashed #45506b;
-    color: #5f6884; font-weight: 400; }
 .equip.pick { cursor: pointer; }
 .equip.pick:hover { background: #fff8e2; border-color: var(--gold); }
 .equip.picked { box-shadow: 0 0 0 2px var(--gold); }

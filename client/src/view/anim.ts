@@ -1,6 +1,6 @@
 import type { Proto } from '../proto';
 import type { Agent } from '../state/agent';
-import { SUITS, isRed } from './format';
+import { EQUIP_ZONES, SUITS, isRed } from './format';
 
 /** 舞台宽度（画布坐标的基准） */
 const STAGE_W = 1280;
@@ -59,6 +59,9 @@ export function zoneRect(agent: Agent, zone: string): DOMRect | null {
     }
     if (name === '判定') {
         return rectOf(`[data-fly="seat:${id}"] .judge-col`) ?? rectOf(`[data-fly="seat:${id}"]`);
+    }
+    if (EQUIP_ZONES.includes(name)) {
+        return rectOf(`[data-fly="zone:${zone}"]`) ?? rectOf(`[data-fly="seat:${id}"] .equips`);
     }
     return rectOf(`[data-fly="seat:${id}"]`) ?? rectOf('#recordZone');
 }

@@ -12,5 +12,5 @@ export type GameEvent =
     | { kind: 'phase'; player: number; name: string }
     /** 终局了 */
     | { kind: 'over'; side: string; reason: string }
-    /** 记录区要留一条影子：进过公共临时区 / 弃牌堆的牌（打出的、用掉的、弃掉的、判定的…） */
-    | { kind: 'recorded'; face: Proto.CardFace };
+    /** 记录区要留一条影子：进过公共临时区 / 弃牌堆的牌（打出的、用掉的、弃掉的、判定的…）；`immediate` = 直接进弃牌堆、不用等飞行动画 */
+    | { kind: 'recorded'; face: Proto.CardFace; immediate?: boolean };

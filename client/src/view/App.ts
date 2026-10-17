@@ -100,9 +100,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 continue;
             }
             if (event.kind === 'recorded') {
-                // 该记一笔的牌：等飞行动画播完，再在原位留一条影子（影子不跟这张牌的下落）
                 const key = nextKey.current++;
                 const record: RecordedCard = { key, face: event.face };
+                if (event.immediate) {
+                    // 直接进弃牌堆的（弃置 / 判定后 / 阵亡清算）与中央那段飞行无关：立刻留痕
+                    setRecords((list) => [...list, record]);
+                    continue;
+                }
+                // 进临时区的那批还要在中央飞完，等飞行动画播完再出现（影子不跟这张牌的下落）
                 const mine = gen.current;
                 window.setTimeout(() => {
                     if (gen.current === mine) {
@@ -323,6 +328,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                     />
                     <div id="meEquips"><${EquipList}
                         agent=${agent}
+                        owner=${me.base.id}
                         equip=${mine.equip}
                         picked=${selection.cards}
                         cand=${ask ? cand.cards : null}

@@ -5,9 +5,11 @@ import { EQUIP_ZONES, SUITS, cardFaceOf, isRed } from './format';
 /** 装备的临时图标（将来换成图） */
 const EQUIP_ICON: Record<string, string> = { 武器: '⚔️', 防具: '🛡️', 进攻马: '🐎', 防御马: '🐴' };
 
-/** 装备条：图标 / 名字 / 花色 / 点数 四列对齐；一件都没有就写「无装备」 */
+/** 装备条：**四个槽位固定**（空槽完全透明地占位）—— 牌飞行时要落到「某一个装备栏」上，位置不能随有几件而漂 */
 export function EquipList(props: {
     agent: Agent;
+    /** 这个装备条属于哪个玩家（落点的 `zone` 要用 `名字#他`） */
+    owner: number;
     equip: Map<string, number[]>;
     /** 选中的（只给「我的」装备条） */
     picked?: number[];
@@ -15,11 +17,17 @@ export function EquipList(props: {
     cand?: number[] | null;
     onPick?: (id: number) => void;
 }) {
-    const rows = EQUIP_ZONES.flatMap((name) => (props.equip.get(name) ?? []).map((id) => ({ name, id })));
-    if (rows.length === 0) {
-        return html`<div class="equip none">无装备</div>`;
-    }
-    return html`${rows.map(({ name, id }) => {
+    return html`${EQUIP_ZONES.map((name) => {
+        const id = (props.equip.get(name) ?? [])[0];
+        const fly = `zone:${name}#${props.owner}`;
+        if (id === undefined) {
+            return html`<div class="equip empty" key=${name} data-fly=${fly}>
+                <span class="slot">${EQUIP_ICON[name] ?? ''}</span>
+                <span class="name"></span>
+                <span class="suit"></span>
+                <span class="point"></span>
+            </div>`;
+        }
         const face = cardFaceOf(props.agent, id);
         const pick = props.cand?.includes(id) ?? false;
         const cls = [
@@ -28,7 +36,7 @@ export function EquipList(props: {
             props.picked?.includes(id) ? 'picked' : '',
             props.cand && !pick ? 'off' : '',
         ].filter((one) => one.length > 0).join(' ');
-        return html`<div class=${cls} key=${id} data-red=${isRed(face?.suit) ? '' : undefined}
+        return html`<div class=${cls} key=${name} data-fly=${fly} data-red=${isRed(face?.suit) ? '' : undefined}
             onClick=${pick && props.onPick ? () => props.onPick?.(id) : undefined}>
             <span class="slot">${EQUIP_ICON[name] ?? ''}</span>
             <span class="name">${face?.name ?? ''}</span>

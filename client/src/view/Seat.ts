@@ -41,6 +41,6 @@ export function Seat(props: {
             dead=${dead}
             pops=${props.pops}
         />
-        <div class="equips"><${EquipList} agent=${props.agent} equip=${zoned.equip} /></div>
+        <div class="equips"><${EquipList} agent=${props.agent} owner=${id} equip=${zoned.equip} /></div>
     </div>`;
 }

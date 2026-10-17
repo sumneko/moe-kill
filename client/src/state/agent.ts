@@ -404,8 +404,11 @@ export class Agent {
                 // 从临时区再进弃牌堆的不记 —— 进临时区那一次已经记过了
                 const intoTemp    = move.to.startsWith('#');
                 const intoDiscard = move.to.startsWith('弃牌#') && !move.from.startsWith('#');
-                if (intoTemp || intoDiscard) {
+                if (intoTemp) {
                     this.events.push({ kind: 'recorded', face: move.face ?? {} });
+                } else if (intoDiscard) {
+                    // 直接进弃牌堆的不经中央，没东西要等：立刻留痕
+                    this.events.push({ kind: 'recorded', face: move.face ?? {}, immediate: true });
                 }
             }
             this.changed();
