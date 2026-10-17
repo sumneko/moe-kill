@@ -90,6 +90,13 @@ function M:useSkill()
     return self.cast
 end
 
+--- 把这次询问交给他本人（技能与牌两半一起摆 —— 走 `askUse`，不能落回父类「只要牌」那份）
+---@param user User
+---@return AskCard.Answer|AskUseSkill.Answer?
+function M:askUser(user)
+    return user:askUse(self)
+end
+
 --- 两半都摆好再交给应答方；一次什么也问不出来的询问直接算没成立（不发出去）
 ---@async
 function M:settle()

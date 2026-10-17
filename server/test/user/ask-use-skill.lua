@@ -55,6 +55,33 @@ lt.test('询问：要一次技能使用，候选带技能号与能挑的牌 / �
 end)
 
 ---@async
+lt.test('询问：合在一起的 AskUse 也把技能组发给客户端（不只是牌那半）', function ()
+    local game, me, other, skill, card = prepare()
+
+    ---@type Proto.Request.Ask.Use?
+    local sent = nil
+    local _ <close> = moe.client.register('Ask.Use', function (_, params)
+        ---@cast params Proto.Request.Ask.Use
+        sent = params
+        return {}
+    end)
+
+    local ask = moe.askUse.create {
+        game   = game,
+        to     = me,
+        reason = '请使用一张牌或发动一个技能',
+    }
+    ask:apply():await()
+
+    local params = assert(sent, '没问过客户端')
+    local plans  = assert(params.skill, '技能那组没发出去（`AskUse` 要覆写 `askUser` 走 `user:askUse`）')
+    local mine   = assert(plans[1])
+    lt.assertEquals('技能组里就是青囊', skill.id, mine.id)
+    lt.assertEquals('它要的牌也在计划里', support.cardId(me, card), assert(assert(mine.cards).ids)[1])
+    lt.assertEquals('牌那半照旧也发了', true, params.card ~= nil or params.viewAs ~= nil)
+end)
+
+---@async
 lt.test('询问：技能号不认 ⇒ 这次不算成立', function ()
     local game, me = prepare()
 
