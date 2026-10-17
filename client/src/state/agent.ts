@@ -61,6 +61,8 @@ export class Agent {
     readonly panels = new Map<number, Proto.Panel>();
     /** 展示用文本（key = 裸名：牌名 / 技能名） */
     readonly texts = new Map<string, string>();
+    /** 我的设置（key = 设置名；定义与当前值都在里面） */
+    readonly settings = new Map<string, Proto.Setting>();
     /** 最近发生的那些事（给界面看） */
     readonly logs: string[] = [];
     /** 还在等的询问（通常就一个） */
@@ -95,9 +97,15 @@ export class Agent {
     /** 防抖期间「这批改动还没落服务器」的原来长什么样（失败时用它恢复） */
     private readonly rollback = new Map<string, () => void>();
 
+    /** 连的是哪个服务器（本地设置存档的 key 用它） */
+    private url = '';
+    /** 我叫什么（同上） */
+    private userName = '';
+
     /** 连上后端并起读循环 */
     async connect(url: string): Promise<void> {
         this.close();
+        this.url = url;
         const link = new WsLink(url);
         await link.open();
         const rpc = new Rpc(link);
@@ -116,6 +124,7 @@ export class Agent {
 
     /** 坐进来（拿一份全量快照） */
     async join(name: string): Promise<void> {
+        this.userName = name;
         const snapshot = (await this.requireRpc().request('Game.Join', { name })) as Proto.SnapShot;
         this.applySnapshot(snapshot);
     }
@@ -152,8 +161,7 @@ export class Agent {
     }
 
     /** 切一个技能的自动开关（只能切自己的）：本地先改（乐观），同一技能的连点防抖成最后一次 */
-    async changeSkillAuto(skillId: number, auto: boolean): Promise<void> {
-        const skill = this.skills.get(skillId);
+    async changeSkillAuto(skillId: number, auto: boolean): Promise<void> {        const skill = this.skills.get(skillId);
         const key = `skill:${skillId}`;
         if (skill && !this.rollback.has(key)) {
             const before = skill.auto;
@@ -200,6 +208,102 @@ export class Agent {
         } finally {
             this.rollback.delete(key);
         }
+    }
+
+    /** 改自己的设置（一次改一项）：本地先改（乐观），失败就恢复 */
+    async changeSetting(name: string, value: unknown): Promise<void> {
+        const setting = this.settings.get(name);
+        const before = setting?.value;
+        if (setting) {
+            setting.value = value as never;
+            this.changed();
+        }
+        try {
+            await this.pushSettings([{ name, value }]);
+        } catch (err) {
+            if (setting && before !== undefined) {
+                setting.value = before;
+                this.changed();
+            }
+            this.log(`改不了设置：${err instanceof Error ? err.message : String(err)}`);
+        }
+    }
+
+    /** 把一批设置推给服务器（回包是改完之后的全量） */
+    private async pushSettings(list: Proto.Setting.Change[]): Promise<void> {
+        const result = (await this.requireRpc().request('Settings.Change', {
+            settings: list,
+        })) as Proto.Result.Settings.Change;
+        this.applySettings(result.settings);
+    }
+
+    /** 用服务端给的全量替换本地那份（`persist` = 顺手写进浏览器存档：服务器是权威） */
+    private applySettings(list: Proto.Setting[], persist = true): void {
+        this.settings.clear();
+        for (const one of list) {
+            this.settings.set(one.name, one);
+        }
+        if (persist) {
+            this.saveSettings();
+        }
+        this.changed();
+    }
+
+    /** 浏览器存档的 key：同一台服务器上的同一个人共用一个 */
+    private settingsKey(): string {
+        return `moe-kill:settings:${this.url}|${this.userName}`;
+    }
+
+    /** 把当前设置写进浏览器存档（存档不可用就忽略：隐私模式之类） */
+    private saveSettings(): void {
+        const data: Record<string, unknown> = {};
+        for (const one of this.settings.values()) {
+            data[one.name] = one.value;
+        }
+        try {
+            window.localStorage.setItem(this.settingsKey(), JSON.stringify(data));
+        } catch {
+            // 存档不可用不影响这一局
+        }
+    }
+
+    /** 浏览器存档里那一份（没有 / 坏了都给空） */
+    private readSavedSettings(): Record<string, unknown> {
+        try {
+            const text = window.localStorage.getItem(this.settingsKey());
+            if (!text) {
+                return {};
+            }
+            const parsed: unknown = JSON.parse(text);
+            return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
+        } catch {
+            return {};
+        }
+    }
+
+    /**
+     * 拿到快照之后把本地存档重传上去：服务器只在进程内记设置（断线 / 重启会回到默认值），
+     * 本地这份才是「我的偏好」的来源 —— 与服务器不一致的项一次推上去。
+     */
+    private restoreLocalSettings(): void {
+        const saved = this.readSavedSettings();
+        const patch: Proto.Setting.Change[] = [];
+        for (const one of this.settings.values()) {
+            const local = saved[one.name];
+            if (local === undefined || local === one.value) {
+                continue;
+            }
+            patch.push({ name: one.name, value: local });
+            one.value = local as never;
+        }
+        if (patch.length === 0) {
+            this.saveSettings();
+            return;
+        }
+        this.changed();
+        void this.pushSettings(patch).catch((err: unknown) => {
+            this.log(`没能恢复本地设置：${err instanceof Error ? err.message : String(err)}`);
+        });
     }
 
     /** 断开 */
@@ -280,6 +384,7 @@ export class Agent {
         this.skills.clear();
         this.panels.clear();
         this.texts.clear();
+        this.settings.clear();
         this.asks.length = 0;
         this.events.length = 0;
         this.tokenToAsk.clear();
@@ -314,6 +419,8 @@ export class Agent {
         for (const one of snapshot.texts) {
             this.texts.set(one.name, one.text);
         }
+        this.applySettings(snapshot.settings, false);
+        this.restoreLocalSettings();
         this.me = snapshot.me ?? null;
         this.turnPlayer = snapshot.turnPlayer ?? null;
         this.phase = snapshot.phase ?? null;
@@ -420,6 +527,9 @@ export class Agent {
         rpc.onNotify('Skill.Remove', (params: Proto.Notify.Skill.Remove) => {
             this.skills.delete(params.id);
             this.changed();
+        });
+        rpc.onNotify('Settings.Update', (params: Proto.Notify.Settings.Update) => {
+            this.applySettings(params.settings);
         });
         rpc.onNotify('Panel.Create', (params: Proto.Notify.Panel.Create) => {
             this.panels.set(params.panel.id, params.panel);

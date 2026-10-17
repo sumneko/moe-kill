@@ -10,6 +10,7 @@ import { EquipList } from './Equip';
 import { Hand } from './Hand';
 import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
+import { SettingsCard } from './Settings';
 import { Stage } from './Stage';
 import { EMPTY, candidates, pickCard, toggle, type Selection } from './pick';
 import { FLY_MS, measureCards, playMoves } from './anim';
@@ -77,6 +78,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const turnSeen = useRef<number | null>(null);
     const [pops, setPops] = useState<PopRef[]>([]);
     const [drawer, setDrawer] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [raw, setRaw] = useState('');
     /** 调试用：按几个人摆座位（空 = 按实际人数） */
     const [layoutSeats, setLayoutSeats] = useState<number | null>(null);
@@ -241,12 +243,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         <div class="root">
             <div id="topbar">
                 <span class=${`tag${agent.connected ? ' ok' : ''}`}>${agent.connected ? '已连接' : '没连上'}</span>
-                <button onClick=${() => void agent.resync()}>重新同步</button>
                 <span class="spacer"></span>
                 ${agent.over ? html`<span class="tag over">终局：${agent.over.side} —— ${agent.over.reason}</span>
                     <button onClick=${() => void agent.restart()}>再来一局</button>` : null}
-                <button onClick=${() => setDrawer(!drawer)}>调试抽屉</button>
+                <button onClick=${() => setSettingsOpen(!settingsOpen)}>设置</button>
+                ${agent.debug ? html`<button onClick=${() => void agent.resync()}>重新同步</button>
+                    <button onClick=${() => setDrawer(!drawer)}>调试抽屉</button>` : null}
             </div>
+            ${settingsOpen ? html`<${SettingsCard} agent=${agent} onClose=${() => setSettingsOpen(false)} />` : null}
 
             <div id="corner">
                 <div class="pile deck">
