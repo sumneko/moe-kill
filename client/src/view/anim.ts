@@ -60,7 +60,7 @@ export function zoneRect(agent: Agent, zone: string): DOMRect | null {
     if (name === '判定') {
         return rectOf(`[data-fly="seat:${id}"] .judge-col`) ?? rectOf(`[data-fly="seat:${id}"]`);
     }
-    return rectOf(`[data-fly="seat:${id}"]`) ?? rectOf('#playedZone');
+    return rectOf(`[data-fly="seat:${id}"]`) ?? rectOf('#recordZone');
 }
 
 /** 记下这一帧每张牌的位置（渲染后叫 —— 动画的起点靠它） */

@@ -93,12 +93,12 @@ button:disabled { cursor: default; opacity: .45; }
 #center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 840px; text-align: center; }
 #myPhase { position: absolute; left: 14px; bottom: 14px; padding: 4px 10px; border-radius: 6px;
     background: #151b28cc; border: 1px solid var(--line); color: var(--gold); font-size: 13px; }
-#playedZone { position: relative; height: var(--card-h); margin: 10px 0 8px;
+#recordZone { position: relative; height: var(--card-h); margin: 10px 0 8px;
     background: #ffffff14; border-radius: 6px; }
-#playedZone .card { position: absolute; top: 0; opacity: .45; }
+#recordZone .card { position: absolute; top: 0; opacity: .45; }
 /* 换人开回合：整排向左淡出 */
-#playedZone.leaving .card { animation: played-away 360ms cubic-bezier(.4, 0, .7, 1) forwards; }
-@keyframes played-away {
+#recordZone.leaving .card { animation: record-away 360ms cubic-bezier(.4, 0, .7, 1) forwards; }
+@keyframes record-away {
     to { transform: translateX(-96px); opacity: 0; }
 }
 #playedTo { font-size: 13px; color: #cfd6e6; min-height: 18px; }

@@ -400,9 +400,12 @@ export class Agent {
             for (const move of params.moves) {
                 this.log(`挪牌：${move.from} → ${move.to}`);
                 this.events.push({ kind: 'move', move });
-                // 搬进无主区 = 进了公共处理区（`#0` 没有区名，只有临时处理区会走到这儿）
-                if (move.to.startsWith('#')) {
-                    this.events.push({ kind: 'entered', face: move.face ?? {} });
+                // 记录区：搬进无主临时区（`#0`）的那张，或直接进弃牌堆的（弃置 / 判定 / 清算…）
+                // 从临时区再进弃牌堆的不记 —— 进临时区那一次已经记过了
+                const intoTemp    = move.to.startsWith('#');
+                const intoDiscard = move.to.startsWith('弃牌#') && !move.from.startsWith('#');
+                if (intoTemp || intoDiscard) {
+                    this.events.push({ kind: 'recorded', face: move.face ?? {} });
                 }
             }
             this.changed();

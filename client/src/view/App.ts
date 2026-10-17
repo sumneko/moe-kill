@@ -18,36 +18,36 @@ import { seatSlots } from './seats';
 
 /** 一张牌多宽（与 `table.css` 的 `--card-w` 一致） */
 const CARD_W = 72;
-/** 处理区那条牌列的宽（与 `table.css` 的 `#center` 一致） */
-const PLAYED_W = 840;
+/** 记录区那条牌列的宽（与 `table.css` 的 `#center` 一致） */
+const RECORD_W = 840;
 /** 一条牌列里相邻两张的间距（默认不留空隙，与手牌一致） */
-const PLAYED_GAP = 0;
+const RECORD_GAP = 0;
 /** 挤到不能再挤时每张至少露多少 */
-const PLAYED_MIN_STEP = 16;
-/** 换人开回合时，处理区那排影子向左淡出多久（毫秒） */
-const PLAYED_OUT_MS = 360;
-/** 处理区来了新影子：从它右边多远滑进来（画布坐标） */
-const PLAYED_ENTER_X = 56;
-/** 处理区影子挪位 / 进场的时长（毫秒） */
-const PLAYED_MOVE_MS = 260;
+const RECORD_MIN_STEP = 16;
+/** 换人开回合时，记录区那排影子向左淡出多久（毫秒） */
+const RECORD_OUT_MS = 360;
+/** 记录区来了新影子：从它右边多远滑进来（画布坐标） */
+const RECORD_ENTER_X = 56;
+/** 记录区影子挪位 / 进场的时长（毫秒） */
+const RECORD_MOVE_MS = 260;
 /** 跳字停留多久（毫秒） */
 const POP_MS = 900;
 
-/** 处理区里的一条影子：这个回合有人打出过这张牌（之后它去哪都不再管） */
-interface Ghost {
+/** 记录区里的一条影子：这个回合打出过 / 弃过这张牌（之后它去哪都不再管） */
+interface RecordedCard {
     key: number;
     face: Proto.CardFace;
 }
 
 /** 牌列里每张牌的左边缘：区里放得下就按间距排，放不下就重叠；张数越多越挤 */
-function placedLefts(count: number): number[] {
+function recordLefts(count: number): number[] {
     if (count <= 0) {
         return [];
     }
-    const room = count > 1 ? (PLAYED_W - CARD_W) / (count - 1) : 0;
-    const step = Math.max(Math.min(CARD_W + PLAYED_GAP, room), PLAYED_MIN_STEP);
+    const room = count > 1 ? (RECORD_W - CARD_W) / (count - 1) : 0;
+    const step = Math.max(Math.min(CARD_W + RECORD_GAP, room), RECORD_MIN_STEP);
     const total = CARD_W + step * (count - 1);
-    const start = (PLAYED_W - total) / 2;
+    const start = (RECORD_W - total) / 2;
     return Array.from({ length: count }, (_, index) => start + index * step);
 }
 
@@ -64,16 +64,16 @@ function seatOffset(player: Proto.Player, mySeat: number, total: number): number
 export function App(props: { agent: Agent; events: GameEvent[] }) {
     const { agent } = props;
     const [selection, setSelection] = useState<Selection>(EMPTY);
-    const [ghosts, setGhosts] = useState<Ghost[]>([]);
+    const [records, setRecords] = useState<RecordedCard[]>([]);
     /** 换人开回合了、整排正在向左淡出 */
     const [leaving, setLeaving] = useState(false);
-    /** 处理区每条影子算好的位置 */
-    const placedLeft = useRef(new Map<number, number>());
+    /** 记录区每条影子算好的位置 */
+    const placed = useRef(new Map<number, number>());
     /** 上一轮每条影子蹲在哪儿（用来算出「该滑多远」） */
     const wasLeft = useRef(new Map<number, number>());
-    /** 换代号：清空处理区时 +1，用来丢掉那些还在飞、稍后才到的影子 */
+    /** 换代号：清空记录区时 +1，用来丢掉那些还在飞、稍后才到的影子 */
     const gen = useRef(0);
-    /** 上一眼看过的回合角色（换人就把处理区清掉） */
+    /** 上一眼看过的回合角色（换人就把记录区清掉） */
     const turnSeen = useRef<number | null>(null);
     const [pops, setPops] = useState<PopRef[]>([]);
     const [drawer, setDrawer] = useState(false);
@@ -99,14 +99,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 window.setTimeout(() => setPops((list) => list.filter((one) => one.key !== key)), POP_MS);
                 continue;
             }
-            if (event.kind === 'entered') {
-                // 牌搬进处理区：等飞行动画播完，再在原位留一条影子（影子不跟这张牌的下落）
+            if (event.kind === 'recorded') {
+                // 该记一笔的牌：等飞行动画播完，再在原位留一条影子（影子不跟这张牌的下落）
                 const key = nextKey.current++;
-                const ghost: Ghost = { key, face: event.face };
+                const record: RecordedCard = { key, face: event.face };
                 const mine = gen.current;
                 window.setTimeout(() => {
                     if (gen.current === mine) {
-                        setGhosts((list) => [...list, ghost]);
+                        setRecords((list) => [...list, record]);
                     }
                 }, FLY_MS);
                 continue;
@@ -128,15 +128,15 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         measureCards();
     }, [props.events]);
 
-    // 重开一局：处理区的影子跟着清掉
+    // 重开一局：记录区的影子跟着清掉
     useEffect(() => {
         gen.current++;
         turnSeen.current = null;
         setLeaving(false);
-        setGhosts([]);
+        setRecords([]);
     }, [agent.over]);
 
-    // 换人开回合：处理区整排向左淡出（那排影子只是「本回合出过哪些牌」的记忆）
+    // 换人开回合：记录区整排向左淡出（那排影子只是「本回合出过 / 弃过哪些牌」的记忆）
     useEffect(() => {
         const now = agent.turnPlayer;
         const before = turnSeen.current;
@@ -148,8 +148,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         setLeaving(true);
         window.setTimeout(() => {
             setLeaving(false);
-            setGhosts([]);
-        }, PLAYED_OUT_MS);
+            setRecords([]);
+        }, RECORD_OUT_MS);
     }, [agent.turnPlayer]);
 
     const me = agent.me === null ? null : agent.players.get(agent.me) ?? null;
@@ -206,28 +206,28 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         }
     };
 
-    /** 处理区那条尾巴：按出牌先后排（新的靠右、盖住旧卡） */
-    const rows = ghosts;
+    /** 记录区那条尾巴：按发生先后排（新的靠右、盖住旧卡） */
+    const rows = records;
 
     // 位置要在渲染期就算出来 —— 放 effect 里的话，第一帧会先落在 left:0（看着像从左边滑进来）
     useMemo(() => {
-        const lefts = placedLefts(ghosts.length);
-        placedLeft.current = new Map(ghosts.map((one, index) => [one.key, lefts[index] ?? 0]));
-    }, [ghosts]);
+        const lefts = recordLefts(records.length);
+        placed.current = new Map(records.map((one, index) => [one.key, lefts[index] ?? 0]));
+    }, [records]);
 
     // 已经在那儿、又换了位子的影子滑过去；刚冒出来的从右侧淡入（与手牌同一种进场）
     useLayoutEffect(() => {
-        for (const [id, left] of placedLeft.current) {
-            const el = document.querySelector<HTMLElement>(`[data-fly="played:${id}"]`);
+        for (const [id, left] of placed.current) {
+            const el = document.querySelector<HTMLElement>(`[data-fly="record:${id}"]`);
             const before = wasLeft.current.get(id);
             if (before === undefined) {
-                // 终值写 .45：与 table.css 里 #playedZone .card 的 opacity 一致，否则播完会跳一下
+                // 终值写 .45：与 table.css 里 #recordZone .card 的 opacity 一致，否则播完会跳一下
                 el?.animate(
                     [
-                        { transform: `translateX(${PLAYED_ENTER_X}px)`, opacity: 0 },
+                        { transform: `translateX(${RECORD_ENTER_X}px)`, opacity: 0 },
                         { transform: 'translateX(0px)', opacity: 0.45 },
                     ],
-                    { duration: PLAYED_MOVE_MS, easing: 'cubic-bezier(.25, 0, .25, 1)' },
+                    { duration: RECORD_MOVE_MS, easing: 'cubic-bezier(.25, 0, .25, 1)' },
                 );
                 continue;
             }
@@ -236,10 +236,10 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             }
             el?.animate(
                 [{ transform: `translateX(${before - left}px)` }, { transform: 'translateX(0px)' }],
-                { duration: PLAYED_MOVE_MS, easing: 'cubic-bezier(.25, 0, .25, 1)' },
+                { duration: RECORD_MOVE_MS, easing: 'cubic-bezier(.25, 0, .25, 1)' },
             );
         }
-        wasLeft.current = new Map(placedLeft.current);
+        wasLeft.current = new Map(placed.current);
     });
 
     return html`<${Stage}>
@@ -267,14 +267,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
             ${myPhase ? html`<div id="myPhase">${myPhase}阶段</div>` : null}
 
             <div id="center">
-                <div id="playedZone" class=${leaving ? 'leaving' : undefined}>
+                <div id="recordZone" class=${leaving ? 'leaving' : undefined}>
                     ${rows.map((one, index) => html`<${Card}
                         key=${one.key}
                         agent=${agent}
                         id=${one.key}
                         face=${one.face}
-                        flyKey=${`played:${one.key}`}
-                        style=${`left: ${placedLeft.current.get(one.key) ?? 0}px; z-index: ${index}`}
+                        flyKey=${`record:${one.key}`}
+                        style=${`left: ${placed.current.get(one.key) ?? 0}px; z-index: ${index}`}
                     />`)}
                 </div>
             </div>
