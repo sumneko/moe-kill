@@ -11,6 +11,7 @@ import { Hand } from './Hand';
 import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
 import { SettingsCard } from './Settings';
+import { MySkills } from './Skills';
 import { Stage } from './Stage';
 import { EMPTY, candidates, initialSelection, pickCard, toggle, type Selection } from './pick';
 import { FLY_MS, measureCards, playMoves } from './anim';
@@ -340,6 +341,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                     />
                 </div>
     </div>` : html`<div id="waiting">正在入座…</div>`}
+            <${MySkills} agent=${agent} />
             ${ask ? html`<${AskBar}
                 agent=${agent}
                 ask=${ask}

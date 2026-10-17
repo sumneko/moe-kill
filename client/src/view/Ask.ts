@@ -91,13 +91,10 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 </div>`;
             }
             case 'Ask.Use': {
+                // 中间只放「选卡」：能发动的技能 / 视为在下面那行按钮里，目标点桌上的座位
                 const options = (params.card ?? []) as Proto.CardWithPlan[];
-                const views = (params.viewAs ?? []) as Proto.ViewAs[];
-                const skills = (params.skill ?? []) as Proto.SkillPlan[];
-                const option = options.find((one) => one.id === selection.option);
-                const view = selection.viewAs === null ? null : views[selection.viewAs];
-                const skill = skills.find((one) => one.id === selection.skill) ?? null;
-                const target = skill ? skill.targets : view ? view.target : option;
+                const view = selection.viewAs === null ? null : ((params.viewAs ?? []) as Proto.ViewAs[])[selection.viewAs];
+                const skill = ((params.skill ?? []) as Proto.SkillPlan[]).find((one) => one.id === selection.skill) ?? null;
                 const optionChips = chips(options.map((one) => one.id), selection.option === null ? [] : [selection.option], pickCards, true);
                 const materialChips = view?.card
                     ? chips(view.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
@@ -105,29 +102,13 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 const skillMaterial = skill?.cards
                     ? chips(skill.cards.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
                     : null;
-                const skillTarget = skill?.targets ? chips(skill.targets.ids, selection.players, pickPlayers) : null;
-                if (!optionChips && views.length === 0 && skills.length === 0
-                    && !materialChips && !skillMaterial && !skillTarget) {
+                if (!optionChips && !materialChips && !skillMaterial) {
                     return null;
                 }
                 return html`<div>
                     ${optionChips ? html`<p class="hint">用哪张牌（点手牌，或者点这里）</p>${optionChips}` : null}
-                    ${views.length > 0 ? html`<p class="hint">「视为」（用技能 / 装备把牌转成别的）</p>
-                        <div class="chips">${views.map((one, index) => html`<button
-                            key=${index}
-                            class=${selection.viewAs === index ? 'on' : ''}
-                            onClick=${() => onSelection({ ...selection, viewAs: index, option: null, skill: null, cards: [], players: autoPick(views[index]?.target) })}
-                        >${viewLabel(agent, one)}</button>`)}</div>` : null}
-                    ${skills.length > 0 ? html`<p class="hint">发动哪个技能</p>
-                        <div class="chips">${skills.map((one) => html`<button
-                            key=${one.id}
-                            class=${selection.skill === one.id ? 'on' : ''}
-                            onClick=${() => onSelection(pickSkill(ask, selection, one.id))}
-                        >${agent.skills.get(one.id)?.name ?? `技能 ${one.id}`}</button>`)}</div>` : null}
                     ${materialChips ? html`<p class="hint">素材（${planText(view?.card)}）</p>${materialChips}` : null}
                     ${skillMaterial ? html`<p class="hint">要用的牌（${planText(skill?.cards)}）</p>${skillMaterial}` : null}
-                    ${skillTarget ? html`<p class="hint">目标（${planText(skill?.targets)}）</p>${skillTarget}` : null}
-                    ${target && target.max > 0 ? html`<p class="hint">给它选目标（${planText(target)}）</p>` : null}
                 </div>`;
             }
             case 'Ask.Hero': {
@@ -222,9 +203,10 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                     style=${piece.color ? `color:${piece.color}` : undefined}
                 >${piece.text}</span>`)}</span>
                 <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
+                ${targetHint(ask, selection) ? html`<span class="hint">${targetHint(ask, selection)}</span>` : null}
             </div>
             <div class="bar">
-                <${SkillButtons} agent=${agent} ask=${ask} selection=${selection} />
+                <${ActionButtons} agent=${agent} ask=${ask} selection=${selection} onSelection=${onSelection} />
                 ${needSubmit ? html`<button
                     disabled=${!canSubmit(ask, selection)}
                     onClick=${() => onAnswer(answerOf(ask, selection))}
@@ -239,32 +221,55 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     </div>`;
 }
 
-/** 我的技能按钮（就在询问条那一行）：只摆这次询问里服务器明确列出的技能（技能组 + 视为组的提供者），点一下切「自动 / 手动」—— 发动走上面的技能组 */
-function SkillButtons(props: { agent: Agent; ask: Ask; selection: Selection }) {
-    const params = props.ask.params as any;
-    const plans = (params.skill ?? []) as Proto.SkillPlan[];
-    const views = (params.viewAs ?? []) as Proto.ViewAs[];
-    const ids = [
-        ...plans.map((plan) => plan.id),
-        ...views.flatMap((view) => (view.sourceSkill === undefined ? [] : [view.sourceSkill])),
-    ];
-    const mine = [...new Set(ids)]
-        .flatMap((id) => props.agent.skills.get(id) ?? [])
-        .sort((left, right) => left.id - right.id);
-    if (mine.length === 0) {
+/** 这次能发动的动作（技能组 + 视为组）：就摆在确定左边，点一下 = 选中它，再点取消 */
+function ActionButtons(props: { agent: Agent; ask: Ask; selection: Selection; onSelection(next: Selection): void }) {
+    if (props.ask.method !== 'Ask.Use') {
         return null;
     }
-    return html`<div id="meSkills">${mine.map((skill) => html`<button
-        key=${skill.id}
-        class=${[
-            skill.auto ? 'auto' : '',
-            props.selection.skill === skill.id ? 'on' : '',
-        ].filter((one) => one.length > 0).join(' ')}
-        title=${skill.auto === undefined
-            ? '这个技能没有自动开关'
-            : (skill.auto ? '自动（点一下改手动）' : '手动（点一下改自动）')}
-        onClick=${skill.auto === undefined ? undefined : () => void props.agent.changeSkillAuto(skill.id, !skill.auto)}
-    >${skill.name}</button>`)}</div>`;
+    const params = props.ask.params as any;
+    const skills = (params.skill ?? []) as Proto.SkillPlan[];
+    const views = (params.viewAs ?? []) as Proto.ViewAs[];
+    if (skills.length === 0 && views.length === 0) {
+        return null;
+    }
+    return html`<div id="meActions">
+        ${skills.map((one) => html`<button
+            key=${`skill:${one.id}`}
+            class=${props.selection.skill === one.id ? 'on' : ''}
+            title=${props.agent.text(props.agent.skills.get(one.id)?.name ?? '')}
+            onClick=${() => props.onSelection(pickSkill(props.ask, props.selection, one.id))}
+        >${props.agent.skills.get(one.id)?.name ?? `技能 ${one.id}`}</button>`)}
+        ${views.map((one, index) => html`<button
+            key=${`view:${index}`}
+            class=${props.selection.viewAs === index ? 'on' : ''}
+            onClick=${() => props.onSelection(props.selection.viewAs === index
+                ? { ...props.selection, viewAs: null, cards: [], players: [] }
+                : {
+                    ...props.selection,
+                    viewAs: index,
+                    option: null,
+                    skill: null,
+                    cards: [],
+                    players: autoPick(one.target),
+                })}
+        >${viewLabel(props.agent, one)}</button>`)}
+    </div>`;
+}
+
+/** 还要在桌上点目标时提示一句（目标是在座位上点，不在询问条里摆） */
+function targetHint(ask: Ask, selection: Selection): string | null {
+    if (ask.method !== 'Ask.Use') {
+        return null;
+    }
+    const params = ask.params as any;
+    const skill = ((params.skill ?? []) as Proto.SkillPlan[]).find((one) => one.id === selection.skill) ?? null;
+    const view = selection.viewAs === null ? null : ((params.viewAs ?? []) as Proto.ViewAs[])[selection.viewAs];
+    const option = ((params.card ?? []) as Proto.CardWithPlan[]).find((one) => one.id === selection.option);
+    const plan = skill ? skill.targets : view ? view.target : option;
+    if (!plan || plan.max <= 0 || selection.players.length >= plan.min) {
+        return null;
+    }
+    return `还要在桌上点 ${planText(plan)} 目标`;
 }
 
 /** 我自己的牌（手牌 + 四个装备子区）：它们已经摆在牌桌上，询问里不重复列 */

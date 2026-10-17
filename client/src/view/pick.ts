@@ -102,7 +102,8 @@ export function canSubmit(ask: Ask | undefined, selection: Selection): boolean {
         }
         if (selection.viewAs !== null) {
             const view = views[selection.viewAs];
-            return selection.cards.length >= (view?.card?.min ?? 0);
+            return selection.cards.length >= (view?.card?.min ?? 0)
+                && selection.players.length >= (view?.target?.min ?? 0);
         }
         const option = options.find((one) => one.id === selection.option);
         return option ? selection.players.length >= option.min : false;
@@ -215,8 +216,11 @@ export function pickCard(ask: Ask, selection: Selection, id: number): Selection 
     return { ...selection, cards: toggle(selection.cards, id) };
 }
 
-/** 点一个技能（`Ask.Use` 的技能那里）之后的新选择 */
+/** 点一个技能（`Ask.Use` 的技能那里）之后的新选择：再点一下同一个 = 取消 */
 export function pickSkill(ask: Ask, selection: Selection, id: number): Selection {
+    if (selection.skill === id) {
+        return { ...selection, skill: null, cards: [], players: [] };
+    }
     const skills = ((ask.params as any).skill ?? []) as Proto.SkillPlan[];
     const skill = skills.find((one) => one.id === id);
     return { ...selection, skill: id, option: null, viewAs: null, cards: [], players: autoPick(skill?.targets) };

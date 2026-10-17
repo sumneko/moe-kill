@@ -98,7 +98,10 @@ button:disabled { cursor: default; opacity: .45; }
 .pile .num { font-size: 22px; font-weight: 700; line-height: 1; }
 .pile .cap { font-size: 11px; color: var(--muted); }
 
-#center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 840px; text-align: center; }
+#center { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); width: 840px; text-align: center;
+    transition: opacity .15s linear; }
+/* 中间那块归「选卡 / 选英雄」面板：面板一出来，记录区就让位 */
+#stage:has(#ask) #center { opacity: 0; }
 #myPhase { position: absolute; left: 14px; bottom: 14px; padding: 4px 10px; border-radius: 6px;
     background: #151b28cc; border: 1px solid var(--line); color: var(--gold); font-size: 13px; }
 #recordZone { position: relative; height: var(--card-h); margin: 10px 0 8px;
@@ -232,20 +235,32 @@ button:disabled { cursor: default; opacity: .45; }
 #meHand .row { display: flex; gap: 0; align-items: flex-end; }
 #meHand .row + .row { margin-top: calc(var(--hand-step) - var(--card-h)); }
 
-#meSkills { display: flex; gap: 6px; align-items: center; }
-#meSkills button { padding: 0 10px; height: 26px; font-size: 12px; border-radius: 4px;
+#meActions { display: flex; gap: 6px; align-items: center; }
+#meActions button { padding: 0 10px; height: 26px; font-size: 12px; border-radius: 4px;
     background: linear-gradient(#2d3552, #1e2739); border: 1px solid #4a5a80; box-shadow: 0 2px 6px #0007; }
-#meSkills button:hover:not(:disabled) { background: linear-gradient(#38436a, #26314a); }
-#meSkills button.auto { border-color: var(--gold); color: var(--gold); }
-#meSkills button.fire { border-color: #58c0f0; color: #9bd8f5; box-shadow: 0 0 12px #58c0f055; }
-#meSkills button.on { background: linear-gradient(#3a5a80, #27405c); border-color: var(--gold); color: var(--gold); }
+#meActions button:hover:not(:disabled) { background: linear-gradient(#38436a, #26314a); }
+#meActions button.auto { border-color: var(--gold); color: var(--gold); }
+#meActions button.fire { border-color: #58c0f0; color: #9bd8f5; box-shadow: 0 0 12px #58c0f055; }
+#meActions button.on { background: linear-gradient(#3a5a80, #27405c); border-color: var(--gold); color: var(--gold); }
+
+/* 我的技能：桌子右下角常驻，只切自动 / 看描述（发动在询问条那排） */
+#skills { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column;
+    align-items: flex-end; gap: 5px; }
+#skills button, #skills .chip { display: inline-flex; align-items: center; height: 24px; padding: 0 9px;
+    border-radius: 4px; font-size: 12px; border: 1px solid #4a5a80;
+    background: linear-gradient(#2d3552, #1e2739); color: var(--ink); }
+#skills button:hover:not(:disabled) { background: linear-gradient(#38436a, #26314a); }
+#skills button.auto { border-color: var(--gold); color: var(--gold); }
+#skills .chip { border-style: dashed; background: #1a2032cc; color: var(--muted); cursor: default; }
+#skills .off { opacity: .45; }
 
 #waiting { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); color: var(--muted); }
 
 /* 询问：不要对话框 —— 内容与按钮都直接浮在牌桌上，按钮钉在自己头像的正上方 */
 #askWrap { position: absolute; left: 50%; bottom: 208px; transform: translateX(-50%);
     display: flex; flex-direction: column; align-items: center; gap: 10px; }
-#ask { display: flex; flex-direction: column; align-items: center; max-width: 900px; }
+#ask { display: flex; flex-direction: column; align-items: center; max-width: 900px;
+    padding: 8px 12px 2px; border-radius: 10px; background: #151b28e6; border: 1px solid var(--line); }
 #askBar { display: flex; flex-direction: column; align-items: center; }
 #ask .hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
 #ask .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 6px; }
