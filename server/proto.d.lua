@@ -151,7 +151,7 @@
 ---@field name string # 技能名
 ---@field id integer # 唯一ID
 ---@field player integer # 在哪个英雄身上
----@field auto? boolean # 是否是自动技能以及自动技能开关状态
+---@field auto? boolean # 三态：true = 自动同意 / false = 每次问 / 不带 = 这个技能没有自动开关（主动技）
 ---@field tag? string[] # 标签
 ---@field disabled? boolean # 是否被禁用
 

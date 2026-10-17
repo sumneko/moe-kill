@@ -23,9 +23,35 @@ lt.test('技能下行：挂上技能就广播一条 Skill.Update', function ()
     lt.assertEquals('技能名', '马术', proto.name)
     lt.assertEquals('协议号就是技能自己的', skill.id, proto.id)
     lt.assertEquals('记在主人名下', me.id, proto.player)
-    lt.assertEquals('自动开关默认关', false, proto.auto)
+    lt.assertEquals('状态类技能没有自动开关（三态里的「不带」）', nil, proto.auto)
     lt.assertEquals('锁定技带标签', true, moe.util.arrayHas(proto.tag or {}, '锁定技'))
     lt.assertEquals('挂着就是启用着', false, proto.disabled)
+end)
+
+---@async
+lt.test('技能下行：会问「要不要发动」的技能才带 auto（三态）', function ()
+    local game, players, fronts = support.newPackageGame()
+    local me    = assert(players[1])
+    local front = assert(fronts[1])
+
+    ---@type Proto.Notify.Skill.Update[]
+    local got = {}
+    local _ <close> = moe.client.register('Skill.Update', function (client, params)
+        if client == front then
+            got[#got + 1] = params
+        end
+    end)
+
+    me:addSkill('奸雄')
+    moe.await.sleep(0)
+    me:addSkill('护驾')
+    moe.await.sleep(0)
+
+    lt.assertEquals('两条都在', 2, #got)
+    local jianxiong = assert(assert(got[1]).skill)
+    local hujia     = assert(assert(got[2]).skill)
+    lt.assertEquals('奸雄（订了时机）带 auto', true, jianxiong.auto)
+    lt.assertEquals('护驾（视为 + confirm）也算', true, hujia.auto)
 end)
 
 ---@async
@@ -58,7 +84,7 @@ lt.test('技能上行：客户端改自动开关 ⇒ 回包并广播更新', fun
     local me    = assert(players[1])
     local front = assert(fronts[1])
 
-    local skill = me:addSkill('马术')
+    local skill = me:addSkill('奸雄')
     moe.await.sleep(0)
 
     ---@type Proto.Notify.Skill.Update[]
@@ -69,13 +95,30 @@ lt.test('技能上行：客户端改自动开关 ⇒ 回包并广播更新', fun
         end
     end)
 
-    local result = front:request('Skill.ChangeAuto', { id = skill.id, auto = true }):await()
+    local result = front:request('Skill.ChangeAuto', { id = skill.id, auto = false }):await()
 
-    lt.assertEquals('回包说了新状态', true, assert(result).auto)
-    lt.assertEquals('技能真的切了', true, skill.auto)
+    lt.assertEquals('回包说了新状态', false, assert(result).auto)
+    lt.assertEquals('技能真的切了', false, skill.auto)
     moe.await.sleep(0)
     lt.assertEquals('顺带广播了一条更新', 1, #got)
-    lt.assertEquals('广播里也是新状态', true, assert(assert(got[1]).skill).auto)
+    lt.assertEquals('广播里也是新状态', false, assert(assert(got[1]).skill).auto)
+end)
+
+---@async
+lt.test('技能上行：没有自动开关的技能 ⇒ 拒收，状态不动', function ()
+    local game, players, fronts = support.newPackageGame()
+    local me    = assert(players[1])
+    local front = assert(fronts[1])
+
+    local skill = me:addSkill('马术')
+    moe.await.sleep(0)
+
+    local result, err = front:request('Skill.ChangeAuto', { id = skill.id, auto = true }):await()
+
+    lt.assertEquals('没有回包', nil, result)
+    lt.assertEquals('错误码', moe.jsonrpc.INVALID_PARAMS, assert(err).code)
+    lt.assertEquals('错在哪说清楚', '这个技能没有自动开关', err.message)
+    lt.assertEquals('状态没被动过', false, skill.auto)
 end)
 
 ---@async

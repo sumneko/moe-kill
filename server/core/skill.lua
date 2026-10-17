@@ -92,6 +92,20 @@ function M:auto(value)
     return self
 end
 
+--- 这个技能会不会「问一句要不要发动」—— 只有它们用得上自动同意；主动技永远不问
+---@return boolean
+function M:canAuto()
+    if #self.events > 0 or #self.globalEvents > 0 then
+        return true
+    end
+    for _, decl in ipairs(self.viewAsList) do
+        if decl.options?.confirm then
+            return true
+        end
+    end
+    return false
+end
+
 --- 声明这个技能的展示描述（客户端悬浮显示用；不写 = 没有）
 ---@param text string
 ---@return SkillDef

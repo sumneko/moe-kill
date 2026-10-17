@@ -27,14 +27,19 @@ end
 local S = Class 'Game.SkillSync'
 
 --- 一个技能的协议形状
+--- auto 是**三态**：`true` 自动同意 / `false` 每次问 / **不带** = 这个技能没有「自动同意」这回事（主动技、纯状态类）
 ---@param skill Skill
 ---@return Proto.Skill
 function moe.skillSync.toProto(skill)
+    local auto
+    if skill.def:canAuto() then
+        auto = skill.auto
+    end
     return {
         name     = skill.name,
         id       = skill.id,
         player   = skill.owner.id,
-        auto     = skill.auto,
+        auto     = auto,
         tag      = skill.def:getTags(),
         disabled = skill.disabled,
     }
@@ -110,6 +115,9 @@ moe.client.register('Skill.ChangeAuto', function (client, params)
     local skill = skillOf(player, params.id)
     if not skill then
         return nil, { code = moe.jsonrpc.INVALID_PARAMS, message = '这不是他的技能' }
+    end
+    if not skill.def:canAuto() then
+        return nil, { code = moe.jsonrpc.INVALID_PARAMS, message = '这个技能没有自动开关' }
     end
     skill:setAuto(params.auto)
     ---@type Proto.Result.Skill.ChangeAuto

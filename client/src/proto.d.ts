@@ -853,7 +853,7 @@ export namespace Proto {
          */
         player: number;
         /**
-         * 是否是自动技能以及自动技能开关状态
+         * 三态：true = 自动同意 / false = 每次问 / 不带 = 这个技能没有自动开关（主动技）
          */
         auto?: boolean;
         /**
