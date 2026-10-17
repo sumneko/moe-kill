@@ -19,12 +19,14 @@ export function Seat(props: {
 }) {
     const id = props.player.base.id;
     const zoned = seatCards(props.agent, id);
-    const dead = (attr(props.player, '体力') ?? 1) <= 0;
+    const dead = !props.player.base.alive;
+    const dying = !dead && (attr(props.player, '体力') ?? 1) <= 0;
     const cls = [
         'seat',
         props.active ? 'active' : '',
         props.pickable ? 'pickable' : '',
         props.target ? 'target' : '',
+        dead ? 'dead' : '',
     ].filter((one) => one.length > 0).join(' ');
     return html`<div
         class=${cls}
@@ -39,6 +41,7 @@ export function Seat(props: {
             hand=${zoned.hand.length}
             judges=${zoned.judging}
             dead=${dead}
+            dying=${dying}
             pops=${props.pops}
         />
         <div class="equips"><${EquipList} agent=${props.agent} owner=${id} equip=${zoned.equip} /></div>

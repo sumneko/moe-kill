@@ -158,6 +158,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     }, [agent.turnPlayer]);
 
     const me = agent.me === null ? null : agent.players.get(agent.me) ?? null;
+    const meHp = me === null ? 1 : attr(me, '体力') ?? 1;
+    const meDead = me !== null && !me.base.alive;
     const total = layoutSeats ?? Math.max(agent.seats, agent.players.size, 1);
     const slots = seatSlots(total);
     const others = [...agent.players.values()]
@@ -311,7 +313,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                         player=${me}
                         hand=${handIds.length}
                         judges=${mine.judging}
-                        dead=${(attr(me, '体力') ?? 1) <= 0}
+                        dead=${meDead}
+                        dying=${!meDead && meHp <= 0}
                         pops=${pops.filter((one) => one.player === me.base.id)}
                     />
                     <div id="meEquips"><${EquipList}

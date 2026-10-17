@@ -133,6 +133,7 @@ button:disabled { cursor: default; opacity: .45; }
 .portrait .fallen { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-12deg);
     padding: 3px 8px; font-size: 15px; font-weight: 700; letter-spacing: 3px; white-space: nowrap;
     color: #ff8b7a; border: 2px solid #ff8b7a99; border-radius: 4px; background: #2a0f0fb3; }
+.portrait .fallen.dying { color: #ffd479; border-color: #ffd47999; background: #2a200fb3; }
 .seat.dead .portrait .art { filter: grayscale(1) brightness(.55); }
 
 .portrait .pips { position: absolute; right: -9px; bottom: -6px; display: flex; flex-direction: column-reverse; gap: 3px; }
@@ -176,6 +177,22 @@ button:disabled { cursor: default; opacity: .45; }
     pointer-events: none; text-shadow: 0 2px 6px #000; animation: pop 900ms ease-out forwards; }
 .pop.hurt { color: #ff7b6b; }
 .pop.heal { color: #7bffa6; }
+/* 扣血：整张武将卡在抽搐 + 一层红闪 */
+.portrait.hurt { animation: hurt-shake 380ms ease-out; }
+.portrait.hurt::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    animation: hurt-flash 380ms ease-out; }
+@keyframes hurt-shake {
+    0%   { transform: translateX(0); }
+    20%  { transform: translateX(-4px); }
+    40%  { transform: translateX(4px); }
+    60%  { transform: translateX(-3px); }
+    80%  { transform: translateX(2px); }
+    100% { transform: translateX(0); }
+}
+@keyframes hurt-flash {
+    0%   { background: #ff3b3bcc; }
+    100% { background: #ff3b3b00; }
+}
 @keyframes pop {
     0%   { opacity: 0; transform: translate(-50%, 6px) scale(.8); }
     25%  { opacity: 1; transform: translate(-50%, -10px) scale(1.15); }
@@ -225,6 +242,7 @@ button:disabled { cursor: default; opacity: .45; }
 #ask .hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
 #ask .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 6px; }
 #ask .chips button.on { border-color: var(--gold); color: var(--gold); }
+#ask .pool { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 6px; }
 #ask .panel-row { display: flex; align-items: center; gap: 4px; min-height: calc(var(--card-h) + 4px); margin-bottom: 4px; }
 #ask .panel-row .card { cursor: grab; }
 #ask .panel-row .card:active { cursor: grabbing; }

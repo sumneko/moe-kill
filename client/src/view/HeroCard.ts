@@ -23,6 +23,7 @@ export function HeroCard(props: {
     hand: number;
     judges: number[];
     dead?: boolean;
+    dying?: boolean;
     pops?: Pop[];
 }) {
     const { agent, player } = props;
@@ -31,7 +32,9 @@ export function HeroCard(props: {
     const kingdom = kingdomOf(player);
     const hp = attr(player, '体力') ?? 0;
     const max = attr(player, '体力上限') ?? hp;
-    return html`<div class=${`portrait ${KINGDOM_CLASS[kingdom ?? ''] ?? ''}`}>
+    /** 刚扣过血：红闪 + 震动（跳字消失时这个类也一起没了，下一次扣血能重新播） */
+    const hurt = (props.pops ?? []).some((pop) => pop.delta < 0);
+    return html`<div class=${`portrait ${KINGDOM_CLASS[kingdom ?? ''] ?? ''}${hurt ? ' hurt' : ''}`}>
         <div class="art"></div>
         <div class="judge-col">
             ${props.judges.map((id) => html`<div class="judge" key=${id} title=${cardLabel(agent, id)}>
@@ -41,7 +44,8 @@ export function HeroCard(props: {
         <div class="pips">${pips(hp, max)}</div>
         ${kingdom ? html`<div class="kingdom">${kingdom}</div>` : null}
         ${identity ? html`<div class=${`stamp ${stamp}`}>${identity}</div>` : null}
-        ${props.dead ? html`<div class="fallen">阵亡</div>` : null}
+        ${props.dead ? html`<div class="fallen">阵亡</div>`
+            : props.dying ? html`<div class="fallen dying">溣死</div>` : null}
         <div class="hand-count">${props.hand}</div>
         ${(props.pops ?? []).map((pop) => html`<div
             class=${`pop ${pop.delta < 0 ? 'hurt' : 'heal'}`}

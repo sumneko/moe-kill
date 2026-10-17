@@ -68,16 +68,26 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 >${text}</button>`)}</div>`;
             }
             case 'Ask.Select': {
-                const cardChips = params.card
-                    ? chips(params.card.ids, selection.cards, (id) => onSelection({ ...selection, cards: toggle(selection.cards, id) }), true)
-                    : null;
+                /** 候选里不在自己桌面上的那批：画成牌面横排（手牌 / 装备区里的已经摆着，点它就等于选它） */
+                const pool = ((params.card?.ids ?? []) as number[]).filter((id) => !own.has(id));
+                const cardPanel = pool.length > 0 ? html`<div>
+                    <p class="hint">选牌（${planText(params.card)}）</p>
+                    <div class="pool">${pool.map((id) => html`<${Card}
+                        key=${id}
+                        agent=${agent}
+                        id=${id}
+                        pick=${true}
+                        picked=${selection.cards.includes(id)}
+                        onClick=${() => onSelection({ ...selection, cards: toggle(selection.cards, id) })}
+                    />`)}</div>
+                </div>` : null;
                 const playerChips = params.player ? chips(params.player.ids, selection.players, pickPlayers) : null;
-                if (!cardChips && !playerChips) {
+                if (!cardPanel && !playerChips) {
                     return null;
                 }
                 return html`<div>
                     ${playerChips ? html`<p class="hint">选玩家（${planText(params.player)}）</p>${playerChips}` : null}
-                    ${cardChips ? html`<p class="hint">选牌（${planText(params.card)}）</p>${cardChips}` : null}
+                    ${cardPanel}
                 </div>`;
             }
             case 'Ask.Use': {
@@ -287,7 +297,7 @@ function askTitle(agent: Agent, ask: Ask, params: any): TextPiece[] {
         return title;
     }
     const who: TextPiece[] = [];
-    for (const [index, id] of [responseTo.player, ...responseTo.targets].entries()) {
+    for (const [index, id] of [responseTo.player, ...(responseTo.target === undefined ? responseTo.targets : [responseTo.target])].entries()) {
         if (index > 0) {
             who.push({ text: ' → ' });
         }
