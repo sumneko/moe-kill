@@ -96,11 +96,14 @@
 | `Game.Join` | `{ name? }` | `Proto.SnapShot` |
 | `Game.SnapShot` | 无 | `Proto.SnapShot` |
 | `Game.Restart` | 无 | `{}`（只是收条：重建走 `Game.Restarted` 通知） |
+| `Game.SetAnimScale` | `{ scale }` | `{}`（**只有调试模式**下允许，见「调试模式与动画倍率」） |
 | `Panel.Move` | `{ id, card, row, col }` | `{ success }` |
 | `Skill.ChangeAuto` | `{ id, auto }` | `{ auto }` |
 | `Settings.Change` | `{ settings: Proto.Settings }` | `{ settings: Proto.Setting[] }` |
 
-**询问的答复** SHALL 走**反向请求**（服务端发、客户端回结果）：`Ask.Select` / `Ask.Choice` / `Ask.Use` / `Ask.UseSkill` / `Ask.Hero` / `Ask.Panel` —— 形状各自在 `proto.d.lua` 里（`Proto.Request.Ask.*` / `Proto.Result.Ask.*`）。
+**询问的答复** SHALL 走**反向请求**（服务端发、客户端回结果）：`Ask.Select` / `Ask.Choice` / `Ask.Use` / `Ask.Hero` / `Ask.Panel` —— 形状各自在 `proto.d.lua` 里（`Proto.Request.Ask.*` / `Proto.Result.Ask.*`）。
+
+**`Ask.Use` SHALL 是「要一次行动」的唯一一条询问**：「能用的牌」「可用的视为」「能发动的技能」是它的三组**可选分量**（`card` / `viewAs` / `skill`），各自可缺 —— 只给一组就是问那一类（原先的「用牌」「用技能」两类询问都走它），给多组就是一次问清（出牌阶段）。答复 SHALL 只用**一份**结果形状表达，靠给了哪个 `used*`（`usedCard` / `usedViewAs` / `usedSkill`，三者互斥）判别。`Ask.UseSkill` 方法 MUST NOT 再出现。
 
 **响应类询问** SHALL 通过 `Proto.ResponseTo` 把「这次响应冲哪次使用去的」一并交代（被响应的牌名 + 那次使用的使用者 + 目标），客户端据此能写出「打出一张 *X* → *Y*（A → B）」；不是响应的询问 MUST NOT 给这个字段。**多目标结算时**（如【南蛮入侵】【桃园结义】逐个目标生效）SHALL 另给 `target`（= 正在生效的那个人）—— 客户端用 `target` 代替整张牌的目标列表，提示里只拼「使用者 → 当前目标」；`targets` 仍是一整份，供需要全貌的客户端使用。
 
@@ -135,6 +138,12 @@
 - **WHEN** 客户端发 `Settings.Change`，里面带了一个这一局没声明过的名字
 - **THEN** 回 `-32602`，且任何一项设置都没有变
 
+#### Scenario: 一次询问同时问牌与技能
+
+- **WHEN** 服务端要在一次询问里既给出候选牌、又给出可发动的技能
+- **THEN** 它 SHALL 只发**一条** `Ask.Use`，`params` 里同时带 `card`（连同 `viewAs`）与 `skill`，客户端回一条结果即可
+- **AND** 只问一类时（只有 `card` / `viewAs`，或只有 `skill`）SHALL 用**同一个方法**与同一份结果形状，MUST NOT 另开新方法
+
 ### Requirement: 时限与取消
 
 可取消的请求 SHALL 在参数里带 `cancelToken`（**由服务端发号**，见 `Proto.Cancelable`）。
@@ -162,7 +171,7 @@
 
 ### Requirement: 下行通知清单
 
-服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Skill.Update`、`Skill.Remove`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Settings.Update`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Cancel`。
+服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Skill.Update`、`Skill.Remove`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Settings.Update`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Game.AnimScale`、`Cancel`。
 
 **玩家基础信息**（`Proto.Player.Base`）SHALL 带 `id` / `userName` / `seat` / `alive`。`alive` 是**存活状态**（阵亡后为 `false`）—— 客户端 MUST 用它判「阵亡」，MUST NOT 拿「体力 ≤ 0」代替：濒死（体力已归零、正在求桃）与阵亡是两回事，前者仍是 `alive = true`。存活状态变了 SHALL 走 `Player.Update`。
 
@@ -272,3 +281,40 @@
 
 - **WHEN** `locale` 展开出的内容里又出现同一个模板 id
 - **THEN** 第二次不再展开、原文留着（不会无限递归）
+
+### Requirement: 调试模式与动画倍率
+
+服务端 SHALL 有一个**调试模式**：`--single` 启动时自动打开，`--debug` SHALL 也能显式打开（其余情况为关）。它 SHALL 作为门面字段（`moe.debug`）供服务端内部判断，MUST NOT 由协议或客户端指定。
+
+内容侧的动画节拍走 `game:animSleep(秒)`，服务端 SHALL 按门面字段**动画倍率**（默认 `1`）缩放等待时长 —— 倍率是**时长乘数**（等 `秒 × 倍率`）：`0` SHALL 表示「没有动画」（当场返回，连一次调度都不让出），`1` = 按内容侧写的秒数，`2` = 等两倍久（更慢），`0.5` = 减半（更快）。
+
+客户端 SHALL 能用 **`Game.SetAnimScale { scale }`** 请求改这个倍率；**只有调试模式**下 SHALL 允许（其它情况回 `-32600` 并在 `message` 里说明原因，且 MUST NOT 改动任何状态、MUST NOT 发通知）。允许时服务端 SHALL 把倍率记下来，并给**在座的每条连接**各推一条 **`Game.AnimScale { scale }`**。
+
+快照（`Proto.SnapShot`）SHALL 带上「是不是调试模式」与「当前倍率」，客户端据此决定要不要给出调节入口；客户端据此**只影响界面**，MUST NOT 被当作服务端校验的依据。
+
+#### Scenario: 只有调试模式能改
+
+- **WHEN** 服务端不是调试模式，客户端发 `Game.SetAnimScale { scale = 0 }`
+- **THEN** 服务端回 `-32600` 且 `message` 说明原因
+- **AND** 倍率一点不动：后续的 `game:animSleep(秒)` 照旧按原倍率等待，也不发任何 `Game.AnimScale`
+
+#### Scenario: 调试模式下改了就全体一致
+
+- **WHEN** 服务端是调试模式（`--single` 或 `--debug`），客户端发 `Game.SetAnimScale { scale = 0.5 }`
+- **THEN** 服务端把倍率记成 `0.5`，并给**在座的每条连接**各推一条 `Game.AnimScale`（`{ scale = 0.5 }`）
+- **AND** 之后内容侧每次 `game:animSleep(秒)` 只等 `秒 × 0.5`
+
+#### Scenario: 倍率 0 等于没有动画
+
+- **WHEN** 倍率是 `0`，内容侧调 `game:animSleep(任意秒)`
+- **THEN** 它当场返回（时钟一点不动）
+
+#### Scenario: 入座就知道是不是调试模式
+
+- **WHEN** 客户端发 `Game.Join`（或重连发 `Game.SnapShot`）
+- **THEN** 快照里带着「是不是调试模式」与「当前倍率」
+
+#### Scenario: 倍率不能是负数
+
+- **WHEN** 客户端发 `Game.SetAnimScale { scale = -1 }`（即使在调试模式下）
+- **THEN** 服务端回 `-32600`，倍率不变、也不广播

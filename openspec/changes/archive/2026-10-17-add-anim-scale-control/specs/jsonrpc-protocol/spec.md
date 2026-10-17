@@ -14,17 +14,20 @@
 | `Game.SetAnimScale` | `{ scale }` | `{}`（**只有调试模式**下允许，见「调试模式与动画倍率」） |
 | `Panel.Move` | `{ id, card, row, col }` | `{ success }` |
 | `Skill.ChangeAuto` | `{ id, auto }` | `{ auto }` |
+| `Settings.Change` | `{ settings: Proto.Settings }` | `{ settings: Proto.Setting[] }` |
 
 **询问的答复** SHALL 走**反向请求**（服务端发、客户端回结果）：`Ask.Select` / `Ask.Choice` / `Ask.Use` / `Ask.UseSkill` / `Ask.Hero` / `Ask.Panel` —— 形状各自在 `proto.d.lua` 里（`Proto.Request.Ask.*` / `Proto.Result.Ask.*`）。
 
-**响应类询问** SHALL 通过 `Proto.ResponseTo` 把「这次响应冲哪次使用去的」一并交代（被响应的牌名 + 那次使用的使用者 + 目标），客户端据此能写出「打出一张 *X* → *Y*（A → B）」；不是响应的询问 MUST NOT 给这个字段。
+**响应类询问** SHALL 通过 `Proto.ResponseTo` 把「这次响应冲哪次使用去的」一并交代（被响应的牌名 + 那次使用的使用者 + 目标），客户端据此能写出「打出一张 *X* → *Y*（A → B）」；不是响应的询问 MUST NOT 给这个字段。**多目标结算时**（如【南蛮入侵】【桃园结义】逐个目标生效）SHALL 另给 `target`（= 正在生效的那个人）—— 客户端用 `target` 代替整张牌的目标列表，提示里只拼「使用者 → 当前目标」；`targets` 仍是一整份，供需要全貌的客户端使用。
+
+**玩家设置** SHALL 通过 `Settings.Change` 修改，参数 `Proto.Settings` 是「名字 → 值」的自由表（只改带上去的键）。服务端 MUST 只接受已声明的键：出现未知键 SHALL 回 `-32602` 并且**整包不生效**。结果 SHALL 是这名玩家的全量 `Proto.Setting[]`。
 
 **状态快照 SHALL 走请求的 `result`**，MUST NOT 走通知那条路（唯一的例外是 `Game.Restarted`：重开不是谁问出来的，见「下行通知清单」）。
 
 #### Scenario: 入座时拿到一份快照
 
 - **WHEN** 客户端发 `Game.Join`
-- **THEN** 结果是一份 `Proto.SnapShot`（局面 + 他看得见的牌 + 技能 + 面板 + 展示用文本）
+- **THEN** 结果是一份 `Proto.SnapShot`（局面 + 他看得见的牌 + 技能 + 面板 + 展示用文本 + 他自己的设置）
 
 #### Scenario: 重连要一份全量
 
@@ -43,9 +46,18 @@
 - **AND** 原班人马都坐上之后 SHALL **自动开局**（与「坐满就开局」同义）；原先一个座位都没人坐着时则不开局（新局停在等人齐）
 - **AND** 这一局还没结束时发它 SHALL 回错（`-32600`，`message` 说明「这一局还没结束」），不做任何改动
 
+#### Scenario: 改设置会被拒收未知键
+
+- **WHEN** 客户端发 `Settings.Change`，里面带了一个这一局没声明过的名字
+- **THEN** 回 `-32602`，且任何一项设置都没有变
+
 ### Requirement: 下行通知清单
 
-服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Skill.Update`、`Skill.Remove`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Game.AnimScale`、`Cancel`。
+服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Skill.Update`、`Skill.Remove`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Settings.Update`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Game.AnimScale`、`Cancel`。
+
+**玩家基础信息**（`Proto.Player.Base`）SHALL 带 `id` / `userName` / `seat` / `alive`。`alive` 是**存活状态**（阵亡后为 `false`）—— 客户端 MUST 用它判「阵亡」，MUST NOT 拿「体力 ≤ 0」代替：濒死（体力已归零、正在求桃）与阵亡是两回事，前者仍是 `alive = true`。存活状态变了 SHALL 走 `Player.Update`。
+
+**玩家设置**（`Settings.Update`）SHALL **只发给设置变了的那个人**：载荷是这名玩家的全量 `Proto.Setting[]`；别的连接 MUST NOT 收到。
 
 **一类数据一条通知**：同一笔调度里攒下的变化 SHALL 合并成一条（`Card.Create` 的亮出 / 背面各按区域成组、`Card.Update` 带一批牌 …），MUST NOT 一人一条或一牌一条。
 
@@ -72,6 +84,11 @@
 
 - **WHEN** 一局结束、有人发了 `Game.Restart`
 - **THEN** **每个连接**（含发起的那个）各收到一条 `Game.Restarted`，params 是一份**按他视角裁过的完整快照**（`Proto.SnapShot`，与 `Game.Join` 的回包同形状）；客户端 SHALL 据此整份重建界面（不是叠加）
+
+#### Scenario: 设置变化只推给本人
+
+- **WHEN** 一名玩家改了设置
+- **THEN** 他自己收到一条 `Settings.Update`（全量 `Proto.Setting[]`），同一局的其他连接收不到
 
 ## ADDED Requirements
 
