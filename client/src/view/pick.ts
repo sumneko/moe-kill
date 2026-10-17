@@ -148,12 +148,18 @@ export function toggle(list: number[], id: number): number[] {
     return list.includes(id) ? list.filter((one) => one !== id) : [...list, id];
 }
 
-/** 「没得挑」的目标 / 素材：最小数就等于候选数时直接全选（省得再点一遍） */
-export function autoPick(plan: { ids: number[]; min: number } | undefined): number[] {
-    if (!plan || plan.min <= 0 || plan.min < plan.ids.length) {
+/** 「没得挑」的目标 / 素材：候选全都能选（最多能选到所有候选）就直接全选，省得逐个点（【南蛮入侵】这类） */
+export function autoPick(plan: { ids: number[]; min: number; max: number } | undefined): number[] {
+    if (!plan || plan.ids.length === 0) {
         return [];
     }
-    return [...plan.ids];
+    if (plan.max >= plan.ids.length) {
+        return [...plan.ids];
+    }
+    if (plan.min > 0 && plan.min >= plan.ids.length) {
+        return [...plan.ids];
+    }
+    return [];
 }
 
 /** 点一张牌（选项牌 / 素材牌 / 选牌）之后的新选择 */
@@ -170,6 +176,9 @@ export function pickCard(ask: Ask, selection: Selection, id: number): Selection 
         };
     }
     if (ask.method === 'Ask.Use') {
+        if (selection.skill !== null) {
+            return { ...selection, cards: toggle(selection.cards, id) };
+        }
         const options = (params.card ?? []) as Proto.CardWithPlan[];
         return { ...selection, option: id, skill: null, players: autoPick(options.find((one) => one.id === id)) };
     }

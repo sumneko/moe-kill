@@ -51,7 +51,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 key=${id}
                 class=${pickedList.includes(id) ? 'on' : ''}
                 onClick=${() => onPick(id)}
-            >${asCard ? cardLabel(agent, id) : nameOf(agent, id)}</button>`)}
+            >${asCard ? cardLabel(agent, id) : whoOf(agent, id)}</button>`)}
         </div>`;
     };
 
@@ -214,6 +214,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
             </div>
             <div class="bar">
+                <${SkillButtons} agent=${agent} selection=${selection} />
                 ${needSubmit ? html`<button
                     disabled=${!canSubmit(ask, selection)}
                     onClick=${() => onAnswer(answerOf(ask, selection))}
@@ -226,6 +227,27 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
             </div>
         </div>
     </div>`;
+}
+
+/** 我的技能按钮（就在询问条那一行）：点一下切「自动 / 手动」—— 发动走上面的技能组，不占这个入口 */
+function SkillButtons(props: { agent: Agent; selection: Selection }) {
+    const mine = [...props.agent.skills.values()]
+        .filter((skill) => skill.player === props.agent.me)
+        .sort((left, right) => left.id - right.id);
+    if (mine.length === 0) {
+        return null;
+    }
+    return html`<div id="meSkills">${mine.map((skill) => html`<button
+        key=${skill.id}
+        class=${[
+            skill.auto ? 'auto' : '',
+            props.selection.skill === skill.id ? 'on' : '',
+        ].filter((one) => one.length > 0).join(' ')}
+        title=${skill.auto === undefined
+            ? '这个技能没有自动开关'
+            : (skill.auto ? '自动（点一下改手动）' : '手动（点一下改自动）')}
+        onClick=${skill.auto === undefined ? undefined : () => void props.agent.changeSkillAuto(skill.id, !skill.auto)}
+    >${skill.name}</button>`)}</div>`;
 }
 
 /** 我自己的牌（手牌 + 四个装备子区）：它们已经摆在牌桌上，询问里不重复列 */
@@ -272,11 +294,6 @@ function askTitle(agent: Agent, ask: Ask, params: any): TextPiece[] {
         ...who,
         { text: '）' },
     ];
-}
-
-/** 玩家名（认不出就给号） */
-function nameOf(agent: Agent, id: number): string {
-    return agent.playerLabel(id);
 }
 
 /** 一个「视为」选项怎么写 */

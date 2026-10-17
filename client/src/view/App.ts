@@ -11,7 +11,7 @@ import { Hand } from './Hand';
 import { HeroCard, type Pop } from './HeroCard';
 import { Seat } from './Seat';
 import { Stage } from './Stage';
-import { EMPTY, candidates, pickCard, pickSkill, toggle, type Selection } from './pick';
+import { EMPTY, candidates, pickCard, toggle, type Selection } from './pick';
 import { FLY_MS, measureCards, playMoves } from './anim';
 import { attr, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
@@ -178,18 +178,6 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         setSelection({ ...selection, players: toggle(selection.players, id) });
     };
 
-    /** 这条询问里能不能发动这个技能（能就返回「选中它」的点击处理器，不能就空） */
-    const fireable = (skillId: number): (() => void) | null => {
-        if (ask?.method !== 'Ask.Use') {
-            return null;
-        }
-        const plans = ((ask.params as any).skill ?? []) as Proto.SkillPlan[];
-        if (!plans.some((one) => one.id === skillId)) {
-            return null;
-        }
-        return () => setSelection(pickSkill(ask, selection, skillId));
-    };
-
     /** 交一包上去（出牌那张由服务器回推的 `Card.Move` 上处理区） */
     const answer = (result: unknown) => {
         if (!ask) {
@@ -344,29 +332,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                         onPick=${onPickCard}
                     />
                 </div>
-            </div>
-            <div id="meSkills">
-                ${[...agent.skills.values()]
-                    .filter((skill) => skill.player === agent.me)
-                    .sort((left, right) => left.id - right.id)
-                    .map((skill) => {
-                        const fire = fireable(skill.id);
-                        const cls = [
-                            skill.auto ? 'auto' : '',
-                            fire ? 'fire' : '',
-                            selection.skill === skill.id ? 'on' : '',
-                        ].filter((one) => one.length > 0).join(' ');
-                        return html`<button
-                            key=${skill.id}
-                            class=${cls}
-                            title=${fire
-                                ? `发动「${skill.name}」`
-                                : (skill.auto ? '自动（点一下改手动）' : '手动（点一下改自动）')}
-                            onClick=${fire ?? (() => void agent.changeSkillAuto(skill.id, !skill.auto))}
-                        >${skill.name}</button>`;
-                    })}
-            </div>` : html`<div id="waiting">正在入座…</div>`}
-
+    </div>` : html`<div id="waiting">正在入座…</div>`}
             ${ask ? html`<${AskBar}
                 agent=${agent}
                 ask=${ask}

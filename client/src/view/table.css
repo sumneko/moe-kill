@@ -207,8 +207,8 @@ button:disabled { cursor: default; opacity: .45; }
 #meHand .row { display: flex; gap: 0; align-items: flex-end; }
 #meHand .row + .row { margin-top: calc(var(--hand-step) - var(--card-h)); }
 
-#meSkills { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
-#meSkills button { width: var(--card-w); height: 26px; font-size: 12px; border-radius: 4px;
+#meSkills { display: flex; gap: 6px; align-items: center; }
+#meSkills button { padding: 0 10px; height: 26px; font-size: 12px; border-radius: 4px;
     background: linear-gradient(#2d3552, #1e2739); border: 1px solid #4a5a80; box-shadow: 0 2px 6px #0007; }
 #meSkills button:hover:not(:disabled) { background: linear-gradient(#38436a, #26314a); }
 #meSkills button.auto { border-color: var(--gold); color: var(--gold); }
