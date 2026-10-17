@@ -45,7 +45,7 @@ export function HeroCard(props: {
         ${kingdom ? html`<div class="kingdom">${kingdom}</div>` : null}
         ${identity ? html`<div class=${`stamp ${stamp}`}>${identity}</div>` : null}
         ${props.dead ? html`<div class="fallen">阵亡</div>`
-            : props.dying ? html`<div class="fallen dying">溣死</div>` : null}
+            : props.dying ? html`<div class="fallen dying">濒死</div>` : null}
         <div class="hand-count">${props.hand}</div>
         ${(props.pops ?? []).map((pop) => html`<div
             class=${`pop ${pop.delta < 0 ? 'hurt' : 'heal'}`}
