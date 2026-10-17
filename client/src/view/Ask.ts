@@ -214,7 +214,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
             </div>
             <div class="bar">
-                <${SkillButtons} agent=${agent} selection=${selection} />
+                <${SkillButtons} agent=${agent} ask=${ask} selection=${selection} />
                 ${needSubmit ? html`<button
                     disabled=${!canSubmit(ask, selection)}
                     onClick=${() => onAnswer(answerOf(ask, selection))}
@@ -229,10 +229,17 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     </div>`;
 }
 
-/** 我的技能按钮（就在询问条那一行）：点一下切「自动 / 手动」—— 发动走上面的技能组，不占这个入口 */
-function SkillButtons(props: { agent: Agent; selection: Selection }) {
-    const mine = [...props.agent.skills.values()]
-        .filter((skill) => skill.player === props.agent.me)
+/** 我的技能按钮（就在询问条那一行）：只摆这次询问里服务器明确列出的技能（技能组 + 视为组的提供者），点一下切「自动 / 手动」—— 发动走上面的技能组 */
+function SkillButtons(props: { agent: Agent; ask: Ask; selection: Selection }) {
+    const params = props.ask.params as any;
+    const plans = (params.skill ?? []) as Proto.SkillPlan[];
+    const views = (params.viewAs ?? []) as Proto.ViewAs[];
+    const ids = [
+        ...plans.map((plan) => plan.id),
+        ...views.flatMap((view) => (view.sourceSkill === undefined ? [] : [view.sourceSkill])),
+    ];
+    const mine = [...new Set(ids)]
+        .flatMap((id) => props.agent.skills.get(id) ?? [])
         .sort((left, right) => left.id - right.id);
     if (mine.length === 0) {
         return null;
