@@ -83,6 +83,7 @@ function moe.snapshot.build(game, user)
         turnPlayer = game.turnPlayer?.id,
         phase      = game.phase?.name,
         texts      = collectTexts(game),
+        settings   = moe.settingsSync.toProto(user),
         debug      = moe.debug,
         animScale  = moe.animScale,
     }

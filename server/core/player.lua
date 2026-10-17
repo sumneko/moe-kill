@@ -441,6 +441,17 @@ function M:isAlive()
     return self.alive
 end
 
+--- 这名玩家的一项设置（没有连接 = 取这一局声明的默认值）
+---@param name string
+---@return boolean|number|string|nil
+function M:getSetting(name)
+    local user = self.user
+    if user then
+        return user:getSetting(name)
+    end
+    return self.game:getSettingDefault(name)
+end
+
 --- 置存活状态（从活变死会触发「玩家-死亡」）
 ---@param value boolean
 function M:setAlive(value)

@@ -89,6 +89,7 @@
 ---@field turnPlayer? integer # 当前回合角色（没人在回合就是空）
 ---@field phase? string # 当前阶段名（不在阶段里就是空）
 ---@field texts Proto.Text[] # 展示用文本（牌与技能各按裸名收一份）
+---@field settings Proto.Setting[] # 他的设置（本人全量：定义 + 当前值）
 ---@field debug boolean # 服务器是不是调试模式
 ---@field animScale number # 动画等待的倍率（0 = 完全不等）
 
@@ -172,6 +173,29 @@
 
 ---@class Proto.Result.Skill.ChangeAuto
 ---@field auto? boolean # 新的自动状态
+
+--- 一条玩家设置：名字 + 这个人当前的值 + 默认值 + 说明
+---@class Proto.Setting
+---@field name string # 设置名（内容词，如「无懈可击不响应自己的锦囊」）
+---@field value any # 这个人当前的值（类型由定义决定：布尔开关 / 数字 / 文本）
+---@field default any # 内容侧声明的默认值
+---@field describe? string # 给用户看的说明
+
+--- 一条要改的设置（只带名字与新值）
+---@class Proto.Setting.Change
+---@field name string # 设置名
+---@field value any # 新值（与默认值同类型）
+
+--- 改自己的设置（只改带上去的键；出现没声明过的名字就整包拒收）
+---@class Proto.Request.Settings.Change
+---@field settings Proto.Setting.Change[]
+
+---@class Proto.Result.Settings.Change
+---@field settings Proto.Setting[] # 改完之后的全量
+
+--- 设置变了（只发给本人）
+---@class Proto.Notify.Settings.Update
+---@field settings Proto.Setting[] # 全量
 
 --- 轮到他开始回合了
 ---@class Proto.Notify.Turn.Begin

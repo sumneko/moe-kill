@@ -455,6 +455,12 @@ end
 ---@field extraTargets? integer # 最多能多指定几个目标（可负；多份选项累加）
 ---@field unrespondable? Player|Player[]|true|fun(player: Player): boolean # 一个角色 / 一串角色 / `true` = 谁都拦 / 谓词（这些目标不能对此牌做出响应）
 
+--- 一条玩家设置的定义（内容侧开局时声明；客户端能改的是**值**，不是定义）
+---@class Game.SettingDef
+---@field name string # 设置名（内容词，如「无懈可击不响应自己的锦囊」）
+---@field default boolean|number|string # 默认值
+---@field describe? string # 给用户看的说明
+
 ---@class Game
 ---@field list string[] # 上一次用的加载清单
 ---@field private cards table<string, table<string, CardDef>> # 规则表：包名 → 裸名 → 定义
@@ -483,6 +489,7 @@ end
 ---@field private flow? fun(): any # 这一局的流程本体（内容登记，装配侧启动）
 ---@field private flowTask? Task # 流程任务（`endGame` 靠它把流程就地收掉）
 ---@field private result? Game.Result # 这一局的结果（有值就是已经结束了）
+---@field private settingDefs Game.SettingDef[] # 这一局声明过的玩家设置（按声明顺序）
 local M = Class 'Game'
 
 ---@param seats integer
@@ -525,6 +532,36 @@ function M:resetContent()
     self.lastTurnPlayer = nil
     self.attributeSystem = nil
     self.events:clear()
+    self.settingDefs = {}
+end
+
+--- 声明一条玩家设置（内容侧开局时调；重复声明以后者为准）
+---@param def Game.SettingDef
+function M:defineSetting(def)
+    for index, one in ipairs(self.settingDefs) do
+        if one.name == def.name then
+            self.settingDefs[index] = def
+            return
+        end
+    end
+    self.settingDefs[#self.settingDefs + 1] = def
+end
+
+--- 这一局声明过的玩家设置（按声明顺序）
+---@return Game.SettingDef[]
+function M:listSettings()
+    return self.settingDefs
+end
+
+--- 一条玩家设置的默认值（没定义就是空）
+---@param name string
+---@return boolean|number|string|nil
+function M:getSettingDefault(name)
+    for _, def in ipairs(self.settingDefs) do
+        if def.name == name then
+            return def.default
+        end
+    end
 end
 
 ---@return AttributeSystem # 这一局的属性系统（没建过就现建）

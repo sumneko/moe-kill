@@ -338,6 +338,18 @@ export namespace Proto {
             }
         }
 
+        export namespace Settings {
+            /**
+             * 设置变了（只发给本人）
+             */
+            export interface Update {
+                /**
+                 * 全量
+                 */
+                settings: Proto.Setting[];
+            }
+        }
+
         export namespace Skill {
             export interface Remove {
                 /**
@@ -731,6 +743,15 @@ export namespace Proto {
             }
         }
 
+        export namespace Settings {
+            /**
+             * 改自己的设置（只改带上去的键；出现没声明过的名字就整包拒收）
+             */
+            export interface Change {
+                settings: Proto.Setting.Change[];
+            }
+        }
+
         export namespace Skill {
             export interface ChangeAuto {
                 /**
@@ -837,6 +858,15 @@ export namespace Proto {
             }
         }
 
+        export namespace Settings {
+            export interface Change {
+                /**
+                 * 改完之后的全量
+                 */
+                settings: Proto.Setting[];
+            }
+        }
+
         export namespace Skill {
             export interface ChangeAuto {
                 /**
@@ -844,6 +874,44 @@ export namespace Proto {
                  */
                 auto?: boolean;
             }
+        }
+    }
+
+    /**
+     * 一条玩家设置：名字 + 这个人当前的值 + 默认值 + 说明
+     */
+    export interface Setting {
+        /**
+         * 设置名（内容词，如「无懈可击不响应自己的锦囊」）
+         */
+        name: string;
+        /**
+         * 这个人当前的值（类型由定义决定：布尔开关 / 数字 / 文本）
+         */
+        value: unknown;
+        /**
+         * 内容侧声明的默认值
+         */
+        default: unknown;
+        /**
+         * 给用户看的说明
+         */
+        describe?: string;
+    }
+
+    export namespace Setting {
+        /**
+         * 一条要改的设置（只带名字与新值）
+         */
+        export interface Change {
+            /**
+             * 设置名
+             */
+            name: string;
+            /**
+             * 新值（与默认值同类型）
+             */
+            value: unknown;
         }
     }
 
@@ -919,6 +987,10 @@ export namespace Proto {
          * 展示用文本（牌与技能各按裸名收一份）
          */
         texts: Proto.Text[];
+        /**
+         * 他的设置（本人全量：定义 + 当前值）
+         */
+        settings: Proto.Setting[];
         /**
          * 服务器是不是调试模式
          */

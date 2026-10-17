@@ -339,3 +339,32 @@ lt.test('装载器：重装复用局上记的来源与清单', function ()
     lt.assertEquals('复用局上记的清单重新装了一遍', true, #loaded > 0)
     lt.assertEquals('内容照旧', true, game.rule.cardTable ~= nil)
 end)
+
+lt.test('设置：内容侧声明一条，默认值查得到（重复声明以后者为准）', function ()
+    local game = newGame()
+    -- 这个局装的是真包（`@基础/设置.lua` 顶层已经声明过），所以按「多不多一条」比
+    local before = #game:listSettings()
+    lt.assertEquals('还没声明就查不到默认值', nil, game:getSettingDefault('测试开关'))
+
+    game:defineSetting { name = '测试开关', default = true, describe = '用例用' }
+    lt.assertEquals('声明后多一条', before + 1, #game:listSettings())
+    lt.assertEquals('默认值查得到', true, game:getSettingDefault('测试开关'))
+
+    game:defineSetting { name = '测试开关', default = false }
+    lt.assertEquals('重复声明不新增条目', before + 1, #game:listSettings())
+    lt.assertEquals('后写的覆盖前一条', false, game:getSettingDefault('测试开关'))
+end)
+
+lt.test('设置：重装规则集会把声明清掉（定义属于内容）', function ()
+    local game = newGame()
+    game:defineSetting { name = '测试开关', default = true }
+    game:resetContent()
+    lt.assertEquals('清空后再查就没有了', 0, #game:listSettings())
+end)
+
+lt.test('设置：没有连接的玩家取默认值', function ()
+    local game = newGame()
+    game:defineSetting { name = '测试开关', default = true }
+    local player = moe.player.create(game, { attributes = game:getAttributeSystem():createInstance() })
+    lt.assertEquals('没人控制就是默认值', true, player:getSetting('测试开关'))
+end)

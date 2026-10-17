@@ -29,12 +29,15 @@ Card '无懈可击'
 ---@return boolean # 这张牌有没有被抵消
 local function nullified(card, useCard, target)
     for player in game.desk:actionOrder() do
-        ---@type AskUseCardToCard.Condition
-        local condition = { name = '无懈可击', target = card }
-        local asked = game:askUseCardToCard(player, util.locale('打出一张 {card}', { card = '无懈可击' }), condition, { responseTo = useCard, target = target })
-        -- 刚用出去的那张无懈自己也会被问一遍「能否生效」：它没生效，就说明它没抵掉 card
-        if asked.useCardToCard?.cardEffectToCard?.success then
-            return true
+        -- 自己用出去的锦囊不必再问自己（玩家级设置；抵消另一张无懈那一支没有使用者，照旧问）
+        if useCard == nil or player ~= useCard.user or not player:getSetting('无懈可击不响应自己的锦囊') then
+            ---@type AskUseCardToCard.Condition
+            local condition = { name = '无懈可击', target = card }
+            local asked = game:askUseCardToCard(player, util.locale('打出一张 {card}', { card = '无懈可击' }), condition, { responseTo = useCard, target = target })
+            -- 刚用出去的那张无懈自己也会被问一遍「能否生效」：它没生效，就说明它没抵掉 card
+            if asked.useCardToCard?.cardEffectToCard?.success then
+                return true
+            end
         end
     end
     return false

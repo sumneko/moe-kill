@@ -4,6 +4,7 @@
 ---@field player? Player # 他控制的座位（`Player:setUser` 维护）
 ---@field client? Client # 他走的那条连接（只有真实玩家会给）
 ---@field cardView? CardSync.View # 他看得见的那份牌（默认没有 —— 要收卡牌下行的子类自己挂）
+---@field private localSettings? table<string, boolean|number|string> # 没名字的夹具就地存（有名字的走按名字的台账）
 local M = Class 'User'
 
 ---@param game Game
@@ -20,6 +21,47 @@ function M:attach()
     moe.skillSync.attach(self)
     moe.panelSync.attach(self)
     moe.flowSync.attach(self)
+end
+
+--- 设置袋（跟着**名字**走：重开一局、断线重连都沿用；没名字的夹具就地存）
+---@return table<string, boolean|number|string>
+function M:settingsBag()
+    local name = self.player and self.player:getName()
+    if not name then
+        local localSettings = self.localSettings
+        if not localSettings then
+            localSettings = {}
+            self.localSettings = localSettings
+        end
+        return localSettings
+    end
+    local bags = moe.settingsSync._bags
+    local bag = bags[name]
+    if not bag then
+        bag = {}
+        bags[name] = bag
+    end
+    return bag
+end
+
+--- 一项设置（改过的就用改过的，否则取这一局声明的默认值）
+---@param name string
+---@return boolean|number|string|nil
+function M:getSetting(name)
+    local value = self:settingsBag()[name]
+    if value ~= nil then
+        return value
+    end
+    return self.game:getSettingDefault(name)
+end
+
+--- 改一批设置（只改带上的键）
+---@param patch table<string, boolean|number|string>
+function M:updateSettings(patch)
+    local bag = self:settingsBag()
+    for name, value in pairs(patch) do
+        bag[name] = value
+    end
 end
 
 ---@param method string

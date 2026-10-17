@@ -653,7 +653,7 @@ lt.test('顺手牵羊：合法目标要距离 1 以内且区域里有牌', funct
     lt.assertEquals('不含自己', false, moe.util.arrayHas(targets, user))
 end)
 
-lt.test('无懈可击：没人用它 ⇒ 锦囊照常结算，但一圈里每个存活角色都被问过', function ()
+lt.test('无懈可击：没人用它 ⇒ 锦囊照常结算，除使用者外一圈里每个存活角色都被问过', function ()
     local run  = support.start { count = 3, packages = { '标准' } }
     local user = run.players[1]
     local card = takeCard(run, user, '无中生有')
@@ -669,8 +669,50 @@ lt.test('无懈可击：没人用它 ⇒ 锦囊照常结算，但一圈里每个
 
     run.game:useCard(user, card, { user })
 
-    lt.assertEquals('从顺序锚点起问了一圈', '1,2,3', table.concat(asked, ','))
+    -- 使用者自己不问（默认设置「无懈可击不响应自己的锦囊」开着）
+    lt.assertEquals('从顺序锚点起问了一圈，跳过自己', '2,3', table.concat(asked, ','))
     lt.assertEquals('锦囊照常生效（摸到两张）', 2, assert(user:getZone('手牌')):count())
+end)
+
+lt.test('无懈可击：关掉「不响应自己的锦囊」⇒ 自己也会被问', function ()
+    local run  = support.start { count = 3, packages = { '标准' } }
+    local user = run.players[1]
+    local card = takeCard(run, user, '无中生有')
+    local bench = New 'User' (run.game)
+    bench:updateSettings { ['无懈可击不响应自己的锦囊'] = false }
+    user:setUser(bench)
+
+    ---@type string[] # 被问无懈的座位号（按被问顺序）
+    local asked = {}
+    run.game:on('卡牌-询问', function (ask)
+        if not isNullifyAsk(ask) then
+            return
+        end
+        asked[#asked + 1] = tostring(assert(run.desk:getIndex(assert(ask.to))))
+    end)
+
+    run.game:useCard(user, card, { user })
+
+    lt.assertEquals('一圈都在', '1,2,3', table.concat(asked, ','))
+end)
+
+lt.test('无懈可击：别人用锦囊 ⇒ 照旧问我（设置只跳过使用者自己）', function ()
+    local run   = support.start { count = 2, packages = { '标准' } }
+    local user  = run.players[1]
+    local other = run.players[2]
+    local card  = takeCard(run, other, '无中生有')
+
+    ---@type boolean
+    local askedUser = false
+    run.game:on('卡牌-询问', function (ask)
+        if isNullifyAsk(ask) and ask.to == user then
+            askedUser = true
+        end
+    end)
+
+    run.game:useCard(other, card, { other })
+
+    lt.assertEquals('一号位照旧被问', true, askedUser)
 end)
 
 lt.test('无懈可击：有人用它 ⇒ 那张锦囊对这个目标不生效', function ()
