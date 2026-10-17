@@ -101,7 +101,7 @@
 
 **询问的答复** SHALL 走**反向请求**（服务端发、客户端回结果）：`Ask.Select` / `Ask.Choice` / `Ask.Use` / `Ask.UseSkill` / `Ask.Hero` / `Ask.Panel` —— 形状各自在 `proto.d.lua` 里（`Proto.Request.Ask.*` / `Proto.Result.Ask.*`）。
 
-**响应类询问** SHALL 通过 `Proto.ResponseTo` 把「这次响应冲哪次使用去的」一并交代（被响应的牌名 + 那次使用的使用者 + 目标），客户端据此能写出「打出一张 *X* → *Y*（A → B）」；不是响应的询问 MUST NOT 给这个字段。
+**响应类询问** SHALL 通过 `Proto.ResponseTo` 把「这次响应冲哪次使用去的」一并交代（被响应的牌名 + 那次使用的使用者 + 目标），客户端据此能写出「打出一张 *X* → *Y*（A → B）」；不是响应的询问 MUST NOT 给这个字段。**多目标结算时**（如【南蛮入侵】【桃园结义】逐个目标生效）SHALL 另给 `target`（= 正在生效的那个人）—— 客户端用 `target` 代替整张牌的目标列表，提示里只拼「使用者 → 当前目标」；`targets` 仍是一整份，供需要全貌的客户端使用。
 
 **状态快照 SHALL 走请求的 `result`**，MUST NOT 走通知那条路（唯一的例外是 `Game.Restarted`：重开不是谁问出来的，见「下行通知清单」）。
 
@@ -155,6 +155,8 @@
 ### Requirement: 下行通知清单
 
 服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Skill.Update`、`Skill.Remove`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Cancel`。
+
+**玩家基础信息**（`Proto.Player.Base`）SHALL 带 `id` / `userName` / `seat` / `alive`。`alive` 是**存活状态**（阵亡后为 `false`）—— 客户端 MUST 用它判「阵亡」，MUST NOT 拿「体力 ≤ 0」代替：濒死（体力已归零、正在求桃）与阵亡是两回事，前者仍是 `alive = true`。存活状态变了 SHALL 走 `Player.Update`。
 
 **一类数据一条通知**：同一笔调度里攒下的变化 SHALL 合并成一条（`Card.Create` 的亮出 / 背面各按区域成组、`Card.Update` 带一批牌 …），MUST NOT 一人一条或一牌一条。
 

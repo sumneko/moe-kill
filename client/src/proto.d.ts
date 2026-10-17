@@ -553,6 +553,10 @@ export namespace Proto {
              * 座位号
              */
             seat: number;
+            /**
+             * 还活着吗（濒死时仍是 true，阵亡后才是 false）
+             */
+            alive: boolean;
         }
 
         export interface Custom {
@@ -757,6 +761,10 @@ export namespace Proto {
          * 那次使用的目标
          */
         targets: number[];
+        /**
+         * 这次生效的当前目标（多目标结算时才是它，`targets` 是整张牌的目标）
+         */
+        target?: number;
     }
 
     export namespace Result {

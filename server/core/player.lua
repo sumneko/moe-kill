@@ -449,6 +449,7 @@ function M:setAlive(value)
         return
     end
     self.alive = alive
+    self:markDirty('base')
     if not alive then
         self.game:fire('玩家-死亡', self)
     end

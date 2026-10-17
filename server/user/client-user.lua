@@ -292,8 +292,9 @@ end
 
 --- 这次响应冲哪次使用去的（牌名 + 使用者 + 目标）；不是响应就给空
 ---@param useCard? UseCard
+---@param target? Player # 当前这次生效的目标（多目标结算时才给）
 ---@return Proto.ResponseTo?
-function M:responseToParams(useCard)
+function M:responseToParams(useCard, target)
     if not useCard then
         return nil
     end
@@ -301,6 +302,7 @@ function M:responseToParams(useCard)
         card    = useCard.card.name,
         player  = useCard.user.id,
         targets = self:playerIds(useCard.targets),
+        target  = target and target.id or nil,
     }
 end
 
@@ -313,7 +315,7 @@ function M:pickCards(ask)
         reason     = ask.reason,
         cancelable = ask.condition.cancelable,
         card       = self:cardPlan(ask),
-        responseTo = self:responseToParams(ask.responseOptions?.responseTo),
+        responseTo = self:responseToParams(ask.responseOptions?.responseTo, ask.responseOptions?.target),
         timeLimit  = ask.timeLimit or DEFAULT_TIME_LIMIT,
     })
     if not parsed then

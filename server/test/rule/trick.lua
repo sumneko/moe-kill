@@ -804,6 +804,8 @@ lt.test('无懈可击：多目标锦囊可以对某一个目标单独抵消', fu
 
     ---@type boolean
     local answered = false
+    ---@type Player?
+    local askedTarget = nil
     run.game:on('卡牌-询问', function (ask)
         if answered or not isNullifyAsk(ask) then
             return
@@ -811,6 +813,7 @@ lt.test('无懈可击：多目标锦囊可以对某一个目标单独抵消', fu
         local pending = pendingEffect(ask)
         if ask.to == run.players[3] and pending and pending.target == run.players[2] then
             answered = true
+            askedTarget = ask.responseOptions?.target
             return { card = nullify }
         end
     end)
@@ -819,6 +822,7 @@ lt.test('无懈可击：多目标锦囊可以对某一个目标单独抵消', fu
 
     lt.assertEquals('被抵消的那个不受伤', 5, run.players[2]:getAttr('体力'))
     lt.assertEquals('另一个照常结算', 4, run.players[3]:getAttr('体力'))
+    lt.assertEquals('提示里的当前目标就是正在生效的那个', run.players[2], askedTarget)
 end)
 
 lt.test('无懈可击：非锦囊不问（【杀】照旧只问【闪】）', function ()

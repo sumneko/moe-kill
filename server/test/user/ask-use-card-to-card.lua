@@ -93,3 +93,41 @@ lt.test('询问：带 responseTo 的询问把「冲哪次使用去的」交给�
     lt.assertEquals('使用者是二号位', other.id, responseTo.player)
     lt.assertEquals('目标是当前玩家', me.id, responseTo.targets[1])
 end)
+
+---@async
+lt.test('询问：给了当前生效目标 ⇒ 响应提示里单独带着它', function ()
+    local game, players = support.newPackageGame()
+    local me    = assert(players[1])
+    local other = assert(players[2])
+
+    support.giveCard(game, me, '无懈可击', '黑桃', 11)
+
+    local target  = game:createCard('南蛮入侵', '黑桃', 7)
+    local useCard = moe.useCard.create {
+        game    = game,
+        user    = me,
+        card    = target,
+        targets = { me, other },
+    }
+
+    ---@type Proto.Request.Ask.Select?
+    local sent = nil
+    local _ <close> = moe.client.register('Ask.Select', function (_, params)
+        ---@cast params Proto.Request.Ask.Select
+        sent = params
+        return {}
+    end)
+
+    local ask = moe.askUseCardToCard.create {
+        game            = game,
+        to              = other,
+        reason          = '打出一张 无懈可击',
+        condition       = { target = target },
+        responseOptions = { responseTo = useCard, target = other },
+    }
+    ask:apply():await()
+
+    local responseTo = assert(assert(sent, '没问过客户端').responseTo, '没带来处')
+    lt.assertEquals('整张牌的目标仍是一份', 2, #responseTo.targets)
+    lt.assertEquals('当前目标单独带着', other.id, responseTo.target)
+end)

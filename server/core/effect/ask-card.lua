@@ -59,6 +59,7 @@
 --- 这次询问的额外交代（发起方给）
 ---@class AskCard.ResponseOptions
 ---@field responseTo? UseCard # 这次响应冲哪次使用去的（不传 = 不是响应）
+---@field target? Player # 这次生效的当前目标（多目标结算时用它区分「正在对谁生效」）
 
 ---@class AskCard.CreateOptions
 ---@field game Game

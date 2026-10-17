@@ -65,6 +65,7 @@
 ---@field id integer # 唯一ID
 ---@field userName string # 用户名
 ---@field seat integer # 座位号
+---@field alive boolean # 还活着吗（濒死时仍是 true，阵亡后才是 false）
 
 --- 一条属性：名字 + 当前值
 ---@class Proto.Attribute
@@ -234,6 +235,7 @@
 ---@field card    string    # 被响应的那张牌的牌名
 ---@field player  integer   # 那次使用的使用者
 ---@field targets integer[] # 那次使用的目标
+---@field target? integer   # 这次生效的当前目标（多目标结算时才是它，`targets` 是整张牌的目标）
 
 --- 要求客户端选择卡牌和玩家（可能是多选）
 ---@class Proto.Request.Ask.Select: Proto.Cancelable, Proto.Timelimit

@@ -34,6 +34,7 @@ function moe.playerSync.toBase(player)
         id       = player.id,
         userName = player:getName() or '',
         seat     = player.game.desk:getIndex(player),
+        alive    = player:isAlive(),
     }
 end
 

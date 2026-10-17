@@ -25,12 +25,13 @@ Card '无懈可击'
 --- 一圈里每人只有一次机会；只有「这张牌被抵消」才终止这一圈 ⇒ 谁的无懈自己又被抵掉了，就接着问下一个人
 ---@param card Card # 要抵消的那张牌
 ---@param useCard? UseCard # 这次生效属于哪一次用牌（给应答方看「响应谁的那张牌」）
+---@param target? Player # 这次生效正在对谁（多目标结算时提示里只拼这一个）
 ---@return boolean # 这张牌有没有被抵消
-local function nullified(card, useCard)
+local function nullified(card, useCard, target)
     for player in game.desk:actionOrder() do
         ---@type AskUseCardToCard.Condition
         local condition = { name = '无懈可击', target = card }
-        local asked = game:askUseCardToCard(player, util.locale('打出一张 {card}', { card = '无懈可击' }), condition, { responseTo = useCard })
+        local asked = game:askUseCardToCard(player, util.locale('打出一张 {card}', { card = '无懈可击' }), condition, { responseTo = useCard, target = target })
         -- 刚用出去的那张无懈自己也会被问一遍「能否生效」：它没生效，就说明它没抵掉 card
         if asked.useCardToCard?.cardEffectToCard?.success then
             return true
@@ -42,13 +43,14 @@ end
 --- 两种「生效」都在这里问：锦囊对某个角色的生效（含判定阶段结算延时锦囊）、无懈对一张牌的生效（= 抵消另一张【无懈可击】产生的效果）
 ---@param effect CardEffect|CardEffectToCard
 ---@param useCard? UseCard # 这次生效属于哪一次用牌（对牌的生效那一支形状不同，暂时不给来源）
+---@param target? Player # 这次生效正在对谁（对牌的那一支没有玩家目标）
 ---@return string? # 要抵消就给原因（这次生效被阻止）
-local function nullify(effect, useCard)
+local function nullify(effect, useCard, target)
     -- 使用者声明了「这次使用不能被无懈」⇒ 连问都不问（这个字段是内容侧的，内核不预设；类型面在 标准/meta.lua）
     if effect.useCard?.useOptions?.unnullifiable then
         return nil
     end
-    if canNullify(effect.card) and nullified(effect.card, useCard) then
+    if canNullify(effect.card) and nullified(effect.card, useCard, target) then
         return '无懈可击'
     end
 end
@@ -56,7 +58,7 @@ end
 game:on('效果-能否生效', function (effect)
     if effect.kind == 'cardEffect' then
         ---@cast effect CardEffect
-        return nullify(effect, effect.useCard)
+        return nullify(effect, effect.useCard, effect.target)
     end
     if effect.kind == 'cardEffectToCard' then
         ---@cast effect CardEffectToCard
