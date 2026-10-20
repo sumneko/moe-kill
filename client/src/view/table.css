@@ -164,8 +164,13 @@ button:disabled { cursor: default; opacity: .45; }
 .equip .name { text-align: left; }
 .equip .suit { text-align: center; }
 .equip .point { text-align: right; }
-/* 空槽：完全透明但占着位置（四个装备栏的位置要固定，飞行落点靠它） */
-.equip.empty { visibility: hidden; }
+/* 空槽：画出格子（牌飞行落点要靠它的尺寸与位置，所以不能省布局） */
+.equip.empty {
+    background: transparent;
+    border: 1px dashed #4b5568;
+    color: #6b7390;
+}
+.equip.empty .slot { opacity: .55; }
 .equip[data-red] { color: #b8352b; }
 .equip.pick { cursor: pointer; }
 .equip.pick:hover { background: #fff8e2; border-color: var(--gold); }
@@ -234,6 +239,10 @@ button:disabled { cursor: default; opacity: .45; }
     min-height: var(--card-h); }
 #meHand .row { display: flex; gap: 0; align-items: flex-end; }
 #meHand .row + .row { margin-top: calc(var(--hand-step) - var(--card-h)); }
+
+/* 选目标时从自己指向目标的临时箭头（画在座位之上、询问条之下） */
+#arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#arrows line { stroke: #ff6b6b; stroke-width: 3; stroke-linecap: round; opacity: .85; }
 
 #meActions { display: flex; gap: 6px; align-items: center; }
 #meActions button { padding: 0 10px; height: 26px; font-size: 12px; border-radius: 4px;

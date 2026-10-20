@@ -34,6 +34,33 @@ const RECORD_ENTER_X = 56;
 const RECORD_MOVE_MS = 260;
 /** 跳字停留多久（毫秒） */
 const POP_MS = 900;
+/** 箭头两端各让开多少（画布坐标）：从立绘中心出发，别把线盖在立绘上 */
+const ARROW_HEAD = 64;
+const ARROW_TAIL = 58;
+
+/** 一支箭头：从自己指向某个目标 */
+interface Arrow {
+    id: number;
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+}
+
+/** 一个元素中心在舞台坐标（1280×720）里的位置 */
+function stageCenter(stage: HTMLElement, selector: string): { x: number; y: number } | null {
+    const el = document.querySelector<HTMLElement>(selector);
+    if (!el) {
+        return null;
+    }
+    const rect = el.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const scale = Math.max(stageRect.width, 1) / 1280;
+    return {
+        x: (rect.left + rect.width / 2 - stageRect.left) / scale,
+        y: (rect.top + rect.height / 2 - stageRect.top) / scale,
+    };
+}
 
 /** 记录区里的一条影子：这个回合打出过 / 弃过这张牌（之后它去哪都不再管） */
 interface RecordedCard {
@@ -78,6 +105,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     /** 上一眼看过的回合角色（换人就把记录区清掉） */
     const turnSeen = useRef<number | null>(null);
     const [pops, setPops] = useState<PopRef[]>([]);
+    const [arrows, setArrows] = useState<Arrow[]>([]);
     const [drawer, setDrawer] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [raw, setRaw] = useState('');
@@ -173,6 +201,44 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     /** 我自己的阶段（不在我的回合里就是空） */
     const myPhase = agent.me !== null && agent.turnPlayer === agent.me ? agent.phase : null;
     const cand = candidates(ask ?? undefined, selection);
+
+    // 选中的目标：从自己拉一条临时箭头过去（纯本地状态，提交 / 取消就没了）
+    const picked = selection.players.join(',');
+    useLayoutEffect(() => {
+        const stage = document.querySelector<HTMLElement>('#stage');
+        const from = stage ? stageCenter(stage, '#meLeft .portrait') ?? stageCenter(stage, '#meLeft') : null;
+        if (!stage || !from || selection.players.length === 0) {
+            setArrows([]);
+            return;
+        }
+        const list: Arrow[] = [];
+        for (const id of selection.players) {
+            if (id === agent.me) {
+                continue;
+            }
+            const to = stageCenter(stage, `[data-fly="seat:${id}"] .portrait`)
+                ?? stageCenter(stage, `[data-fly="seat:${id}"]`);
+            if (!to) {
+                continue;
+            }
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const length = Math.hypot(dx, dy);
+            if (length <= ARROW_HEAD + ARROW_TAIL) {
+                continue;
+            }
+            const ux = dx / length;
+            const uy = dy / length;
+            list.push({
+                id,
+                x1: from.x + ux * ARROW_HEAD,
+                y1: from.y + uy * ARROW_HEAD,
+                x2: to.x - ux * ARROW_TAIL,
+                y2: to.y - uy * ARROW_TAIL,
+            });
+        }
+        setArrows(list);
+    }, [picked, agent.me, agent.players.size, layoutSeats]);
 
     const onPickCard = (id: number) => {
         if (ask) {
@@ -341,6 +407,19 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                     />
                 </div>
     </div>` : html`<div id="waiting">正在入座…</div>`}
+            <svg id="arrows" viewBox="0 0 1280 720">
+                <defs>
+                    <marker id="arrow-head" viewBox="0 0 10 10" refX="9" refY="5"
+                        markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6b6b" />
+                    </marker>
+                </defs>
+                ${arrows.map((one) => html`<line
+                    key=${one.id}
+                    x1=${one.x1} y1=${one.y1} x2=${one.x2} y2=${one.y2}
+                    marker-end="url(#arrow-head)"
+                />`)}
+            </svg>
             <${MySkills} agent=${agent} />
             ${ask ? html`<${AskBar}
                 agent=${agent}
