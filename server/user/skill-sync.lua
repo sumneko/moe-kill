@@ -64,6 +64,25 @@ function S:__init(game)
     game:on('技能-数据变化', function (skill, kind)
         self:markDirty(skill, kind)
     end)
+
+    -- 「谁发动了哪个技能、对谁」：技能号全员一致，直接广播
+    game:on('技能-使用', function (skill, use)
+        ---@type integer[]
+        local targets = {}
+        for _, target in ipairs(use.targets) do
+            targets[#targets + 1] = target.id
+        end
+        for _, player in ipairs(self.game.desk.players) do
+            local user = player.user
+            if user then
+                user:notify('Skill.Use', {
+                    user    = skill.owner.id,
+                    skill   = skill.id,
+                    targets = targets,
+                })
+            end
+        end
+    end)
 end
 
 ---@param skill Skill

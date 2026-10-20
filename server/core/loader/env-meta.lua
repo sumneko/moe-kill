@@ -183,6 +183,10 @@ rule = nil
 ---@field fire fun(self: Game, name: '卡牌-结算前', useCard: UseCard|UseCardToCard): any
 ---@field on fun(self: Game, name: '卡牌-结算后', callback: fun(useCard: UseCard|UseCardToCard): any): function
 ---@field fire fun(self: Game, name: '卡牌-结算后', useCard: UseCard|UseCardToCard): any
+---@field on fun(self: Game, name: '卡牌-使用', callback: fun(useCard: UseCard): any): function # 一次对角色使用、目标已最终定下（流离 / 加目标都处理完了）
+---@field fire fun(self: Game, name: '卡牌-使用', useCard: UseCard): any
+---@field on fun(self: Game, name: '技能-使用', callback: fun(skill: Skill, use: Skill.Use): any): function # 主动发动一个技能（带着这次用的牌与目标）
+---@field fire fun(self: Game, name: '技能-使用', skill: Skill, use: Skill.Use): any
 ---@field on fun(self: Game, name: '卡牌-指定目标后', callback: fun(useCard: UseCard, target: Player): any): function # 逐目标发（全局那份）
 ---@field fire fun(self: Game, name: '卡牌-指定目标后', useCard: UseCard, target: Player): any
 ---@field on fun(self: Game, name: '玩家-死亡', callback: fun(player: Player): any): function

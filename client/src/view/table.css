@@ -240,9 +240,28 @@ button:disabled { cursor: default; opacity: .45; }
 #meHand .row { display: flex; gap: 0; align-items: flex-end; }
 #meHand .row + .row { margin-top: calc(var(--hand-step) - var(--card-h)); }
 
-/* 选目标时从自己指向目标的临时箭头（画在座位之上、询问条之下） */
+/* 箭头（选目标 / 全场用牌）：从使用者射向目标，有寿命的那种末尾淡出 */
 #arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-#arrows line { stroke: #ff6b6b; stroke-width: 3; stroke-linecap: round; opacity: .85; }
+#arrows .arrow line { stroke: #ff6b6b; stroke-width: 3; stroke-linecap: round; opacity: .85;
+    stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+    animation: arrow-draw 300ms ease-out both; }
+#arrows .arrow .head { fill: #ff6b6b; opacity: .9; transform-box: view-box; transform-origin: 0 0;
+    animation: arrow-head 300ms ease-out both; }
+#arrows .arrow.fade { animation: arrow-fade var(--fade-ms) linear both; }
+
+@keyframes arrow-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes arrow-head {
+    from { transform: translate(var(--x1), var(--y1)) rotate(var(--angle)); }
+    to { transform: translate(var(--x2), var(--y2)) rotate(var(--angle)); }
+}
+
+@keyframes arrow-fade {
+    0%, 78% { opacity: 1; }
+    100% { opacity: 0; }
+}
 
 #meActions { display: flex; gap: 6px; align-items: center; }
 #meActions button { padding: 0 10px; height: 26px; font-size: 12px; border-radius: 4px;

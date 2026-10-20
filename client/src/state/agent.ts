@@ -520,6 +520,16 @@ export class Agent {
             }
             this.changed();
         });
+        rpc.onNotify('Card.Use', (params: Proto.Notify.Card.Use) => {
+            this.log(`使用牌：${params.user} → ${params.targets.join(',')}`);
+            this.events.push({ kind: 'use', user: params.user, card: params.card, targets: params.targets });
+            this.changed();
+        });
+        rpc.onNotify('Skill.Use', (params: Proto.Notify.Skill.Use) => {
+            this.log(`发动技能：${params.user} → ${params.targets.join(',')}`);
+            this.events.push({ kind: 'use', user: params.user, skill: params.skill, targets: params.targets });
+            this.changed();
+        });
         rpc.onNotify('Skill.Update', (params: Proto.Notify.Skill.Update) => {
             this.skills.set(params.skill.id, params.skill);
             this.changed();

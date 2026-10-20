@@ -332,6 +332,8 @@ end
 ---@async
 ---@return SkillCast # 这次发动
 function S:use(use)
+    use = use or { cards = {}, targets = {} }
+    self.game:fire('技能-使用', self, use)
     local handlers = self.def:getHandlers('使用')
     return self:cast(function (cast)
         for _, handler in ipairs(handlers) do

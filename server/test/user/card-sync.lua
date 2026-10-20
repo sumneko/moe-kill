@@ -1,4 +1,5 @@
-local lt = require 'test.ltest'
+local lt      = require 'test.ltest'
+local support = require 'test.user.support'
 
 --- 本用例文件用过、还没撤的收集器（每条用例开头统一撤掉，任何一条失败都不会连锁）
 ---@type fun()[]
@@ -567,4 +568,35 @@ lt.test('卡牌同步：视图挂在 ClientUser 上（懒建、同一份、知�
     lt.assertEquals('再读还是同一份', true, user.cardView == view)
     lt.assertEquals('知道自己是哪个人的', user, view.user)
     lt.assertEquals('连同当时的牌一起建账', 1, #view.snapshot)
+end)
+
+---@async
+lt.test('卡牌同步：使用牌广播给每条连接（各自视图的牌号 + 目标）', function ()
+    reset()
+    local game, players = support.newPackageGame()
+    local me  = assert(players[1])
+    local you = assert(players[2])
+    local got = collect('Card.Use')
+
+    local card = support.giveCard(game, me, '杀')
+
+    -- 牌号的账在挪区时会换号：在「使用」那一刻把两边当时的号记下来
+    ---@type integer[]
+    local atUse = {}
+    game:on('卡牌-使用', function ()
+        atUse[1] = support.cardId(me, card)
+        atUse[2] = support.cardId(you, card)
+    end)
+
+    game:useCard(me, card, { you }, { unrespondable = { you } })
+    moe.await.sleep(0)
+
+    lt.assertEquals('两个连接各一条', 2, #got)
+    local mine  = assert(got[1])
+    local yours = assert(got[2])
+    lt.assertEquals('使用者', me.id, mine.user)
+    lt.assertEquals('牌号是他自己那份视图里的', atUse[1], mine.card)
+    lt.assertEquals('对方收到的是对方那份视图里的号', atUse[2], yours.card)
+    lt.assertEquals('目标就是那个人', you.id, assert(mine.targets)[1])
+    lt.assertEquals('对方那条也带着同样的目标', you.id, assert(yours.targets)[1])
 end)

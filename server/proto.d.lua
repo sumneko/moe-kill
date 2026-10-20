@@ -149,6 +149,12 @@
 ---@class Proto.Notify.Card.Move
 ---@field moves Proto.CardMove[]
 
+--- 一次对角色使用：谁对谁用了什么（目标已经最终定下）
+---@class Proto.Notify.Card.Use
+---@field user integer # 使用者
+---@field card integer # 这张牌在他那份视图里的号
+---@field targets integer[] # 目标玩家
+
 ---@class Proto.Skill
 ---@field name string # 技能名
 ---@field id integer # 唯一ID
@@ -166,6 +172,12 @@
 
 ---@class Proto.Notify.Skill.Remove
 ---@field id integer # 被移除的技能ID
+
+--- 一次技能发动：谁发动了哪个技能、对谁
+---@class Proto.Notify.Skill.Use
+---@field user integer # 发动者
+---@field skill integer # 技能唯一ID
+---@field targets integer[] # 目标玩家（没有目标就是空表）
 
 ---@class Proto.Request.Skill.ChangeAuto
 ---@field id integer # 要改变自动状态的技能ID

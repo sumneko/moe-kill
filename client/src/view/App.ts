@@ -37,14 +37,53 @@ const POP_MS = 900;
 /** 箭头两端各让开多少（画布坐标）：从立绘中心出发，别把线盖在立绘上 */
 const ARROW_HEAD = 64;
 const ARROW_TAIL = 58;
+/** 一次使用 / 技能发动的箭头停留多久（毫秒） */
+const USE_ARROW_MS = 2500;
 
-/** 一支箭头：从自己指向某个目标 */
+/** 一支箭头（键用来区分选择期的箭头与各次使用期的箭头） */
 interface Arrow {
-    id: number;
+    key: string;
     x1: number;
     y1: number;
     x2: number;
     y2: number;
+    /** 线长（画出来用的 dash 长度） */
+    length: number;
+    /** 朝向（度） */
+    angle: number;
+    /** 到点淡出（全场用牌 / 技能那种有寿命的箭头） */
+    fade: boolean;
+}
+
+/** 把一段线变成一支会射出去的箭头 */
+function makeArrow(key: string, line: { x1: number; y1: number; x2: number; y2: number }, fade: boolean): Arrow {
+    const dx = line.x2 - line.x1;
+    const dy = line.y2 - line.y1;
+    return {
+        key,
+        ...line,
+        length: Math.hypot(dx, dy),
+        angle: Math.atan2(dy, dx) * 180 / Math.PI,
+        fade,
+    };
+}
+
+/** 一个人往另一个人拉一条线（两端各让开一点） */
+function shorten(from: { x: number; y: number }, to: { x: number; y: number }): { x1: number; y1: number; x2: number; y2: number } | null {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length <= ARROW_HEAD + ARROW_TAIL) {
+        return null;
+    }
+    const ux = dx / length;
+    const uy = dy / length;
+    return {
+        x1: from.x + ux * ARROW_HEAD,
+        y1: from.y + uy * ARROW_HEAD,
+        x2: to.x - ux * ARROW_TAIL,
+        y2: to.y - uy * ARROW_TAIL,
+    };
 }
 
 /** 一个元素中心在舞台坐标（1280×720）里的位置 */
@@ -60,6 +99,14 @@ function stageCenter(stage: HTMLElement, selector: string): { x: number; y: numb
         x: (rect.left + rect.width / 2 - stageRect.left) / scale,
         y: (rect.top + rect.height / 2 - stageRect.top) / scale,
     };
+}
+
+/** 某个玩家的立绘中心（座位坐标；自己那份是 `#meLeft`） */
+function playerCenter(stage: HTMLElement, id: number, me: number | null): { x: number; y: number } | null {
+    if (id === me) {
+        return stageCenter(stage, '#meLeft .portrait') ?? stageCenter(stage, '#meLeft');
+    }
+    return stageCenter(stage, `[data-fly="seat:${id}"] .portrait`) ?? stageCenter(stage, `[data-fly="seat:${id}"]`);
 }
 
 /** 记录区里的一条影子：这个回合打出过 / 弃过这张牌（之后它去哪都不再管） */
@@ -106,6 +153,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const turnSeen = useRef<number | null>(null);
     const [pops, setPops] = useState<PopRef[]>([]);
     const [arrows, setArrows] = useState<Arrow[]>([]);
+    /** 全场的使用牌 / 技能发动（画完到点自己消失） */
+    const [uses, setUses] = useState<{ key: number; user: number; targets: number[] }[]>([]);
     const [drawer, setDrawer] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [raw, setRaw] = useState('');
@@ -145,6 +194,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                         setRecords((list) => [...list, record]);
                     }
                 }, FLY_MS);
+                continue;
+            }
+            if (event.kind === 'use') {
+                const key = nextKey.current++;
+                setUses((list) => [...list, { key, user: event.user, targets: event.targets }]);
+                window.setTimeout(() => {
+                    setUses((list) => list.filter((one) => one.key !== key));
+                }, USE_ARROW_MS);
                 continue;
             }
             if (event.kind !== 'move') {
@@ -202,43 +259,47 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const myPhase = agent.me !== null && agent.turnPlayer === agent.me ? agent.phase : null;
     const cand = candidates(ask ?? undefined, selection);
 
-    // 选中的目标：从自己拉一条临时箭头过去（纯本地状态，提交 / 取消就没了）
+    // 选中的目标：从自己拉一条临时箭头过去（纯本地状态，提交 / 取消就没了）；
+    // 另外全场任何人用牌 / 发动技能也画一段，到 `USE_ARROW_MS` 自动消失
     const picked = selection.players.join(',');
     useLayoutEffect(() => {
         const stage = document.querySelector<HTMLElement>('#stage');
-        const from = stage ? stageCenter(stage, '#meLeft .portrait') ?? stageCenter(stage, '#meLeft') : null;
-        if (!stage || !from || selection.players.length === 0) {
+        if (!stage) {
             setArrows([]);
             return;
         }
         const list: Arrow[] = [];
-        for (const id of selection.players) {
-            if (id === agent.me) {
+        const from = playerCenter(stage, agent.me ?? -1, agent.me);
+        if (from) {
+            for (const id of selection.players) {
+                if (id === agent.me) {
+                    continue;
+                }
+                const to = playerCenter(stage, id, agent.me);
+                const line = to ? shorten(from, to) : null;
+                if (line) {
+                    list.push(makeArrow(`select:${id}`, line, false));
+                }
+            }
+        }
+        for (const use of uses) {
+            const start = playerCenter(stage, use.user, agent.me);
+            if (!start) {
                 continue;
             }
-            const to = stageCenter(stage, `[data-fly="seat:${id}"] .portrait`)
-                ?? stageCenter(stage, `[data-fly="seat:${id}"]`);
-            if (!to) {
-                continue;
+            for (const id of use.targets) {
+                if (id === use.user) {
+                    continue;
+                }
+                const to = playerCenter(stage, id, agent.me);
+                const line = to ? shorten(start, to) : null;
+                if (line) {
+                    list.push(makeArrow(`use:${use.key}:${id}`, line, true));
+                }
             }
-            const dx = to.x - from.x;
-            const dy = to.y - from.y;
-            const length = Math.hypot(dx, dy);
-            if (length <= ARROW_HEAD + ARROW_TAIL) {
-                continue;
-            }
-            const ux = dx / length;
-            const uy = dy / length;
-            list.push({
-                id,
-                x1: from.x + ux * ARROW_HEAD,
-                y1: from.y + uy * ARROW_HEAD,
-                x2: to.x - ux * ARROW_TAIL,
-                y2: to.y - uy * ARROW_TAIL,
-            });
         }
         setArrows(list);
-    }, [picked, agent.me, agent.players.size, layoutSeats]);
+    }, [picked, uses, agent.me, agent.players.size, layoutSeats]);
 
     const onPickCard = (id: number) => {
         if (ask) {
@@ -408,17 +469,14 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 </div>
     </div>` : html`<div id="waiting">正在入座…</div>`}
             <svg id="arrows" viewBox="0 0 1280 720">
-                <defs>
-                    <marker id="arrow-head" viewBox="0 0 10 10" refX="9" refY="5"
-                        markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6b6b" />
-                    </marker>
-                </defs>
-                ${arrows.map((one) => html`<line
-                    key=${one.id}
-                    x1=${one.x1} y1=${one.y1} x2=${one.x2} y2=${one.y2}
-                    marker-end="url(#arrow-head)"
-                />`)}
+                ${arrows.map((one) => html`<g
+                    key=${one.key}
+                    class=${one.fade ? 'arrow fade' : 'arrow'}
+                    style=${`--x1:${one.x1}px;--y1:${one.y1}px;--x2:${one.x2}px;--y2:${one.y2}px;--angle:${one.angle}deg;--len:${one.length}px;--fade-ms:${USE_ARROW_MS}ms`}
+                >
+                    <line x1=${one.x1} y1=${one.y1} x2=${one.x2} y2=${one.y2} />
+                    <polygon class="head" points="0,0 -14,-5.5 -14,5.5" />
+                </g>`)}
             </svg>
             <${MySkills} agent=${agent} />
             ${ask ? html`<${AskBar}

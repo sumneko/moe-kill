@@ -629,6 +629,7 @@ Card '杀'
 | `Card.Remove` | 牌消失（按 id 列表）—— 搬走的那批在**同一个「前」时机**当场发；其余（兜底换区）攒到一次调度末尾 |
 | `Card.Create` | 牌出现（**新牌**第一次进这份账）—— 搬来的那批在**搬动之后**（订 `'卡牌-批量移动后'`）当场发，这就是「落位」 |
 | `Card.Update` | 牌**没换区**但内容变了（转化 / 可见性翻转）—— 实例 id 不变 |
+| `Card.Use` | **一次使用**（目标已最终定下）：`{ user, card, targets }`；`card` 是**收件人自己这份视图里的号**（不同连接可以不同）—— 订 `'卡牌-使用'`，当场发给所有入座连接 |
 
 - **两层对象，各管一段**（2026-10-10 用户定）：
   - **按局**：`Game.CardSync` 类懒建在 `game.cardSync`（card-sync.lua 给 `Game` 注入的 `package` getter ⇒ 同一局才一份、只给本文件看，内核不认识协议、不写进 `game.lua`）。它只留 `dirtyCards`（还没下发的脏卡）与 `viewSeq`，**建账那一刻自己把订阅装上**（`watchEvent`）⇒ 外部不再需要 `watch(game)`。
@@ -695,6 +696,7 @@ Card '杀'
 - **`disabled` 是算出来的读法**（`Skill.__getter.disabled` = 压制层数 > 0，如被克制 / 封印）；配套两处：`passiveSuppress` 从 `private` 放宽成 **`package`**（getter 里要读它 —— 与 `__getter` 的既有口径一致），以及照 `card.lua` 的写法补一个 `---@type boolean` + `S.disabled = nil` 的占位声明（**没占位，外部读 `skill.disabled` 就报「未定义的属性」**）。
 - **user 侧自己收、自己攒、自己发**（`server/user/skill-sync.lua`，与 card-sync / player-sync 同形）：`Game.SkillSync` 懒建在 `game.skillSync`（本文件注入的 `package` getter，**建账即订事件**）、脏标记 `dirty[skill] = kind`、一笔调度只发一次。
 - **技能总是可见 ⇒ 全广播、不裁字段**（用户 2026-10-10 定）：每个有 `user` 的座位都收到同样的通知 —— 更新走 `Skill.Update`（`Proto.Notify.skill.Update`，**一个技能一条**）、摘掉走 `Skill.Remove`（只带 `id`）。将来若要「暗将」，再加按视角裁。
+- **`Skill.Use`（2026-10-20）**：`{ user, skill, targets }`，订 `'技能-使用'`（`Skill:use` 里、跑「使用」钩子之前 fire）—— 技能号是**全局唯一**的（所有连接一样），`targets` 是座位号列表；当时刻发给所有入座连接，供前端画「谁对谁发动了什么」。
 - **上行只有一条 `Skill.ChangeAuto`**：`moe.client.register('Skill.ChangeAuto', …)`（照 `Game.SnapShot` 的写法）—— 从连接找座位（`moe.snapshot.userOf`，为复用把它从局部函数改成 `moe.snapshot` 的公开方法）、从座位按 id 找技能（不是他的技能 ⇒ 报错），`Skill:setAuto` 之后回 `{ auto }`，改动同时广播给所有人。
 - **`User:attach()` 现在带起五本账**：`cardSync` / `playerSync` / `skillSync` / `panelSync` / `flowSync`。
 - **给 `Skill` 挂 getter 要带上 `Class.Base`**：`---@class GCHost`（`server/tools/gc.lua`）**没有**声明 `: Class.Base`，所以 `---@class Skill : GCHost` 拿不到 `Class.Base` 上的 `__getter` —— 类声明要写成 **`: GCHost, Class.Base`**，否则「给类挂 getter」报「未定义的属性/字段 `__getter`」。

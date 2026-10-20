@@ -179,7 +179,7 @@
 
 ### Requirement: 下行通知清单
 
-服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Skill.Update`、`Skill.Remove`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Settings.Update`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Game.AnimScale`、`Cancel`。
+服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Card.Use`、`Skill.Update`、`Skill.Remove`、`Skill.Use`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Settings.Update`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Game.AnimScale`、`Cancel`。
 
 **玩家基础信息**（`Proto.Player.Base`）SHALL 带 `id` / `userName` / `seat` / `alive`。`alive` 是**存活状态**（阵亡后为 `false`）—— 客户端 MUST 用它判「阵亡」，MUST NOT 拿「体力 ≤ 0」代替：濒死（体力已归零、正在求桃）与阵亡是两回事，前者仍是 `alive = true`。存活状态变了 SHALL 走 `Player.Update`。
 
@@ -188,6 +188,8 @@
 **一类数据一条通知**：同一笔调度里攒下的变化 SHALL 合并成一条（`Card.Create` 的亮出 / 背面各按区域成组、`Card.Update` 带一批牌 …），MUST NOT 一人一条或一牌一条。
 
 **与视角无关的「时刻」SHALL 即时发**（`Turn.Begin` / `Turn.End` / `Phase.Begin` / `Phase.End` / `Game.Over` / `Game.Restarted`）—— 攒批会把两次切换压成一条，客户端就播不出节奏。
+
+**「谁对谁用了什么」SHALL 即时发给所有入座连接**（含使用者自己）：`Card.Use` 带 `user` / `card` / `targets`，`Skill.Use` 带 `user` / `skill` / `targets`。`card` SHALL 是**该连接自己那份卡牌视图里的号**（与 `Card.Create` 同一套号）；`skill` SHALL 是技能的唯一号（所有连接一致，与 `Skill.Update` 同一套号）；`targets` SHALL 是座位号列表。两者都在**目标最终定下之后**才发（加目标 / 取消目标都处理完了）。
 
 **看不见的东西不下发**：背面牌只给号不给面；没声明可见性的属性 / `custom` 字段谁也不发（连本人也不发）。
 
@@ -200,6 +202,13 @@
 
 - **WHEN** 一个回合结束、紧接着下一个回合开始
 - **THEN** 客户端收到 `Turn.End` 与 `Turn.Begin` 两条，而不是合成一条
+
+#### Scenario: 用牌 / 技能的目标即时广播
+
+- **WHEN** 任一玩家用出一张牌或发动一个技能，并定下了目标
+- **THEN** 每个入座连接 SHALL 各收到一条 `Card.Use` / `Skill.Use`
+- **AND** `Card.Use.card` SHALL 是收件人自己那份视图里的牌号（不同连接可以不同），`Skill.Use.skill` SHALL 是全局唯一的技能号（所有连接相同）
+- **AND** 两者 SHALL 带 `user`（使用者 / 发动者的座位号）与 `targets`（目标的座位号列表；没有目标就是空表）
 
 #### Scenario: 暗牌只有号
 

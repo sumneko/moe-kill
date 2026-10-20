@@ -207,6 +207,24 @@ export namespace Proto {
                  */
                 cards: Proto.Card[];
             }
+
+            /**
+             * 一次对角色使用：谁对谁用了什么（目标已经最终定下）
+             */
+            export interface Use {
+                /**
+                 * 使用者
+                 */
+                user: number;
+                /**
+                 * 这张牌在他那份视图里的号
+                 */
+                card: number;
+                /**
+                 * 目标玩家
+                 */
+                targets: number[];
+            }
         }
 
         export namespace Game {
@@ -367,6 +385,24 @@ export namespace Proto {
                  * 被更新的技能
                  */
                 skill: Proto.Skill;
+            }
+
+            /**
+             * 一次技能发动：谁发动了哪个技能、对谁
+             */
+            export interface Use {
+                /**
+                 * 发动者
+                 */
+                user: number;
+                /**
+                 * 技能唯一ID
+                 */
+                skill: number;
+                /**
+                 * 目标玩家（没有目标就是空表）
+                 */
+                targets: number[];
             }
         }
 

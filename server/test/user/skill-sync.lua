@@ -153,3 +153,29 @@ lt.test('技能上行：没入座的连接 ⇒ 回具体错误', function ()
     lt.assertEquals('错在哪说清楚', '这条连接还没入座', err.message)
     lt.assertEquals('技能没被动过', false, skill.auto)
 end)
+---@async
+lt.test('技能下行：发动技能广播 Skill.Use（谁、哪个技能、对谁）', function ()
+    local game, players, fronts = support.newPackageGame()
+    local me    = assert(players[1])
+    local you   = assert(players[2])
+    local front = assert(fronts[1])
+
+    local skill = me:addSkill('苦肉')
+    moe.await.sleep(0)
+
+    ---@type Proto.Notify.Skill.Use[]
+    local got = {}
+    local _ <close> = moe.client.register('Skill.Use', function (client, params)
+        if client == front then
+            got[#got + 1] = params
+        end
+    end)
+
+    skill:use { cards = {}, targets = { you } }
+
+    lt.assertEquals('收到一条', 1, #got)
+    local payload = assert(got[1])
+    lt.assertEquals('发动者', me.id, payload.user)
+    lt.assertEquals('技能号就是技能自己的', skill.id, payload.skill)
+    lt.assertEquals('带上了目标', you.id, assert(payload.targets)[1])
+end)

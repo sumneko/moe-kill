@@ -181,6 +181,7 @@ function M:settle()
     end)
     self.targetsPending = nil
 
+    self.game:fire('卡牌-使用', self)
     self.card:fireHandlers('使用', self)
     if not self.card.def.skipsEffect then
         for target in self.game.desk:actionOrder(self.targets) do

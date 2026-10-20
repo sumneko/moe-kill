@@ -125,6 +125,26 @@ function S:watchEvent()
         self:markDirty(card)
     end)
 
+    -- 「谁对谁用了什么」：所有入座的人都发，牌号用各人自己那份视图里的号
+    self.game:on('卡牌-使用', function (useCard)
+        ---@type integer[]
+        local targets = {}
+        for _, target in ipairs(useCard.targets) do
+            targets[#targets + 1] = target.id
+        end
+        self:eachUser(function (user)
+            local cardId = user.cardView?:idOf(useCard.card)
+            if not cardId then
+                return
+            end
+            user:notify('Card.Use', {
+                user    = useCard.user.id,
+                card    = cardId,
+                targets = targets,
+            })
+        end)
+    end)
+
     self.game:on('区域-变化', function (zone, kind)
         if kind ~= 'visible' then
             return
@@ -190,6 +210,13 @@ end
 function V:isCardVisible(card)
     local pcard = self.cardMap[card]
     return pcard?.face?.name ~= nil
+end
+
+--- 一张牌在这份视图里的号（认不到就是空）
+---@param card Card
+---@return integer?
+function V:idOf(card)
+    return self.cardMap[card]?.id
 end
 
 --- 协议里的区域：拼成一个字符串「名字#玩家号」（玩家号 0 = 无主）
