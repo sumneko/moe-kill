@@ -210,10 +210,11 @@ end
 
 --- 问一次要不要发动（装备没有「自动同意」的开关，每次都问）
 ---@async
+---@param desc? string # 这次询问自己的说明（省略 = 用这个定义上的 `hint`）
 ---@return boolean
-function M:confirm()
+function M:confirm(desc)
     local owner = assert(self:getZone()?.owner)
-    return self.game:askChoice(owner, self.name, { '发动' }).choice ~= nil
+    return self.game:askChoice(owner, self.name, { '发动' }, desc or self.def.hintText).choice ~= nil
 end
 
 --- 启用被动：松开一层压制（松开到 0 时应用）

@@ -11,8 +11,10 @@ Card '乐不思蜀'
         end,
     }
     : on('生效', function (cardEffect)
-        local judge = game:judge(cardEffect.target, cardEffect.card.name)
-        if judge.card?.suit ~= '红桃' then
+        local judge = game:judge(cardEffect.target, cardEffect.card.name, function (judge)
+            return judge.card?.suit ~= '红桃'
+        end)
+        if judge.passed then
             cardEffect.target.turn:skipPhase('出牌')
         end
     end)

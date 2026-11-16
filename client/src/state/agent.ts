@@ -145,6 +145,17 @@ export class Agent {
         await this.requireRpc().request('Game.SetAnimScale', { scale });
     }
 
+    /** 调试：这一局能造的牌名（只有调试模式才有） */
+    async listDebugCards(): Promise<string[]> {
+        const result = await this.requireRpc().request('Debug.Cards', {}) as Proto.Result.Debug.Cards;
+        return result.cards ?? [];
+    }
+
+    /** 调试：给自己发一张牌（凭空造一张塞进手牌） */
+    async giveCard(name: string): Promise<void> {
+        await this.requireRpc().request('Debug.GiveCard', { name });
+    }
+
     /** 把面板上的一张牌挪到某行某位：本地先挪（乐观），同一张牌的连续挪动防抖成最后一次 */
     async movePanelCard(panelId: number, card: number, row: number, col: number): Promise<void> {
         const panel = this.panels.get(panelId);
@@ -528,6 +539,17 @@ export class Agent {
         rpc.onNotify('Skill.Use', (params: Proto.Notify.Skill.Use) => {
             this.log(`发动技能：${params.user} → ${params.targets.join(',')}`);
             this.events.push({ kind: 'use', user: params.user, skill: params.skill, targets: params.targets });
+            this.changed();
+        });
+        rpc.onNotify('Judge.Result', (params: Proto.Notify.Judge.Result) => {
+            this.log(`判定：${params.reason ?? '无缘由'} ${params.passed ? '成功' : '失败'}`);
+            this.events.push({
+                kind: 'judge',
+                player: params.player,
+                face: params.face ?? {},
+                passed: params.passed,
+                reason: params.reason,
+            });
             this.changed();
         });
         rpc.onNotify('Skill.Update', (params: Proto.Notify.Skill.Update) => {

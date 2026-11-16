@@ -324,6 +324,7 @@ function CardDef:extends(name)
     if not base then
         error('找不到要继承的定义「{}」' % { name }, 2)
     end
+    self.extendsName = name
     for event, list in pairs(base.handlers) do
         local own = self.handlers[event]
         ---@type function[]
@@ -1249,13 +1250,15 @@ end
 ---@param to Player # 被问者
 ---@param reason? string # 给用户看的提示文本（可带格式：`模板@参数表`，见 `jsonrpc-protocol` 规格；原样带到应答方）
 ---@param options string[] # 有哪些可选项（内容由发起方定，应答方自己解释）
+---@param desc? string # 这次询问自己的说明（如「判定为红色则视为打出【闪】」）
 ---@return AskChoice # 这次询问（已经结完：结果读 `.result`，失败读 `.err`）
-function M:askChoice(to, reason, options)
+function M:askChoice(to, reason, options, desc)
     local ask = moe.askChoice.create {
         game    = self,
         to      = to,
         reason  = reason,
         options = options,
+        desc    = desc,
     }
     ask:apply():await()
     return ask

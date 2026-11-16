@@ -26,7 +26,10 @@ Skill '洛神'
         for _ = 1, 1000 do
             -- 每问一次就是一次发动：这次发动做的事 = 判定（判黑才算成功）
             local cast = skill:tryCast(function ()
-                return game:judge(skill.owner, '洛神').card?.color == '黑'
+                local judge = game:judge(skill.owner, '洛神', function (judge)
+                    return judge.card?.color == '黑'
+                end)
+                return judge.passed == true
             end)
             if not cast or not cast.result then
                 break

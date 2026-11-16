@@ -19,18 +19,21 @@ export interface Selection {
 
 export const EMPTY: Selection = { cards: [], players: [], heroes: [], skill: null, option: null, viewAs: null };
 
+/** 两次点同一处算双击的间隔（毫秒）：双击 = 选上它并且立刻提交 */
+export const DOUBLE_MS = 320;
+
 /**
  * 一条询问的初始勾选：「要一张牌」的询问（打出一张 X 这类）先替他选上第一张 ——
- * 大多数时候手里就那一张，省一次点击；选中会亮，改选或取消都还在。
+ * 但只在候选全在自己的手牌里时（手里就那一张才省点击；【过河拆桥】要弃别人的牌、装备区的牌都不预选）。
  */
-export function initialSelection(ask: Ask): Selection {
+export function initialSelection(ask: Ask, own: Set<number> = new Set()): Selection {
     const params = ask.params as any;
     if (ask.method !== 'Ask.Select' || !params?.card || params.card.max !== 1) {
         return EMPTY;
     }
     const ids = (params.card.ids ?? []) as number[];
     const first = ids[0];
-    if (first === undefined) {
+    if (first === undefined || ids.some((id) => !own.has(id))) {
         return EMPTY;
     }
     return { ...EMPTY, cards: [first] };
@@ -180,6 +183,34 @@ export function autoPick(plan: { ids: number[]; min: number; max: number } | und
     return [];
 }
 
+/** 把这张牌当成这次出牌的选项（选项牌没有「勾选」这一步，`cards` 是技能的素材） */
+export function pickOption(ask: Ask, selection: Selection, id: number): Selection {
+    const options = ((ask.params as any).card ?? []) as Proto.CardWithPlan[];
+    return {
+        ...selection,
+        option: id,
+        skill: null,
+        viewAs: null,
+        cards: [],
+        players: autoPick(options.find((one) => one.id === id)),
+    };
+}
+
+/** 双击时用：让这张牌成为「已选中」的那个（与上次选没选过它无关）；不支持的询问给空 */
+export function pickOne(ask: Ask, selection: Selection, id: number): Selection | null {
+    if (ask.method === 'Ask.Use') {
+        if (selection.skill !== null || selection.viewAs !== null) {
+            return null;
+        }
+        return pickOption(ask, selection, id);
+    }
+    if (ask.method === 'Ask.Select') {
+        const params = ask.params as any;
+        return { ...selection, cards: [id], players: autoPick(params.player) };
+    }
+    return null;
+}
+
 /** 点一张牌（选项牌 / 素材牌 / 选牌）之后的新选择 */
 export function pickCard(ask: Ask, selection: Selection, id: number): Selection {
     const params = ask.params as any;
@@ -197,8 +228,10 @@ export function pickCard(ask: Ask, selection: Selection, id: number): Selection 
         if (selection.skill !== null) {
             return { ...selection, cards: toggle(selection.cards, id) };
         }
-        const options = (params.card ?? []) as Proto.CardWithPlan[];
-        return { ...selection, option: id, skill: null, players: autoPick(options.find((one) => one.id === id)) };
+        if (selection.option === id) {
+            return { ...selection, option: null, players: [] };
+        }
+        return pickOption(ask, selection, id);
     }
     if (ask.method === 'Ask.Select') {
         const auto = autoPick(params.player);

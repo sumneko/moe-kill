@@ -30,13 +30,18 @@ export function EquipList(props: {
         }
         const face = cardFaceOf(props.agent, id);
         const pick = props.cand?.includes(id) ?? false;
+        const title = face?.name
+            ? [props.agent.text(face.name), `${face.name} ${SUITS[face.suit ?? ''] ?? ''}${face.point ?? ''}`.trim()]
+                .filter(Boolean)
+                .join('\n')
+            : undefined;
         const cls = [
             'equip',
             pick ? 'pick' : '',
             props.picked?.includes(id) ? 'picked' : '',
             props.cand && !pick ? 'off' : '',
         ].filter((one) => one.length > 0).join(' ');
-        return html`<div class=${cls} key=${name} data-fly=${fly} data-red=${isRed(face?.suit) ? '' : undefined}
+        return html`<div class=${cls} key=${name} data-fly=${fly} title=${title} data-red=${isRed(face?.suit) ? '' : undefined}
             onClick=${pick && props.onPick ? () => props.onPick?.(id) : undefined}>
             <span class="slot">${EQUIP_ICON[name] ?? ''}</span>
             <span class="name">${face?.name ?? ''}</span>

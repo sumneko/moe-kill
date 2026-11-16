@@ -55,8 +55,8 @@ Card '闪电'
         end,
     }
     : on('生效', function (cardEffect)
-        local judge = game:judge(cardEffect.target, cardEffect.card.name)
-        if isHit(judge) then
+        local judge = game:judge(cardEffect.target, cardEffect.card.name, isHit)
+        if judge.passed then
             game:damage(nil, cardEffect.target, 3, cardEffect.card)
         else
             passToNext(cardEffect)

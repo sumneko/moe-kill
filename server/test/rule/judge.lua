@@ -16,6 +16,33 @@ lt.test('判定：判定牌来自抽牌堆顶，结完进弃牌堆', function ()
     lt.assertEquals('不是失败', nil, judge.err)
 end)
 
+lt.test('判定：给了判定回调就判成败并发「判定-结果」，没给就不发', function ()
+    local run = support.start { count = 2, packages = { '标准' } }
+
+    ---@type boolean[]
+    local fired = {}
+    run.game:on('判定-结果', function (judge)
+        fired[#fired + 1] = judge.passed == true
+    end)
+
+    local plain = run.game:judge(run.players[1], '测试')
+    lt.assertEquals('没给回调就不发', 0, #fired)
+    lt.assertEquals('没给回调时成败是空的', nil, plain.passed)
+
+    local decided = run.game:judge(run.players[1], '测试', function ()
+        return true
+    end)
+    lt.assertEquals('发了「判定-结果」', 1, #fired)
+    lt.assertEquals('成败存下了', true, decided.passed)
+    lt.assertEquals('回调的返回值就是成败', true, fired[1])
+
+    local failed = run.game:judge(run.players[1], '测试', function ()
+        return false
+    end)
+    lt.assertEquals('判败也发', 2, #fired)
+    lt.assertEquals('判败如实记下', false, failed.passed)
+end)
+
 lt.test('判定：抽牌堆空了会把弃牌洗回来', function ()
     local run     = support.start { count = 2, packages = { '标准' } }
     local deck    = assert(run.game:getZone('抽牌'), '没有抽牌')

@@ -47,6 +47,26 @@ lt.test('询问：一次往返（选项摆在询问上，读 `.choice`）', func
     lt.assertEquals('答复成为结果', '乙', ask.choice)
 end)
 
+lt.test('询问：带上这次询问自己的说明（没给就是空）', function ()
+    local game, players = newGame(2)
+
+    game:on('决策-询问', function ()
+        return '发动'
+    end)
+
+    local ask = game:askChoice(players[1], '八卦阵', { '发动' }, '判定为红色则视为打出【闪】')
+    lt.assertEquals('说明原样挂在询问上', '判定为红色则视为打出【闪】', ask.desc)
+    lt.assertEquals('答复照旧', '发动', ask.choice)
+
+    local plain = moe.askChoice.create {
+        game    = game,
+        to      = players[1],
+        reason  = '八卦阵',
+        options = { '发动' },
+    }
+    lt.assertEquals('没给说明时为空', nil, plain.desc)
+end)
+
 lt.test('询问：第一个表态的胜出，后面的订阅者不再调', function ()
     local game, players = newGame(2)
     local ask = moe.askChoice.create {

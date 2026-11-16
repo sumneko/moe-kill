@@ -331,6 +331,7 @@ end
 function M:askChoice(ask)
     return self:choice(ask, {
         reason     = ask.reason,
+        desc       = ask.desc,
         options    = ask.options,
         cancelable = true,
         timeLimit  = DEFAULT_TIME_LIMIT,

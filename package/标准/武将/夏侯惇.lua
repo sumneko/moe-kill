@@ -15,8 +15,10 @@ Skill '刚烈'
             return
         end
         skill:tryCast(function ()
-            local judge = game:judge(skill.owner, '刚烈')
-            if judge.card?.suit == '红桃' then
+            local judge = game:judge(skill.owner, '刚烈', function (judge)
+                return judge.card?.suit ~= '红桃'
+            end)
+            if not judge.passed then
                 return
             end
             -- 要两张手牌：给不满（张数不对）或干脆取消，都由他挨那 1 点伤害

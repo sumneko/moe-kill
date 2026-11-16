@@ -130,7 +130,7 @@ function M:tryProduce(ask, chosen, materials)
     if not source then
         return self:launch(ask, materials)
     end
-    if not chosen and self.options?.confirm and not source:confirm() then
+    if not chosen and self.options?.confirm and not source:confirm(self.options?.hint) then
         return nil
     end
     ---@type Card?

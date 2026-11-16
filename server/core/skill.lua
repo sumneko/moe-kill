@@ -288,12 +288,13 @@ end
 
 --- 问一次要不要发动：自动同意开着就直接放行，否则问「发动」这一句
 ---@async
+---@param desc? string # 这次询问自己的说明（省略 = 用技能定义上的 `hint`）
 ---@return boolean # 要不要发动
-function S:confirm()
+function S:confirm(desc)
     if self.auto then
         return true
     end
-    return self.game:askChoice(self.owner, self.name, { '发动' }).choice == '发动'
+    return self.game:askChoice(self.owner, self.name, { '发动' }, desc or self.def.hintText).choice == '发动'
 end
 
 --- 问一句再发动：同意才起这次发动（`confirm()` + `cast()` 的合并写法 —— 免得两者嵌套顺序写反）

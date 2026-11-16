@@ -1,28 +1,33 @@
 import { html } from 'htm/preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Proto } from '../proto';
 import type { Agent, Ask } from '../state/agent';
 import { Card } from './Card';
-import { answerOf, autoPick, canSubmit, pickCard, pickSkill, planText, toggle, type Selection } from './pick';
+import { DOUBLE_MS, answerOf, autoPick, canSubmit, pickCard, pickSkill, planText, toggle, type Selection } from './pick';
 import { cardLabel, colorOf, formatText, heroName, seatCards, type TextPiece } from './format';
 
 /** 一条询问要摆些什么、交上去什么 */
 export interface AskHandlers {
     /** 勾选变了 */
     onSelection(next: Selection): void;
+    /** 点一张候选牌（面板里那些不在自己桌上的 —— 双击提交也在这里判） */
+    onPickCard(id: number): void;
     /** 交一包上去（App 负责记表现并回包） */
     onAnswer(result: unknown): void;
 }
 
 /** 询问条：按询问类型给控件 */
 export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } & AskHandlers) {
-    const { agent, ask, selection, onSelection, onAnswer } = props;
+    const { agent, ask, selection, onSelection, onPickCard, onAnswer } = props;
     const params = ask.params as any;
     const [left, setLeft] = useState(0);
     const [dragCard, setDragCard] = useState<number | null>(null);
+    /** 上一次点的那个武将（判双击：双击 = 选中并直接定下） */
+    const lastHero = useRef<{ name: string; at: number }>({ name: '', at: 0 });
 
     // 限时倒计时（从收到询问那一刻算）：只拿来画进度条
     useEffect(() => {
+        lastHero.current = { name: '', at: 0 };
         const limit = (ask.params as any).timeLimit as number | undefined;
         if (!limit) {
             setLeft(0);
@@ -37,8 +42,27 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     const cancelable = params.cancelable !== false;
     const timeLimit = (params.timeLimit as number | undefined) ?? 0;
     const picked = selection.cards.length + selection.players.length + selection.heroes.length;
+    const desc = choiceDesc(ask, params);
     const pickCards = (id: number) => onSelection(pickCard(ask, selection, id));
     const pickPlayers = (id: number) => onSelection({ ...selection, players: toggle(selection.players, id) });
+    const pickHero = (name: string) => {
+        const now = Date.now();
+        const doubled = lastHero.current.name === name && now - lastHero.current.at < DOUBLE_MS;
+        lastHero.current = { name, at: now };
+        const only = { ...selection, heroes: [name] };
+        // 双击 = 选上它并且直接确定（要选多名的那种就照常逐个点）
+        if (doubled && canSubmit(ask, only)) {
+            onSelection(only);
+            onAnswer(answerOf(ask, only));
+            return;
+        }
+        onSelection({
+            ...selection,
+            heroes: selection.heroes.includes(name)
+                ? selection.heroes.filter((one) => one !== name)
+                : [...selection.heroes, name],
+        });
+    };
     const own = mineCardIds(agent);
     /** 一排可点的按钮；`asCard` 的那些要略掉自己手上 / 装备着的牌，一个都不剩就整排不摆 */
     const chips = (ids: number[], pickedList: number[], onPick: (id: number) => void, asCard = false) => {
@@ -78,7 +102,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                         id=${id}
                         pick=${true}
                         picked=${selection.cards.includes(id)}
-                        onClick=${() => onSelection({ ...selection, cards: toggle(selection.cards, id) })}
+                        onClick=${() => onPickCard(id)}
                     />`)}</div>
                 </div>` : null;
                 const playerChips = params.player ? chips(params.player.ids, selection.players, pickPlayers) : null;
@@ -121,12 +145,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                     <div class="chips">${heroes.map((name) => html`<button
                         key=${name}
                         class=${selection.heroes.includes(name) ? 'on' : ''}
-                        onClick=${() => onSelection({
-                            ...selection,
-                            heroes: selection.heroes.includes(name)
-                                ? selection.heroes.filter((one) => one !== name)
-                                : [...selection.heroes, name],
-                        })}
+                        onClick=${() => pickHero(name)}
                     >${name}</button>`)}</div>
                 </div>`;
             }
@@ -205,6 +224,7 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
                 <span class="hint">勾了 ${picked} 个${selection.option !== null ? ' + 一张牌' : ''}</span>
                 ${targetHint(ask, selection) ? html`<span class="hint">${targetHint(ask, selection)}</span>` : null}
             </div>
+            ${desc ? html`<p class="sub">${desc}</p>` : null}
             ${selectionHint(ask, selection) ? html`<p class="sub">${selectionHint(ask, selection)}</p>` : null}
             <div class="bar">
                 <${ActionButtons} agent=${agent} ask=${ask} selection=${selection} onSelection=${onSelection} />
@@ -222,9 +242,12 @@ export function AskBar(props: { agent: Agent; ask: Ask; selection: Selection } &
     </div>`;
 }
 
-/** 这次能发动的动作（技能组 + 视为组）：就摆在确定左边，点一下 = 选中它，再点取消 */
+/** 这次能发动的动作（技能组 + 视为组）：就摆在确定左边，点一下 = 选中它；选中一个之后这排收起（再留一个「点了只是取消」的按钮与「取消」重复） */
 function ActionButtons(props: { agent: Agent; ask: Ask; selection: Selection; onSelection(next: Selection): void }) {
-    if (props.ask.method !== 'Ask.Use') {
+    if (props.ask.method !== 'Ask.Use' || props.selection.option !== null) {
+        return null;
+    }
+    if (props.selection.skill !== null || props.selection.viewAs !== null) {
         return null;
     }
     const params = props.ask.params as any;
@@ -236,23 +259,19 @@ function ActionButtons(props: { agent: Agent; ask: Ask; selection: Selection; on
     return html`<div id="meActions">
         ${skills.map((one) => html`<button
             key=${`skill:${one.id}`}
-            class=${props.selection.skill === one.id ? 'on' : ''}
             title=${props.agent.text(props.agent.skills.get(one.id)?.name ?? '')}
             onClick=${() => props.onSelection(pickSkill(props.ask, props.selection, one.id))}
         >${props.agent.skills.get(one.id)?.name ?? `技能 ${one.id}`}</button>`)}
         ${views.map((one, index) => html`<button
             key=${`view:${index}`}
-            class=${props.selection.viewAs === index ? 'on' : ''}
-            onClick=${() => props.onSelection(props.selection.viewAs === index
-                ? { ...props.selection, viewAs: null, cards: [], players: [] }
-                : {
-                    ...props.selection,
-                    viewAs: index,
-                    option: null,
-                    skill: null,
-                    cards: [],
-                    players: autoPick(one.target),
-                })}
+            onClick=${() => props.onSelection({
+                ...props.selection,
+                viewAs: index,
+                option: null,
+                skill: null,
+                cards: [],
+                players: autoPick(one.target),
+            })}
         >${viewLabel(props.agent, one)}</button>`)}
     </div>`;
 }
@@ -275,6 +294,14 @@ function selectionHint(ask: Ask, selection: Selection): string | null {
         return option?.hint ?? null;
     }
     return null;
+}
+
+/** 「是否发动」这类询问：这次询问自带的说明（后端给的 `desc`），没有就不显示 */
+function choiceDesc(ask: Ask, params: any): string | null {
+    if (ask.method !== 'Ask.Choice') {
+        return null;
+    }
+    return (params.desc as string | undefined) ?? null;
 }
 
 /** 还要在桌上点目标时提示一句（目标是在座位上点，不在询问条里摆） */

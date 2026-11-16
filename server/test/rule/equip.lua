@@ -1622,10 +1622,13 @@ lt.test('八卦阵：判红 ⇒ 视为打出【闪】（虚拟牌），【杀】
 
     ---@type string[]
     local trace = {}
+    ---@type string?
+    local desc = nil
     run.game:on('决策-询问', function (ask)
         if ask.reason == '八卦阵' then
             trace[#trace + 1] = '是否发动'
             ---@cast ask AskChoice
+            desc = ask.desc
             return '发动'
         end
     end)
@@ -1646,6 +1649,7 @@ lt.test('八卦阵：判红 ⇒ 视为打出【闪】（虚拟牌），【杀】
     run.game:useCard(user, card, { target })
 
     lt.assertEquals('先问是否发动', '是否发动', table.concat(trace, ','))
+    lt.assertEquals('询问带着这次发动的说明（那份视为的 hint）', '判定为红色则视为打出【闪】', desc)
     lt.assertEquals('做了一次八卦阵判定', '八卦阵', table.concat(judges, ','))
     lt.assertEquals('答复是一张虚拟牌', true, assert(answered).virtual)
     lt.assertEquals('没打出实体牌（手牌是空的）', 0, assert(target:getZone('手牌')):count())

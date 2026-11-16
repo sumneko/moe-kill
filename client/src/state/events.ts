@@ -15,4 +15,6 @@ export type GameEvent =
     /** 记录区要留一条影子：进过公共临时区 / 弃牌堆的牌（打出的、用掉的、弃掉的、判定的…）；`immediate` = 直接进弃牌堆、不用等飞行动画 */
     | { kind: 'recorded'; face: Proto.CardFace; immediate?: boolean }
     /** 有人用牌 / 发动技能指向了目标（全场都收；`card` / `skill` 是各自的协议号） */
-    | { kind: 'use'; user: number; targets: number[]; card?: number; skill?: number };
+    | { kind: 'use'; user: number; targets: number[]; card?: number; skill?: number }
+    /** 一次判定出了结果：牌面 + 成没成（中央亮一张，勾 / 叉） */
+    | { kind: 'judge'; player: number; face: Proto.CardFace; passed: boolean; reason?: string };

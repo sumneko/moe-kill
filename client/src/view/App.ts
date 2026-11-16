@@ -13,7 +13,7 @@ import { Seat } from './Seat';
 import { SettingsCard } from './Settings';
 import { MySkills } from './Skills';
 import { Stage } from './Stage';
-import { EMPTY, candidates, initialSelection, pickCard, toggle, type Selection } from './pick';
+import { DOUBLE_MS, EMPTY, answerOf, canSubmit, candidates, initialSelection, pickCard, pickOne, toggle, type Selection } from './pick';
 import { FLY_MS, measureCards, playMoves } from './anim';
 import { attr, heroName, seatCards, zoneCards } from './format';
 import { seatSlots } from './seats';
@@ -39,6 +39,10 @@ const ARROW_HEAD = 64;
 const ARROW_TAIL = 58;
 /** 一次使用 / 技能发动的箭头停留多久（毫秒） */
 const USE_ARROW_MS = 2500;
+/** 判定牌亮出来之后隔多久才打勾 / 叉（毫秒）—— 先让人看清判定牌，再看结果 */
+const JUDGE_MARK_DELAY_MS = 1000;
+/** 打完勾 / 叉之后还停多久（毫秒） */
+const JUDGE_SHOW_MS = 1800;
 
 /** 一支箭头（键用来区分选择期的箭头与各次使用期的箭头） */
 interface Arrow {
@@ -155,6 +159,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const [arrows, setArrows] = useState<Arrow[]>([]);
     /** 全场的使用牌 / 技能发动（画完到点自己消失） */
     const [uses, setUses] = useState<{ key: number; user: number; targets: number[] }[]>([]);
+    /** 刚出结果的判定：中央亮一张判定牌，过一秒再打勾 / 叉，到点自己消失 */
+    const [judgeShow, setJudgeShow] = useState<{ key: number; face: Proto.CardFace; passed: boolean; marked: boolean; reason?: string } | null>(null);
     const [drawer, setDrawer] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [raw, setRaw] = useState('');
@@ -162,10 +168,18 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const [layoutSeats, setLayoutSeats] = useState<number | null>(null);
     const nextKey = useRef(1);
     const ask = agent.asks[0] ?? null;
+    /** 我自己的手牌：预选只对它们有意义（装备区的牌、别人的牌都不算） */
+    const own = (() => {
+        const seat = agent.me === null ? null : seatCards(agent, agent.me);
+        return new Set(seat ? seat.hand : []);
+    })();
+    /** 上一次点的那张牌（判双击：双击一张「选了就能提交」的牌 = 直接用它） */
+    const lastPick = useRef<{ id: number | null; at: number }>({ id: null, at: 0 });
 
-    // 换一条询问就把勾的清掉（「要一张牌」的那种先替他选上第一张）
+    // 换一条询问就把勾的清掉（自己桌上只剩一张可选的那种先替他选上）
     useEffect(() => {
-        setSelection(ask ? initialSelection(ask) : EMPTY);
+        setSelection(ask ? initialSelection(ask, own) : EMPTY);
+        lastPick.current = { id: null, at: 0 };
     }, [ask?.id]);
 
     // 表现事件：跳字 + 卡牌移动（自己出的那张走「中央展示」那条路）
@@ -202,6 +216,18 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 window.setTimeout(() => {
                     setUses((list) => list.filter((one) => one.key !== key));
                 }, USE_ARROW_MS);
+                continue;
+            }
+            if (event.kind === 'judge') {
+                const key = nextKey.current++;
+                setJudgeShow({ key, face: event.face, passed: event.passed, marked: false, reason: event.reason });
+                // 先亮牌，隔一秒再打勾 / 叉（看清牌面之后才看结果）
+                window.setTimeout(() => {
+                    setJudgeShow((now) => (now?.key === key ? { ...now, marked: true } : now));
+                }, JUDGE_MARK_DELAY_MS);
+                window.setTimeout(() => {
+                    setJudgeShow((now) => (now?.key === key ? null : now));
+                }, JUDGE_MARK_DELAY_MS + JUDGE_SHOW_MS);
                 continue;
             }
             if (event.kind !== 'move') {
@@ -258,6 +284,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     /** 我自己的阶段（不在我的回合里就是空） */
     const myPhase = agent.me !== null && agent.turnPlayer === agent.me ? agent.phase : null;
     const cand = candidates(ask ?? undefined, selection);
+    /** 要画成「选上了」的牌：出牌阶段选中的那张在 `option` 里（技能的素材另算），一起算上 */
+    const pickedCards = selection.option === null ? selection.cards : [...selection.cards, selection.option];
 
     // 选中的目标：从自己拉一条临时箭头过去（纯本地状态，提交 / 取消就没了）；
     // 另外全场任何人用牌 / 发动技能也画一段，到 `USE_ARROW_MS` 自动消失
@@ -301,21 +329,36 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
         setArrows(list);
     }, [picked, uses, agent.me, agent.players.size, layoutSeats]);
 
-    const onPickCard = (id: number) => {
-        if (ask) {
-            setSelection(pickCard(ask, selection, id));
-        }
-    };
-    const pickPlayer = (id: number) => {
-        setSelection({ ...selection, players: toggle(selection.players, id) });
-    };
-
     /** 交一包上去（出牌那张由服务器回推的 `Card.Move` 上处理区） */
     const answer = (result: unknown) => {
         if (!ask) {
             return;
         }
         ask.answer(result);
+    };
+
+    const onPickCard = (id: number) => {
+        if (!ask) {
+            return;
+        }
+        const now = Date.now();
+        const doubled = lastPick.current.id === id && now - lastPick.current.at < DOUBLE_MS;
+        lastPick.current = { id, at: now };
+        // 双击 = 选上它并且立刻提交（不用自己再挑目标的、数量刚好凑够的那种派得上）
+        if (doubled) {
+            const only = pickOne(ask, selection, id);
+            if (only) {
+                setSelection(only);
+                if (canSubmit(ask, only)) {
+                    answer(answerOf(ask, only));
+                }
+                return;
+            }
+        }
+        setSelection(pickCard(ask, selection, id));
+    };
+    const pickPlayer = (id: number) => {
+        setSelection({ ...selection, players: toggle(selection.players, id) });
     };
 
     /** 把调试抽屉里手写的那一包原样交上去（写坏了就当空包） */
@@ -406,6 +449,13 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 </div>
             </div>
 
+            ${judgeShow ? html`<div id="judgeShow" key=${judgeShow.key}>
+                <${Card} agent=${agent} id=${-1} face=${judgeShow.face} />
+                ${judgeShow.marked
+                    ? html`<span class=${`mark ${judgeShow.passed ? 'ok' : 'no'}`}>${judgeShow.passed ? '✓' : '✗'}</span>`
+                    : null}
+            </div>` : null}
+
             ${slots.map((slot, index) => {
                 const player = others[index];
                 if (!player) {
@@ -453,7 +503,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                         agent=${agent}
                         owner=${me.base.id}
                         equip=${mine.equip}
-                        picked=${selection.cards}
+                        picked=${pickedCards}
                         cand=${ask ? cand.cards : null}
                         onPick=${onPickCard}
                     /></div>
@@ -462,7 +512,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                     <${Hand}
                         agent=${agent}
                         ids=${handIds}
-                        picked=${selection.cards}
+                        picked=${pickedCards}
                         cand=${ask ? cand.cards : null}
                         onPick=${onPickCard}
                     />
@@ -484,6 +534,7 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 ask=${ask}
                 selection=${selection}
                 onSelection=${setSelection}
+                onPickCard=${onPickCard}
                 onAnswer=${answer}
             />` : null}
 

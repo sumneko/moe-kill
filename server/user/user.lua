@@ -17,6 +17,7 @@ end
 --- 客户端接入了：把这一局的下行账都带起来（外壳在接入时调；重复调无害）
 function M:attach()
     moe.cardSync.attach(self)
+    moe.judgeSync.attach(self)
     moe.playerSync.attach(self)
     moe.skillSync.attach(self)
     moe.panelSync.attach(self)

@@ -107,6 +107,8 @@
 
 **每个可选项 SHALL 能带一句「选中它之后要做什么」**（`hint`，可缺）：它挂在**选项**上（`Proto.CardWithPlan` / `Proto.ViewAs` / `Proto.SkillPlan` 各一个 `hint`），文案由内容侧在定义 / 那份「视为」上声明 —— **不是**定义级的全局字段（同一个定义在不同场合要不同的话，另一个场合的提示由**那次询问自己的 `reason`** 承担）。客户端选中某个选项后 SHALL 把它显出来；没写 `hint` 就什么都不显。
 
+**「是否发动」这类询问 SHALL 能带一句「这一次发动本身要做什么」**（`Proto.Request.Ask.Choice.desc`，可缺）：与选项级的 `hint` 分工不同 —— `hint` 说的是「选中这个选项之后还要选什么」，`desc` 说的是这次发动的效果（例：【八卦阵】`desc` =「判定为红色则视为打出【闪】」）。文案同样由内容侧声明（技能 / 装备的 `hint`，或那份「视为」的 `hint`），没声明就不下发；客户端 SHALL 把它摆在标题下。**它 MUST NOT 用定义级的官方原文（`desc` 文本表）代替**。
+
 **响应类询问** SHALL 通过 `Proto.ResponseTo` 把「这次响应冲哪次使用去的」一并交代（被响应的牌名 + 那次使用的使用者 + 目标），客户端据此能写出「打出一张 *X* → *Y*（A → B）」；不是响应的询问 MUST NOT 给这个字段。**多目标结算时**（如【南蛮入侵】【桃园结义】逐个目标生效）SHALL 另给 `target`（= 正在生效的那个人）—— 客户端用 `target` 代替整张牌的目标列表，提示里只拼「使用者 → 当前目标」；`targets` 仍是一整份，供需要全貌的客户端使用。
 
 **玩家设置** SHALL 通过 `Settings.Change` 修改，参数 `Proto.Settings` 是「名字 → 值」的自由表（只改带上去的键）。服务端 MUST 只接受已声明的键：出现未知键 SHALL 回 `-32602` 并且**整包不生效**。结果 SHALL 是这名玩家的全量 `Proto.Setting[]`。
@@ -152,6 +154,12 @@
 - **THEN** 它 SHALL 只出现在**这次询问的对应选项**上（`hint`），同一局中不相关的地方不带
 - **AND** 没声明提示的选项 SHALL 不带这个字段（不是空串）
 
+#### Scenario: 「是否发动」的询问带自己的说明
+
+- **WHEN** 服务端问「是否发动【八卦阵】」（那份「视为」声明了 `hint`）
+- **THEN** `Ask.Choice` 的 `params.desc` SHALL 是这份说明（如「判定为红色则视为打出【闪】」），而不是【八卦阵】的官方原文
+- **AND** 没声明说明时 SHALL 不带 `desc` 字段
+
 ### Requirement: 时限与取消
 
 可取消的请求 SHALL 在参数里带 `cancelToken`（**由服务端发号**，见 `Proto.Cancelable`）。
@@ -179,7 +187,7 @@
 
 ### Requirement: 下行通知清单
 
-服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Card.Use`、`Skill.Update`、`Skill.Remove`、`Skill.Use`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Settings.Update`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Game.AnimScale`、`Cancel`。
+服务端 SHALL 用通知下发变化：`Room.Update`、`Player.Update`、`Player.UpdateCustom`、`Player.UpdateAttribute`、`Card.Create`、`Card.Update`、`Card.Remove`、`Card.Move`、`Card.Use`、`Judge.Result`、`Skill.Update`、`Skill.Remove`、`Skill.Use`、`Panel.Create`、`Panel.Update`、`Panel.Remove`、`Settings.Update`、`Turn.Begin`、`Turn.End`、`Phase.Begin`、`Phase.End`、`Game.Over`、`Game.Restarted`、`Game.AnimScale`、`Cancel`。
 
 **玩家基础信息**（`Proto.Player.Base`）SHALL 带 `id` / `userName` / `seat` / `alive`。`alive` 是**存活状态**（阵亡后为 `false`）—— 客户端 MUST 用它判「阵亡」，MUST NOT 拿「体力 ≤ 0」代替：濒死（体力已归零、正在求桃）与阵亡是两回事，前者仍是 `alive = true`。存活状态变了 SHALL 走 `Player.Update`。
 
@@ -190,6 +198,8 @@
 **与视角无关的「时刻」SHALL 即时发**（`Turn.Begin` / `Turn.End` / `Phase.Begin` / `Phase.End` / `Game.Over` / `Game.Restarted`）—— 攒批会把两次切换压成一条，客户端就播不出节奏。
 
 **「谁对谁用了什么」SHALL 即时发给所有入座连接**（含使用者自己）：`Card.Use` 带 `user` / `card` / `targets`，`Skill.Use` 带 `user` / `skill` / `targets`。`card` SHALL 是**该连接自己那份卡牌视图里的号**（与 `Card.Create` 同一套号）；`skill` SHALL 是技能的唯一号（所有连接一致，与 `Skill.Update` 同一套号）；`targets` SHALL 是座位号列表。两者都在**目标最终定下之后**才发（加目标 / 取消目标都处理完了）。
+
+**判定的成败 SHALL 由内容侧判、内核按序列发**：内容侧调 `game:judge(玩家, 缘由, 判定回调)`，回调在判定结完后跑、返回成 / 败；服务端 SHALL 在该次判定**收尾之前**即时给所有入座连接发一条 `Judge.Result`（`player` 判定者、`reason` 缘由、`face` 判定牌牌面、`passed` 成没成），再按动画节拍等一段才把判定牌送去弃牌堆 —— **序列（亮牌 → 勾 / 叉 → 进弃牌堆）由后端控制**，客户端只负责按收到的顺序播。判定牌是公开信息，所以直接带牌面而非号码；**没给判定回调的判定不发**（不是每次判定都有「成败」）。
 
 **看不见的东西不下发**：背面牌只给号不给面；没声明可见性的属性 / `custom` 字段谁也不发（连本人也不发）。
 
@@ -214,6 +224,13 @@
 
 - **WHEN** 一张牌进了某个连接看不见内容的区
 - **THEN** 那个连接收到它的号（能数得出区里有几张），但收不到牌面
+
+#### Scenario: 判定出结果即时广播
+
+- **WHEN** 一次判定结完，内容侧标了成败（如【八卦阵】判红 = 成）
+- **THEN** 每个入座连接 SHALL 各收到一条 `Judge.Result`
+- **AND** 它 SHALL 带 `player` / `reason` / `face`（判定牌牌面）/ `passed`（成 `true`、败 `false`）
+- **AND** 没标过的判定（如只看牌不判成败的场合）MUST NOT 发这条通知
 
 #### Scenario: 重开时人人各拿一份新快照
 

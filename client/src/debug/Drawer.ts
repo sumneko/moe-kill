@@ -1,4 +1,5 @@
 import { html } from 'htm/preact';
+import { useState } from 'preact/hooks';
 import type { Agent } from '../state/agent';
 
 /** 调试抽屉里能选的动画倍率（**时长乘数**：`0` = 没有动画，越大等得越久） */
@@ -18,6 +19,21 @@ export function Drawer(props: {
     layoutSeats: number | null;
     onLayout: (value: number | null) => void;
 }) {
+    /** 发牌面板：用 null 表示「没展开」（展开后是可选牌名） */
+    const [cards, setCards] = useState<string[] | null>(null);
+    const [loading, setLoading] = useState(false);
+    const toggleCards = async () => {
+        if (cards) {
+            setCards(null);
+            return;
+        }
+        setLoading(true);
+        try {
+            setCards(await props.agent.listDebugCards());
+        } finally {
+            setLoading(false);
+        }
+    };
     return html`<div id="drawer">
         <div class="send">
             <input
@@ -45,6 +61,17 @@ export function Drawer(props: {
                 onClick=${() => props.onLayout(seats)}
             >${seats}人</button>`)}
         </div>
+        ${props.agent.debug ? html`<div class="send">
+            <span title="凭空造一张牌，直接进你自己的手牌">发牌</span>
+            <button disabled=${loading} onClick=${() => void toggleCards()}>${cards ? '收起' : '选一张…'}</button>
+        </div>
+        ${cards ? html`<div class="cards">${cards.map((name) => html`<button
+            key=${name}
+            onClick=${() => {
+                void props.agent.giveCard(name);
+                setCards(null);
+            }}
+        >${name}</button>`)}</div>` : null}` : null}
         <h3>事件流（最近 ${props.agent.logs.length} 条）</h3>
         ${[...props.agent.logs].reverse().map((line, index) => html`<div class="line" key=${index}>${line}</div>`)}
     </div>`;

@@ -47,6 +47,8 @@ button:disabled { cursor: default; opacity: .45; }
     border: 1px solid #4b5568; border-radius: 6px; overflow: hidden;
     background: #f4f1e8; color: #1a1d24; flex: 0 0 auto;
     padding: 0; text-align: left; cursor: default;
+    /* 双击选牌时别顺手把牌面文字刷成选中状态 */
+    user-select: none;
 }
 .card .title {
     height: var(--title-h); display: flex; align-items: center; justify-content: flex-start; gap: 2px;
@@ -114,6 +116,25 @@ button:disabled { cursor: default; opacity: .45; }
 }
 #playedTo { font-size: 13px; color: #cfd6e6; min-height: 18px; }
 
+/* 判定结果：中央亮一张判定牌，勾 / 叉盖在牌面上，停一会儿自己消失 */
+#judgeShow { position: absolute; left: 50%; top: 232px; transform: translateX(-50%); z-index: 40;
+    pointer-events: none; animation: judge-in 240ms ease-out; }
+#judgeShow .card { transform: scale(1.3); transform-origin: center; box-shadow: 0 8px 24px #000a; }
+#judgeShow .mark { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: 64px; font-weight: 900; line-height: 1;
+    text-shadow: 0 0 10px #000, 0 2px 8px #000c;
+    animation: judge-mark 180ms ease-out; }
+#judgeShow .mark.ok { color: #3ddc84; }
+#judgeShow .mark.no { color: #ff5a5a; }
+@keyframes judge-mark {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(.55); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes judge-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.92); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
 /* 座位：立绘框只放立绘，其余全部超框 */
 .seat { position: absolute; width: var(--portrait-w); }
 .portrait { position: relative; width: var(--portrait-w); height: var(--portrait-h);
@@ -158,10 +179,11 @@ button:disabled { cursor: default; opacity: .45; }
 
 .seat .equips { margin-top: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .equip { display: grid; grid-template-columns: 18px 1fr 13px 16px; align-items: center; gap: 2px;
-    min-width: var(--portrait-w); height: 14px; padding: 0 5px; border-radius: 3px;
+    width: var(--portrait-w); height: 14px; padding: 0 5px; border-radius: 3px;
     background: #e9e4d6; border: 1px solid #c9c2ae; color: #1a1d24; font-size: 9px; font-weight: 700; white-space: nowrap; }
 .equip .slot { font-size: 10px; font-weight: 400; text-align: center; }
-.equip .name { text-align: left; }
+/* 名字太长（四五个字）就在框里省略，别把整行撑得比其他行宽 */
+.equip .name { text-align: left; overflow: hidden; text-overflow: ellipsis; }
 .equip .suit { text-align: center; }
 .equip .point { text-align: right; }
 /* 空槽：画出格子（牌飞行落点要靠它的尺寸与位置，所以不能省布局） */
@@ -229,7 +251,7 @@ button:disabled { cursor: default; opacity: .45; }
 #meLeft .judge span { font-size: 13px; }
 #meLeft .hand-count { left: -11px; bottom: 8px; min-width: 24px; height: 24px; font-size: 13px; }
 #meEquips { margin-top: 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-#meEquips .equip { min-width: 130px; height: 16px; font-size: 10px; }
+#meEquips .equip { width: 130px; height: 16px; font-size: 10px; }
 #meLeft.pickable .portrait { cursor: pointer; box-shadow: 0 0 0 3px #58c0f099, 0 0 20px #58c0f055; }
 #meLeft.pickable .portrait:hover { box-shadow: 0 0 0 3px #58c0f0, 0 0 26px #58c0f088; }
 #meLeft.target .portrait { box-shadow: 0 0 0 3px #ff6b6b, 0 0 26px #ff6b6b88; }
@@ -319,3 +341,7 @@ button:disabled { cursor: default; opacity: .45; }
 #drawer .send input { flex: 1; min-width: 0; background: #0f1420; color: inherit; border: 1px solid var(--line);
     border-radius: 4px; padding: 2px 6px; font: inherit; }
 #drawer .line { font-size: 12px; color: #b9c2d6; border-bottom: 1px dashed #232c3f; padding: 3px 0; }
+/* 发牌面板：牌名一多就折行，可滚动 */
+#drawer .cards { display: flex; flex-wrap: wrap; gap: 4px; max-height: 260px; overflow: auto;
+    margin: 0 0 10px; padding: 6px; background: #0f1420; border: 1px solid var(--line); border-radius: 4px; }
+#drawer .cards button { font-size: 12px; padding: 2px 7px; }

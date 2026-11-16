@@ -21,11 +21,13 @@ lt.test('询问：选项问客户端，回包的索引换回字符串', function
         to      = me,
         reason  = '八卦阵',
         options = { '发动', '不发动' },
+        desc    = '判定为红色则视为打出【闪】',
     }
     ask:apply():await()
 
     local params = assert(sent, '没问过客户端')
     lt.assertEquals('缘由原样带过去', '八卦阵', params.reason)
+    lt.assertEquals('这次询问自己的说明也带过去', '判定为红色则视为打出【闪】', params.desc)
     lt.assertEquals('选项原样带过去', 2, #params.options)
     lt.assertEquals('总是允许主动取消', true, params.cancelable)
     lt.assertEquals('这次成了', true, ask.success)

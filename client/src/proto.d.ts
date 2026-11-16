@@ -259,6 +259,30 @@ export namespace Proto {
             }
         }
 
+        export namespace Judge {
+            /**
+             * 一次判定出了结果：谁判的、缘由、判定牌、成没成
+             */
+            export interface Result {
+                /**
+                 * 判定者
+                 */
+                player: number;
+                /**
+                 * 判定缘由（发起者给的标签，如「八卦阵」）
+                 */
+                reason?: string;
+                /**
+                 * 翻出来的判定牌（判定牌一定正面朝上）
+                 */
+                face?: Proto.CardFace;
+                /**
+                 * 这次判定达到发起者的目的了吗（true 画勾 / false 画叉）
+                 */
+                passed: boolean;
+            }
+        }
+
         export namespace Panel {
             /**
              * 一块面板出现了（发给所有人；此后它只是展示，不能操作）
@@ -631,6 +655,10 @@ export namespace Proto {
                  */
                 reason: string;
                 /**
+                 * 这次询问自己的说明（如「判定为红色则视为打出【闪】」）
+                 */
+                desc?: string;
+                /**
                  * 可选项列表
                  */
                 options: string[];
@@ -724,6 +752,18 @@ export namespace Proto {
                  * 能发动的技能（同上）
                  */
                 skill?: Proto.SkillPlan[];
+            }
+        }
+
+        export namespace Debug {
+            /**
+             * 调试：给自己发一张牌（凭空造一张，直接进自己的手牌）
+             */
+            export interface GiveCard {
+                /**
+                 * 要造的牌名
+                 */
+                name: string;
             }
         }
 
@@ -887,6 +927,20 @@ export namespace Proto {
                  */
                 cards?: number[];
             }
+        }
+
+        export namespace Debug {
+            /**
+             * 调试：列出这一局能造的牌名（只有调试模式能调）
+             */
+            export interface Cards {
+                /**
+                 * 牌名（定义里有、去重并按名字排序）
+                 */
+                cards: string[];
+            }
+
+            export type GiveCard = Record<string, unknown>;
         }
 
         export namespace Panel {

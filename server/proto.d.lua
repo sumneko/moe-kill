@@ -155,6 +155,13 @@
 ---@field card integer # 这张牌在他那份视图里的号
 ---@field targets integer[] # 目标玩家
 
+--- 一次判定出了结果：谁判的、缘由、判定牌、成没成
+---@class Proto.Notify.Judge.Result
+---@field player integer # 判定者
+---@field reason? string # 判定缘由（发起者给的标签，如「八卦阵」）
+---@field face? Proto.CardFace # 翻出来的判定牌（判定牌一定正面朝上）
+---@field passed boolean # 这次判定达到发起者的目的了吗（true 画勾 / false 画叉）
+
 ---@class Proto.Skill
 ---@field name string # 技能名
 ---@field id integer # 唯一ID
@@ -185,6 +192,16 @@
 
 ---@class Proto.Result.Skill.ChangeAuto
 ---@field auto? boolean # 新的自动状态
+
+--- 调试：列出这一局能造的牌名（只有调试模式能调）
+---@class Proto.Result.Debug.Cards
+---@field cards string[] # 牌名（定义里有、去重并按名字排序）
+
+--- 调试：给自己发一张牌（凭空造一张，直接进自己的手牌）
+---@class Proto.Request.Debug.GiveCard
+---@field name string # 要造的牌名
+
+---@class Proto.Result.Debug.GiveCard
 
 --- 一条玩家设置：名字 + 这个人当前的值 + 默认值 + 说明
 ---@class Proto.Setting
@@ -288,6 +305,7 @@
 
 ---@class Proto.Request.Ask.Choice: Proto.Cancelable, Proto.Timelimit
 ---@field reason string # 给用户看的提示文本（可带格式，见 `jsonrpc-protocol` 规格）
+---@field desc? string # 这次询问自己的说明（如「判定为红色则视为打出【闪】」）
 ---@field options string[] # 可选项列表
 ---@field cancelable? boolean # 是否可以主动取消
 

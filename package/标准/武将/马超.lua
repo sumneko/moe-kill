@@ -22,8 +22,10 @@ Skill '铁骑'
             return
         end
         skill:tryCast(function ()
-            local judge = game:judge(skill.owner, '铁骑')
-            if judge.card?.color ~= '红' then
+            local judge = game:judge(skill.owner, '铁骑', function (judge)
+                return judge.card?.color == '红'
+            end)
+            if not judge.passed then
                 return
             end
             useCard:addUseOptions { unrespondable = target }

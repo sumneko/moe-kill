@@ -8,6 +8,8 @@ local BEAT = {
     damage      = 0.4,
     heal        = 0.3,
     judge       = 0.3,
+    -- 判定结果：客户端先亮牌 1 秒、再打勾 / 叉停 1.8 秒，演完才收尾
+    judgeResult = 3,
     death       = 0.5,
     panelChange = 0.3,
 }
@@ -43,6 +45,13 @@ end)
 game:on('判定-后', function ()
     game:animSleep(BEAT.judge)
 end)
+
+--- 判定出了结果：客户端要先亮判定牌、再打勾 / 叉 —— 等它演完，这个效果才收尾（牌才进弃牌堆）
+--- 注意：这里**不能**直接订阅「判定-结果」——那个事件订阅顺序在同步层之前，会让广播排到等完以后。
+--- 所以给个节拍函数，由判定自己在 fire 完之后调。
+rule.judgeResultBeat = function ()
+    game:animSleep(BEAT.judgeResult)
+end
 
 game:on('玩家-死亡', function ()
     game:animSleep(BEAT.death)

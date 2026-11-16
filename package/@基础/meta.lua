@@ -44,6 +44,8 @@
 ---@field fire fun(self: Game, name: '判定-前', judge: Judge): any # 改判窗口：只能在这里面换牌
 ---@field on fun(self: Game, name: '判定-后', callback: fun(judge: Judge): any): function
 ---@field fire fun(self: Game, name: '判定-后', judge: Judge): any
+---@field on fun(self: Game, name: '判定-结果', callback: fun(judge: Judge): any): function
+---@field fire fun(self: Game, name: '判定-结果', judge: Judge): any # 内容侧判完标了成败（客户端画勾 / 叉）
 
 --- 判定的两条**对判定者再发一份**（全局先、当事人后；同名 —— 判定没有「来源 / 目标」之分）
 ---@class Player
