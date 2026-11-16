@@ -152,13 +152,13 @@ lt.test('万箭齐发：这次响应被禁 ⇒ 不发【闪】询问、照常挨
     ---@type integer
     local asked = 0
     run.game:on('卡牌-询问', function (ask)
-        if ask.kind == 'askPlayCard' then
+        if ask.kind == 'askPlayCard' and ask.to == target then
             asked = asked + 1
         end
     end)
 
     local hpBefore = target:getAttr('体力')
-    run.game:useCard(user, card, { target })
+    run.game:useCard(user, card, { run.players[2], run.players[3] })
 
     lt.assertEquals('连问都不问', 0, asked)
     lt.assertEquals('照常掉 1 点', hpBefore - 1, target:getAttr('体力'))
@@ -174,11 +174,14 @@ lt.test('南蛮入侵 / 万箭齐发：合法目标是所有其他角色', funct
     local one = assert(plan1.legal)
     lt.assertEquals('三个人的局里两个目标', 2, #one)
     lt.assertEquals('不含自己', false, moe.util.arrayHas(one, user))
+    lt.assertEquals('必须选满（少选不给用）', 2, plan1.min)
+    lt.assertEquals('也就不能再多', 2, plan1.max)
 
     local plan2 = assert(select(3, run.game:canUse(user, arrows)), '万箭该给出合法目标')
     local other = assert(plan2.legal)
     lt.assertEquals('万箭一样', 2, #other)
     lt.assertEquals('不含自己', false, moe.util.arrayHas(other, user))
+    lt.assertEquals('同样必须选满', 2, plan2.min)
 end)
 
 lt.test('桃园结义：所有角色各回 1 点，满血的不变', function ()

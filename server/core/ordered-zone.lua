@@ -13,24 +13,28 @@ function M:__init(game, random)
     self.random = random
 end
 
---- 从区顶取 n 张（不够就少给，不报错）
+--- 从区顶取 n 张搬到目标区（不够就少给，不报错）—— 牌搬之前仍留在本区，移动记录的起点才是这里
 ---@param count integer
+---@param to Zone # 搬到哪个区
 ---@return Card[] # 实际取到的牌（按取的先后）
 ---@async
-function M:draw(count)
+function M:draw(count, to)
     ---@type Card[]
-    local cards = {}
-    for _ = 1, count do
-        if #self.cards == 0 and self.shortage then
+    local listed = {}
+    for i = 1, count do
+        if i > #self.cards and self.shortage then
             self.shortage(self)
         end
-        local top = self.cards[1]
+        local top = self.cards[i]
         if not top then
             break
         end
-        cards[#cards + 1] = assert(self:remove(top))
+        listed[#listed + 1] = top
     end
-    return cards
+    if #listed > 0 then
+        self.game:moveCard(listed, to)
+    end
+    return listed
 end
 
 --- 取空了怎么补（内容侧挂：把弃牌全部洗回之类）

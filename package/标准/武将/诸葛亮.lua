@@ -17,11 +17,10 @@ Skill '观星'
         skill:tryCast(function (cast)
             local deck  = assert(game:getZone('抽牌'))
             local x     = math.min(#game.desk.alivePlayers, 5)
-            local seen  = deck:draw(x)
-            -- 观看 = 摊在自己这次发动的临时区里：**先**把区藏好、**再**把牌搬进来（不留「大家都看得见」那一瞬）
+            -- 观看 = 摊在自己这次发动的临时区里：先把区藏好、再取牌（取的时候直接搬进来，不留「大家都看得见」那一瞬）
             local shown = cast:getTempZone()
             shown:setVisible(skill.owner)
-            game:moveCard(seen, shown)
+            deck:draw(x, shown)
             -- 摊成面板：顶堆 / 底堆两行，归他自己摆（`moveable` = 允许把牌在两行之间挪）；不动就能直接确定
             local panel = createPanel('观星', skill.owner, { moveable = true, min = 0 })
                 : row(shown:list(), '牌堆顶')

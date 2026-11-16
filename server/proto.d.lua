@@ -155,6 +155,11 @@
 ---@field card integer # 这张牌在他那份视图里的号
 ---@field targets integer[] # 目标玩家
 
+--- 一次判定开始了：谁判的、缘由（客户端在这段里显示「正在判定：X」）
+---@class Proto.Notify.Judge.Begin
+---@field player integer # 判定者
+---@field reason? string # 判定缘由（发起者给的标签，如「八卦阵」）
+
 --- 一次判定出了结果：谁判的、缘由、判定牌、成没成
 ---@class Proto.Notify.Judge.Result
 ---@field player integer # 判定者

@@ -6,7 +6,7 @@ Card '南蛮入侵'
     : hint '对所有其他角色使用，各需打出一张【杀】'
     : extends '锦囊牌'
     : targets {
-        max = 1000,
+        min = 1000,
         filter = function (player, plan)
             return player ~= plan.user
         end,

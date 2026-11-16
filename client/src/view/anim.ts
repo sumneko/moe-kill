@@ -44,26 +44,43 @@ function handRect(): DOMRect | null {
     return new DOMRect(hand.left + center - (hand.left + hand.width / 2), hand.top, hand.width, hand.height);
 }
 
+/** 一个区域在屏幕上长什么样；`slot` = 一格牌位（中心对齐），否则按区域边贴 */
+export interface ZonePlace {
+    rect: DOMRect;
+    slot: boolean;
+}
+
 /** 一个区域在屏幕上的位置（区域串 = `名字#玩家号`） */
-export function zoneRect(agent: Agent, zone: string): DOMRect | null {
+export function locateZone(agent: Agent, zone: string): ZonePlace | null {
     const [name, owner] = zone.split('#');
     const id = Number(owner);
     if (name === '抽牌') {
-        return rectOf('#corner .deck');
+        return asArea(rectOf('#corner .deck'));
     }
     if (name === '弃牌') {
-        return rectOf('#corner .discard');
+        return asArea(rectOf('#corner .discard'));
     }
     if (name === '手牌' && id === agent.me) {
-        return handRect();
+        return asArea(handRect());
     }
     if (name === '判定') {
-        return rectOf(`[data-fly="seat:${id}"] .judge-col`) ?? rectOf(`[data-fly="seat:${id}"]`);
+        return asArea(rectOf(`[data-fly="seat:${id}"] .judge-col`) ?? rectOf(`[data-fly="seat:${id}"]`));
     }
     if (EQUIP_ZONES.includes(name)) {
-        return rectOf(`[data-fly="zone:${zone}"]`) ?? rectOf(`[data-fly="seat:${id}"] .equips`);
+        return asArea(rectOf(`[data-fly="zone:${zone}"]`) ?? rectOf(`[data-fly="seat:${id}"] .equips`));
     }
-    return rectOf(`[data-fly="seat:${id}"]`) ?? rectOf('#recordZone');
+    if (name === '') {
+        const judge = rectOf('#judgeShow');
+        if (judge) {
+            return { rect: judge, slot: true };
+        }
+    }
+    return asArea(rectOf(`[data-fly="seat:${id}"]`) ?? rectOf('#recordZone'));
+}
+
+/** 包成「一片区域」 */
+function asArea(rect: DOMRect | null): ZonePlace | null {
+    return rect ? { rect, slot: false } : null;
 }
 
 /** 记下这一帧每张牌的位置（渲染后叫 —— 动画的起点靠它） */
@@ -112,8 +129,12 @@ function ghostGroup(faces: (Proto.CardFace | undefined)[]): HTMLElement {
     return group;
 }
 
-/** 飞行总时长（毫秒） */
-export const FLY_MS = 1000;
+/** 飞到目标位置用多久（毫秒） */
+const FLY_MOVE_MS = 700;
+/** 到位后淡出用多久（毫秒） */
+const FLY_FADE_MS = 300;
+/** 一次飞行的总时长（毫秒） */
+export const FLY_MS = FLY_MOVE_MS + FLY_FADE_MS;
 
 /** 起步马上提速（加速段短）、之后一路减速（减速段长），到点速度正好为 0 */
 const FLY_EASING = 'cubic-bezier(.25, 0, .25, 1)';
@@ -137,15 +158,19 @@ function thinAxis(to: DOMRect): 'x' | 'y' | null {
     return to.width > to.height ? 'y' : 'x';
 }
 
-/** 让牌的最近那条边与目标区域的最近那条边接上（两条边的中点对接），返回位移与缩放的支点 */
-function meetOffset(from: DOMRect, to: DOMRect): { x: number; y: number; origin: string } {
+/** 让牌的最近那条边与目标区域的最近那条边接上（两条边的中点对接），返回位移与缩放的支点；`slot` = 直接盖在那一格牌上 */
+function meetOffset(from: DOMRect, to: DOMRect, slot: boolean): { x: number; y: number; origin: string } {
     const fromX = from.left + from.width / 2;
     const fromY = from.top + from.height / 2;
     const toX = to.left + to.width / 2;
     const toY = to.top + to.height / 2;
+    const scale = stageScale();
+    if (slot) {
+        return { x: toX - fromX, y: toY - fromY, origin: 'center center' };
+    }
     const dx = toX - fromX;
     const dy = toY - fromY;
-    const gap = EDGE_GAP * stageScale();
+    const gap = EDGE_GAP * scale;
     const axis = thinAxis(to);
     if (axis === 'x' || (axis === null && Math.abs(dx) > Math.abs(dy))) {
         // 横向：往右飞就用组里最右侧那条边贴近目标左边，往左飞就用最左侧那条边贴近目标右边
@@ -160,8 +185,8 @@ function meetOffset(from: DOMRect, to: DOMRect): { x: number; y: number; origin:
     return { x: toX - fromX, y: zoneY - cardY, origin: dy > 0 ? 'center bottom' : 'center top' };
 }
 
-/** 让一张浮层的牌从 from 沿这条曲线飞到 to 的边上，到点直接消失 */
-export function flyGhost(el: HTMLElement, from: DOMRect, to: DOMRect, endScale = 0.75): void {
+/** 让一张浮层的牌从 from 沿这条曲线飞到 to（`slot` = 盖在那一格牌上，否则贴到区域的边上） */
+export function flyGhost(el: HTMLElement, from: DOMRect, to: DOMRect, endScale = 0.75, slot = false): void {
     const stage = document.querySelector<HTMLElement>('#stage');
     if (!stage) {
         return;
@@ -175,12 +200,14 @@ export function flyGhost(el: HTMLElement, from: DOMRect, to: DOMRect, endScale =
     el.style.pointerEvents = 'none';
     el.style.zIndex = '30';
     stage.appendChild(el);
-    const meet = meetOffset(from, to);
+    const meet = meetOffset(from, to, slot);
     el.style.transformOrigin = meet.origin;
+    const arrive = `translate(${meet.x / scale}px, ${meet.y / scale}px) scale(${endScale})`;
     const anim = el.animate([
-        { transform: 'translate(0px, 0px) scale(1)', offset: 0 },
-        { transform: `translate(${meet.x / scale}px, ${meet.y / scale}px) scale(${endScale})`, offset: 1 },
-    ], { duration: FLY_MS, easing: FLY_EASING });
+        { transform: 'translate(0px, 0px) scale(1)', opacity: 1, offset: 0, easing: FLY_EASING },
+        { transform: arrive, opacity: 1, offset: FLY_MOVE_MS / FLY_MS },
+        { transform: arrive, opacity: 0, offset: 1 },
+    ], { duration: FLY_MS });
     anim.addEventListener('finish', () => el.remove());
 }
 
@@ -190,8 +217,8 @@ function sourceRect(agent: Agent, move: Proto.CardMove, count: number): DOMRect 
     if (cached) {
         return new DOMRect(cached.left, cached.top, cached.width * count, cached.height);
     }
-    const zone = zoneRect(agent, move.from === '#0' && move.to.startsWith('手牌#') ? '抽牌#0' : move.from);
-    return zone ? inZone(zone, count) : null;
+    const place = locateZone(agent, move.from);
+    return place ? inZone(place.rect, count) : null;
 }
 
 /** 播一批同向的卡牌移动（`skip` 里的牌另有专门的表现，就不重复飞了）；多张就横排成一组一起飞 */
@@ -202,7 +229,7 @@ export function playMoves(agent: Agent, moves: Proto.CardMove[], skip: number[])
     }
     const flying = list.length > GROUP_MAX ? list.slice(0, 1) : list;
     const from = sourceRect(agent, flying[0], flying.length);
-    const to = zoneRect(agent, flying[0].to);
+    const to = locateZone(agent, flying[0].to);
     if (!from || !to) {
         return;
     }
@@ -210,5 +237,5 @@ export function playMoves(agent: Agent, moves: Proto.CardMove[], skip: number[])
     const ghost = flying.length === 1 ? ghostOf(flying[0].face) : ghostGroup(flying.map((move) => move.face));
     ghost.dataset.move = `${flying[0].from} → ${flying[0].to}${flying.length > 1 ? ` ×${flying.length}` : ''}`;
     // 打到桌上（无主区）的牌是「放大摆出来」，别的都是「收起来」
-    flyGhost(ghost, from, to, flying[0].to === '#0' ? 1.4 : SHRINK);
+    flyGhost(ghost, from, to.rect, flying[0].to === '#0' ? 1.4 : SHRINK, to.slot);
 }

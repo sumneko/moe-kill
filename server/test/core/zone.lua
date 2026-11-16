@@ -324,34 +324,36 @@ end)
 
 lt.test('有序牌区：依次取顶与洗牌后顺序一致', function ()
     local zone = lt.orderedZone()
+    local taken = lt.zone()
     fill(zone, DECK)
     zone:shuffle(moe.random.create(7))
 
     local expected = zoneLabels(zone)
     local drawn    = {}
     while zone:count() > 0 do
-        drawn[#drawn + 1] = tostring(assert(zone:draw(1)[1]).name)
+        drawn[#drawn + 1] = tostring(assert(zone:draw(1, taken)[1]).name)
     end
 
     lt.assertEquals('取顶顺序与洗牌后一致', expected, table.concat(drawn, ','))
     lt.assertEquals('取完后计数为 0', 0, zone:count())
-    lt.assertEquals('取空后再取给空列表', 0, #zone:draw(1))
+    lt.assertEquals('取空后再取给空列表', 0, #zone:draw(1, taken))
 end)
 
 lt.test('有序牌区：从顶取 n 张，不够就少给', function ()
     local zone = lt.orderedZone()
+    local taken = lt.zone()
     fill(zone, { '甲', '乙', '丙' })
 
-    local two = zone:draw(2)
+    local two = zone:draw(2, taken)
     lt.assertEquals('取到 2 张', 2, #two)
     lt.assertEquals('取的是前两张', '甲,乙', labels(two))
     lt.assertEquals('区里剩 1 张', '丙', zoneLabels(zone))
 
-    local rest = zone:draw(5)
+    local rest = zone:draw(5, taken)
     lt.assertEquals('再多要也只有 1 张', 1, #rest)
     lt.assertEquals('要不到不报错', '', zoneLabels(zone))
 
-    lt.assertEquals('空区取到 0 张', 0, #zone:draw(1))
+    lt.assertEquals('空区取到 0 张', 0, #zone:draw(1, taken))
 end)
 
 lt.test('有序牌区：取空了会调不足回调，补到就接着取', function ()
@@ -369,7 +371,7 @@ lt.test('有序牌区：取空了会调不足回调，补到就接着取', funct
         end
     end)
 
-    local cards = zone:draw(3)
+    local cards = zone:draw(3, lt.zone())
 
     lt.assertEquals('只调了一次', 1, times)
     lt.assertEquals('取到 3 张', 3, #cards)
@@ -386,7 +388,7 @@ lt.test('有序牌区：置于区顶 / 区底按给定顺序，取出来的牌�
     zone:placeBottom { lt.card('戊') }
     lt.assertEquals('置底：追加在最后', '丙,丁,甲,乙,戊', zoneLabels(zone))
 
-    local drawn = zone:draw(2)
+    local drawn = zone:draw(2, lt.zone())
     lt.assertEquals('取出前两张', '丙,丁', labels(drawn))
     zone:placeBottom { drawn[1] }
     zone:placeTop { drawn[2] }
@@ -414,7 +416,7 @@ lt.test('有序牌区：回调补不到牌就少给', function ()
         times = times + 1
     end)
 
-    local cards = zone:draw(2)
+    local cards = zone:draw(2, lt.zone())
 
     lt.assertEquals('调了一次', 1, times)
     lt.assertEquals('一张都没取到', 0, #cards)
@@ -423,7 +425,7 @@ end)
 lt.test('有序牌区：没挂回调时取空就少给', function ()
     local zone = lt.orderedZone()
 
-    lt.assertEquals('要 3 张拿到 0 张', 0, #zone:draw(3))
+    lt.assertEquals('要 3 张拿到 0 张', 0, #zone:draw(3, lt.zone()))
 end)
 
 lt.test('有序牌区：洗牌必须传入随机源', function ()

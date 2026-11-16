@@ -86,7 +86,9 @@ end
 ---@param text string
 function M:onMessage(text)
     log.debug('[rpc] 收 {}' % { summarize(text) })
-    log.trace('[rpc] 收 {}' % { text })
+    if moe.debug then
+        log.debug('[rpc] 收全文 {}' % { text })
+    end
     local message, decodeErr = moe.jsonrpc.decode(text)
     if not message then
         self:send(moe.jsonrpc.encodeError(nil, moe.jsonrpc.PARSE_ERROR, '这条消息解析不了', decodeErr))
@@ -194,7 +196,9 @@ function M:send(text)
         return false, '连接已关闭'
     end
     log.debug('[rpc] 发 {}' % { summarize(text) })
-    log.trace('[rpc] 发 {}' % { text })
+    if moe.debug then
+        log.debug('[rpc] 发全文 {}' % { text })
+    end
     local ok, err = self.link:write(encodeFrame(text))
     if not ok then
         log.warn('往客户端发消息失败，这条连接收摊了：{}' % { err or '未知原因' })

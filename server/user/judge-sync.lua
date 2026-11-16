@@ -28,7 +28,19 @@ local S = Class 'Game.JudgeSync'
 function S:__init(game)
     self.game = game
 
-    -- 内容侧标了成败（`judge:mark`）：判定牌带牌面给出去，谁都能画勾 / 叉
+    -- 判定开始：谁在判什么（这一段客户端要等牌飞出来，光一张牌没说明）
+    game:on('判定-开始', function (judge)
+        ---@type Proto.Notify.Judge.Begin
+        local data = {
+            player = judge.player.id,
+            reason = judge.reason,
+        }
+        for _, player in ipairs(game.desk.players) do
+            player.user?:notify('Judge.Begin', data)
+        end
+    end)
+
+    -- 内容侧判了成败：判定牌带牌面给出去，谁都能画勾 / 叉
     game:on('判定-结果', function (judge)
         local card = judge.card
         if not card then

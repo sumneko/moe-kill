@@ -257,8 +257,10 @@ end
 
 ---@param moves Zone.Move[]
 function V:moveCards(moves)
-    ---@type Proto.CardMove[]
-    local pmoves = {}
+    ---@type Proto.CardMove[][]
+    local groups = {}
+    ---@type table<string, integer>
+    local index  = {}
     for _, move in ipairs(moves) do
         local from = self:toPZone(move.from)
         local to   = self:toPZone(move.to)
@@ -271,7 +273,14 @@ function V:moveCards(moves)
                        or move.to:isVisibleTo(self.user.player)
             end
             local pcard = self.cardMap[move.card]
-            pmoves[#pmoves+1] = {
+            local at = index[from]
+            if not at then
+                at = #groups + 1
+                index[from] = at
+                groups[at] = {}
+            end
+            local list = assert(groups[at])
+            list[#list+1] = {
                 id   = visible and pcard?.id   or nil,
                 face = visible and self:toPCardFace(move.card.ownFace) or nil,
                 from = from,
@@ -279,12 +288,15 @@ function V:moveCards(moves)
             }
         end
     end
-    if #pmoves == 0 then
-        return
+    for _, list in ipairs(groups) do
+        local first = assert(list[1])
+        log.debug('[flow] 移动通知 #{}：{} → {}（{} 张）' % {
+            self.user.player.id, first.from, first.to, #list,
+        })
+        self.user:notify('Card.Move', {
+            moves = list,
+        })
     end
-    self.user:notify('Card.Move', {
-        moves = pmoves,
-    })
 end
 
 --- 搬动前：换区的那几张旧号就此作废（按账里记着的旧区摘 —— 内核这时已经把它们挪到新区了）

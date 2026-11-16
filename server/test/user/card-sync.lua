@@ -600,3 +600,50 @@ lt.test('卡牌同步：使用牌广播给每条连接（各自视图的牌号 +
     lt.assertEquals('目标就是那个人', you.id, assert(mine.targets)[1])
     lt.assertEquals('对方那条也带着同样的目标', you.id, assert(yours.targets)[1])
 end)
+
+---@async
+lt.test('卡牌同步：取顶取出来的牌搬走，移动通知的起点是抽牌堆', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    attach(players)
+    local moves = collect('Card.Move')
+
+    local deck = assert(game:getZone('抽牌'))
+    local card = game:createCard('杀')
+    deck:accept(card)
+    moe.await.sleep(0)
+    clear(moves)
+
+    deck:draw(1, me:getZone('手牌'))
+
+    local mine = assert(assert(moves[1]).moves[1])
+    lt.assertEquals('起点是抽牌堆', '抽牌#0', mine.from)
+    lt.assertEquals('终点是手牌', '手牌#' .. me.id, mine.to)
+end)
+
+---@async
+lt.test('卡牌同步：一次搬动里来源不同，按来源拆成多条移动通知', function ()
+    local game, players = newGame()
+    local me = assert(players[1])
+    attach(players)
+    local moves = collect('Card.Move')
+
+    local deck   = assert(game:getZone('抽牌'))
+    local inDeck = game:createCard('杀')
+    local inHand = game:createCard('闪')
+    deck:accept(inDeck)
+    me:getZone('手牌'):accept(inHand)
+    moe.await.sleep(0)
+    clear(moves)
+
+    game:moveCard({ inDeck, inHand }, '弃牌')
+
+    lt.assertEquals('两条连接各两条（按来源分组）', 4, #moves)
+    local byDeck = assert(moves[1])
+    local byHand = assert(moves[2])
+    lt.assertEquals('第一条是抽牌堆那一组', '抽牌#0', assert(byDeck.moves[1]).from)
+    lt.assertEquals('一条只带自己来源的牌', 1, #byDeck.moves)
+    lt.assertEquals('第二条是手牌那一组', '手牌#' .. me.id, assert(byHand.moves[1]).from)
+    lt.assertEquals('一条只带自己来源的牌', 1, #byHand.moves)
+    lt.assertEquals('两组都落到弃牌堆', '弃牌#0', assert(byDeck.moves[1]).to)
+end)

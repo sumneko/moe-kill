@@ -25,24 +25,31 @@ end
 ---@class Game.FlowSync
 local S = Class 'Game.FlowSync'
 
+--- 日志用的一行人话：名字 + 玩家号 + 座位号
+---@param player Player
+---@return string
+local function labelOf(player)
+    return '{}（#{} 座位{}）' % { player:getName() or '?', player.id, player.game.desk:getIndex(player) or 0 }
+end
+
 ---@param game Game
 function S:__init(game)
     self.game = game
 
     game:on('回合-开始', function (turn)
-        log.debug('[flow] 回合开始（{}）' % { turn.player:getName() or '?' })
+        log.debug('[flow] 回合开始 {}' % { labelOf(turn.player) })
         self:broadcast('Turn.Begin', { player = turn.player.id })
     end)
     game:on('回合-结束', function (turn)
-        log.debug('[flow] 回合结束（{}）' % { turn.player:getName() or '?' })
+        log.debug('[flow] 回合结束 {}' % { labelOf(turn.player) })
         self:broadcast('Turn.End', { player = turn.player.id })
     end)
     game:on('阶段-开始', function (phase)
-        log.debug('[flow] 阶段开始 {}（{}）' % { phase.name, phase.player:getName() or '?' })
+        log.debug('[flow] 阶段开始 {} {}' % { phase.name, labelOf(phase.player) })
         self:broadcast('Phase.Begin', { player = phase.player.id, name = phase.name })
     end)
     game:on('阶段-结束', function (phase)
-        log.debug('[flow] 阶段结束 {}（{}）' % { phase.name, phase.player:getName() or '?' })
+        log.debug('[flow] 阶段结束 {} {}' % { phase.name, labelOf(phase.player) })
         self:broadcast('Phase.End', { player = phase.player.id, name = phase.name })
     end)
     game:on('游戏-结束', function (result)

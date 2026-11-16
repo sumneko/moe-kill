@@ -261,6 +261,20 @@ export namespace Proto {
 
         export namespace Judge {
             /**
+             * 一次判定开始了：谁判的、缘由（客户端在这段里显示「正在判定：X」）
+             */
+            export interface Begin {
+                /**
+                 * 判定者
+                 */
+                player: number;
+                /**
+                 * 判定缘由（发起者给的标签，如「八卦阵」）
+                 */
+                reason?: string;
+            }
+
+            /**
              * 一次判定出了结果：谁判的、缘由、判定牌、成没成
              */
             export interface Result {

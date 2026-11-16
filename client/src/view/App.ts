@@ -40,9 +40,9 @@ const ARROW_TAIL = 58;
 /** 一次使用 / 技能发动的箭头停留多久（毫秒） */
 const USE_ARROW_MS = 2500;
 /** 判定牌亮出来之后隔多久才打勾 / 叉（毫秒）—— 先让人看清判定牌，再看结果 */
-const JUDGE_MARK_DELAY_MS = 1000;
+const JUDGE_MARK_DELAY_MS = 500;
 /** 打完勾 / 叉之后还停多久（毫秒） */
-const JUDGE_SHOW_MS = 1800;
+const JUDGE_SHOW_MS = 900;
 
 /** 一支箭头（键用来区分选择期的箭头与各次使用期的箭头） */
 interface Arrow {
@@ -161,6 +161,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
     const [uses, setUses] = useState<{ key: number; user: number; targets: number[] }[]>([]);
     /** 刚出结果的判定：中央亮一张判定牌，过一秒再打勾 / 叉，到点自己消失 */
     const [judgeShow, setJudgeShow] = useState<{ key: number; face: Proto.CardFace; passed: boolean; marked: boolean; reason?: string } | null>(null);
+    /** 正在判定（牌还没翻出来之前的那一段）：显示「正在判定：X」 */
+    const [judgeHint, setJudgeHint] = useState<string | null>(null);
     const [drawer, setDrawer] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [raw, setRaw] = useState('');
@@ -218,6 +220,10 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 }, USE_ARROW_MS);
                 continue;
             }
+            if (event.kind === 'judgeBegin') {
+                setJudgeHint(event.reason ? `正在判定：${event.reason}` : '判定中…');
+                continue;
+            }
             if (event.kind === 'judge') {
                 const key = nextKey.current++;
                 setJudgeShow({ key, face: event.face, passed: event.passed, marked: false, reason: event.reason });
@@ -225,8 +231,10 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 window.setTimeout(() => {
                     setJudgeShow((now) => (now?.key === key ? { ...now, marked: true } : now));
                 }, JUDGE_MARK_DELAY_MS);
+                // 牌和提示一起收：勾 / 叉演完才消失
                 window.setTimeout(() => {
                     setJudgeShow((now) => (now?.key === key ? null : now));
+                    setJudgeHint(null);
                 }, JUDGE_MARK_DELAY_MS + JUDGE_SHOW_MS);
                 continue;
             }
@@ -449,6 +457,8 @@ export function App(props: { agent: Agent; events: GameEvent[] }) {
                 </div>
             </div>
 
+            ${judgeHint ? html`<div id="judgeHint">${judgeHint}</div>` : null}
+            ${judgeHint && !judgeShow ? html`<div id="judgeShow" class="slot" />` : null}
             ${judgeShow ? html`<div id="judgeShow" key=${judgeShow.key}>
                 <${Card} agent=${agent} id=${-1} face=${judgeShow.face} />
                 ${judgeShow.marked

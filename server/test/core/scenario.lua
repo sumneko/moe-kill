@@ -22,9 +22,8 @@ lt.test('场景：调用方自己组合出「发牌」', function ()
 
     local top3 = {}
     for i = 1, 3 do
-        local card = assert(pile:draw(1)[1])
+        local card = assert(pile:draw(1, hand)[1])
         top3[i] = tostring(card.name)
-        hand:accept(card)
     end
 
     lt.assertEquals('抽牌少三张', 7, pile:count())

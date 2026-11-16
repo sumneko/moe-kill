@@ -6,7 +6,7 @@ Card '五谷丰登'
     : desc '出牌阶段，对所有角色使用。你亮出牌堆顶等同于目标角色数的牌，然后每名目标角色获得其中一张；\n使用结算结束后，将其中剩余的牌置入弃牌堆。'
     : hint '对所有角色使用，亮出等量的牌各取一张'
     : extends '锦囊牌'
-    : targets { max = 1000 }
+    : targets { min = 1000 }
     : on('使用', function (useCard)
         -- 处理区里还有这张锦囊自己 ⇒ 面板只摆「亮出的」那些（`drawCards` 给出实际抽到的牌）
         local revealed = game:drawCards(useCard.user, #useCard.targets, useCard:getTempZone())

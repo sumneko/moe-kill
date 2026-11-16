@@ -1381,11 +1381,7 @@ end
 ---@param to? Zone # 抽到哪个牌区（省略 = 该玩家的手牌区）
 ---@return Card[] # 实际抽到的牌（牌堆不够时可能少于 count）
 function M:drawCards(player, count, to)
-    local cards = self:getZone('抽牌'):draw(count)
-    if #cards > 0 then
-        self:moveCard(cards, to or player:getZone('手牌'))
-    end
-    return cards
+    return self:getZone('抽牌'):draw(count, to or player:getZone('手牌'))
 end
 
 ---@param game Game
@@ -1454,6 +1450,7 @@ local function checkTargets(game, def, user, card, targets, useOptions)
         return false, reason
     end
     max = math.min(max, #legal)
+    min = math.min(min, #legal)
     if targets then
         if #targets < min then
             return false, '「{}」至少要指定 {} 个目标' % { def.fullName, min }

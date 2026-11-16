@@ -116,9 +116,17 @@ button:disabled { cursor: default; opacity: .45; }
 }
 #playedTo { font-size: 13px; color: #cfd6e6; min-height: 18px; }
 
+/* 判定开始 / 判定结果：提示在上一行（留到勾 / 叉演完），判定牌在它下面 */
+#judgeHint { position: absolute; left: 50%; top: 196px; transform: translateX(-50%); z-index: 40;
+    padding: 8px 18px; border-radius: 8px; background: #151b28e6; border: 1px solid var(--gold);
+    color: var(--gold); font-size: 15px; font-weight: 700; white-space: nowrap; pointer-events: none;
+    animation: judge-in 200ms ease-out; }
+
 /* 判定结果：中央亮一张判定牌，勾 / 叉盖在牌面上，停一会儿自己消失 */
-#judgeShow { position: absolute; left: 50%; top: 232px; transform: translateX(-50%); z-index: 40;
+#judgeShow { position: absolute; left: 50%; top: 288px; transform: translateX(-50%); z-index: 40;
     pointer-events: none; animation: judge-in 240ms ease-out; }
+/* 判定期间先占个位：飞牌得知道最终落在哪儿（牌本身还没亮出来） */
+#judgeShow.slot { visibility: hidden; width: var(--card-w); height: var(--card-h); animation: none; }
 #judgeShow .card { transform: scale(1.3); transform-origin: center; box-shadow: 0 8px 24px #000a; }
 #judgeShow .mark { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     font-size: 64px; font-weight: 900; line-height: 1;

@@ -50,6 +50,8 @@ end
 --- 判定结算
 ---@async
 function Judge:settle()
+    -- 亮牌之前先说一声「在判什么」：接下来要等一段搬运节拍，光飞一张暗牌出来没有说明
+    self.game:fire('判定-开始', self)
     -- 亮牌
     local cards = self.game:drawCards(self.player, 1, self:getTempZone())
     if #cards > 0 then

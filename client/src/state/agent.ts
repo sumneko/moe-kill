@@ -541,6 +541,11 @@ export class Agent {
             this.events.push({ kind: 'use', user: params.user, skill: params.skill, targets: params.targets });
             this.changed();
         });
+        rpc.onNotify('Judge.Begin', (params: Proto.Notify.Judge.Begin) => {
+            this.log(`开始判定：${params.reason ?? '无缘由'}`);
+            this.events.push({ kind: 'judgeBegin', player: params.player, reason: params.reason });
+            this.changed();
+        });
         rpc.onNotify('Judge.Result', (params: Proto.Notify.Judge.Result) => {
             this.log(`判定：${params.reason ?? '无缘由'} ${params.passed ? '成功' : '失败'}`);
             this.events.push({

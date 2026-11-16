@@ -78,6 +78,7 @@ local function seatPlayer(game, index, client, name)
     game.desk:sit(index, player)
     player:setUser(user)
     user:attach()
+    log.info('坐下：{}（#{} 座位 {}）' % { player:getName() or '?', player.id, index })
     return player, user
 end
 
@@ -103,7 +104,9 @@ local function reseat(game, player, client)
     local user = New 'ClientUser' (game, client)
     player:setUser(user)
     user:attach()
-    log.info('接了回来：{}（座位 {}）' % { player:getName() or '?', game.desk:getIndex(player) })
+    log.info('接了回来：{}（#{} 座位 {}）' % {
+        player:getName() or '?', player.id, game.desk:getIndex(player) or 0,
+    })
     return moe.snapshot.build(game, user)
 end
 
@@ -147,6 +150,17 @@ function moe.room.start(prepare)
     -- 开局要跑到这局结束（里头会挂在询问上）：放它自己的协程里，别占着叫它的那条
     moe.await.call(function ()
         game:fire('游戏-准备', { config = prepare })
+        ---@type string[]
+        local seats = {}
+        for index = 1, game.desk:getCount() do
+            local one = game.desk:getPlayer(index)
+            if one then
+                seats[#seats + 1] = '{}:{}(#{}, {})' % {
+                    index, one:getName() or '?', one.id, one.custom.identity or '?',
+                }
+            end
+        end
+        log.info('开局坐次：{}' % { table.concat(seats, ' ') })
         game:fire('游戏-开始', {})
         game:runFlow()
     end)

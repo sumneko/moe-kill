@@ -9,6 +9,7 @@
 ---@field defaultDrawCount? integer
 ---@field maxTurns? integer
 ---@field phases? string[]
+---@field judgeResultBeat? fun() # 判定结果的那段节拍（判定自己 fire 完再调，避免被同步层挤后）
 
 --- 性别（由武将写入；没有武将时常常没有 —— 官方：没有性别的角色不能判断别人与其性别是否相同）
 ---@alias 基础.性别 '男'|'女'
@@ -42,6 +43,8 @@
 ---@class Game
 ---@field on fun(self: Game, name: '判定-前', callback: fun(judge: Judge): any): function
 ---@field fire fun(self: Game, name: '判定-前', judge: Judge): any # 改判窗口：只能在这里面换牌
+---@field on fun(self: Game, name: '判定-开始', callback: fun(judge: Judge): any): function
+---@field fire fun(self: Game, name: '判定-开始', judge: Judge): any # 亮牌之前（客户端借此显示「正在判定：X」）
 ---@field on fun(self: Game, name: '判定-后', callback: fun(judge: Judge): any): function
 ---@field fire fun(self: Game, name: '判定-后', judge: Judge): any
 ---@field on fun(self: Game, name: '判定-结果', callback: fun(judge: Judge): any): function

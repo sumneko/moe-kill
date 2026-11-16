@@ -161,7 +161,7 @@ lt.test('收牌：收进有序牌区是追加到底部，取顶拿到的还是�
     lt.assertEquals('牌堆容量增加', 4, pile:count())
     lt.assertEquals('手牌清空', 0, hand:count())
     lt.assertEquals('刚收进来的在底部', '闪', assert(pile:peek(4)).name)
-    lt.assertEquals('取顶拿到的还是原来那张', '甲', assert(pile:draw(1)[1]).name)
+    lt.assertEquals('取顶拿到的还是原来那张', '甲', assert(pile:draw(1, hand)[1]).name)
     lt.assertEquals('取顶后剩余顺序不变', '乙,丙,闪', zoneLabels(pile))
     lt.assertNotEquals('原来的牌都还在', nil, pileCards[3])
 end)

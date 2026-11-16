@@ -16,5 +16,7 @@ export type GameEvent =
     | { kind: 'recorded'; face: Proto.CardFace; immediate?: boolean }
     /** 有人用牌 / 发动技能指向了目标（全场都收；`card` / `skill` 是各自的协议号） */
     | { kind: 'use'; user: number; targets: number[]; card?: number; skill?: number }
+    /** 判定开始了（显示「正在判定：X」，它和结果之间隔着一段搬运节拍） */
+    | { kind: 'judgeBegin'; player: number; reason?: string }
     /** 一次判定出了结果：牌面 + 成没成（中央亮一张，勾 / 叉） */
     | { kind: 'judge'; player: number; face: Proto.CardFace; passed: boolean; reason?: string };
